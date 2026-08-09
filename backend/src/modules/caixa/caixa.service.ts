@@ -392,7 +392,7 @@ export class CaixaService {
     if (from || to) { where.date = {}; if (from) where.date.gte = new Date(String(from) + 'T00:00:00'); if (to) where.date.lte = new Date(String(to) + 'T23:59:59'); }
     const appts = await this.prisma.appointment.findMany({
       where,
-      select: { value: true, date: true, items: { select: { grupo: true, marca: true, valorTotal: true, desconto: true, quantidade: true, descricao: true } } },
+      select: { value: true, date: true, items: { select: { grupo: true, marca: true, valorTotal: true, desconto: true, quantidade: true, descricao: true, productId: true } } },
     });
 
     const MESN = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -407,12 +407,21 @@ export class CaixaService {
     let totBruto = 0, totDesc = 0, totLiq = 0, totV = 0, totI = 0;
     const MARCAS: Record<string, string> = { EMPORIO: 'EMPORIO', MUNDO_A_PARTE: 'MUNDO_A_PARTE', DRA_VIVIAN: 'DRA_VIVIAN' };
     const porGrupo = new Map<string, number>(), porMarca = new Map<string, number>(), topItens = new Map<string, number>();
+    // Fatia 2 — quebras: turno + dia da semana (hora LOCAL Fortaleza = UTC-3) + produto×serviço
+    const TZ = 3 * 3600000;
+    const turno = { MANHA: 0, TARDE: 0, NOITE: 0 };
+    const diaSemana = [0, 0, 0, 0, 0, 0, 0]; // Dom..Sáb
+    const prodIds = new Set<string>();
     for (const a of appts) {
       const items = a.items || [];
       const liq = Number(a.value) || 0;
       const bruto = items.length ? items.reduce((s, it: any) => s + (Number(it.valorTotal) || 0) + (Number(it.desconto) || 0), 0) : liq;
       const desc = Math.max(0, bruto - liq);
       const qi = items.reduce((s, it: any) => s + (Number(it.quantidade) || 0), 0);
+      const local = new Date(new Date(a.date).getTime() - TZ);
+      const h = local.getUTCHours();
+      if (h < 12) turno.MANHA += liq; else if (h < 18) turno.TARDE += liq; else turno.NOITE += liq;
+      diaSemana[local.getUTCDay()] += liq;
       const { key, label } = bucketOf(new Date(a.date));
       const b = buckets.get(key) || { label, bruto: 0, desconto: 0, liquido: 0, qtdVendas: 0, qtdItens: 0 };
       b.bruto += bruto; b.desconto += desc; b.liquido += liq; b.qtdVendas += 1; b.qtdItens += qi;
@@ -420,11 +429,36 @@ export class CaixaService {
       totBruto += bruto; totDesc += desc; totLiq += liq; totV += 1; totI += qi;
       for (const it of items) {
         const v = Number(it.valorTotal) || 0;
+        if (it.productId) prodIds.add(it.productId as string);
         porGrupo.set(it.grupo || 'Sem grupo', (porGrupo.get(it.grupo || 'Sem grupo') || 0) + v);
         const mk = MARCAS[it.marca as string] || 'Sem marca'; porMarca.set(mk, (porMarca.get(mk) || 0) + v);
         const nm = it.descricao || 'Item'; topItens.set(nm, (topItens.get(nm) || 0) + v);
       }
     }
+    // Produto × Serviço (pelo tipo do catálogo): MEDICINE/VACCINE/KIT = produto; resto (SERVICE/PACOTE) = serviço
+    const prods = prodIds.size ? await this.prisma.product.findMany({ where: { id: { in: Array.from(prodIds) } }, select: { id: true, type: true } }) : [];
+    const typeMap = new Map(prods.map((p) => [p.id, p.type]));
+    const EH_PRODUTO = new Set(['MEDICINE', 'VACCINE', 'KIT']);
+    let vServico = 0, vProduto = 0;
+    for (const a of appts) for (const it of (a.items || [])) {
+      const v = Number(it.valorTotal) || 0;
+      const t = it.productId ? typeMap.get(it.productId as string) : null;
+      if (t && EH_PRODUTO.has(t)) vProduto += v; else vServico += v;
+    }
+    // Pacotes mais vendidos (fonte viva petpac_, no período)
+    const petpac = await this.prisma.listaItem.findMany({ where: { lista: { startsWith: 'petpac_' } }, select: { valor: true } });
+    const ini = from ? new Date(String(from) + 'T00:00:00') : null;
+    const fim = to ? new Date(String(to) + 'T23:59:59') : null;
+    const pacCount = new Map<string, number>();
+    for (const it of petpac) {
+      let d: any = {}; try { d = JSON.parse(it.valor); } catch { continue; }
+      const dtc = d.createdAt ? new Date(d.createdAt) : null;
+      if (ini && dtc && dtc < ini) continue;
+      if (fim && dtc && dtc > fim) continue;
+      const nm = d.nome || 'Pacote'; pacCount.set(nm, (pacCount.get(nm) || 0) + 1);
+    }
+    const pacotesTop = [...pacCount.entries()].map(([nome, qtd]) => ({ nome, qtd })).sort((a, b) => b.qtd - a.qtd).slice(0, 8);
+
     const evolucao = [...buckets.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([, v]) => v);
     const toArr = (mp: Map<string, number>) => [...mp.entries()].map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
     return {
@@ -432,6 +466,7 @@ export class CaixaService {
       totais: { bruto: totBruto, desconto: totDesc, liquido: totLiq, qtdVendas: totV, qtdItens: totI, ticket: totV ? totLiq / totV : 0 },
       groupBy, evolucao,
       porGrupo: toArr(porGrupo), porMarca: toArr(porMarca), topItens: toArr(topItens).slice(0, 8),
+      porTurno: turno, porDiaSemana: diaSemana, produtoServico: { servico: vServico, produto: vProduto }, pacotesTop,
     };
   }
 

@@ -46,6 +46,12 @@ const CSS = `
 .vg-segb.on{background:#E0F4F6;color:#014D5E}
 .vg-chart .b .bv{position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9.5px;color:#33454A;white-space:nowrap;opacity:0}
 .vg-chart .col:hover .bv{opacity:1}
+.vg-split{display:flex;height:26px;border-radius:8px;overflow:hidden;margin-bottom:10px}
+.vg-split .s{display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:700;color:#fff;white-space:nowrap;min-width:0}
+.vg-leg{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:#5C6B70}.vg-leg b{color:#014D5E}
+.vg-dot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle}
+.vg-pct{color:#8A938F;font-weight:400;margin-left:5px;font-size:11px}
+.vg-pill{font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 8px;background:#E0F4F6;color:#00798A;margin-left:6px}
 .vg-hbar{display:flex;align-items:center;gap:10px;margin-bottom:9px}
 .vg-hbar:last-child{margin-bottom:0}
 .vg-hbar .nm{width:150px;font-size:12.5px;color:#5C6B70;flex-shrink:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -91,6 +97,26 @@ export default function VendasGraficosPage() {
   const maxGrupo = Math.max(1, ...grupos.map((g: any) => Number(g.valor) || 0));
   const marcas = d?.porMarca || [];
   const maxMarca = Math.max(1, ...marcas.map((m: any) => Number(m.valor) || 0));
+  const somaGrupos = grupos.reduce((s: number, g: any) => s + (Number(g.valor) || 0), 0) || 1;
+  const somaMarcas = marcas.reduce((s: number, m: any) => s + (Number(m.valor) || 0), 0) || 1;
+  // Fatia 2 — quebras
+  const turno = d?.porTurno || { MANHA: 0, TARDE: 0, NOITE: 0 };
+  const turnoArr = [
+    { l: "☀️ Manhã", v: Number(turno.MANHA) || 0, c: "#E0A100" },
+    { l: "🌤️ Tarde", v: Number(turno.TARDE) || 0, c: "#009AAC" },
+    { l: "🌙 Noite", v: Number(turno.NOITE) || 0, c: "#6A4FB0" },
+  ];
+  const maxTurno = Math.max(1, ...turnoArr.map((t) => t.v));
+  const somaTurno = turnoArr.reduce((s, t) => s + t.v, 0) || 1;
+  const ds: number[] = d?.porDiaSemana || [0, 0, 0, 0, 0, 0, 0];
+  const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  const maxDS = Math.max(1, ...ds.map((x) => Number(x) || 0));
+  const melhorDia = Math.max(...ds) > 0 ? DIAS[ds.indexOf(Math.max(...ds))] : "—";
+  const prodServ = d?.produtoServico || { servico: 0, produto: 0 };
+  const vServ = Number(prodServ.servico) || 0, vProd = Number(prodServ.produto) || 0;
+  const somaPS = vServ + vProd || 1;
+  const pctServ = Math.round((vServ / somaPS) * 100);
+  const pacotesTop = d?.pacotesTop || [];
   const semVendas = !loading && (!d || (Number(d.total) || 0) === 0);
 
   return (
@@ -141,10 +167,46 @@ export default function VendasGraficosPage() {
 
             <div className="vg-cols">
               <div className="vg-card">
+                <div className="vg-ch">🕐 Vendas por turno</div>
+                <div className="vg-cb">
+                  <div className="vg-chart" style={{ height: 130 }}>
+                    {turnoArr.map((t) => (
+                      <div className="col" key={t.l}><div className="b" style={{ position: "relative", height: `${Math.max(2, t.v / maxTurno * 100)}%`, background: t.c, maxWidth: 40 }} title={money(t.v)}><span className="bv">{money(t.v)}</span></div><div className="x">{t.l}</div></div>
+                    ))}
+                  </div>
+                  <div className="vg-leg" style={{ marginTop: 12, justifyContent: "center" }}>{turnoArr.map((t) => <span key={t.l}>{t.l.split(" ")[1]} <b>{Math.round(t.v / somaTurno * 100)}%</b></span>)}</div>
+                </div>
+              </div>
+              <div className="vg-card">
+                <div className="vg-ch">📅 Vendas por dia da semana</div>
+                <div className="vg-cb">
+                  <div className="vg-chart" style={{ height: 130 }}>
+                    {ds.map((v: number, i: number) => (
+                      <div className="col" key={i}><div className="b" style={{ position: "relative", height: `${Math.max(2, (Number(v) || 0) / maxDS * 100)}%`, background: DIAS[i] === melhorDia ? "#00798A" : "#009AAC", maxWidth: 30 }} title={money(Number(v) || 0)}><span className="bv">{money(Number(v) || 0)}</span></div><div className="x">{DIAS[i]}</div></div>
+                    ))}
+                  </div>
+                  <div className="vg-leg" style={{ marginTop: 12, justifyContent: "center" }}>Melhor dia: <b>{melhorDia}</b></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="vg-card">
+              <div className="vg-ch">🔀 Produto × Serviço</div>
+              <div className="vg-cb">
+                <div className="vg-split">
+                  <div className="s" style={{ width: `${pctServ}%`, background: "#009AAC" }}>{pctServ >= 14 ? `Serviços ${pctServ}%` : ""}</div>
+                  <div className="s" style={{ width: `${100 - pctServ}%`, background: "#0F6E56" }}>{100 - pctServ >= 14 ? `Produtos ${100 - pctServ}%` : ""}</div>
+                </div>
+                <div className="vg-leg"><span><span className="vg-dot" style={{ background: "#009AAC" }} />Serviços <b>{money(vServ)}</b></span><span><span className="vg-dot" style={{ background: "#0F6E56" }} />Produtos <b>{money(vProd)}</b></span></div>
+              </div>
+            </div>
+
+            <div className="vg-cols">
+              <div className="vg-card">
                 <div className="vg-ch">🗂️ Vendas por grupo</div>
                 <div className="vg-cb">
                   {grupos.length === 0 ? <div style={{ fontSize: 12, color: "#374151" }}>Sem dados.</div> : grupos.slice(0, 8).map((g: any) => (
-                    <div className="vg-hbar" key={g.nome}><span className="nm">{g.nome}</span><div className="track"><div className="fill" style={{ width: `${(Number(g.valor) || 0) / maxGrupo * 100}%` }} /></div><span className="val">{money(Number(g.valor) || 0)}</span></div>
+                    <div className="vg-hbar" key={g.nome}><span className="nm">{g.nome}</span><div className="track"><div className="fill" style={{ width: `${(Number(g.valor) || 0) / maxGrupo * 100}%` }} /></div><span className="val">{money(Number(g.valor) || 0)}<small className="vg-pct">{Math.round((Number(g.valor) || 0) / somaGrupos * 100)}%</small></span></div>
                   ))}
                 </div>
               </div>
@@ -152,7 +214,7 @@ export default function VendasGraficosPage() {
                 <div className="vg-ch">🏥 Vendas por marca</div>
                 <div className="vg-cb">
                   {marcas.length === 0 ? <div style={{ fontSize: 12, color: "#374151" }}>Sem dados.</div> : marcas.map((m: any) => { const info = MARCA[m.nome] || { lbl: m.nome, cls: "" }; return (
-                    <div className="vg-hbar" key={m.nome}><span className="nm">{info.lbl}</span><div className="track"><div className={`fill ${info.cls}`} style={{ width: `${(Number(m.valor) || 0) / maxMarca * 100}%` }} /></div><span className="val">{money(Number(m.valor) || 0)}</span></div>
+                    <div className="vg-hbar" key={m.nome}><span className="nm">{info.lbl}</span><div className="track"><div className={`fill ${info.cls}`} style={{ width: `${(Number(m.valor) || 0) / maxMarca * 100}%` }} /></div><span className="val">{money(Number(m.valor) || 0)}<small className="vg-pct">{Math.round((Number(m.valor) || 0) / somaMarcas * 100)}%</small></span></div>
                   ); })}
                 </div>
               </div>
@@ -163,6 +225,15 @@ export default function VendasGraficosPage() {
               <table className="vg-tbl"><tbody>
                 {(d.topItens || []).length === 0 ? <tr><td className="vg-empty" colSpan={2}>Sem itens no período.</td></tr> : (d.topItens || []).map((t: any) => (
                   <tr key={t.nome}><td>{t.nome}</td><td className="r">{money(Number(t.valor) || 0)}</td></tr>
+                ))}
+              </tbody></table>
+            </div>
+
+            <div className="vg-card">
+              <div className="vg-ch">📦 Pacotes mais vendidos</div>
+              <table className="vg-tbl"><tbody>
+                {pacotesTop.length === 0 ? <tr><td className="vg-empty" colSpan={2}>Sem pacotes no período.</td></tr> : pacotesTop.map((p: any) => (
+                  <tr key={p.nome}><td>{p.nome}</td><td className="r">{p.qtd}<span className="vg-pill">vendidos</span></td></tr>
                 ))}
               </tbody></table>
             </div>
