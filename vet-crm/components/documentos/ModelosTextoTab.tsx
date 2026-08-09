@@ -9,8 +9,8 @@ import EditorDocumento from "@/components/documentos/EditorDocumento";
 
 type Modelo = { id: string; nome: string; corpo: string };
 
-export default function ModelosTextoTab({ lista, tipo }: { lista: string; tipo: "receita" | "documento" }) {
-  const rotulo = tipo === "receita" ? "Receita" : "Documento";
+export default function ModelosTextoTab({ lista, tipo }: { lista: string; tipo: "receita" | "documento" | "patologia" }) {
+  const rotulo = tipo === "receita" ? "Receita" : tipo === "patologia" ? "Patologia" : "Documento";
   const podeEditar = usePodeEditar();
   const [modelos, setModelos] = useState<Modelo[]>([]);
   const [novo, setNovo] = useState("");
@@ -78,7 +78,7 @@ export default function ModelosTextoTab({ lista, tipo }: { lista: string; tipo: 
             <label className="block text-[11px] font-bold uppercase tracking-wide mb-1.5" style={{ color: "#014D5E" }}>Nome <span style={{ color: "#009AAC" }}>*</span></label>
             <input value={editNome} onChange={(e) => setEditNome(e.target.value)} disabled={!podeEditar} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#014D5E" }} />
           </div>
-          <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#7C8A8E" }}>Conteúdo {tipo === "receita" ? "da receita" : "do documento"}</div>
+          <div className="text-[11px] font-bold uppercase tracking-wide" style={{ color: "#7C8A8E" }}>Conteúdo {tipo === "receita" ? "da receita" : tipo === "patologia" ? "da patologia / protocolo" : "do documento"}</div>
           <EditorDocumento value={editCorpo} onChange={setEditCorpo} palette preview minHeight={260} />
           {podeEditar && (
             <div className="flex items-center justify-end gap-2 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
@@ -95,7 +95,7 @@ export default function ModelosTextoTab({ lista, tipo }: { lista: string; tipo: 
   // ---- LISTA ----
   return (
     <div className="space-y-4">
-      <p className="text-xs text-[#64748b]">Modelos que aparecem no dropdown ao adicionar {tipo === "receita" ? "uma Receita" : "um Documento"} na ficha do pet. Clique em <b>Editar</b> pra abrir o editor — as variáveis (nome do pet, tutor, veterinário) são preenchidas automaticamente ao gerar.</p>
+      <p className="text-xs text-[#64748b]">Modelos que aparecem no dropdown ao adicionar {tipo === "receita" ? "uma Receita" : tipo === "patologia" ? "uma Patologia" : "um Documento"} na ficha do pet. Clique em <b>Editar</b> pra abrir o editor — as variáveis (nome do pet, tutor, veterinário) são preenchidas automaticamente ao gerar.</p>
       {podeEditar && (
         <button onClick={() => { setNovo(""); setNovoModalOpen(true); }} className="px-4 py-2 rounded-lg text-sm text-white font-medium" style={{ background: "#009AAC" }}>+ Novo modelo</button>
       )}

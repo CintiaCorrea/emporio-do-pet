@@ -7,10 +7,11 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import ModelosTextoTab from "@/components/documentos/ModelosTextoTab";
 import ModelosBoletimTab from "@/components/documentos/ModelosBoletimTab";
 
-type Aba = "receita" | "documento" | "boletim";
+type Aba = "receita" | "documento" | "patologia" | "boletim";
 const ABAS: { v: Aba; label: string }[] = [
   { v: "receita", label: "💊 Receita" },
   { v: "documento", label: "📄 Documento" },
+  { v: "patologia", label: "🦠 Patologia" },
   { v: "boletim", label: "🔔 Boletim" },
 ];
 
@@ -21,7 +22,7 @@ export default function ModelosPage() {
   // Abre já na aba certa quando vem dos atalhos antigos (?tab=documento/boletim).
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t === "documento" || t === "boletim" || t === "receita") setAba(t);
+    if (t === "documento" || t === "boletim" || t === "receita" || t === "patologia") setAba(t);
   }, []);
 
   return (
@@ -38,6 +39,7 @@ export default function ModelosPage() {
 
       {aba === "receita" && <ModelosTextoTab lista="receita_modelo" tipo="receita" />}
       {aba === "documento" && <ModelosTextoTab lista="documento_modelo" tipo="documento" />}
+      {aba === "patologia" && <ModelosTextoTab lista="patologia_modelo" tipo="patologia" />}
       {aba === "boletim" && <ModelosBoletimTab />}
     </div>
   );
