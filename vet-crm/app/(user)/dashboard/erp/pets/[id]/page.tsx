@@ -1991,7 +1991,7 @@ export default function PetDetailPage() {
                     <div className="text-[14px] text-[#5C6B70] mb-3 font-semibold">Adicionar</div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {([
-                        { label: "Atendimento", ic: "🩺", bg: "#E1F3F5", fg: "#017E8C", act: () => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`) },
+                        { label: "Atendimento", ic: "🩺", bg: "#E1F3F5", fg: "#017E8C", act: () => { setArtefato(null); setEditId(null); setItems([]); setAtd({ ...ATD0, date: fmtLocal(new Date()), userId: meId || vets[0]?.id || "" }); setAtdOpen(true); } },
                         { label: "Peso", ic: "⚖️", bg: "#F3ECDD", fg: "#8A6D3B", act: () => { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); } },
                         { label: "Receita", ic: "💊", bg: "#EFE9FB", fg: "#6A4FB0", act: () => abrirReceita() },
                         { label: "Documento", ic: "📄", bg: "#E4F3EA", fg: "#2E7D53", act: () => abrirDocumento() },
