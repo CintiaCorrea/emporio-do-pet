@@ -20,6 +20,7 @@ const METRICAS: { k: string; l: string; money: boolean; v: (b: any) => number }[
   { k: "QTDI", l: "Nº de itens", money: false, v: (b) => Number(b.qtdItens) || 0 },
 ];
 const GRUPOS: { k: string; l: string }[] = [{ k: "DIA", l: "Dia" }, { k: "SEMANA", l: "Semana" }, { k: "MES", l: "Mês" }];
+const ORIGEM_LBL: Record<string, string> = { ORGANIC: "Orgânico", GOOGLE_ADS: "Google Ads", INSTAGRAM: "Instagram", FACEBOOK: "Facebook", TIKTOK: "TikTok", REFERRAL: "Indicação", LANDING_PAGE: "Landing page", WHATSAPP: "WhatsApp", EMAIL: "E-mail", DIRECT: "Direto", OTHER: "Outra" };
 
 const CSS = `
 .vg-wrap{width:100%;padding:2px 0 40px}
@@ -88,10 +89,12 @@ export default function VendasGraficosPage() {
   const [fGrupo, setFGrupo] = useState(""), [fMarca, setFMarca] = useState("");
   const [fTipo, setFTipo] = useState(""), [fTurno, setFTurno] = useState("");
   const [fHIni, setFHIni] = useState(""), [fHFim, setFHFim] = useState("");
+  const [fPerfil, setFPerfil] = useState(""), [fNps, setFNps] = useState("");
+  const [fOrigem, setFOrigem] = useState(""), [fCidade, setFCidade] = useState(""), [fBairro, setFBairro] = useState("");
   const [profs, setProfs] = useState<{ id: string; name: string }[]>([]);
   const [produtos, setProdutos] = useState<{ id: string; nome: string }[]>([]);
-  const fAtivos = [fProf, fProd, fGrupo, fMarca, fTipo, fTurno, (fHIni || fHFim) ? "h" : ""].filter(Boolean).length;
-  const limparFiltros = () => { setFProf(""); setFProd(""); setFGrupo(""); setFMarca(""); setFTipo(""); setFTurno(""); setFHIni(""); setFHFim(""); };
+  const fAtivos = [fProf, fProd, fGrupo, fMarca, fTipo, fTurno, (fHIni || fHFim) ? "h" : "", fPerfil, fNps, fOrigem, fCidade, fBairro].filter(Boolean).length;
+  const limparFiltros = () => { setFProf(""); setFProd(""); setFGrupo(""); setFMarca(""); setFTipo(""); setFTurno(""); setFHIni(""); setFHFim(""); setFPerfil(""); setFNps(""); setFOrigem(""); setFCidade(""); setFBairro(""); };
 
   useEffect(() => {
     fetch("/api/users", { cache: "no-store" }).then((r) => r.json()).then((x) => { const a = Array.isArray(x) ? x : (x.users || x.data || []); setProfs(a.map((u: any) => ({ id: u.id, name: u.name || u.nome || u.email }))); }).catch(() => {});
@@ -110,10 +113,15 @@ export default function VendasGraficosPage() {
       if (fTurno) p.set("turno", fTurno);
       if (fHIni) p.set("hIni", fHIni);
       if (fHFim) p.set("hFim", fHFim);
+      if (fPerfil) p.set("perfil", fPerfil);
+      if (fNps) p.set("nps", fNps);
+      if (fOrigem) p.set("origem", fOrigem);
+      if (fCidade) p.set("cidade", fCidade);
+      if (fBairro) p.set("bairro", fBairro);
       const r = await fetch(`/api/caixa/vendas-resumo?${p.toString()}`, { cache: "no-store" }).then((x) => x.json()).catch(() => null); setD(r);
     } catch {}
     setLoading(false);
-  }, [from, to, grupo, fProf, fProd, fGrupo, fMarca, fTipo, fTurno, fHIni, fHFim]);
+  }, [from, to, grupo, fProf, fProd, fGrupo, fMarca, fTipo, fTurno, fHIni, fHFim, fPerfil, fNps, fOrigem, fCidade, fBairro]);
   useEffect(() => { load(); }, [load]);
 
   const money = (v: number) => (olho ? brl(v) : "R$ •••");
@@ -188,6 +196,24 @@ export default function VendasGraficosPage() {
                 </label>
                 <label className="vg-fld">Faixa de horário
                   <span style={{ display: "flex", gap: 6, alignItems: "center" }}><input className="vg-in" type="time" value={fHIni} onChange={(e) => setFHIni(e.target.value)} style={{ flex: 1 }} /><span style={{ color: "#5C6B70" }}>–</span><input className="vg-in" type="time" value={fHFim} onChange={(e) => setFHFim(e.target.value)} style={{ flex: 1 }} /></span>
+                </label>
+              </div>
+              <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".05em", color: "#8A938F", fontWeight: 700, margin: "14px 2px 8px" }}>Do cliente</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
+                <label className="vg-fld">Perfil
+                  <select className="vg-in" value={fPerfil} onChange={(e) => setFPerfil(e.target.value)}><option value="">Todos</option><option value="NOVOS">🆕 Novos</option><option value="RECORRENTES">🔁 Recorrentes</option></select>
+                </label>
+                <label className="vg-fld">⭐ NPS
+                  <select className="vg-in" value={fNps} onChange={(e) => setFNps(e.target.value)}><option value="">Todos</option><option value="PROMOTOR">😍 Promotor</option><option value="NEUTRO">😐 Neutro</option><option value="DETRATOR">😞 Detrator</option></select>
+                </label>
+                <label className="vg-fld">🧲 Origem (captação)
+                  <select className="vg-in" value={fOrigem} onChange={(e) => setFOrigem(e.target.value)}><option value="">Todas</option>{(d?.opcoes?.origens || []).map((o: string) => <option key={o} value={o}>{ORIGEM_LBL[o] || o}</option>)}</select>
+                </label>
+                <label className="vg-fld">Cidade
+                  <select className="vg-in" value={fCidade} onChange={(e) => setFCidade(e.target.value)}><option value="">Todas</option>{(d?.opcoes?.cidades || []).map((c: string) => <option key={c} value={c}>{c}</option>)}</select>
+                </label>
+                <label className="vg-fld">Bairro
+                  <select className="vg-in" value={fBairro} onChange={(e) => setFBairro(e.target.value)}><option value="">Todos</option>{(d?.opcoes?.bairros || []).map((b: string) => <option key={b} value={b}>{b}</option>)}</select>
                 </label>
               </div>
               {fAtivos > 0 && <div style={{ marginTop: 10 }}><button className="vg-btn" onClick={limparFiltros}>Limpar filtros</button></div>}

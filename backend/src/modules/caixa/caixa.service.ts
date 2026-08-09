@@ -396,12 +396,17 @@ export class CaixaService {
     const parseH = (s: any): number | null => { if (!s) return null; const m = String(s).match(/^(\d{1,2}):?(\d{2})?/); return m ? Number(m[1]) + Number(m[2] || 0) / 60 : null; };
     const hIni = parseH(query?.hIni), hFim = parseH(query?.hFim);
     const hasItemFilter = !!(fProf || fProd || fGrupo || fMarca || fTipo);
+    // Fatia 3b — filtros do cliente
+    const fPerfil = query?.perfil ? String(query.perfil).toUpperCase() : ''; // NOVOS | RECORRENTES
+    const fNps = query?.nps ? String(query.nps).toUpperCase() : '';           // PROMOTOR|NEUTRO|DETRATOR
+    const fOrigem = query?.origem || '', fCidade = query?.cidade || '', fBairro = query?.bairro || '';
+    const hasClienteFilter = !!(fPerfil || fNps || fOrigem || fCidade || fBairro);
 
     const where: any = { value: { gt: 0 }, status: { not: 'CANCELLED' } };
     if (from || to) { where.date = {}; if (from) where.date.gte = new Date(String(from) + 'T00:00:00'); if (to) where.date.lte = new Date(String(to) + 'T23:59:59'); }
     const appts = await this.prisma.appointment.findMany({
       where,
-      select: { value: true, date: true, items: { select: { grupo: true, marca: true, valorTotal: true, desconto: true, quantidade: true, descricao: true, productId: true, servicoId: true, executorUserId: true } } },
+      select: { value: true, date: true, tutorId: true, items: { select: { grupo: true, marca: true, valorTotal: true, desconto: true, quantidade: true, descricao: true, productId: true, servicoId: true, executorUserId: true } } },
     });
 
     const MARCAS: Record<string, string> = { EMPORIO: 'EMPORIO', MUNDO_A_PARTE: 'MUNDO_A_PARTE', DRA_VIVIAN: 'DRA_VIVIAN' };
@@ -418,6 +423,34 @@ export class CaixaService {
       if (fGrupo && (it.grupo || 'Sem grupo') !== fGrupo) return false;
       if (fMarca && (MARCAS[it.marca as string] || 'Sem marca') !== fMarca) return false;
       if (fTipo && tipoDoItem(it) !== fTipo) return false;
+      return true;
+    };
+
+    // Dados do cliente (p/ filtros do cliente + opções): cidade/bairro, NPS, origem (por telefone), novo×recorrente
+    const tutorIds = Array.from(new Set(appts.map((a: any) => a.tutorId).filter(Boolean))) as string[];
+    const tutorsData = tutorIds.length ? await this.prisma.tutor.findMany({ where: { id: { in: tutorIds } }, select: { id: true, city: true, neighborhood: true, contacts: { where: { isPrimary: true }, take: 1, select: { number: true } } } }) : [];
+    const tutorMap = new Map(tutorsData.map((t) => [t.id, t]));
+    const npsRows = tutorIds.length ? await this.prisma.avaliacaoNPS.findMany({ where: { tutorId: { in: tutorIds } }, select: { tutorId: true, classificacao: true }, orderBy: { createdAt: 'desc' } }) : [];
+    const npsMap = new Map<string, string>();
+    for (const r of npsRows) if (r.tutorId && !npsMap.has(r.tutorId)) npsMap.set(r.tutorId, r.classificacao as string);
+    const firstBuy = tutorIds.length ? await this.prisma.appointment.groupBy({ by: ['tutorId'], where: { tutorId: { in: tutorIds }, value: { gt: 0 } }, _min: { date: true } }) : [];
+    const firstMap = new Map<string, Date>();
+    for (const f of firstBuy) if (f.tutorId && f._min.date) firstMap.set(f.tutorId, f._min.date as Date);
+    const last8 = (s: any) => String(s || '').replace(/\D/g, '').slice(-8);
+    const leads = await this.prisma.lead.findMany({ select: { source: true, phone: true } });
+    const phoneSrc = new Map<string, string>();
+    for (const l of leads) { const k = last8(l.phone); if (k && !phoneSrc.has(k)) phoneSrc.set(k, l.source as string); }
+    const origemMap = new Map<string, string>();
+    for (const t of tutorsData) { const k = last8((t as any).contacts?.[0]?.number); if (k && phoneSrc.has(k)) origemMap.set(t.id, phoneSrc.get(k)!); }
+    const dataFrom = from ? new Date(String(from) + 'T00:00:00') : null;
+    const tutorOk = (tid: any): boolean => {
+      if (!tid) return false;
+      const t: any = tutorMap.get(tid);
+      if (fCidade && (t?.city || '') !== fCidade) return false;
+      if (fBairro && (t?.neighborhood || '') !== fBairro) return false;
+      if (fNps && (npsMap.get(tid) || '') !== fNps) return false;
+      if (fOrigem && (origemMap.get(tid) || '') !== fOrigem) return false;
+      if (fPerfil) { const fb = firstMap.get(tid); const novo = !!(fb && dataFrom && fb >= dataFrom); if (fPerfil === 'NOVOS' && !novo) return false; if (fPerfil === 'RECORRENTES' && novo) return false; }
       return true;
     };
 
@@ -444,6 +477,7 @@ export class CaixaService {
       if (fTurno && tur !== fTurno) continue;
       if (hIni != null && hf < hIni) continue;
       if (hFim != null && hf >= hFim) continue;
+      if (hasClienteFilter && !tutorOk(a.tutorId)) continue;
       const allItems = a.items || [];
       const contrib = hasItemFilter ? allItems.filter(itemPassa) : allItems;
       if (hasItemFilter && contrib.length === 0) continue;
@@ -488,9 +522,12 @@ export class CaixaService {
     }
     const pacotesTop = [...pacCount.entries()].map(([nome, qtd]) => ({ nome, qtd })).sort((a, b) => b.qtd - a.qtd).slice(0, 8);
 
-    // Opções dos filtros (grupos/marcas do período, independentes dos filtros ativos)
+    // Opções dos filtros (do período, independentes dos filtros ativos)
     const opGrupos = new Set<string>(), opMarcas = new Set<string>();
     for (const a of appts) for (const it of (a.items || [])) { if (it.grupo) opGrupos.add(it.grupo); if (it.marca) opMarcas.add(MARCAS[it.marca as string] || String(it.marca)); }
+    const opCidades = new Set<string>(), opBairros = new Set<string>(), opOrigens = new Set<string>();
+    for (const t of tutorsData) { if (t.city) opCidades.add(t.city); if (t.neighborhood) opBairros.add(t.neighborhood); }
+    for (const v of origemMap.values()) opOrigens.add(v);
 
     const evolucao = [...buckets.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([, v]) => v);
     const toArr = (mp: Map<string, number>) => [...mp.entries()].map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
@@ -500,7 +537,7 @@ export class CaixaService {
       groupBy, evolucao,
       porGrupo: toArr(porGrupo), porMarca: toArr(porMarca), topItens: toArr(topItens).slice(0, 8),
       porTurno: turno, porDiaSemana: diaSemana, produtoServico: { servico: vServico, produto: vProduto }, pacotesTop,
-      opcoes: { grupos: [...opGrupos].sort(), marcas: [...opMarcas] },
+      opcoes: { grupos: [...opGrupos].sort(), marcas: [...opMarcas], cidades: [...opCidades].sort(), bairros: [...opBairros].sort(), origens: [...opOrigens].sort() },
     };
   }
 
