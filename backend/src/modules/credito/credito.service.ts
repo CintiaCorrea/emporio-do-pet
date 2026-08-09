@@ -35,8 +35,17 @@ export class CreditoService {
       ? await this.prisma.tutor.findMany({ where: { id: { in: tutorIds } }, select: { id: true, name: true } })
       : [];
     const tmap = new Map(tutors.map((t) => [t.id, t.name]));
+    // última compra por cliente (último atendimento com valor > 0)
+    const compras = tutorIds.length
+      ? await this.prisma.appointment.groupBy({ by: ['tutorId'], where: { tutorId: { in: tutorIds }, value: { gt: 0 } }, _max: { date: true } })
+      : [];
+    const cmap = new Map<string, Date>();
+    for (const c of compras) if (c.tutorId && c._max.date) cmap.set(c.tutorId, c._max.date as Date);
     return tutorIds
-      .map((id) => ({ tutorId: id, nome: tmap.get(id) || 'Cliente', saldo: Number((map.get(id) || 0).toFixed(2)) }))
+      .map((id) => {
+        const saldo = Number((map.get(id) || 0).toFixed(2));
+        return { tutorId: id, nome: tmap.get(id) || 'Cliente', saldo, situacao: saldo >= 0 ? 'CREDOR' : 'DEVEDOR', ultimaCompra: cmap.get(id) || null };
+      })
       .filter((x) => Math.abs(x.saldo) > 0.001)
       .sort((a, b) => b.saldo - a.saldo);
   }
