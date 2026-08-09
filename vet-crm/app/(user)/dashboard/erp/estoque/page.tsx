@@ -129,14 +129,16 @@ export default function StockPage() {
     fetchMovements();
   }, []);
 
-  // #3 — carrega motivos de saída salvos (mescla com os padrões, sem duplicar)
+  // #3 — carrega motivos de saída. A lista de Configurações é a FONTE DA VERDADE:
+  // se houver itens cadastrados, usa exatamente eles (respeita ordem/edições/exclusões);
+  // se estiver vazia, cai nos padrões (MOTIVOS_SAIDA_PADRAO).
   useEffect(() => {
     (async () => {
       try {
         const r = await fetch('/api/listas?lista=estoque_motivo_saida', { cache: 'no-store' });
         const d = await r.json();
         const arr = (Array.isArray(d) ? d : (d.itens || d.data || [])).map((i: any) => i.valor).filter(Boolean);
-        if (arr.length) setMotivosSaida((prev) => Array.from(new Set([...prev, ...arr])));
+        if (arr.length) setMotivosSaida(arr);
       } catch { /* usa os padrões */ }
     })();
   }, []);
