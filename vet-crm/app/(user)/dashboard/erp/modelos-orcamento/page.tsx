@@ -4,12 +4,13 @@
 // A tela cadastra; o "usar modelo" no orçamento/PDV é ligado depois (como as formas).
 
 import { useEffect, useMemo, useState , useRef} from "react";
+import { useSession } from "next-auth/react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { usePodeEditar } from "@/lib/permissions/context";
 
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const num = (s: any) => Number(String(s ?? "").replace(",", ".")) || 0;
-const novoModelo = () => ({ id: "", nome: "", ativo: true, observacao: "", itens: [] as any[] });
+const novoModelo = () => ({ id: "", nome: "", ativo: true, observacao: "", compartilhado: true, autorId: "", autorNome: "", itens: [] as any[] });
 
 export default function ModelosOrcamentoPage() {
   usePageTitle("Modelo de orçamento", "Orçamentos-modelo reutilizáveis");
@@ -22,6 +23,10 @@ export default function ModelosOrcamentoPage() {
   const [form, setForm] = useState<any>(novoModelo());
   const [saving, setSaving] = useState(false);
   const [busca, setBusca] = useState("");
+  const { data: session } = useSession();
+  const meId = (session?.user as any)?.id || "";
+  const meNome = (session?.user as any)?.name || "";
+  const [aba, setAba] = useState<"MEUS" | "COMPARTILHADOS">("MEUS");
 
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
@@ -47,8 +52,12 @@ export default function ModelosOrcamentoPage() {
 
   const totalDe = (m: any) => (m.itens || []).reduce((sm: number, it: any) => sm + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0);
   const ordenados = useMemo(() => [...modelos].sort((a, b) => (a.nome || "").localeCompare(b.nome || "")), [modelos]);
+  const ehMeu = (m: any) => !!(m.autorId && m.autorId === meId);
+  const visiveis = useMemo(() => ordenados.filter((m: any) => (aba === "MEUS" ? ehMeu(m) : (!ehMeu(m) && m.compartilhado !== false))), [ordenados, aba, meId]);
+  const nMeus = useMemo(() => ordenados.filter(ehMeu).length, [ordenados, meId]);
+  const nComp = useMemo(() => ordenados.filter((m: any) => !ehMeu(m) && m.compartilhado !== false).length, [ordenados, meId]);
 
-  const abrir = (m?: any) => { setForm(m ? { id: m.id, nome: m.nome || "", ativo: m.ativo !== false, observacao: m.observacao || "", itens: (m.itens || []).map((i: any) => ({ ...i })) } : novoModelo()); setBusca(""); setOpen(true); };
+  const abrir = (m?: any) => { setForm(m ? { id: m.id, nome: m.nome || "", ativo: m.ativo !== false, observacao: m.observacao || "", compartilhado: m.compartilhado !== false, autorId: m.autorId || "", autorNome: m.autorNome || "", itens: (m.itens || []).map((i: any) => ({ ...i })) } : { ...novoModelo(), autorId: meId, autorNome: meNome }); setBusca(""); setOpen(true); };
   const addItem = (s?: any) => setForm((f: any) => ({ ...f, itens: [...f.itens, s ? { descricao: s.nome, servicoId: s.id, quantidade: 1, valorUnitario: Number(s.valorPadrao || 0) } : { descricao: "", servicoId: "", quantidade: 1, valorUnitario: 0 }] }));
   const updItem = (i: number, patch: any) => setForm((f: any) => ({ ...f, itens: f.itens.map((it: any, j: number) => j === i ? { ...it, ...patch } : it) }));
   const rmItem = (i: number) => setForm((f: any) => ({ ...f, itens: f.itens.filter((_: any, j: number) => j !== i) }));
@@ -57,7 +66,7 @@ export default function ModelosOrcamentoPage() {
     if (!form.nome.trim()) { alert("Informe o nome do modelo."); return; }
     setSaving(true);
     try {
-      const payload = { nome: form.nome.trim(), ativo: !!form.ativo, observacao: (form.observacao || "").trim(), itens: form.itens.map((it: any) => ({ descricao: it.descricao || "", servicoId: it.servicoId || "", quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0 })) };
+      const payload = { nome: form.nome.trim(), ativo: !!form.ativo, observacao: (form.observacao || "").trim(), compartilhado: form.compartilhado !== false, autorId: form.autorId || meId, autorNome: form.autorNome || meNome, itens: form.itens.map((it: any) => ({ descricao: it.descricao || "", servicoId: it.servicoId || "", quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0 })) };
       const url = form.id ? `/api/listas/${form.id}` : "/api/listas";
       const res = await fetch(url, { method: form.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(form.id ? { valor: JSON.stringify(payload) } : { lista: "orcamentomodelo", valor: JSON.stringify(payload) }) });
       if (!res.ok) throw new Error();
@@ -77,6 +86,14 @@ export default function ModelosOrcamentoPage() {
         {podeEditar && <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Novo modelo</button>}
       </div>
 
+      {!loading && modelos.length > 0 && (
+        <div className="flex gap-1 mb-3">
+          {(([["MEUS", `👤 Meus modelos (${nMeus})`], ["COMPARTILHADOS", `👥 Compartilhados (${nComp})`]]) as ["MEUS" | "COMPARTILHADOS", string][]).map(([k, l]) => (
+            <button key={k} onClick={() => setAba(k)} className="text-[12.5px] font-medium px-3.5 py-1.5 rounded-lg border" style={aba === k ? { background: "#E0F4F6", borderColor: "#009AAC", color: "#014D5E" } : { background: "#fff", borderColor: "#E8E2D6", color: "#5C6B70" }}>{l}</button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="px-6 py-16 text-center text-sm text-[#374151]">Carregando...</div>
       ) : modelos.length === 0 ? (
@@ -86,14 +103,16 @@ export default function ModelosOrcamentoPage() {
           <div className="text-[12px] text-[#374151] mb-3">Crie modelos pros procedimentos comuns (castração, cirurgias, protocolos…).</div>
           {podeEditar && <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg">➕ Novo modelo</button>}
         </div>
+      ) : visiveis.length === 0 ? (
+        <div className="bg-white border rounded-[14px] px-6 py-10 text-center text-[13px] text-[#5C6B70]" style={{ borderColor: "#E8E2D6" }}>{aba === "MEUS" ? "Você ainda não criou modelos." : "Nenhum modelo compartilhado com você."}</div>
       ) : (
         <div className="space-y-2.5">
-          {ordenados.map((m) => (
+          {visiveis.map((m) => (
             <div key={m.id} className="bg-white border rounded-[13px] px-4 py-3 flex items-center gap-3" style={{ borderColor: "#E8E2D6" }}>
               <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>📄</span>
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] font-medium text-[#014D5E] truncate">{m.nome}{m.ativo === false && <span className="text-[10px] text-[#374151] ml-2">inativo</span>}</div>
-                <div className="text-[11.5px] text-[#374151]">{(m.itens || []).length} item(ns)</div>
+                <div className="text-[11.5px] text-[#374151] flex items-center gap-1.5 flex-wrap">{(m.itens || []).length} item(ns){m.autorNome ? ` · por ${m.autorNome}` : ""}{m.compartilhado !== false && <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#EDE7FA", color: "#6A4FB0" }}>👥 compartilhado</span>}</div>
               </div>
               <div className="text-[15px] font-medium text-[#014D5E] tabular-nums flex-shrink-0">{fmtBRL(totalDe(m))}</div>
               <div className="flex gap-1 flex-shrink-0 ml-2">
@@ -150,8 +169,11 @@ export default function ModelosOrcamentoPage() {
               <label className="text-[11px] text-[#374151] block mb-1 mt-3">Observação (aparece no orçamento — ex.: condições, preparo)</label>
               <textarea value={form.observacao || ""} onChange={(e) => setForm({ ...form, observacao: e.target.value })} rows={2} placeholder="Observação específica deste modelo…" className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
 
-              <div className="flex justify-between items-center mt-3">
-                <label className="flex items-center gap-2 text-[12px] text-[#5C6B70] cursor-pointer"><input type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} /> Ativo</label>
+              <div className="flex justify-between items-center mt-3 flex-wrap gap-2">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <label className="flex items-center gap-2 text-[12px] text-[#5C6B70] cursor-pointer"><input type="checkbox" checked={form.ativo} onChange={(e) => setForm({ ...form, ativo: e.target.checked })} /> Ativo</label>
+                  <label className="flex items-center gap-2 text-[12px] text-[#5C6B70] cursor-pointer"><input type="checkbox" checked={form.compartilhado !== false} onChange={(e) => setForm({ ...form, compartilhado: e.target.checked })} /> 👥 Compartilhar com a equipe</label>
+                </div>
                 <div className="text-[14px]"><span className="text-[#374151] text-[12px] mr-2">Total</span><span className="font-medium text-[#014D5E] tabular-nums">{fmtBRL(totalForm)}</span></div>
               </div>
             </div>
