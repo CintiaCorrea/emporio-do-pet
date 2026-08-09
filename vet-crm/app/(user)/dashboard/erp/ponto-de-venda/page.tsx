@@ -417,8 +417,8 @@ export default function PDVPage() {
             {/* 2 produtos */}
             {step('🛒', 'Produtos e serviços')}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-              <select value={profId} onChange={(e) => { const novo = e.target.value; setCarrinho((c) => c.map((it) => (!it.executorUserId || it.executorUserId === profId) ? { ...it, executorUserId: novo || undefined } : it)); setProfId(novo); }} style={{ ...inp, minWidth: 150 }} title="Profissional padrão — preenche o vendedor de cada item (trocável por linha)">
-                <option value="">Profissional padrão…</option>
+              <select value={profId} onChange={(e) => { const novo = e.target.value; setCarrinho((c) => c.map((it) => (!it.executorUserId || it.executorUserId === profId) ? { ...it, executorUserId: novo || undefined } : it)); setProfId(novo); }} style={{ ...inp, minWidth: 150 }} title="Profissional — preenche o vendedor de cada item que você adicionar (trocável por linha)">
+                <option value="">Profissional…</option>
                 {profs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
               <div style={{ display: 'inline-flex', alignItems: 'center', border: `1px solid ${LINE}`, borderRadius: 9, overflow: 'hidden' }}>
@@ -448,31 +448,36 @@ export default function PDVPage() {
                   <p style={{ fontSize: 12.5, color: MUT, margin: 0 }}>Busque acima para adicionar itens.</p>
                 </div>
               )}
-              {carrinho.map((it, i) => (
-                <div key={i} style={{ borderBottom: `1px solid ${SOFT}`, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ width: 34, height: 34, borderRadius: 9, background: SUAVE, border: `1px solid ${SOFT}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2, fontSize: 15 }}>🏷️</span>
+              {carrinho.map((it, i) => {
+                const vendDiff = !!it.executorUserId && it.executorUserId !== profId;
+                return (
+                <div key={i} style={{ borderBottom: `1px solid ${SOFT}`, padding: '10px 12px', display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                  <span style={{ width: 30, height: 30, borderRadius: 8, background: SUAVE, border: `1px solid ${SOFT}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1, fontSize: 15 }}>🏷️</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                    {/* linha 1: descrição + total + excluir */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <input value={it.descricao} onChange={(e) => updItem(i, { descricao: e.target.value })} placeholder="Descrição do item" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                      <span style={{ fontSize: 13, fontWeight: 500, color: NAVY, minWidth: 78, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
                       <button onClick={() => rmItem(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <input type="number" min={1} value={it.quantidade} onChange={(e) => updItem(i, { quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} title="Qtd" style={{ ...inp, width: 52, padding: '6px 6px', textAlign: 'center' }} />
+                    {/* linha 2: qtd × unit · desc · vendedor compacto */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6, flexWrap: 'wrap' }}>
+                      <input type="number" min={1} value={it.quantidade} onChange={(e) => updItem(i, { quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} title="Qtd" style={{ ...inp, width: 46, padding: '5px 6px', textAlign: 'center', fontSize: 12 }} />
                       <span style={{ color: MUT, fontSize: 12 }}>×</span>
-                      <input value={it.valorUnitario || ''} inputMode="decimal" placeholder="Unit." onChange={(e) => updItem(i, { valorUnitario: num(e.target.value) })} title="Valor unitário" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
-                      <input value={it.desconto || ''} inputMode="decimal" placeholder="Desc." onChange={(e) => updItem(i, { desconto: num(e.target.value) })} title="Desconto" style={{ ...inp, width: 70, padding: '6px 8px' }} />
-                      <span style={{ fontSize: 12.5, fontWeight: 500, color: NAVY, minWidth: 76, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-                      <span style={{ color: MUT, fontSize: 11, flexShrink: 0 }}>Vendedor</span>
-                      <select value={it.executorUserId || ''} onChange={(e) => updItem(i, { executorUserId: e.target.value || undefined })} title="Vendedor deste item" style={{ ...inp, flex: 1, padding: '5px 8px', fontSize: 12, ...(it.executorUserId && it.executorUserId !== profId ? { borderColor: TEAL, background: AGUA } : {}) }}>
-                        <option value="">— sem vendedor —</option>
-                        {profs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
+                      <input value={it.valorUnitario || ''} inputMode="decimal" placeholder="Unit." onChange={(e) => updItem(i, { valorUnitario: num(e.target.value) })} title="Valor unitário" style={{ ...inp, width: 96, padding: '5px 8px', fontSize: 12 }} />
+                      <input value={it.desconto || ''} inputMode="decimal" placeholder="Desc." onChange={(e) => updItem(i, { desconto: num(e.target.value) })} title="Desconto" style={{ ...inp, width: 66, padding: '5px 8px', fontSize: 12 }} />
+                      <span title="Vendedor deste item" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, background: vendDiff ? AGUA : SUAVE, border: `1px solid ${vendDiff ? TEAL : SOFT}`, borderRadius: 999, padding: '2px 4px 2px 9px' }}>
+                        <span style={{ fontSize: 11 }}>👤</span>
+                        <select value={it.executorUserId || ''} onChange={(e) => updItem(i, { executorUserId: e.target.value || undefined })} style={{ border: 'none', background: 'transparent', padding: '3px 4px', fontSize: 12, color: NAVY, fontWeight: 500, maxWidth: 150, fontFamily: 'inherit', cursor: 'pointer' }}>
+                          <option value="">— vendedor —</option>
+                          {profs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      </span>
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }}>
                 <button onClick={addAvulso} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>➕ item avulso</button>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
