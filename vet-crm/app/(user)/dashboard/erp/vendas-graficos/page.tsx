@@ -52,6 +52,9 @@ const CSS = `
 .vg-dot{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px;vertical-align:middle}
 .vg-pct{color:#8A938F;font-weight:400;margin-left:5px;font-size:11px}
 .vg-pill{font-size:10.5px;font-weight:700;border-radius:999px;padding:2px 8px;background:#E0F4F6;color:#00798A;margin-left:6px}
+.vg-fld{display:flex;flex-direction:column;gap:4px;font-size:10.5px;color:#5C6B70;font-weight:600}
+.vg-fld .vg-in{font-weight:400;width:100%}
+.vg-btn.pri.on{background:#00798A}
 .vg-hbar{display:flex;align-items:center;gap:10px;margin-bottom:9px}
 .vg-hbar:last-child{margin-bottom:0}
 .vg-hbar .nm{width:150px;font-size:12.5px;color:#5C6B70;flex-shrink:0;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -79,12 +82,38 @@ export default function VendasGraficosPage() {
   const [d, setD] = useState<any>(null);
   const [metrica, setMetrica] = useState("LIQUIDA");
   const [grupo, setGrupo] = useState("MES");
+  // Fatia 3a — filtros da venda/item
+  const [fOpen, setFOpen] = useState(false);
+  const [fProf, setFProf] = useState(""), [fProd, setFProd] = useState("");
+  const [fGrupo, setFGrupo] = useState(""), [fMarca, setFMarca] = useState("");
+  const [fTipo, setFTipo] = useState(""), [fTurno, setFTurno] = useState("");
+  const [fHIni, setFHIni] = useState(""), [fHFim, setFHFim] = useState("");
+  const [profs, setProfs] = useState<{ id: string; name: string }[]>([]);
+  const [produtos, setProdutos] = useState<{ id: string; nome: string }[]>([]);
+  const fAtivos = [fProf, fProd, fGrupo, fMarca, fTipo, fTurno, (fHIni || fHFim) ? "h" : ""].filter(Boolean).length;
+  const limparFiltros = () => { setFProf(""); setFProd(""); setFGrupo(""); setFMarca(""); setFTipo(""); setFTurno(""); setFHIni(""); setFHFim(""); };
+
+  useEffect(() => {
+    fetch("/api/users", { cache: "no-store" }).then((r) => r.json()).then((x) => { const a = Array.isArray(x) ? x : (x.users || x.data || []); setProfs(a.map((u: any) => ({ id: u.id, name: u.name || u.nome || u.email }))); }).catch(() => {});
+    fetch("/api/servicos/itens", { cache: "no-store" }).then((r) => r.json()).then((x) => { const a = Array.isArray(x) ? x : (x.itens || x.data || []); setProdutos(a.map((s: any) => ({ id: s.id, nome: s.nome })).filter((s: any) => s.id && s.nome)); }).catch(() => {});
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try { const r = await fetch(`/api/caixa/vendas-resumo?from=${from}&to=${to}&groupBy=${grupo}`, { cache: "no-store" }).then((x) => x.json()).catch(() => null); setD(r); } catch {}
+    try {
+      const p = new URLSearchParams({ from, to, groupBy: grupo });
+      if (fProf) p.set("profissionalId", fProf);
+      if (fProd) p.set("produtoId", fProd);
+      if (fGrupo) p.set("grupo", fGrupo);
+      if (fMarca) p.set("marca", fMarca);
+      if (fTipo) p.set("tipo", fTipo);
+      if (fTurno) p.set("turno", fTurno);
+      if (fHIni) p.set("hIni", fHIni);
+      if (fHFim) p.set("hFim", fHFim);
+      const r = await fetch(`/api/caixa/vendas-resumo?${p.toString()}`, { cache: "no-store" }).then((x) => x.json()).catch(() => null); setD(r);
+    } catch {}
     setLoading(false);
-  }, [from, to, grupo]);
+  }, [from, to, grupo, fProf, fProd, fGrupo, fMarca, fTipo, fTurno, fHIni, fHFim]);
   useEffect(() => { load(); }, [load]);
 
   const money = (v: number) => (olho ? brl(v) : "R$ •••");
@@ -129,9 +158,42 @@ export default function VendasGraficosPage() {
           <input className="vg-in" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /><span style={{ color: "#374151" }}>a</span>
           <input className="vg-in" type="date" value={to} onChange={(e) => setTo(e.target.value)} />
           <button className="vg-btn pri" onClick={load}>🔍 Consultar</button>
+          <button className={`vg-btn${fAtivos ? " pri" : ""}`} onClick={() => setFOpen((v) => !v)}>🎛️ Filtros{fAtivos ? ` (${fAtivos})` : ""} {fOpen ? "▲" : "▾"}</button>
           <button className="vg-btn" style={{ marginLeft: "auto" }} onClick={() => setOlho((v) => !v)}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
           <button className="vg-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
         </div>
+
+        {fOpen && (
+          <div className="vg-card no-print" style={{ borderColor: "#009AAC" }}>
+            <div className="vg-ch">🎛️ Filtros <span style={{ marginLeft: "auto", fontWeight: 400, color: "#5C6B70", fontSize: 11.5 }}>aplica a todos os gráficos</span></div>
+            <div className="vg-cb">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
+                <label className="vg-fld">👤 Profissional (vendedor)
+                  <select className="vg-in" value={fProf} onChange={(e) => setFProf(e.target.value)}><option value="">Todos</option>{profs.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+                </label>
+                <label className="vg-fld">Produto / serviço
+                  <select className="vg-in" value={fProd} onChange={(e) => setFProd(e.target.value)}><option value="">Todos</option>{produtos.map((s) => <option key={s.id} value={s.id}>{s.nome}</option>)}</select>
+                </label>
+                <label className="vg-fld">Grupo
+                  <select className="vg-in" value={fGrupo} onChange={(e) => setFGrupo(e.target.value)}><option value="">Todos</option>{(d?.opcoes?.grupos || []).map((g: string) => <option key={g} value={g}>{g}</option>)}</select>
+                </label>
+                <label className="vg-fld">Marca
+                  <select className="vg-in" value={fMarca} onChange={(e) => setFMarca(e.target.value)}><option value="">Todas</option>{(d?.opcoes?.marcas || []).map((m: string) => <option key={m} value={m}>{MARCA[m]?.lbl || m}</option>)}</select>
+                </label>
+                <label className="vg-fld">Tipo de item
+                  <select className="vg-in" value={fTipo} onChange={(e) => setFTipo(e.target.value)}><option value="">Todos</option><option value="SERVICO">Serviço</option><option value="PRODUTO">Produto</option></select>
+                </label>
+                <label className="vg-fld">Turno
+                  <select className="vg-in" value={fTurno} onChange={(e) => setFTurno(e.target.value)}><option value="">Todos</option><option value="MANHA">☀️ Manhã</option><option value="TARDE">🌤️ Tarde</option><option value="NOITE">🌙 Noite</option></select>
+                </label>
+                <label className="vg-fld">Faixa de horário
+                  <span style={{ display: "flex", gap: 6, alignItems: "center" }}><input className="vg-in" type="time" value={fHIni} onChange={(e) => setFHIni(e.target.value)} style={{ flex: 1 }} /><span style={{ color: "#5C6B70" }}>–</span><input className="vg-in" type="time" value={fHFim} onChange={(e) => setFHFim(e.target.value)} style={{ flex: 1 }} /></span>
+                </label>
+              </div>
+              {fAtivos > 0 && <div style={{ marginTop: 10 }}><button className="vg-btn" onClick={limparFiltros}>Limpar filtros</button></div>}
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="vg-card"><div className="vg-empty">Carregando...</div></div>
