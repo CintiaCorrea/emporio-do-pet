@@ -307,10 +307,9 @@ export class AppointmentsService {
     const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       let appointment: any;
       if (reuseId) {
-        // mantém a COLUNA agendada (userId/agendaAvulsa) mas ATUALIZA a data para o momento do
-        // atendimento → ele aparece "na hora" na linha do tempo (reuso é só no MESMO dia, então
-        // a data só se move dentro do próprio dia). Continua 1 card (sem reintroduzir os "2 cartões").
-        const { userId: _u, agendaAvulsa: _a, ...dadosAtendimento } = appointmentData;
+        // mantém o HORÁRIO e a coluna agendados (date/userId/agendaAvulsa) — a Cintia quer o
+        // horário MARCADO na agenda + 1 registro só; o atendimento é aplicado por cima do agendado.
+        const { date: _d, userId: _u, agendaAvulsa: _a, ...dadosAtendimento } = appointmentData;
         appointment = await tx.appointment.update({ where: { id: reuseId }, data: dadosAtendimento });
       } else {
         appointment = await tx.appointment.create({ data: appointmentData });
