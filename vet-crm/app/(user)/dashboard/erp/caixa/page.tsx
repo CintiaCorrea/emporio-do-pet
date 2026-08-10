@@ -22,7 +22,7 @@ type Forma = { forma: string; valor: number; parcelas: number; nsu: string };
 interface Movimento { id: string; tipo: string; valor: number; forma?: string | null; conta?: string | null; descricao?: string | null; observacao?: string | null; data: string; }
 interface CreditoUtil { id: string; tipo: string; valor: number; descricao?: string | null; data: string; appointmentId?: string | null; tutor?: { id: string; name: string } | null; }
 interface Recebimento { id: string; valorTotal: number; desconto: number; troco: number; formas: Forma[]; observacao?: string | null; data: string; appointmentId?: string | null; appointment?: { id: string; value: number; numeroVenda?: number | null; codigoExterno?: string | null; pet?: { name: string }; tutor?: { name: string } } | null; }
-interface Caixa { id: string; numero: number; status: 'ABERTO' | 'FECHADO'; abertura: string; fechamento?: string | null; suprimento: number; observacao?: string | null; valorEsperado?: number | null; valorContado?: number | null; diferenca?: number | null; obsFechamento?: string | null; user?: { id: string; name: string } | null; recebimentos: Recebimento[]; movimentos?: Movimento[]; creditosUtilizados?: CreditoUtil[]; }
+interface Caixa { id: string; numero: number; status: string; abertura: string; fechamento?: string | null; suprimento: number; observacao?: string | null; valorEsperado?: number | null; valorContado?: number | null; diferenca?: number | null; obsFechamento?: string | null; user?: { id: string; name: string } | null; recebimentos: Recebimento[]; movimentos?: Movimento[]; creditosUtilizados?: CreditoUtil[]; }
 interface Appointment { id: string; value: number; numeroVenda?: number | null; codigoExterno?: string | null; paymentStatus?: string; tutorId?: string; pet?: { name: string } | null; tutor?: { id?: string; name: string } | null; start?: string; }
 
 const FORMAS_PADRAO = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
@@ -51,6 +51,38 @@ export default function CaixaPage() {
   const [detail, setDetail] = useState<Caixa | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [tab, setTab] = useState<'resumo' | 'receb' | 'mov' | 'cred'>('resumo');
+  // Status do caixa (4 estados, string) + grade filtrável
+  const STATUS_UI = (s: string) => {
+    const S = String(s || '').toUpperCase();
+    if (S === 'ABERTO') return { label: '🟢 Aberto', bg: '#E1F5EE', fg: GREEN };
+    if (S === 'EM_REVISAO') return { label: '🔎 Em revisão', bg: '#FBF1E2', fg: '#B26A00' };
+    if (S === 'ENCERRADO') return { label: '🔒 Encerrado', bg: '#EDE7FA', fg: '#6A4FB0' };
+    return { label: '⚪ Fechado', bg: '#EEF2F3', fg: '#5C6B70' };
+  };
+  const miniBtn: React.CSSProperties = { fontSize: 11.5, padding: '5px 9px', borderRadius: 8, border: '1px solid #E8E2D6', background: '#fff', color: '#5C6B70', cursor: 'pointer' };
+  const [gradeOpen, setGradeOpen] = useState(false);
+  const [gradeFrom, setGradeFrom] = useState('');
+  const [gradeTo, setGradeTo] = useState('');
+  const [gradeStatus, setGradeStatus] = useState('');
+  const [gradeRows, setGradeRows] = useState<any[]>([]);
+  const [gradeLoading, setGradeLoading] = useState(false);
+  const fetchGrade = async () => {
+    setGradeLoading(true);
+    try {
+      const p = new URLSearchParams();
+      if (gradeFrom) p.set('from', gradeFrom); if (gradeTo) p.set('to', gradeTo); if (gradeStatus) p.set('status', gradeStatus);
+      const r = await fetch(`/api/caixa/grade?${p.toString()}`, { cache: 'no-store' });
+      setGradeRows(r.ok ? await r.json() : []);
+    } catch { setGradeRows([]); } finally { setGradeLoading(false); }
+  };
+  const mudarStatus = async (novo: string) => {
+    if (!detail) return;
+    try {
+      const r = await fetch(`/api/caixa/${detail.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: novo }) });
+      if (!r.ok) throw new Error();
+      toast.success('Status atualizado'); await fetchCaixas(); await fetchDetail(detail.id);
+    } catch { toast.error('Erro ao mudar status'); }
+  };
   const [loading, setLoading] = useState(true);
   const [ocultar, setOcultar] = useState(false);
 
@@ -268,8 +300,52 @@ export default function CaixaPage() {
             <span style={{ fontSize: 13, fontWeight: 500, padding: '0 12px' }}>{date === hojeStr() ? 'Hoje · ' : ''}{fmtDataLabel(date)}</span>
             <button onClick={() => mudarDia(1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Próximo dia"><LuChevronRight size={16} /></button>
           </div>
+          <button onClick={() => { setGradeOpen(true); fetchGrade(); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #E8E2D6', background: '#fff', color: TEAL_DARK }}>📋 Todos os caixas</button>
           {podeEditar && <button onClick={() => setAbrirOpen(true)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuPlus size={15} /> Abrir caixa</button>}
         </div>
+
+        {gradeOpen && (
+          <div className="no-print" onClick={() => setGradeOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 760, maxWidth: '100%', background: '#fff', border: '1px solid #E8E2D6', borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ padding: '13px 18px', borderBottom: '1px solid #E8E2D6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#014D5E', fontSize: 15, fontWeight: 600 }}>📋 Todos os caixas</span>
+                <button onClick={() => setGradeOpen(false)} style={{ border: 'none', background: 'none', color: '#5C6B70', cursor: 'pointer', fontSize: 16 }}>✕</button>
+              </div>
+              <div style={{ padding: 16 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+                  <label style={{ fontSize: 11, color: '#5C6B70' }}>De<br /><input type="date" value={gradeFrom} onChange={(e) => setGradeFrom(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13 }} /></label>
+                  <label style={{ fontSize: 11, color: '#5C6B70' }}>Até<br /><input type="date" value={gradeTo} onChange={(e) => setGradeTo(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13 }} /></label>
+                  <label style={{ fontSize: 11, color: '#5C6B70' }}>Status<br />
+                    <select value={gradeStatus} onChange={(e) => setGradeStatus(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13, minWidth: 140 }}>
+                      <option value="">Todos</option><option value="ABERTO">Aberto</option><option value="FECHADO">Fechado</option><option value="ENCERRADO">Encerrado</option><option value="EM_REVISAO">Em revisão</option>
+                    </select>
+                  </label>
+                  <button onClick={fetchGrade} style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 9, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>🔍 Filtrar</button>
+                </div>
+                <div style={{ border: '1px solid #E8E2D6', borderRadius: 10, overflow: 'hidden', maxHeight: '55vh', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead><tr style={{ background: '#FBF9F4' }}>{['Nº', 'Usuário', 'Abertura', 'Fechamento', 'Status', 'Diferença'].map((h, i) => <th key={h} style={{ padding: '9px 11px', fontSize: 10.5, color: '#5C6B70', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.4px', textAlign: i === 5 ? 'right' : 'left' }}>{h}</th>)}</tr></thead>
+                    <tbody>
+                      {gradeLoading ? <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: '#5C6B70' }}>Carregando…</td></tr>
+                        : gradeRows.length === 0 ? <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: '#5C6B70' }}>Nenhum caixa no filtro.</td></tr>
+                        : gradeRows.map((c) => { const u = STATUS_UI(c.status); return (
+                          <tr key={c.id} style={{ borderTop: '1px solid #F0EBE0', cursor: 'pointer' }} onClick={() => { const d = new Date(c.abertura); setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); setSelectedId(c.id); setGradeOpen(false); }}>
+                            <td style={{ padding: '9px 11px', color: '#014D5E', fontWeight: 500 }}>nº {c.numero}</td>
+                            <td style={{ padding: '9px 11px', color: '#374151' }}>{c.user?.name || '—'}</td>
+                            <td style={{ padding: '9px 11px', color: '#5C6B70' }}>{c.abertura ? new Date(c.abertura).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                            <td style={{ padding: '9px 11px', color: '#5C6B70' }}>{c.fechamento ? new Date(c.fechamento).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                            <td style={{ padding: '9px 11px' }}><span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 9px', borderRadius: 20, background: u.bg, color: u.fg }}>{u.label}</span></td>
+                            <td style={{ padding: '9px 11px', textAlign: 'right', color: c.diferenca != null && c.diferenca < 0 ? '#C0392B' : '#5C6B70' }}>{c.diferenca != null ? (ocultar ? '•••' : c.diferenca.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })) : '—'}</td>
+                          </tr>
+                        ); })}
+                    </tbody>
+                  </table>
+                </div>
+                <p style={{ fontSize: 11, color: '#8A938F', marginTop: 8 }}>Clique numa linha pra abrir aquele caixa.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading && <p style={{ color: '#5C6B70' }}>Carregando…</p>}
         {!loading && caixas.length === 0 && (
@@ -291,8 +367,10 @@ export default function CaixaPage() {
                   <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Usuário:</span> {detail.user?.name || '—'}</div>
                   <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Abertura:</span> {dataHora(detail.abertura)}</div>
                   {detail.fechamento && <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Fechamento:</span> {dataHora(detail.fechamento)}</div>}
-                  <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Status:</span>{' '}
-                    <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, ...(aberto ? { background: '#e1f5ee', color: GREEN } : { background: '#eef2f3', color: '#5C6B70' }) }}>{aberto ? 'ABERTO' : 'FECHADO'}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><span style={{ color: '#014D5E', fontWeight: 500 }}>Status:</span>
+                    {(() => { const u = STATUS_UI(detail.status); return <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, background: u.bg, color: u.fg }}>{u.label}</span>; })()}
+                    {podeEditar && detail.status !== 'ABERTO' && detail.status !== 'ENCERRADO' && <button onClick={() => mudarStatus('ENCERRADO')} style={miniBtn} title="Encerrar definitivamente">🔒 Encerrar</button>}
+                    {podeEditar && detail.status !== 'ABERTO' && detail.status !== 'EM_REVISAO' && <button onClick={() => mudarStatus('EM_REVISAO')} style={miniBtn} title="Marcar em revisão">🔎 Em revisão</button>}
                   </div>
                 </div>
                 {caixas.length > 1 && (

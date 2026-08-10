@@ -685,6 +685,30 @@ export class CaixaService {
     });
   }
 
+  // Grade de caixas (todos os dias) filtrável por período + status.
+  async listCaixasGrade(query: any = {}) {
+    const { from, to, status } = query || {};
+    const where: any = {};
+    if (from || to) { where.abertura = {}; if (from) where.abertura.gte = new Date(String(from) + 'T00:00:00'); if (to) where.abertura.lte = new Date(String(to) + 'T23:59:59'); }
+    if (status) where.status = String(status).toUpperCase();
+    return this.prisma.caixaSessao.findMany({
+      where, orderBy: { abertura: 'desc' }, take: 300,
+      select: { id: true, numero: true, status: true, abertura: true, fechamento: true, valorEsperado: true, valorContado: true, diferenca: true, user: { select: { name: true } } },
+    });
+  }
+
+  // Muda o status do caixa (ABERTO/FECHADO/ENCERRADO/EM_REVISAO). Status é String no schema.
+  async setStatusCaixa(id: string, status: string) {
+    const S = String(status || '').toUpperCase();
+    if (!['ABERTO', 'FECHADO', 'ENCERRADO', 'EM_REVISAO'].includes(S)) throw new BadRequestException('Status inválido');
+    const ex = await this.prisma.caixaSessao.findUnique({ where: { id }, select: { id: true } });
+    if (!ex) throw new NotFoundException('Caixa nao encontrado');
+    const data: any = { status: S };
+    if (S === 'ABERTO') data.fechamento = null;
+    else if (S === 'FECHADO' || S === 'ENCERRADO') data.fechamento = new Date();
+    return this.prisma.caixaSessao.update({ where: { id }, data });
+  }
+
   async reabrir(id: string) {
     return this.prisma.caixaSessao.update({ where: { id }, data: { status: 'ABERTO', fechamento: null } });
   }

@@ -76,6 +76,12 @@ export class CaixaController {
     return this.service.vendaDireta(dto, userId);
   }
 
+  // Grade de caixas (todos os dias, filtrável por período/status) — antes do :id pra não colidir.
+  @Get('grade')
+  grade(@Query() query: any) {
+    return this.service.listCaixasGrade(query);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
@@ -94,6 +100,11 @@ export class CaixaController {
   @Patch(':id/reabrir')
   reabrir(@Param('id') id: string) {
     return this.service.reabrir(id);
+  }
+
+  @Patch(':id/status')
+  setStatus(@Param('id') id: string, @Body() dto: any) {
+    return this.service.setStatusCaixa(id, dto?.status);
   }
 
   @Post(':id/recebimento')
