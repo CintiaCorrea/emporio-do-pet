@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { CronHealthService } from '../../common/cron-health.service';
 import { CreateCadenciaDto, UpdateCadenciaDto, CreatePassoDto, UpdatePassoDto, InscreverDto } from './dto/cadencia.dto';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class CadenciasService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
+    private readonly cronHealth: CronHealthService,
   ) {}
 
   // Semeia os templates dos gatilhos "faltantes" (reativação, fim de pacote, pós-cirúrgico)
@@ -317,6 +319,7 @@ export class CadenciasService implements OnModuleInit {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async processarInscricoes() {
+    this.cronHealth.registrar('cadencias').catch(() => undefined);
     const due = await this.prisma.cadenciaInscricao.findMany({
       where: { status: 'ATIVA', proximoEm: { lte: new Date() } },
       take: 20,

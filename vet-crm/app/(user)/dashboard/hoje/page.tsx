@@ -330,6 +330,7 @@ export default function HojePage() {
   const [streak, setStreak] = useState(0); // 🔥 dias seguidos com atividade (Recepção painel)
   const [prodLista, setProdLista] = useState<any[]>([]); // atendimentos do usuário (Vet: "hoje")
   const [resumoVendas, setResumoVendas] = useState<any>(null); // Admin: faturamento/marcas/ticket
+  const [saudeAuto, setSaudeAuto] = useState<any>(null); // Admin: saúde das automações (crons)
 
   useEffect(() => {
     if (!meId) return;
@@ -390,6 +391,16 @@ export default function HojePage() {
     })();
     return () => { alive = false; };
   }, [meId]);
+
+  // Admin: saúde das automações (crons) — atualiza a cada minuto
+  useEffect(() => {
+    if (effectiveRole !== "ADMIN") return;
+    let a = true;
+    const load = async () => { const d = await safeJson<any>(await fetch("/api/health/automations", { cache: "no-store" }), null); if (a) setSaudeAuto(d); };
+    load();
+    const t = setInterval(load, 60000);
+    return () => { a = false; clearInterval(t); };
+  }, [effectiveRole]);
 
   // Admin: resumo de vendas do mês (faturamento, ticket, marcas) — reusa o BI
   useEffect(() => {
@@ -948,6 +959,13 @@ export default function HojePage() {
     return (
       <div className="mpv">
         <style>{MPV_CSS}</style>
+        {saudeAuto && (!saudeAuto.cronVivo || (saudeAuto.resumo?.parado > 0)) && (
+          <div style={{ background: "#FBEDE3", border: "1px solid #E5A48A", borderRadius: 12, padding: "12px 15px", marginBottom: 14, color: "#B91C1C", fontSize: 13, fontWeight: 600 }}>
+            ⚠️ {!saudeAuto.cronVivo
+              ? "O MOTOR de automações está PARADO — nenhuma mensagem/rotina automática está saindo. Veja em \"Saúde das automações\" abaixo."
+              : `${saudeAuto.resumo.parado} rotina(s) automática(s) parada(s) — confira em "Saúde das automações" abaixo.`}
+          </div>
+        )}
         <div className="kpis k6">
           <div className="kpi"><div className="l">💰 Faturamento (mês)</div><div className="n">{brl(Number(tot.liquido || 0))}</div><div className="d">líquido</div></div>
           <div className="kpi"><div className="l">🧾 Ticket médio</div><div className="n">{brl(Number(tot.ticket || 0))}</div></div>
@@ -956,6 +974,34 @@ export default function HojePage() {
           <div className="kpi"><div className="l">🔬 Exames a entregar</div><div className="n">{examesPend.length}</div></div>
           <div className="kpi"><div className="l">🎂 Aniversariantes</div><div className="n">{aniv.length}</div></div>
         </div>
+
+        {/* 🩺 Saúde das automações */}
+        {saudeAuto && (() => {
+          const stUI = (s: string) => s === "ok" ? { e: "🟢", c: "#0F6E56", l: "OK" } : s === "atrasado" ? { e: "🟡", c: "#8A6400", l: "Atrasado" } : s === "parado" ? { e: "🔴", c: "#B91C1C", l: "Parado" } : { e: "⚪", c: "#8A938F", l: "Aguardando 1ª" };
+          const fmtId = (m: number | null) => m == null ? "sem dados" : m < 1 ? "agora" : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} d`;
+          const motorSt = saudeAuto.cronVivo ? "ok" : "parado";
+          return (
+            <div className="card">
+              <div className="card-h"><span>🩺</span><span className="ttl">Saúde das automações</span><span className="r">{saudeAuto.cronVivo ? "motor OK" : "🔴 motor PARADO"} · atualiza sozinho</span></div>
+              <div style={{ padding: "4px 15px 8px" }}>
+                {/* motor (batida-mestre) */}
+                <div className="att" style={{ borderBottom: "1px solid #F0EBE0" }}>
+                  <div className="ic" style={{ fontSize: 16 }}>{stUI(motorSt).e}</div>
+                  <div className="tx"><b>Motor de automações (batida-mestre)</b><small>{saudeAuto.cronVivo ? `viva ${fmtId(saudeAuto.motor?.idadeMin)}` : "sem batida — os crons pararam"}</small></div>
+                  <span className="pill" style={{ background: motorSt === "ok" ? "#E7F6EE" : "#FBEDE3", color: stUI(motorSt).c }}>{stUI(motorSt).l}</span>
+                </div>
+                {(saudeAuto.jobs || []).map((j: any) => { const u = stUI(j.status); return (
+                  <div className="att" key={j.key}>
+                    <div className="ic" style={{ fontSize: 16 }}>{u.e}</div>
+                    <div className="tx"><b>{j.label}</b><small>última execução {fmtId(j.idadeMin)}</small></div>
+                    <span className="pill" style={{ background: j.status === "ok" ? "#E7F6EE" : j.status === "atrasado" ? "#FBF3E3" : j.status === "parado" ? "#FBEDE3" : "#F3F1EC", color: u.c }}>{u.l}</span>
+                  </div>
+                ); })}
+              </div>
+            </div>
+          );
+        })()}
+
         <div className="grid2">
           <div className="card">
             <div className="card-h"><span>🎯</span><span className="ttl">Meta da clínica</span></div>

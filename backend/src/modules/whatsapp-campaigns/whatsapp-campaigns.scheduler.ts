@@ -4,6 +4,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { CronHealthService } from '../../common/cron-health.service';
 
 @Injectable()
 export class WhatsAppCampaignsScheduler implements OnModuleInit {
@@ -14,6 +15,7 @@ export class WhatsAppCampaignsScheduler implements OnModuleInit {
     @InjectQueue('whatsapp-campaigns') private campaignsQueue: Queue,
     private eventEmitter: EventEmitter2,
     private schedulerRegistry: SchedulerRegistry,
+    private readonly cronHealth: CronHealthService,
   ) {}
 
   onModuleInit() {
@@ -28,6 +30,7 @@ export class WhatsAppCampaignsScheduler implements OnModuleInit {
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async checkScheduledCampaigns() {
+    this.cronHealth.registrar('campanhas').catch(() => undefined);
     try {
       const now = new Date();
       

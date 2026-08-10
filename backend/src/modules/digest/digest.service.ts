@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { CaixaService } from '../caixa/caixa.service';
+import { CronHealthService } from '../../common/cron-health.service';
 import { AvaliacoesService } from '../avaliacoes/avaliacoes.service';
 
 // Digest de gestão: resumo semanal por e-mail pra administração (rito de revisão da Fase 5).
@@ -15,11 +16,13 @@ export class DigestService {
     private readonly email: EmailService,
     private readonly caixa: CaixaService,
     private readonly avaliacoes: AvaliacoesService,
+    private readonly cronHealth: CronHealthService,
   ) {}
 
   // Toda segunda, 8h (fuso de Fortaleza).
   @Cron('0 8 * * 1', { timeZone: 'America/Fortaleza' })
   async cronSemanal() {
+    this.cronHealth.registrar('digest').catch(() => undefined);
     // Anti-duplicidade: no máximo 1 envio a cada 6 dias (protege contra reinício do processo).
     const marca = await this.prisma.listaItem.findFirst({ where: { lista: 'digest_sent' }, orderBy: { createdAt: 'desc' } });
     if (marca) {

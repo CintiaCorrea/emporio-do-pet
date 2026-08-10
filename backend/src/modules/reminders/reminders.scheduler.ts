@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { CronHealthService } from '../../common/cron-health.service';
 import { fortalezaYMD, dataPuraMD, diasAteDataPura, ddmmDataPura } from './reminders-datas';
 
 /**
@@ -20,6 +21,7 @@ export class RemindersScheduler {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
+    private readonly cronHealth: CronHealthService,
   ) {}
 
   @Cron('0 9 * * *', { timeZone: 'America/Fortaleza' })
@@ -42,6 +44,7 @@ export class RemindersScheduler {
 
   /** Roda o lote e, se TUDO completou sem erro, grava o marcador do dia em `reminder_run`. */
   private async rodarComMarcador(): Promise<void> {
+    this.cronHealth.registrar('lembretes').catch(() => undefined);
     let ok = true;
     try { await this.aniversarios(); } catch (e: any) { ok = false; this.logger.error(`aniversarios: ${e?.message || e}`); }
     try { await this.protocolos(); } catch (e: any) { ok = false; this.logger.error(`protocolos: ${e?.message || e}`); }

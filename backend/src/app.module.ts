@@ -68,6 +68,7 @@ import { TemplatesModule } from './modules/templates/templates.module';
 import { AutomationsModule } from './modules/automations/automations.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
+import { CronHealthModule } from './common/cron-health.module';
 import { InternacaoBoletimModule } from './modules/internacao-boletim/internacao-boletim.module';
 import { WhatsAppCampaignsModule } from './modules/whatsapp-campaigns/whatsapp-campaigns.module';
 import { WhatsAppTemplatesModule } from './modules/whatsapp-templates/whatsapp-templates.module';
@@ -107,6 +108,7 @@ import configuration from './config/configuration';
 
     // Schedule para tarefas agendadas (cron jobs)
     ScheduleModule.forRoot(),
+    CronHealthModule, // saúde das automações (batida-mestre + status no painel)
 
     // BullMQ para filas de processamento assíncrono
     BullModule.forRootAsync({

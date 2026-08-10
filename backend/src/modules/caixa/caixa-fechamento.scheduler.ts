@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { CaixaService } from './caixa.service';
+import { CronHealthService } from '../../common/cron-health.service';
 
 /**
  * Fechamento automático de caixa às 23:59 (fuso de Fortaleza).
@@ -15,10 +16,12 @@ export class CaixaFechamentoScheduler {
   constructor(
     private readonly prisma: PrismaService,
     private readonly caixa: CaixaService,
+    private readonly cronHealth: CronHealthService,
   ) {}
 
   @Cron('59 23 * * *', { timeZone: 'America/Fortaleza' })
   async fecharCaixasMeiaNoite() {
+    this.cronHealth.registrar('fechamento_caixa').catch(() => undefined);
     try {
       const item = await this.prisma.listaItem.findFirst({ where: { lista: 'configvendas' } });
       let cfg: any = {}; try { cfg = item?.valor ? JSON.parse(item.valor) : {}; } catch { cfg = {}; }

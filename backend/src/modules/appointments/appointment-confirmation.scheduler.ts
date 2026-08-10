@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppointmentsService } from './appointments.service';
+import { CronHealthService } from '../../common/cron-health.service';
 
 /**
  * Envia automaticamente a confirmação das agendas do DIA SEGUINTE.
@@ -21,6 +22,7 @@ export class AppointmentConfirmationScheduler {
   constructor(
     private readonly prisma: PrismaService,
     private readonly appts: AppointmentsService,
+    private readonly cronHealth: CronHealthService,
   ) {}
 
   // Confirmação por FAIXA do atendimento, pra manter a janela de 24h do WhatsApp aberta:
@@ -29,6 +31,7 @@ export class AppointmentConfirmationScheduler {
   // Juntos cobrem TODOS os horários, sem deixar agendamento sem confirmar.
   @Cron('0 17 * * *', { timeZone: 'America/Fortaleza' })
   async cronManha(): Promise<void> {
+    this.cronHealth.registrar('confirmacao').catch(() => undefined);
     const r = await this.rodar(false, 'manha');
     this.logger.log(
       `[confirmacao-manha 17h] enviados=${r.itens.filter((i) => i.ok).length}/${r.enviaveis} (${r.total} agendas, ${r.semOptIn} sem opt-in)`,
@@ -37,6 +40,7 @@ export class AppointmentConfirmationScheduler {
 
   @Cron('0 19 * * *', { timeZone: 'America/Fortaleza' })
   async cronTarde(): Promise<void> {
+    this.cronHealth.registrar('confirmacao').catch(() => undefined);
     const r = await this.rodar(false, 'tarde');
     this.logger.log(
       `[confirmacao-tarde 19h] enviados=${r.itens.filter((i) => i.ok).length}/${r.enviaveis} (${r.total} agendas, ${r.semOptIn} sem opt-in)`,
