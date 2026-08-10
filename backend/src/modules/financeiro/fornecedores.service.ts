@@ -62,6 +62,20 @@ export class FornecedoresService {
     return conta?.id ?? null;
   }
 
+  /** Categoria de CUSTO VARIÁVEL do fornecedor (senão a despesa fica "a classificar", fora dos Custos do DRE). */
+  private async catFornecedor(): Promise<string | null> {
+    const pref = await this.prisma.categoria.findFirst({
+      where: { tipo: 'DESPESA' as any, natureza: 'OPERACIONAL' as any, comportamento: 'VARIAVEL' as any, nome: { contains: 'Custo do Serviço Vendido' } },
+      select: { id: true },
+    });
+    if (pref) return pref.id;
+    const alt = await this.prisma.categoria.findFirst({
+      where: { tipo: 'DESPESA' as any, natureza: 'OPERACIONAL' as any, comportamento: 'VARIAVEL' as any },
+      select: { id: true }, orderBy: { nome: 'asc' },
+    });
+    return alt?.id ?? null;
+  }
+
   /* ---------- motor: Caixa → faturas / a-pagar ---------- */
 
   /** Lê os itens do caixa ainda não processados e gera faturas (lab) / a-pagar D+1 (parceiro). */
@@ -117,6 +131,7 @@ export class FornecedoresService {
     const novos = brutos.filter((b) => b.fornecedor && !processados.has(b.id));
 
     const contaId = await this.contaPadrao(); // pode ser null se nada cadastrado ainda
+    const catForn = await this.catFornecedor(); // P0: classifica em Custos Variáveis (senão fica "a classificar")
 
     for (const it of novos) {
       const f = it.fornecedor!;
@@ -186,7 +201,7 @@ export class FornecedoresService {
           data: dataServico.toISOString(),
           vencimento: venc.toISOString(),
           descricao: `${f.nome} — ${descLinha}`,
-          contaId,
+          contaId, categoriaId: catForn ?? undefined,
           origem: 'CRM' as any,
           externalId: it.id, // dedup também no nível do lançamento (unique origem+externalId)
           appointmentId: it.appointment?.id,
@@ -328,6 +343,7 @@ export class FornecedoresService {
       throw new BadRequestException('Fatura sem itens para pagar.');
     }
     const contaId = dto.contaId ?? (await this.contaPadrao());
+    const catForn = await this.catFornecedor();
     if (!contaId) {
       throw new BadRequestException('Cadastre uma conta financeira antes de fechar a fatura.');
     }
@@ -340,7 +356,7 @@ export class FornecedoresService {
       valorCentavos: fatura.totalCentavos,
       vencimento: venc.toISOString(),
       descricao: `Fatura ${fatura.fornecedorNome} — ${this.labelMes(fatura.competencia)}`,
-      contaId,
+      contaId, categoriaId: catForn ?? undefined,
       origem: 'CRM' as any,
       externalId: `fatura:${fatura.id}`,
     } as any);

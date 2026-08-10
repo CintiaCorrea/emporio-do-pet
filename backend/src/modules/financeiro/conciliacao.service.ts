@@ -106,28 +106,35 @@ export class ConciliacaoService {
         });
         // Receita que caiu líquida (link/cartão): a diferença vira Taxa Operadora de Cartão
         // (dedução, grupo 2) — a receita fica BRUTA no DRE e o caixa fecha com o banco.
-        if (a.taxaCartaoCentavos && a.taxaCartaoCentavos > 0) {
+        // Só cria a taxa aqui se a venda NÃO for do caixa (origem CRM) — pra venda do caixa a taxa
+        // já é lançada automaticamente pelo recebimento (evita taxa duplicada). E com externalId
+        // pra não repetir se a mesma linha for reconciliada de novo.
+        if (a.taxaCartaoCentavos && a.taxaCartaoCentavos > 0 && (conciliado.origem as any) !== 'CRM') {
           const catTaxa = await this.prisma.categoria.findFirst({
             where: { nome: { contains: 'Taxa Operadora' } },
           });
-          await this.prisma.lancamento.create({
-            data: {
-              data: dataPg,
-              competencia: new Date(
-                Date.UTC(dataPg.getUTCFullYear(), dataPg.getUTCMonth(), 1),
-              ),
-              dataPagamento: dataPg,
-              tipo: 'DESPESA',
-              status: 'CONCILIADO',
-              descricao: `Taxa de cartão — ${conciliado.descricao ?? 'venda por link'}`,
-              valorCentavos: a.taxaCartaoCentavos,
-              unidadeId: conciliado.unidadeId,
-              contaId: conciliado.contaId,
-              categoriaId: catTaxa?.id ?? null,
-              marcaId: conciliado.marcaId,
-              linhaServicoId: conciliado.linhaServicoId,
-            },
-          });
+          try {
+            await this.prisma.lancamento.create({
+              data: {
+                data: dataPg,
+                competencia: new Date(
+                  Date.UTC(dataPg.getUTCFullYear(), dataPg.getUTCMonth(), 1),
+                ),
+                dataPagamento: dataPg,
+                tipo: 'DESPESA',
+                status: 'CONCILIADO',
+                descricao: `Taxa de cartão — ${conciliado.descricao ?? 'venda por link'}`,
+                valorCentavos: a.taxaCartaoCentavos,
+                unidadeId: conciliado.unidadeId,
+                contaId: conciliado.contaId,
+                categoriaId: catTaxa?.id ?? null,
+                marcaId: conciliado.marcaId,
+                linhaServicoId: conciliado.linhaServicoId,
+                origem: 'MEU_DINHEIRO' as any,
+                externalId: `taxa-concil:${a.lancamentoId}`,
+              },
+            });
+          } catch { /* já existe (unique origem+externalId) — não duplica */ }
         }
         conciliados++;
       } else if (a.tipo === 'CRIAR' && a.linha) {

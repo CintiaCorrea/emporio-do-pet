@@ -77,6 +77,15 @@ export class RecebimentosService {
     return out;
   }
 
+  /** Categoria de RECEITA das vendas (senão a receita fica "a classificar" e some da Receita Bruta do DRE). */
+  private async catReceita(): Promise<string | null> {
+    const c = await this.prisma.categoria.findFirst({
+      where: { tipo: 'RECEITA' as any, natureza: 'OPERACIONAL' as any, nome: { contains: 'Receita' } },
+      select: { id: true }, orderBy: { nome: 'asc' },
+    });
+    return c?.id ?? null;
+  }
+
   async processar(): Promise<{ vendas: number; lancamentos: number; atualizados: number; taxas: number; semConta: boolean; semDepara: number }> {
     const depara = await this.loadDepara();
 
@@ -114,6 +123,7 @@ export class RecebimentosService {
     const contaId = await this.contaPadrao();
     if (!contaId) return { vendas: groups.size, lancamentos: 0, atualizados: 0, taxas: 0, semConta: true, semDepara: 0 };
     const unidadeId = (await this.unidadePadrao()) ?? undefined;
+    const catReceitaId = await this.catReceita(); // P0: sem isso a receita some da Receita Bruta do DRE
 
     // Recebimentos (formas de pagamento) — reusado p/ forma na receita E taxa.
     const appIds = [...new Set([...groups.values()].map((g) => g.appointmentId))];
@@ -156,7 +166,7 @@ export class RecebimentosService {
     const extIds = [...groups.values()].map((g) => `venda:${g.appointmentId}:${g.catKey}`);
     const existentes = await this.prisma.lancamento.findMany({
       where: { origem: 'CRM' as any, externalId: { in: extIds } },
-      select: { id: true, externalId: true, linhaServicoId: true, marcaId: true, formaPagamentoId: true, status: true },
+      select: { id: true, externalId: true, linhaServicoId: true, marcaId: true, formaPagamentoId: true, categoriaId: true, status: true },
     });
     const porExt = new Map(existentes.map((e) => [e.externalId as string, e]));
 
@@ -172,9 +182,9 @@ export class RecebimentosService {
       const ex = porExt.get(extId);
       if (ex) {
         if (ex.status === 'CONCILIADO') continue; // não mexe no que já foi conciliado
-        const mudou = (ex.linhaServicoId ?? null) !== (linhaId ?? null) || (ex.marcaId ?? null) !== (marcaId ?? null) || (ex.formaPagamentoId ?? null) !== (formaId ?? null);
+        const mudou = (ex.linhaServicoId ?? null) !== (linhaId ?? null) || (ex.marcaId ?? null) !== (marcaId ?? null) || (ex.formaPagamentoId ?? null) !== (formaId ?? null) || (ex.categoriaId ?? null) !== (catReceitaId ?? null);
         if (mudou) {
-          try { await this.prisma.lancamento.update({ where: { id: ex.id }, data: { linhaServicoId: linhaId ?? null, marcaId: marcaId ?? null, formaPagamentoId: formaId ?? null } }); atualizados++; }
+          try { await this.prisma.lancamento.update({ where: { id: ex.id }, data: { linhaServicoId: linhaId ?? null, marcaId: marcaId ?? null, formaPagamentoId: formaId ?? null, categoriaId: catReceitaId ?? null } }); atualizados++; }
           catch (e) { this.logger.warn(`receita update ${extId}: ${String((e as any)?.message || e)}`); }
         }
         continue;
@@ -185,7 +195,7 @@ export class RecebimentosService {
           tipo: 'RECEITA' as any, valorCentavos: g.valorCent,
           data: g.data.toISOString(), dataPagamento: g.data.toISOString(),
           descricao: `Venda${nomes ? ' — ' + nomes : ''}`,
-          contaId, unidadeId,
+          contaId, unidadeId, categoriaId: catReceitaId ?? undefined,
           linhaServicoId: linhaId ?? undefined, marcaId: marcaId ?? undefined, formaPagamentoId: formaId,
           origem: 'CRM' as any, externalId: extId,
           appointmentId: g.appointmentId, tutorId: g.tutorId ?? undefined,
