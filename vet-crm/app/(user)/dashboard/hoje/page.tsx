@@ -45,6 +45,19 @@ function fmtDate(d: Date) {
   return `${dia.charAt(0).toUpperCase() + dia.slice(1)}, ${dd} de ${mes}`;
 }
 
+/* ── Metas (Fatia 2): rótulo e formatação por tipo/medida ── */
+const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v) ? v : 0);
+const metaLabel = (m: any) => {
+  const t = String(m.tipo || "");
+  if (!m.profissionalId) return t === "FATURAMENTO_GERAL" ? "🏥 Meta da clínica" : "🏥 Meta geral";
+  if (t === "SERVICO_ESPECIFICO") return "🎯 Meta de serviço";
+  if (t === "CONVERSOES") return "🎯 Conversão de leads";
+  if (t === "ATENDIMENTOS") return "🩺 Atendimentos";
+  if (t === "NPS") return "⭐ NPS";
+  return m.medida === "QUANTIDADE" ? "📦 Vendas (quantidade)" : "💰 Faturamento";
+};
+const metaFmt = (m: any, n: number) => (m.medida === "QUANTIDADE" || m.tipo === "ATENDIMENTOS") ? `${Math.round(n)}` : brl(n);
+
 /* ── Peças de apresentação do Hoje (usam os tokens do kit B44) ────────
    Cores por tipo de entidade — as mesmas já aprovadas nesta tela. */
 const TIPO_CHIP: Record<string, { bg: string; color: string }> = {
@@ -114,6 +127,7 @@ export default function HojePage() {
   const [entConfOpen, setEntConfOpen] = useState(false);
   const [encMine, setEncMine] = useState<any[]>([]);
   const [aba, setAba] = useState<"painel" | "comissao" | "metas">("painel"); // Meu painel (Fatia 1)
+  const [metas, setMetas] = useState<any[]>([]); // Minhas metas (Fatia 2)
 
   useEffect(() => {
     if (!meId) return;
@@ -136,6 +150,41 @@ export default function HojePage() {
     const tid = setInterval(load, 30000);
     return () => { alive = false; window.removeEventListener("encfila:changed", onCh); clearInterval(tid); };
   }, [meId]);
+
+  // Minhas metas (Fatia 2): reusa GET /api/metas (traz valorRealizado calculado)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const d = await safeJson<any>(await fetch("/api/metas", { cache: "no-store" }), []);
+      const arr = Array.isArray(d) ? d : (d.metas || d.data || []);
+      if (alive) setMetas(arr);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const minhasMetas = useMemo(() => {
+    const mine = metas.filter((m: any) => m.profissionalId === meId && (m.status ?? "EM_ANDAMENTO") !== "CANCELADA");
+    const gerais = effectiveRole === "ADMIN" ? metas.filter((m: any) => !m.profissionalId) : [];
+    return [...mine, ...gerais];
+  }, [metas, meId, effectiveRole]);
+
+  // Gamificação (Fatia 3): score = média do atingimento das SUAS metas (sem inventar nada)
+  const gamif = useMemo(() => {
+    const soIndiv = minhasMetas.filter((m: any) => m.profissionalId === meId);
+    const base = soIndiv.length ? soIndiv : minhasMetas;
+    if (!base.length) return null;
+    const pcts = base.map((m: any) => { const meta = Number(m.valorMeta || 0), real = Number(m.valorRealizado || 0); return meta > 0 ? Math.min(100, (real / meta) * 100) : 0; });
+    const score = Math.round(pcts.reduce((s, x) => s + x, 0) / pcts.length);
+    const nivel = score >= 90 ? { lbl: "Diamante", emoji: "💎", bg: "#E7F0FB", fg: "#0C447C" }
+      : score >= 70 ? { lbl: "Ouro", emoji: "🥇", bg: "#FBF3E3", fg: "#8A6400" }
+        : score >= 40 ? { lbl: "Prata", emoji: "🥈", bg: "#EEF1F3", fg: "#49555C" }
+          : { lbl: "Bronze", emoji: "🥉", bg: "#F3EBE3", fg: "#8A5A2B" };
+    const batidas = base.filter((m: any) => { const meta = Number(m.valorMeta || 0); return meta > 0 && Number(m.valorRealizado || 0) >= meta; }).length;
+    const prox = score >= 90 ? null : score >= 70 ? { emoji: "💎", lbl: "Diamante", falta: 90 - score }
+      : score >= 40 ? { emoji: "🥇", lbl: "Ouro", falta: 70 - score } : { emoji: "🥈", lbl: "Prata", falta: 40 - score };
+    const cor = score >= 90 ? "#2C7BE5" : score >= 70 ? "#E0A100" : score >= 40 ? "#9AA5AD" : "#B87333";
+    return { score, nivel, batidas, prox, cor };
+  }, [minhasMetas, meId]);
 
   const encHref = (e: any) => e.tipo === "pet" ? `/dashboard/erp/pets/${e.id}` : e.tipo === "lead" ? `/dashboard/crm/leads/${e.id}` : `/dashboard/erp/tutores/${e.id}`;
   async function concluirEnc(e: any) {
@@ -435,6 +484,26 @@ export default function HojePage() {
       </div>
 
       {aba === "painel" && (<>
+      {/* 🏆 Gamificação (Fatia 3) — score/nível/selos a partir das metas; sem ranking */}
+      {!loading && gamif && (
+        <div className="mb-4 bg-white border rounded-[16px] p-4 flex items-center gap-4 flex-wrap" style={{ borderColor: B44.line }}>
+          <div style={{ width: 78, height: 78, borderRadius: "50%", background: `conic-gradient(${gamif.cor} ${gamif.score}%, ${B44.lineSoft} 0)`, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", flexShrink: 0 }}>
+            <div style={{ position: "absolute", inset: 9, background: "#fff", borderRadius: "50%" }} />
+            <div style={{ position: "relative", textAlign: "center" }}><b style={{ fontSize: 19, color: B44.navy, display: "block", lineHeight: 1 }}>{gamif.score}</b><small style={{ fontSize: 9, color: B44.text3 }}>score</small></div>
+          </div>
+          <div className="flex-1 min-w-[200px]">
+            <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold px-3 py-1 rounded-full" style={{ background: gamif.nivel.bg, color: gamif.nivel.fg }}>{gamif.nivel.emoji} Nível {gamif.nivel.lbl}</span>
+            <div className="flex gap-1.5 flex-wrap mt-2">
+              {gamif.batidas > 0 && <span className="inline-flex items-center gap-1 text-[11.5px] px-2.5 py-1 rounded-full" style={{ background: "#E7F6EE", color: "#0F6E56", border: "1px solid #BFE6CE" }}>🎯 {gamif.batidas} meta(s) batida(s)</span>}
+              <span className="inline-flex items-center gap-1 text-[11.5px] px-2.5 py-1 rounded-full" style={{ background: B44.soft, color: B44.text2, border: `1px solid ${B44.line}` }}>🏅 {gamif.score}% das metas</span>
+              {gamif.prox && <span className="inline-flex items-center gap-1 text-[11.5px] px-2.5 py-1 rounded-full" style={{ background: B44.soft, color: B44.text3, border: `1px solid ${B44.line}`, opacity: .55 }}>🔒 {gamif.prox.emoji} {gamif.prox.lbl}</span>}
+            </div>
+            {gamif.prox
+              ? <p className="text-[11.5px] mt-2" style={{ color: B44.text2 }}>Faltam <b style={{ color: B44.navy }}>{gamif.prox.falta} pts</b> pro {gamif.prox.emoji} {gamif.prox.lbl}. Sem ranking — só a <b>sua evolução</b>.</p>
+              : <p className="text-[11.5px] mt-2" style={{ color: B44.text2 }}>🎉 Nível máximo do mês! Sem ranking — só a sua evolução.</p>}
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-3 mb-4">
         <h2 className="text-[15px] font-medium" style={{ color: B44.navy }}>{effectiveRole === "ADMIN" ? "O que a clínica precisa de atenção hoje" : "O que você precisa atender hoje"}</h2>
         <span className="text-xs font-medium px-3 py-1 rounded-full" style={{ background: B44.tint, color: "#00798A" }}>
@@ -582,6 +651,33 @@ export default function HojePage() {
           })
         )}
       </div>
+
+      {/* 🎯 Minhas metas do mês (Fatia 2) */}
+      {!loading && minhasMetas.length > 0 && (
+        <SectionCard>
+          <SectionHeader emoji="🎯" tileBg={B44.tint} title="🎯 Minhas metas do mês" sub="definidas pelo Admin — bater a meta conta na sua comissão" count={minhasMetas.length} />
+          <div className="px-[18px] py-3.5 flex flex-col gap-3.5">
+            {minhasMetas.map((m: any) => {
+              const meta = Number(m.valorMeta || 0), real = Number(m.valorRealizado || 0);
+              const pct = meta > 0 ? Math.min(100, Math.round((real / meta) * 100)) : 0;
+              const falta = Math.max(0, meta - real);
+              const cor = pct >= 100 ? "#0F6E56" : pct >= 70 ? B44.primary : "#B45309";
+              return (
+                <div key={m.id}>
+                  <div className="flex items-center justify-between text-[13px] mb-1.5">
+                    <span style={{ color: B44.text1, fontWeight: 500 }}>{metaLabel(m)}</span>
+                    <span style={{ color: B44.text2 }}>{metaFmt(m, real)} / <b style={{ color: B44.navy }}>{metaFmt(m, meta)}</b></span>
+                  </div>
+                  <div className="h-2.5 rounded-full overflow-hidden" style={{ background: B44.lineSoft }}>
+                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: cor }} />
+                  </div>
+                  <div className="text-[11.5px] mt-1" style={{ color: B44.text3 }}>{pct}% {pct >= 100 ? "· meta batida 🎉" : `· faltam ${metaFmt(m, falta)}`}</div>
+                </div>
+              );
+            })}
+          </div>
+        </SectionCard>
+      )}
 
       {/* 📋 Boletins pendentes — VET e ADMIN */}
       {!loading && (effectiveRole === "VET" || effectiveRole === "ADMIN") && (
