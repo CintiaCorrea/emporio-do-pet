@@ -278,6 +278,7 @@ export default function HojePage() {
   const [encMine, setEncMine] = useState<any[]>([]);
   const [aba, setAba] = useState<"painel" | "comissao" | "metas">("painel"); // Meu painel (Fatia 1)
   const [metas, setMetas] = useState<any[]>([]); // Minhas metas (Fatia 2)
+  const [streak, setStreak] = useState(0); // 🔥 dias seguidos com atividade (Recepção painel)
 
   useEffect(() => {
     if (!meId) return;
@@ -317,6 +318,27 @@ export default function HojePage() {
     const gerais = effectiveRole === "ADMIN" ? metas.filter((m: any) => !m.profissionalId) : [];
     return [...mine, ...gerais];
   }, [metas, meId, effectiveRole]);
+
+  // 🔥 Streak real: dias seguidos com atividade (atendimentos do usuário). Best-effort; 0 = não mostra.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const to = new Date(); const from = new Date(); from.setDate(to.getDate() - 40);
+      const qs = `from=${from.toISOString().slice(0, 10)}&to=${to.toISOString().slice(0, 10)}`;
+      const d = await safeJson<any>(await fetch(`/api/caixa/produtividade?${qs}`, { cache: "no-store" }), null);
+      const lista = d?.lista || d?.appointments || [];
+      const dias = new Set<string>(lista.map((a: any) => new Date(a.date).toDateString()));
+      let s = 0; const day = new Date();
+      for (let i = 0; i < 40; i++) {
+        const k = day.toDateString();
+        if (dias.has(k)) s++;
+        else if (i > 0) break; // hoje pode não ter atividade ainda; começa a contar de ontem
+        day.setDate(day.getDate() - 1);
+      }
+      if (alive) setStreak(s);
+    })();
+    return () => { alive = false; };
+  }, [meId]);
 
   // Gamificação (Fatia 3): score = média do atingimento das SUAS metas (sem inventar nada)
   const gamif = useMemo(() => {
@@ -624,6 +646,133 @@ export default function HojePage() {
 
   const total = items.reduce((s, t) => s + t.count, 0);
 
+  const isRecep = effectiveRole === "RECEPTIONIST";
+
+  // 🏠 Painel da RECEPÇÃO — fiel ao mockup cb6015f4 (herói + KPIs + tarefas + meta + gestão).
+  function renderPainelRecep() {
+    const tarefas = items.filter((p) => p.count > 0);
+    const aguardando = examesPend.filter(aguardandoRetirada);
+    const byLab: Record<string, any[]> = {};
+    aguardando.forEach((e) => { const lab = e?.data?.laboratorio || e?.data?.lab || "Laboratório"; (byLab[lab] = byLab[lab] || []).push(e); });
+    const lotes = Object.entries(byLab);
+    return (
+      <div className="mpv">
+        <style>{`
+          .mpv .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+          @media(max-width:640px){.mpv .kpis{grid-template-columns:repeat(2,1fr)}}
+          .mpv .kpi{background:#fff;border:1px solid #E8E2D6;border-radius:12px;padding:12px 13px}
+          .mpv .kpi .l{font-size:10.5px;color:#8A938F;display:flex;gap:5px;align-items:center}
+          .mpv .kpi .n{font-size:22px;font-weight:700;color:#014D5E;margin-top:5px;font-variant-numeric:tabular-nums}
+          .mpv .kpi .d{font-size:10.5px;color:#0F6E56;margin-top:1px}
+          .mpv .card{background:#fff;border:1px solid #E8E2D6;border-radius:16px;overflow:hidden;margin-bottom:12px}
+          .mpv .card-h{display:flex;align-items:center;gap:8px;padding:11px 15px;border-bottom:1px solid #F0EBE0}
+          .mpv .card-h .ttl{font-size:13px;font-weight:600;color:#014D5E}
+          .mpv .card-h .r{margin-left:auto;font-size:11.5px;color:#8A938F}
+          .mpv .att{display:flex;align-items:center;gap:11px;padding:10px 15px;border-bottom:1px solid #F0EBE0}
+          .mpv .att:last-child{border-bottom:none}
+          .mpv .att .ic{width:33px;height:33px;border-radius:9px;background:#FBF9F4;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:1px solid #F0EBE0}
+          .mpv .att .tx{flex:1;min-width:0}.mpv .att .tx b{font-size:13px;color:#014D5E;font-weight:600;display:block}.mpv .att .tx small{display:block;font-size:11.5px;color:#5C6B70}
+          .mpv .att .cnt{font-size:12px;font-weight:700;color:#D85A30;background:#FBF3E3;border-radius:999px;padding:2px 10px}
+          .mpv .att .go{font-size:11.5px;font-weight:600;color:#fff;background:#009AAC;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;flex-shrink:0;text-decoration:none;display:inline-block}
+          .mpv .lote{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#fff;background:#6A4FB0;border:none;border-radius:999px;padding:6px 12px;cursor:pointer;margin:0 15px 12px}
+          .mpv .hero{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #E8E2D6;border-radius:16px;padding:16px;margin-bottom:14px}
+          .mpv .ring{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+          .mpv .ring::before{content:"";position:absolute;inset:9px;background:#fff;border-radius:50%}
+          .mpv .ring .in{position:relative;text-align:center}.mpv .ring .in b{font-size:19px;font-weight:700;color:#014D5E;display:block;line-height:1}.mpv .ring .in small{font-size:9px;color:#8A938F}
+          .mpv .nivel{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:4px 12px;border-radius:999px}
+          .mpv .streak{color:#D85A30;font-weight:700;font-size:12px;margin-left:8px}
+          .mpv .selos{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+          .mpv .selo{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;background:#FBF9F4;border:1px solid #E8E2D6;border-radius:999px;padding:4px 10px;color:#5C6B70}
+          .mpv .selo.lock{opacity:.45}
+          .mpv .metabar{height:10px;background:#F0EBE0;border-radius:999px;overflow:hidden}.mpv .metabar i{display:block;height:100%;border-radius:999px;background:#009AAC}
+          .mpv .miss{font-size:12px;color:#5C6B70}.mpv .miss b{color:#014D5E}
+          .mpv .sec{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8A938F;font-weight:700;margin:20px 2px 8px}
+          .mpv .atalhos{display:flex;gap:8px;flex-wrap:wrap;padding:13px 15px}
+          .mpv .atalhos a{font-size:12px;font-weight:600;color:#014D5E;background:#FBF9F4;border:1px solid #E8E2D6;border-radius:9px;padding:7px 12px;text-decoration:none}
+        `}</style>
+
+        {/* Herói: gamificação */}
+        <div className="hero">
+          <div className="ring" style={{ background: gamif ? `conic-gradient(${gamif.cor} ${gamif.score}%, #F0EBE0 0)` : "#F0EBE0" }}>
+            <div className="in"><b>{gamif ? gamif.score : "—"}</b><small>score</small></div>
+          </div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            {gamif
+              ? <><span className="nivel" style={{ background: gamif.nivel.bg, color: gamif.nivel.fg }}>{gamif.nivel.emoji} Nível {gamif.nivel.lbl}</span>{streak >= 2 && <span className="streak">🔥 {streak} dias seguidos</span>}</>
+              : <span className="miss">Defina metas (Configurações › Metas) pra ativar seu nível.</span>}
+            <div className="selos">
+              {gamif && gamif.batidas > 0 && <span className="selo" style={{ background: "#E7F6EE", borderColor: "#BFE6CE", color: "#0F6E56" }}>🎯 {gamif.batidas} meta(s) batida(s)</span>}
+              {gamif && <span className="selo">🏅 {gamif.score}% das metas</span>}
+              {gamif && gamif.prox && <span className="selo lock">🔒 {gamif.prox.emoji} {gamif.prox.lbl}</span>}
+            </div>
+            {gamif && gamif.prox && <p className="miss" style={{ marginTop: 7 }}>Faltam <b>{gamif.prox.falta} pts</b> pro {gamif.prox.emoji} {gamif.prox.lbl}. Sem ranking — só a <b>sua evolução</b>.</p>}
+          </div>
+        </div>
+
+        {/* KPIs */}
+        <div className="kpis">
+          <div className="kpi"><div className="l">📞 Follow-ups hoje</div><div className="n">{fuShown.length}</div><div className="d">a tocar</div></div>
+          <div className="kpi"><div className="l">🧲 Entradas hoje</div><div className="n">{entradas.length}</div><div className="d">leads/clientes</div></div>
+          <div className="kpi"><div className="l">🔬 Exames a entregar</div><div className="n">{examesPend.length}</div><div className="d">acompanhar</div></div>
+          <div className="kpi"><div className="l">🎂 Aniversariantes</div><div className="n">{aniv.length}</div><div className="d">parabenizar</div></div>
+        </div>
+
+        {/* Minhas tarefas de hoje */}
+        <div className="card">
+          <div className="card-h"><span>⚠️</span><span className="ttl">Minhas tarefas de hoje</span><span className="r">{loading ? "carregando…" : `${total} pendências`}</span></div>
+          {tarefas.length === 0 && !lotes.length
+            ? <div style={{ padding: 18, textAlign: "center", color: "#8A938F", fontSize: 13 }}>Tudo em ordem por aqui. 🎉</div>
+            : <>
+              {tarefas.map((p) => (
+                <div className="att" key={p.key}>
+                  <div className="ic">{p.emoji}</div>
+                  <div className="tx"><b>{p.title}</b><small>{p.sub}</small></div>
+                  <span className="cnt">{p.count}</span>
+                  {p.href !== "#" && <Link className="go" href={p.href}>Abrir</Link>}
+                </div>
+              ))}
+              {lotes.map(([lab, exs]) => (
+                <button key={lab} className="lote" onClick={() => baixarLoteRetirada(lab, exs as any[])}>🧪 {lab} retirou — dar baixa em lote ({(exs as any[]).length})</button>
+              ))}
+            </>}
+        </div>
+
+        {/* Minha meta do mês */}
+        {minhasMetas.length > 0 && (
+          <div className="card">
+            <div className="card-h"><span>🎯</span><span className="ttl">Minha meta do mês</span><span className="r">definida pelo Admin</span></div>
+            <div style={{ padding: "13px 15px", display: "flex", flexDirection: "column", gap: 13 }}>
+              {minhasMetas.map((m: any) => {
+                const meta = Number(m.valorMeta || 0), real = Number(m.valorRealizado || 0);
+                const pct = meta > 0 ? Math.min(100, Math.round((real / meta) * 100)) : 0;
+                const falta = Math.max(0, meta - real);
+                return (
+                  <div key={m.id}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 6, color: "#5C6B70" }}><span style={{ color: "#014D5E", fontWeight: 500 }}>{metaLabel(m)}</span><span>{metaFmt(m, real)} / <b style={{ color: "#014D5E" }}>{metaFmt(m, meta)}</b></span></div>
+                    <div className="metabar"><i style={{ width: `${pct}%`, background: pct >= 100 ? "#0F6E56" : pct >= 70 ? "#009AAC" : "#B45309" }} /></div>
+                    <div className="miss" style={{ marginTop: 5 }}>{pct}% {pct >= 100 ? "· meta batida 🎉" : <>· faltam <b>{metaFmt(m, falta)}</b> — bater a meta <b>conta na comissão</b>.</>}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Gestão & inteligência (atalhos reais; blocos por perfil chegam nas próximas fatias) */}
+        <div className="sec">📊 Gestão &amp; inteligência</div>
+        <div className="card">
+          <div className="card-h"><span>💡</span><span className="ttl">Seus painéis</span><span className="r">dados reais</span></div>
+          <div className="atalhos">
+            <Link href="/dashboard/erp/vendas-graficos">📊 BI de Vendas</Link>
+            <Link href="/dashboard/erp/relacionamento">💎 Relacionamento (RFM)</Link>
+            <Link href="/dashboard/erp/retencao">🔄 Retenção e Churn</Link>
+            <Link href="/dashboard/erp/ranking-clientes">🏆 Ranking de clientes</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <PageShell pad="p-6">
       {/* Abas do "Meu painel" (Fatia 1) — perfil vem de quem está logado */}
@@ -634,6 +783,8 @@ export default function HojePage() {
       </div>
 
       {aba === "painel" && (<>
+      {isRecep && renderPainelRecep()}
+      {!isRecep && (<>
       {/* 🏆 Gamificação (Fatia 3) — score/nível/selos a partir das metas; sem ranking */}
       {!loading && gamif && (
         <div className="mb-4 bg-white border rounded-[16px] p-4 flex items-center gap-4 flex-wrap" style={{ borderColor: B44.line }}>
@@ -828,6 +979,8 @@ export default function HojePage() {
           </div>
         </SectionCard>
       )}
+
+      </>)}
 
       {/* 👥 Metas do time (Fatia 5) — só admin */}
       {!loading && effectiveRole === "ADMIN" && <MetasTimeCard metas={metas} />}
