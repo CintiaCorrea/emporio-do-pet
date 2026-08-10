@@ -116,9 +116,179 @@ function Kpi({ emoji, label, value, color }: { emoji: string; label: string; val
   );
 }
 
+/* ---------------- modal de devolução ---------------- */
+interface PreviewItem { id: string; descricao: string; quantidade: number; valorTotal: number }
+interface DevPreview {
+  venda: { id: string; numeroVenda: number | null; tutor: string; pet: string; data: string; valor: number };
+  itens: PreviewItem[];
+  forma: { nome: string; parcelas: number; taxaPct: number };
+  jaDevolvido: number;
+}
+const MOTIVOS = ['Arrependimento do cliente', 'Produto com defeito', 'Erro no lançamento', 'Procedimento não realizado'];
+
+function DevolucaoModal({ vendaId, onClose }: { vendaId: string; onClose: () => void }) {
+  const [pv, setPv] = useState<DevPreview | null>(null);
+  const [erro, setErro] = useState('');
+  const [escopo, setEscopo] = useState<'total' | 'item'>('total');
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [forma, setForma] = useState<'CREDITO' | 'DINHEIRO'>('CREDITO');
+  const [motivo, setMotivo] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [okMsg, setOkMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/financeiro/devolucao/${vendaId}/preview`)
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((d: DevPreview) => { if (vivo) { setPv(d); setSel(new Set(d.itens.map((i) => i.id))); } })
+      .catch(() => { if (vivo) setErro('Não foi possível carregar a venda.'); });
+    return () => { vivo = false; };
+  }, [vendaId]);
+
+  const bruto = useMemo(() => {
+    if (!pv) return 0;
+    const its = escopo === 'total' ? pv.itens : pv.itens.filter((i) => sel.has(i.id));
+    return its.reduce((s, i) => s + Number(i.valorTotal || 0), 0);
+  }, [pv, escopo, sel]);
+
+  const taxaPct = pv?.forma.taxaPct || 0;
+  const parcelas = Math.max(1, pv?.forma.parcelas || 1);
+  const taxa = bruto * taxaPct / 100;
+  const liquido = bruto - taxa;
+  const parcela = liquido / parcelas;
+
+  const toggle = (id: string) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const confirmar = async () => {
+    if (!motivo.trim()) { setErro('Informe o motivo da devolução.'); return; }
+    if (bruto <= 0) { setErro('Selecione ao menos um item.'); return; }
+    setEnviando(true); setErro('');
+    try {
+      const r = await fetch(`/api/financeiro/devolucao/${vendaId}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds: escopo === 'item' ? [...sel] : null, forma, motivo: motivo.trim() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || 'Falha ao devolver.');
+      const via = forma === 'CREDITO' ? 'crédito do cliente' : 'dinheiro';
+      setOkMsg(`Devolução de ${brl(d.liquido ?? liquido)} registrada${parcelas > 1 ? ` em ${parcelas}×` : ''} (${via}).`);
+    } catch (e: any) {
+      setErro(String(e?.message || 'Falha ao devolver.'));
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  const seg: React.CSSProperties = { flex: 1, border: `1.5px solid ${CARD_LINE}`, borderRadius: 10, padding: '9px 10px', cursor: 'pointer', fontSize: 13, fontWeight: 600, textAlign: 'center', background: '#fff', color: NAVY };
+  const segOn: React.CSSProperties = { ...seg, borderColor: TEAL, background: '#EAF7F8', boxShadow: `inset 0 0 0 1px ${TEAL}` };
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(1,45,55,.45)', zIndex: 60, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '5vh 12px', overflowY: 'auto' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ ...cardCss, width: '100%', maxWidth: 560, background: '#fff', overflow: 'hidden' }}>
+        {/* cabeçalho */}
+        <div style={{ background: NAVY, color: '#fff', padding: '16px 18px' }}>
+          <div className="flex justify-between items-start gap-3">
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 700 }}>↩️ Devolver venda</div>
+              <div style={{ fontSize: 12.5, opacity: .85, marginTop: 2 }}>{pv ? `${pv.venda.tutor}${pv.venda.pet ? ` · ${pv.venda.pet}` : ''} · ${dm(pv.venda.data)}` : 'carregando…'}</div>
+            </div>
+            {pv && <span style={{ fontSize: 12, background: 'rgba(255,255,255,.14)', padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{vendaNum({ numeroVenda: pv.venda.numeroVenda, codigoExterno: null })} · {brl(pv.venda.valor)}</span>}
+          </div>
+          {pv && (pv.forma.taxaPct > 0 || pv.forma.parcelas > 1) && (
+            <div style={{ marginTop: 10, fontSize: 12.5, background: 'rgba(255,255,255,.10)', border: '1px solid rgba(255,255,255,.16)', padding: '7px 10px', borderRadius: 9 }}>
+              💳 Pago em <b>{pv.forma.nome}{pv.forma.parcelas > 1 ? ` ${pv.forma.parcelas}×` : ''}</b>{pv.forma.taxaPct > 0 ? ` · taxa da operadora ${pv.forma.taxaPct}%` : ''}
+            </div>
+          )}
+        </div>
+
+        {okMsg ? (
+          <div style={{ padding: 24, textAlign: 'center' }}>
+            <div style={{ fontSize: 32 }}>✅</div>
+            <div style={{ fontSize: 14, color: NAVY, fontWeight: 600, margin: '10px 0 4px' }}>{okMsg}</div>
+            <div style={{ fontSize: 12.5, color: GREY }}>Estorno lançado no Financeiro (Deduções de Vendas) e registrado no histórico.</div>
+            <button onClick={onClose} style={{ marginTop: 16, padding: '10px 22px', border: 'none', borderRadius: 10, background: TEAL, color: '#fff', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>Fechar</button>
+          </div>
+        ) : !pv ? (
+          <div style={{ padding: 30, textAlign: 'center', color: erro ? CORAL : GREY, fontSize: 13 }}>{erro || 'Carregando venda…'}</div>
+        ) : (
+          <>
+            <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {pv.jaDevolvido > 0 && <div style={{ fontSize: 12.5, background: '#FEF3D7', color: '#946200', border: '1px solid #F0D89B', borderRadius: 9, padding: '8px 11px' }}>⚠ Esta venda já tem {pv.jaDevolvido} devolução(ões) registrada(s).</div>}
+
+              {/* 1. o que devolver */}
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: NAVY, marginBottom: 8 }}>1 · O que devolver?</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={escopo === 'total' ? segOn : seg} onClick={() => setEscopo('total')}>Venda inteira</div>
+                  <div style={escopo === 'item' ? segOn : seg} onClick={() => setEscopo('item')}>Escolher itens</div>
+                </div>
+                {escopo === 'item' && (
+                  <div style={{ marginTop: 10, border: `1px solid ${CARD_LINE}`, borderRadius: 10, overflow: 'hidden' }}>
+                    {pv.itens.map((it, i) => (
+                      <label key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderBottom: i < pv.itens.length - 1 ? `1px solid ${CARD_LINE}` : 'none', fontSize: 13, cursor: 'pointer', opacity: sel.has(it.id) ? 1 : .45 }}>
+                        <input type="checkbox" checked={sel.has(it.id)} onChange={() => toggle(it.id)} style={{ width: 17, height: 17, accentColor: TEAL }} />
+                        <span style={{ flex: 1, color: NAVY }}>{it.descricao}</span>
+                        <span style={{ color: GREY, fontSize: 12 }}>{it.quantidade}×</span>
+                        <span style={{ fontWeight: 600, color: NAVY, minWidth: 82, textAlign: 'right' }}>{brl(it.valorTotal)}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. como devolver */}
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: NAVY, marginBottom: 8 }}>2 · Como devolver o dinheiro?</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={forma === 'CREDITO' ? segOn : seg} onClick={() => setForma('CREDITO')}>💳 Crédito do cliente</div>
+                  <div style={forma === 'DINHEIRO' ? segOn : seg} onClick={() => setForma('DINHEIRO')}>💵 Dinheiro</div>
+                </div>
+              </div>
+
+              {/* 3. motivo */}
+              <div>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: NAVY, marginBottom: 8 }}>3 · Motivo</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                  {MOTIVOS.map((m) => (
+                    <button key={m} onClick={() => setMotivo(m)} style={{ fontSize: 12, border: `1px solid ${CARD_LINE}`, background: '#F7F4EC', color: NAVY, padding: '5px 10px', borderRadius: 999, cursor: 'pointer' }}>{m}</button>
+                  ))}
+                </div>
+                <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Descreva o motivo (obrigatório)…" style={{ ...inp, width: '100%', minHeight: 56, resize: 'vertical' }} />
+              </div>
+            </div>
+
+            {/* resumo */}
+            <div style={{ background: '#F7F4EC', borderTop: `1px solid ${CARD_LINE}`, padding: '14px 18px' }}>
+              {taxaPct > 0 && (
+                <>
+                  <div className="flex justify-between" style={{ fontSize: 13, color: GREY, padding: '2px 0' }}><span>Valor dos itens</span><b style={{ color: NAVY }}>{brl(bruto)}</b></div>
+                  <div className="flex justify-between" style={{ fontSize: 13, color: GREY, padding: '2px 0' }}><span>− Taxa do cartão ({parcelas > 1 ? `${parcelas}× · ` : ''}{taxaPct}%)</span><b style={{ color: CORAL }}>− {brl(taxa)}</b></div>
+                </>
+              )}
+              <div className="flex justify-between items-center" style={{ marginTop: 6, paddingTop: 8, borderTop: `1px dashed ${CARD_LINE}` }}>
+                <span style={{ fontSize: 13, color: GREY }}>Devolver ao cliente{taxaPct > 0 ? ' (líquido)' : ''}</span>
+                <span style={{ fontSize: 23, fontWeight: 800, color: NAVY }}>{brl(liquido)}</span>
+              </div>
+              {parcelas > 1 && <div style={{ fontSize: 12, color: TEAL, marginTop: 5 }}>↳ em <b>{parcelas}×</b> de <b>{brl(parcela)}</b> (venc. mensal, espelhando o cartão)</div>}
+              <div style={{ fontSize: 11.5, color: GREY2, marginTop: 8 }}>📉 Estorno de receita no Financeiro (Deduções de Vendas){taxaPct > 0 ? ' — a taxa permanece como custo' : ''}. {forma === 'CREDITO' ? 'Vira crédito do cliente.' : 'Registrado como saída no Financeiro.'}</div>
+              {erro && <div style={{ fontSize: 12.5, color: CORAL, marginTop: 8 }}>⚠ {erro}</div>}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, padding: '12px 18px', borderTop: `1px solid ${CARD_LINE}` }}>
+              <button onClick={onClose} disabled={enviando} style={{ flex: 1, padding: 11, borderRadius: 10, border: `1.5px solid ${CARD_LINE}`, background: '#fff', color: GREY, fontWeight: 700, fontSize: 13.5, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={confirmar} disabled={enviando} style={{ flex: 2, padding: 11, borderRadius: 10, border: 'none', background: enviando ? '#9DBDC2' : TEAL, color: '#fff', fontWeight: 700, fontSize: 13.5, cursor: enviando ? 'default' : 'pointer' }}>{enviando ? 'Processando…' : 'Confirmar devolução'}</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ---------------- linha expansível ---------------- */
 function LinhaVenda({ v }: { v: Venda }) {
   const [open, setOpen] = useState(false);
+  const [devOpen, setDevOpen] = useState(false);
   return (
     <>
       <tr
@@ -161,12 +331,16 @@ function LinhaVenda({ v }: { v: Venda }) {
               <div className="flex items-center gap-4 mt-2.5 flex-wrap" style={{ fontSize: 12, color: GREY2 }}>
                 {v.paymentMethod && <span>💳 {v.paymentMethod}</span>}
                 {v.funcionario && <span>🧑 {v.funcionario}</span>}
-                <button onClick={(e) => { e.stopPropagation(); imprimirVenda(v); }} className="inline-flex items-center gap-1.5" style={{ marginLeft: 'auto', border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: NAVY, background: '#fff', cursor: 'pointer' }}>🖨️ Imprimir comprovante</button>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                  <button onClick={(e) => { e.stopPropagation(); setDevOpen(true); }} className="inline-flex items-center gap-1.5" style={{ border: `1px solid ${CORAL}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: CORAL, background: '#fff', cursor: 'pointer' }}>↩️ Devolver</button>
+                  <button onClick={(e) => { e.stopPropagation(); imprimirVenda(v); }} className="inline-flex items-center gap-1.5" style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: NAVY, background: '#fff', cursor: 'pointer' }}>🖨️ Imprimir comprovante</button>
+                </div>
               </div>
             </div>
           </td>
         </tr>
       )}
+      {devOpen && <DevolucaoModal vendaId={v.id} onClose={() => setDevOpen(false)} />}
     </>
   );
 }

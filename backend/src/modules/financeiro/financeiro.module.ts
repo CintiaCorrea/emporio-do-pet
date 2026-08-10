@@ -22,6 +22,8 @@ import { RecebimentosController } from './recebimentos.controller';
 import { RecebimentosService } from './recebimentos.service';
 import { MapVendasController } from './mapvendas.controller';
 import { MapVendasService } from './mapvendas.service';
+import { DevolucaoController } from './devolucao.controller';
+import { DevolucaoService } from './devolucao.service';
 
 /**
  * Módulo Financeiro (DRE multi-unidade) — isolado do `finance` (FinanceEntry antigo).
@@ -42,6 +44,7 @@ import { MapVendasService } from './mapvendas.service';
     FornecedoresController,
     RecebimentosController,
     MapVendasController,
+    DevolucaoController,
   ],
   providers: [
     RegrasService,
@@ -55,6 +58,7 @@ import { MapVendasService } from './mapvendas.service';
     FornecedoresService,
     RecebimentosService,
     MapVendasService,
+    DevolucaoService,
   ],
   exports: [
     RegrasService,
