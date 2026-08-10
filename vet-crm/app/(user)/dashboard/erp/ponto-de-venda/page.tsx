@@ -32,7 +32,7 @@ interface Pet { id: string; name: string }
 interface Tutor { id: string; name: string; pets?: Pet[] }
 interface Servico { id: string; nome: string; valorPadrao?: number | null }
 interface Prof { id: string; name: string }
-interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; desconto: number; executorUserId?: string }
+interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string }
 interface Forma { forma: string; valor: number; nsu?: string }
 interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string; tutorId?: string }
 
@@ -73,6 +73,7 @@ export default function PDVPage() {
   const [qtd, setQtd] = useState(1);
   const [carrinho, setCarrinho] = useState<CartItem[]>([]);
   const [descontoGlobal, setDescontoGlobal] = useState('');
+  const [descontoGlobalTipo, setDescontoGlobalTipo] = useState<'$' | '%'>('$');
   const [obs, setObs] = useState('');
 
   const [modal, setModal] = useState(false);
@@ -302,9 +303,13 @@ export default function PDVPage() {
   const updItem = (i: number, patch: Partial<CartItem>) => setCarrinho((c) => c.map((x, j) => j === i ? { ...x, ...patch } : x));
   const rmItem = (i: number) => setCarrinho((c) => c.filter((_, j) => j !== i));
 
-  const itemTotal = (it: CartItem) => Math.max(0, it.quantidade * it.valorUnitario - it.desconto);
+  // Desconto do item: resolve % → R$ (backend recebe sempre R$)
+  const descItemVal = (it: CartItem) => { const bruto = it.quantidade * it.valorUnitario; const d = Number(it.desconto) || 0; return it.descTipo === '%' ? bruto * d / 100 : d; };
+  const itemTotal = (it: CartItem) => Math.max(0, it.quantidade * it.valorUnitario - descItemVal(it));
   const subtotal = useMemo(() => carrinho.reduce((s, it) => s + itemTotal(it), 0), [carrinho]);
-  const total = useMemo(() => Math.max(0, subtotal - num(descontoGlobal)), [subtotal, descontoGlobal]);
+  // Desconto total: resolve % → R$
+  const descGlobalVal = () => descontoGlobalTipo === '%' ? subtotal * num(descontoGlobal) / 100 : num(descontoGlobal);
+  const total = useMemo(() => Math.max(0, subtotal - (descontoGlobalTipo === '%' ? subtotal * num(descontoGlobal) / 100 : num(descontoGlobal))), [subtotal, descontoGlobal, descontoGlobalTipo]);
 
   const somaFormas = useMemo(() => formas.reduce((s, f) => s + Number(f.valor || 0), 0), [formas]);
   const temDinheiro = formas.some((f) => /dinheiro/i.test(f.forma));
@@ -319,14 +324,14 @@ export default function PDVPage() {
   const aReceberHoje = useMemo(() => vendas.reduce((s, v) => s + Math.max(0, v.valor - v.pago), 0), [vendas]);
 
   const reset = () => {
-    setCliente(null); setPetId(''); setCliBusca(''); setCarrinho([]); setDescontoGlobal(''); setObs('');
+    setCliente(null); setPetId(''); setCliBusca(''); setCarrinho([]); setDescontoGlobal(''); setDescontoGlobalTipo('$'); setObs('');
     setFormas([{ forma: 'Dinheiro', valor: 0 }]); setTipo('VENDA'); setQtd(1);
   };
 
   const payload = (extra: any) => ({
     tutorId: cliente!.id, petId, userId: profId || undefined, date: new Date(data + 'T12:00:00').toISOString(),
-    itens: carrinho.map((it) => ({ servicoId: it.servicoId, productId: it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: it.desconto, executorUserId: it.executorUserId || profId || undefined })),
-    desconto: num(descontoGlobal), observacao: obs || null, ...extra,
+    itens: carrinho.map((it) => ({ servicoId: it.servicoId, productId: it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), executorUserId: it.executorUserId || profId || undefined })),
+    desconto: Number(descGlobalVal().toFixed(2)), observacao: obs || null, ...extra,
   });
 
   const enviar = async (body: any, msg: string) => {
@@ -505,7 +510,10 @@ export default function PDVPage() {
                       <input type="number" min={1} value={it.quantidade} onChange={(e) => updItem(i, { quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} title="Qtd" style={{ ...inp, width: 46, padding: '5px 6px', textAlign: 'center', fontSize: 12 }} />
                       <span style={{ color: MUT, fontSize: 12 }}>×</span>
                       <input value={it.valorUnitario || ''} inputMode="decimal" placeholder="Unit." onChange={(e) => updItem(i, { valorUnitario: num(e.target.value) })} title="Valor unitário" style={{ ...inp, width: 96, padding: '5px 8px', fontSize: 12 }} />
-                      <input value={it.desconto || ''} inputMode="decimal" placeholder="Desc." onChange={(e) => updItem(i, { desconto: num(e.target.value) })} title="Desconto" style={{ ...inp, width: 66, padding: '5px 8px', fontSize: 12 }} />
+                      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        <input value={it.desconto || ''} inputMode="decimal" placeholder="Desc." onChange={(e) => updItem(i, { desconto: num(e.target.value) })} title="Desconto" style={{ ...inp, width: 52, padding: '5px 6px', fontSize: 12, borderTopRightRadius: 0, borderBottomRightRadius: 0 }} />
+                        <button type="button" onClick={() => updItem(i, { descTipo: it.descTipo === '%' ? '$' : '%' })} title="Alternar R$ / %" style={{ border: `1px solid ${SOFT}`, borderLeft: 'none', background: SUAVE, color: NAVY, fontSize: 11, fontWeight: 600, padding: '5px 6px', cursor: 'pointer', borderTopRightRadius: 7, borderBottomRightRadius: 7 }}>{it.descTipo === '%' ? '%' : 'R$'}</button>
+                      </span>
                       <span title="Vendedor deste item" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, background: vendDiff ? AGUA : SUAVE, border: `1px solid ${vendDiff ? TEAL : SOFT}`, borderRadius: 999, padding: '2px 4px 2px 9px' }}>
                         <span style={{ fontSize: 11 }}>👤</span>
                         <select value={it.executorUserId || ''} onChange={(e) => updItem(i, { executorUserId: e.target.value || undefined })} style={{ border: 'none', background: 'transparent', padding: '3px 4px', fontSize: 12, color: NAVY, fontWeight: 500, maxWidth: 150, fontFamily: 'inherit', cursor: 'pointer' }}>
@@ -522,7 +530,10 @@ export default function PDVPage() {
                 <button onClick={addAvulso} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>➕ item avulso</button>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12, color: INK2 }}>Desconto</span>
-                  <input value={descontoGlobal} inputMode="decimal" placeholder="0,00" onChange={(e) => setDescontoGlobal(e.target.value)} style={{ ...inp, width: 90, padding: '6px 8px', textAlign: 'right' }} />
+                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    <input value={descontoGlobal} inputMode="decimal" placeholder="0,00" onChange={(e) => setDescontoGlobal(e.target.value)} style={{ ...inp, width: 76, padding: '6px 8px', textAlign: 'right', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} />
+                    <button type="button" onClick={() => setDescontoGlobalTipo((t) => t === '%' ? '$' : '%')} title="Alternar R$ / %" style={{ border: `1px solid ${SOFT}`, borderLeft: 'none', background: SUAVE, color: NAVY, fontSize: 12, fontWeight: 600, padding: '6px 9px', cursor: 'pointer', borderTopRightRadius: 8, borderBottomRightRadius: 8 }}>{descontoGlobalTipo === '%' ? '%' : 'R$'}</button>
+                  </span>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: SUAVE, borderTop: `1px solid ${SOFT}` }}>
