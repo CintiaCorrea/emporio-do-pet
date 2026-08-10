@@ -90,7 +90,7 @@ export default function CaixaPage() {
   const money = (v: number) => (ocultar ? 'R$ ••••••' : brl(v));
 
   const [abrirOpen, setAbrirOpen] = useState(false);
-  const [abrirForm, setAbrirForm] = useState({ suprimento: '', observacao: '' });
+  const [abrirForm, setAbrirForm] = useState({ suprimento: '', observacao: '', abertura: '' });
   const [receberOpen, setReceberOpen] = useState(false);
   const [vendaSel, setVendaSel] = useState<Appointment | null>(null);
   const [formas, setFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]);
@@ -178,9 +178,9 @@ export default function CaixaPage() {
 
   const abrirCaixa = async () => {
     try {
-      const r = await fetch('/api/caixa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suprimento: Number(String(abrirForm.suprimento).replace(',', '.')) || 0, observacao: abrirForm.observacao || null }) });
+      const r = await fetch('/api/caixa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suprimento: Number(String(abrirForm.suprimento).replace(',', '.')) || 0, observacao: abrirForm.observacao || null, abertura: abrirForm.abertura || undefined }) });
       if (!r.ok) throw new Error('Erro ao abrir caixa');
-      toast.success('Caixa aberto!'); setAbrirOpen(false); setAbrirForm({ suprimento: '', observacao: '' }); await fetchCaixas();
+      toast.success(abrirForm.abertura ? `Caixa aberto para ${abrirForm.abertura.split('-').reverse().join('/')}!` : 'Caixa aberto!'); setAbrirOpen(false); setAbrirForm({ suprimento: '', observacao: '', abertura: '' }); await fetchCaixas();
     } catch (e: any) { toast.error(e.message || 'Erro ao abrir caixa'); }
   };
   const abrirFechar = () => { setFecharForm({ valorContado: '', observacao: '' }); setFecharOpen(true); };
@@ -550,6 +550,7 @@ export default function CaixaPage() {
       {/* MODAIS */}
       {abrirOpen && (
         <Modal title="Abrir caixa" onClose={() => setAbrirOpen(false)} onConfirm={abrirCaixa} confirmLabel="Abrir caixa">
+          <Field label="Data do caixa (deixe vazio = hoje; escolha um dia passado p/ lançar retroativo)"><input type="date" value={abrirForm.abertura} max={hojeStr()} onChange={(e) => setAbrirForm({ ...abrirForm, abertura: e.target.value })} style={inp} /></Field>
           <Field label="Suprimento (fundo de troco)"><input value={abrirForm.suprimento} onChange={(e) => setAbrirForm({ ...abrirForm, suprimento: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field>
           <Field label="Observação"><input value={abrirForm.observacao} onChange={(e) => setAbrirForm({ ...abrirForm, observacao: e.target.value })} placeholder="Ex: Abertura de caixa Isabela" style={inp} /></Field>
         </Modal>

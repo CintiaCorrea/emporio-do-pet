@@ -663,12 +663,15 @@ export class CaixaService {
 
   async abrir(dto: any, userId: string) {
     const count = await this.prisma.caixaSessao.count();
+    // Caixa retroativo: permite abrir com uma data passada (backfill). Meio-dia p/ evitar borda de fuso.
+    const abertura = dto.abertura ? new Date(String(dto.abertura).slice(0, 10) + 'T12:00:00') : undefined;
     return this.prisma.caixaSessao.create({
       data: {
         numero: count + 1,
         userId: dto.userId || userId,
         suprimento: Number(dto.suprimento || 0),
         observacao: dto.observacao || null,
+        ...(abertura ? { abertura } : {}),
       },
       include: { user: { select: { id: true, name: true } }, recebimentos: true },
     });
@@ -747,6 +750,16 @@ export class CaixaService {
       if (saldo < creditoUsado - 0.001) throw new BadRequestException('Credito insuficiente do cliente');
     }
 
+    // Caixa retroativo: o recebimento (e a venda) caem no DIA do caixa, não em "agora".
+    const caixaSes = await this.prisma.caixaSessao.findUnique({ where: { id: caixaId }, select: { abertura: true } });
+    const caixaData = caixaSes?.abertura ?? new Date();
+    const hoje0 = new Date(); hoje0.setHours(0, 0, 0, 0);
+    const caixaDia0 = new Date(caixaData); caixaDia0.setHours(0, 0, 0, 0);
+    const retroativo = caixaDia0 < hoje0;
+    if (retroativo && appointmentId) {
+      try { await this.prisma.appointment.update({ where: { id: appointmentId }, data: { date: caixaData } }); } catch { /* nao trava o recebimento */ }
+    }
+
     const rec = await this.prisma.recebimento.create({
       data: {
         caixaSessaoId: caixaId, appointmentId,
@@ -755,6 +768,7 @@ export class CaixaService {
         troco: Number(dto.troco || 0),
         formas: dto.formas ?? [],
         observacao: dto.observacao || null,
+        data: caixaData,
         createdById: userId,
       },
     });
@@ -894,6 +908,7 @@ export class CaixaService {
         conta: dto.conta || null,
         descricao: dto.descricao || null,
         observacao: dto.observacao || null,
+        data: caixa.abertura, // caixa retroativo: movimento cai no dia do caixa
         createdById: userId,
       },
     });
