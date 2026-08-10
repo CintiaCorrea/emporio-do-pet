@@ -34,7 +34,7 @@ interface Servico { id: string; nome: string; valorPadrao?: number | null }
 interface Prof { id: string; name: string }
 interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; desconto: number; executorUserId?: string }
 interface Forma { forma: string; valor: number; nsu?: string }
-interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string }
+interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string; tutorId?: string }
 
 const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
 const TIPOS_VENDA = ['Presencial, para consumidor final', 'Online / delivery', 'Entrega a domicílio'];
@@ -82,6 +82,10 @@ export default function PDVPage() {
 
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [vendaTab, setVendaTab] = useState<'NAO' | 'PAGO'>('NAO');
+  // Baixar todas as comandas de um cliente de uma vez (portado do "Em atendimento")
+  const [grupoBaixa, setGrupoBaixa] = useState<{ tutor: string; itens: Venda[]; total: number } | null>(null);
+  const [formaGrupo, setFormaGrupo] = useState('Dinheiro');
+  const [baixandoGrupo, setBaixandoGrupo] = useState(false);
   const buscaTimer = useRef<any>(null);
   const [vendaDia, setVendaDia] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [vendaAbertas, setVendaAbertas] = useState(false); // ver abertas de TODOS os dias
@@ -343,6 +347,42 @@ export default function PDVPage() {
   const vendasFiltradas = vendas.filter((v) => vendaTab === 'PAGO' ? v.pagoTotal : !v.pagoTotal);
   const formasList = formasCfg.length ? formasCfg : FORMAS;
 
+  // Clientes com 2+ contas abertas (pra baixar todas de uma vez)
+  const gruposMulti = useMemo(() => {
+    const map = new Map<string, { tutor: string; itens: Venda[]; total: number }>();
+    for (const v of vendas) {
+      if (v.pagoTotal) continue;
+      const aReceber = Math.max(0, Number(v.valor || 0) - Number(v.pago || 0));
+      if (aReceber <= 0) continue;
+      const key = v.tutorId || v.tutor || v.id;
+      const g = map.get(key) || { tutor: v.tutor || 'Cliente', itens: [], total: 0 };
+      g.itens.push(v); g.total += aReceber;
+      map.set(key, g);
+    }
+    return [...map.values()].filter((g) => g.itens.length >= 2).sort((a, b) => b.total - a.total);
+  }, [vendas]);
+
+  async function baixarGrupoPDV() {
+    if (!grupoBaixa) return;
+    if (!caixaAbertoId) { toast.error('Abra o caixa primeiro (Outros caixas › Novo caixa).'); return; }
+    setBaixandoGrupo(true);
+    let ok = 0;
+    try {
+      for (const v of grupoBaixa.itens) {
+        const aReceber = Math.max(0, Number(v.valor || 0) - Number(v.pago || 0));
+        if (aReceber <= 0) continue;
+        const r = await fetch(`/api/caixa/${caixaAbertoId}/recebimento`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointmentId: v.id, valorTotal: aReceber, formas: [{ forma: formaGrupo, valor: aReceber }], observacao: 'Baixa em lote (cliente)' }),
+        });
+        if (r.ok) ok++;
+      }
+      toast.success(`${ok} comanda(s) de ${grupoBaixa.tutor} baixada(s) em ${formaGrupo}.`);
+      setGrupoBaixa(null);
+      await loadVendas();
+    } catch (e: any) { toast.error(e?.message || 'Erro ao baixar'); } finally { setBaixandoGrupo(false); }
+  }
+
   const card: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, overflow: 'hidden' };
   const chLeve: React.CSSProperties = { padding: '13px 16px', borderBottom: `1px solid ${SOFT}`, display: 'flex', alignItems: 'center', gap: 9 };
   const step = (emoji: string, label: string) => (
@@ -532,6 +572,16 @@ export default function PDVPage() {
               </div>
             </div>
             <div style={{ padding: '6px 13px 13px', minHeight: 90 }}>
+              {vendaTab === 'NAO' && gruposMulti.map((g) => (
+                <div key={g.tutor} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', marginBottom: 6, background: '#EAF7F8', border: `1px solid ${TEAL}`, borderRadius: 10 }}>
+                  <span style={{ fontSize: 16 }}>👥</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, color: NAVY, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.tutor}</div>
+                    <div style={{ fontSize: 10.5, color: MUT }}>{g.itens.length} contas abertas · {brl(g.total)}</div>
+                  </div>
+                  <button onClick={() => { setGrupoBaixa(g); setFormaGrupo(formasList[0] || 'Dinheiro'); }} style={{ border: 'none', background: TEAL, color: '#fff', fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>Baixar todas</button>
+                </div>
+              ))}
               {vendasFiltradas.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '18px 0' }}>
                   <div style={{ fontSize: 22, marginBottom: 4 }}>🧾</div>
@@ -561,6 +611,42 @@ export default function PDVPage() {
           </div>
         </div>
       </div>
+
+      {/* ===== MODAL BAIXAR TODAS DO CLIENTE ===== */}
+      {grupoBaixa && (
+        <div onClick={() => setGrupoBaixa(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>👥 {grupoBaixa.tutor}</span>
+              <button onClick={() => setGrupoBaixa(null)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ fontSize: 11.5, color: MUT, marginBottom: 8 }}>{grupoBaixa.itens.length} contas abertas · baixar tudo junto</div>
+              <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, overflow: 'hidden', marginBottom: 12 }}>
+                {grupoBaixa.itens.map((v, i) => {
+                  const aReceber = Math.max(0, Number(v.valor || 0) - Number(v.pago || 0));
+                  return (
+                    <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', borderTop: i ? `1px solid ${SOFT}` : 'none', fontSize: 13 }}>
+                      <span style={{ color: INK }}>{v.pet || v.tutor}</span>
+                      <span style={{ fontWeight: 500, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>{brl(aReceber)}</span>
+                    </div>
+                  );
+                })}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderTop: `1px solid ${LINE}`, background: '#FBF9F4' }}>
+                  <span style={{ fontSize: 12.5, color: MUT }}>Total a receber</span>
+                  <span style={{ fontSize: 17, fontWeight: 600, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>{brl(grupoBaixa.total)}</span>
+                </div>
+              </div>
+              <div style={{ fontSize: 10.5, color: '#374151', textTransform: 'uppercase', letterSpacing: '.03em', marginBottom: 6 }}>Forma de recebimento</div>
+              <select value={formaGrupo} onChange={(e) => setFormaGrupo(e.target.value)} style={{ ...inp, width: '100%', padding: '9px', marginBottom: 14 }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setGrupoBaixa(null)} disabled={baixandoGrupo} style={{ flex: 1, border: `1px solid ${LINE}`, background: '#fff', color: MUT, borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={baixarGrupoPDV} disabled={baixandoGrupo} style={{ flex: 2, border: 'none', background: baixandoGrupo ? '#9DBDC2' : TEAL, color: '#fff', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 600, cursor: baixandoGrupo ? 'default' : 'pointer' }}>{baixandoGrupo ? 'Baixando…' : '💰 Baixar tudo'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== MODAL RECEBIMENTO ===== */}
       {modal && (
