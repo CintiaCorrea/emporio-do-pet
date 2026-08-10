@@ -58,6 +58,55 @@ const metaLabel = (m: any) => {
 };
 const metaFmt = (m: any, n: number) => (m.medida === "QUANTIDADE" || m.tipo === "ATENDIMENTOS") ? `${Math.round(n)}` : brl(n);
 
+/* CSS do "Meu painel" (fiel ao mockup cb6015f4) — compartilhado pelos 3 perfis, escopo .mpv */
+const MPV_CSS = `
+  .mpv .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .mpv .kpis.k3{grid-template-columns:repeat(3,1fr)}
+  .mpv .kpis.k6{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:640px){.mpv .kpis,.mpv .kpis.k3,.mpv .kpis.k6{grid-template-columns:repeat(2,1fr)}}
+  .mpv .kpi{background:#fff;border:1px solid #E8E2D6;border-radius:12px;padding:12px 13px}
+  .mpv .kpi .l{font-size:10.5px;color:#8A938F;display:flex;gap:5px;align-items:center}
+  .mpv .kpi .n{font-size:22px;font-weight:700;color:#014D5E;margin-top:5px;font-variant-numeric:tabular-nums}
+  .mpv .kpi .d{font-size:10.5px;color:#0F6E56;margin-top:1px}
+  .mpv .card{background:#fff;border:1px solid #E8E2D6;border-radius:16px;overflow:hidden;margin-bottom:12px}
+  .mpv .card-h{display:flex;align-items:center;gap:8px;padding:11px 15px;border-bottom:1px solid #F0EBE0}
+  .mpv .card-h .ttl{font-size:13px;font-weight:600;color:#014D5E}
+  .mpv .card-h .r{margin-left:auto;font-size:11.5px;color:#8A938F}
+  .mpv .att{display:flex;align-items:center;gap:11px;padding:10px 15px;border-bottom:1px solid #F0EBE0}
+  .mpv .att:last-child{border-bottom:none}
+  .mpv .att .ic{width:33px;height:33px;border-radius:9px;background:#FBF9F4;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;border:1px solid #F0EBE0}
+  .mpv .att .tx{flex:1;min-width:0}.mpv .att .tx b{font-size:13px;color:#014D5E;font-weight:600;display:block}.mpv .att .tx small{display:block;font-size:11.5px;color:#5C6B70}
+  .mpv .att .cnt{font-size:12px;font-weight:700;color:#D85A30;background:#FBF3E3;border-radius:999px;padding:2px 10px}
+  .mpv .att .go{font-size:11.5px;font-weight:600;color:#fff;background:#009AAC;border:none;border-radius:8px;padding:6px 11px;cursor:pointer;flex-shrink:0;text-decoration:none;display:inline-block}
+  .mpv .att .go.ghost{background:#fff;border:1px solid #E8E2D6;color:#009AAC}
+  .mpv .lote{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#fff;background:#6A4FB0;border:none;border-radius:999px;padding:6px 12px;cursor:pointer;margin:0 15px 12px}
+  .mpv .hero{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid #E8E2D6;border-radius:16px;padding:16px;margin-bottom:14px}
+  .mpv .ring{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0}
+  .mpv .ring::before{content:"";position:absolute;inset:9px;background:#fff;border-radius:50%}
+  .mpv .ring .in{position:relative;text-align:center}.mpv .ring .in b{font-size:19px;font-weight:700;color:#014D5E;display:block;line-height:1}.mpv .ring .in small{font-size:9px;color:#8A938F}
+  .mpv .nivel{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:4px 12px;border-radius:999px}
+  .mpv .streak{color:#D85A30;font-weight:700;font-size:12px;margin-left:8px}
+  .mpv .selos{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+  .mpv .selo{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;background:#FBF9F4;border:1px solid #E8E2D6;border-radius:999px;padding:4px 10px;color:#5C6B70}
+  .mpv .selo.lock{opacity:.45}
+  .mpv .metabar{height:10px;background:#F0EBE0;border-radius:999px;overflow:hidden}.mpv .metabar i{display:block;height:100%;border-radius:999px;background:#009AAC}
+  .mpv .miss{font-size:12px;color:#5C6B70}.mpv .miss b{color:#014D5E}
+  .mpv .sec{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8A938F;font-weight:700;margin:20px 2px 8px}
+  .mpv .atalhos{display:flex;gap:8px;flex-wrap:wrap;padding:13px 15px}
+  .mpv .atalhos a{font-size:12px;font-weight:600;color:#014D5E;background:#FBF9F4;border:1px solid #E8E2D6;border-radius:9px;padding:7px 12px;text-decoration:none}
+  .mpv .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:720px){.mpv .grid2{grid-template-columns:1fr}}
+  .mpv .sow{display:flex;flex-direction:column;gap:9px;padding:13px 15px}.mpv .sow .row{display:flex;align-items:center;gap:10px;font-size:12.5px}.mpv .sow .nm{width:150px;color:#1F2A2E}.mpv .sow .bar{flex:1;height:9px;border-radius:999px;background:#F0EBE0;overflow:hidden}.mpv .sow .bar i{display:block;height:100%}.mpv .sow .pc{width:64px;text-align:right;color:#5C6B70;font-variant-numeric:tabular-nums}
+  .mpv .funil{padding:13px 15px}.mpv .funil .fr{display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:12.5px}.mpv .funil .fr .fn{width:130px;color:#1F2A2E}.mpv .funil .fr .fb{flex:1;height:8px;border-radius:999px;background:#F0EBE0;overflow:hidden}.mpv .funil .fr .fb i{display:block;height:100%;background:#009AAC}.mpv .funil .fr .fv{width:34px;text-align:right;color:#5C6B70}
+  .mpv table{width:100%;border-collapse:collapse}
+  .mpv th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#8A938F;font-weight:600;text-align:left;padding:8px 12px;border-bottom:1px solid #E8E2D6}
+  .mpv th.r,.mpv td.r{text-align:right}
+  .mpv td{padding:9px 12px;border-bottom:1px solid #F0EBE0;font-size:13px;color:#1F2A2E}
+  .mpv tr:last-child td{border-bottom:none}
+  .mpv tr.total td{border-top:1px solid #E8E2D6;background:#FBF9F4;font-weight:700;color:#014D5E}
+  .mpv .pill{font-size:11.5px;font-weight:700;padding:2px 9px;border-radius:999px}
+`;
+
 /* ── Peças de apresentação do Hoje (usam os tokens do kit B44) ────────
    Cores por tipo de entidade — as mesmas já aprovadas nesta tela. */
 const TIPO_CHIP: Record<string, { bg: string; color: string }> = {
@@ -279,6 +328,8 @@ export default function HojePage() {
   const [aba, setAba] = useState<"painel" | "comissao" | "metas">("painel"); // Meu painel (Fatia 1)
   const [metas, setMetas] = useState<any[]>([]); // Minhas metas (Fatia 2)
   const [streak, setStreak] = useState(0); // 🔥 dias seguidos com atividade (Recepção painel)
+  const [prodLista, setProdLista] = useState<any[]>([]); // atendimentos do usuário (Vet: "hoje")
+  const [resumoVendas, setResumoVendas] = useState<any>(null); // Admin: faturamento/marcas/ticket
 
   useEffect(() => {
     if (!meId) return;
@@ -335,10 +386,24 @@ export default function HojePage() {
         else if (i > 0) break; // hoje pode não ter atividade ainda; começa a contar de ontem
         day.setDate(day.getDate() - 1);
       }
-      if (alive) setStreak(s);
+      if (alive) { setStreak(s); setProdLista(lista); }
     })();
     return () => { alive = false; };
   }, [meId]);
+
+  // Admin: resumo de vendas do mês (faturamento, ticket, marcas) — reusa o BI
+  useEffect(() => {
+    if (effectiveRole !== "ADMIN") return;
+    let alive = true;
+    (async () => {
+      const n = new Date();
+      const de = new Date(n.getFullYear(), n.getMonth(), 1).toISOString().slice(0, 10);
+      const ate = new Date(n.getFullYear(), n.getMonth() + 1, 0).toISOString().slice(0, 10);
+      const d = await safeJson<any>(await fetch(`/api/caixa/vendas-resumo?de=${de}&ate=${ate}`, { cache: "no-store" }), null);
+      if (alive) setResumoVendas(d);
+    })();
+    return () => { alive = false; };
+  }, [effectiveRole]);
 
   // Gamificação (Fatia 3): score = média do atingimento das SUAS metas (sem inventar nada)
   const gamif = useMemo(() => {
@@ -571,7 +636,7 @@ export default function HojePage() {
 
   const dosesView = useMemo(() => {
     const arr = Array.isArray(dosesPend) ? dosesPend : [];
-    return (effectiveRole === "VET" && meId) ? arr.filter((d: any) => d.vetId === meId) : arr;
+    return (effectiveRole === "VETERINARIAN" && meId) ? arr.filter((d: any) => d.vetId === meId) : arr;
   }, [dosesPend, effectiveRole, meId]);
   // Retornos filtrados por responsável: "Meus" = eu OU sem dono; "Todos" = tudo
   const fuShown = useMemo(() => (
@@ -773,6 +838,157 @@ export default function HojePage() {
     );
   }
 
+  const isVet = effectiveRole === "VETERINARIAN";
+  const isAdmin = effectiveRole === "ADMIN";
+
+  // Herói de gamificação (reusado por Vet/Admin) — mesma cara do mockup.
+  function heroGamif() {
+    return (
+      <div className="hero">
+        <div className="ring" style={{ background: gamif ? `conic-gradient(${gamif.cor} ${gamif.score}%, #F0EBE0 0)` : "#F0EBE0" }}>
+          <div className="in"><b>{gamif ? gamif.score : "—"}</b><small>score</small></div>
+        </div>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          {gamif
+            ? <><span className="nivel" style={{ background: gamif.nivel.bg, color: gamif.nivel.fg }}>{gamif.nivel.emoji} Nível {gamif.nivel.lbl}</span>{streak >= 2 && <span className="streak">🔥 {streak} dias seguidos</span>}</>
+            : <span className="miss">Defina metas (Configurações › Metas) pra ativar seu nível.</span>}
+          <div className="selos">
+            {gamif && gamif.batidas > 0 && <span className="selo" style={{ background: "#E7F6EE", borderColor: "#BFE6CE", color: "#0F6E56" }}>🎯 {gamif.batidas} meta(s) batida(s)</span>}
+            {gamif && <span className="selo">🏅 {gamif.score}% das metas</span>}
+            {gamif && gamif.prox && <span className="selo lock">🔒 {gamif.prox.emoji} {gamif.prox.lbl}</span>}
+          </div>
+          {gamif && gamif.prox && <p className="miss" style={{ marginTop: 7 }}>Faltam <b>{gamif.prox.falta} pts</b> pro {gamif.prox.emoji} {gamif.prox.lbl}. Sem ranking — só a <b>sua evolução</b>.</p>}
+        </div>
+      </div>
+    );
+  }
+
+  // 🩺 Painel do VETERINÁRIO — agenda/atendimentos do dia + tarefas + desempenho por produto.
+  function renderPainelVet() {
+    const hojeStr = new Date().toDateString();
+    const atendHoje = prodLista.filter((a: any) => { try { return new Date(a.date).toDateString() === hojeStr; } catch { return false; } });
+    const aguardando = examesPend.filter(aguardandoRetirada);
+    const byLab: Record<string, any[]> = {};
+    aguardando.forEach((e) => { const lab = e?.data?.laboratorio || e?.data?.lab || "Laboratório"; (byLab[lab] = byLab[lab] || []).push(e); });
+    const lotes = Object.entries(byLab);
+    const tarefasVet = items.filter((p) => p.count > 0 && ["retornos", "doses", "exames", "toques"].includes(p.key));
+    const metaPct = gamif ? gamif.score : 0;
+    return (
+      <div className="mpv">
+        <style>{MPV_CSS}</style>
+        {heroGamif()}
+        <div className="kpis">
+          <div className="kpi"><div className="l">🩺 Atendimentos hoje</div><div className="n">{atendHoje.length}</div><div className="d">seus</div></div>
+          <div className="kpi"><div className="l">🎯 Minha meta do mês</div><div className="n">{metaPct}%</div><div className="d">atingido</div></div>
+          <div className="kpi"><div className="l">💉 Doses a aplicar</div><div className="n">{dosesView.length}</div><div className="d">hoje/semana</div></div>
+          <div className="kpi"><div className="l">🔬 Exames a entregar</div><div className="n">{examesPend.length}</div><div className="d">acompanhar</div></div>
+        </div>
+        <div className="grid2">
+          <div className="card">
+            <div className="card-h"><span>📅</span><span className="ttl">Meus atendimentos de hoje</span><span className="r">{atendHoje.length}</span></div>
+            {atendHoje.length === 0
+              ? <div style={{ padding: 16, textAlign: "center", color: "#8A938F", fontSize: 12.5 }}>Nenhum atendimento lançado hoje ainda.</div>
+              : atendHoje.slice(0, 8).map((a: any, i: number) => (
+                <div className="att" key={i}>
+                  <div className="ic">🐾</div>
+                  <div className="tx"><b>{a.pet || a.tutor || "Atendimento"}</b><small>{a.tutor || ""}{a.valor ? ` · ${brl(Number(a.valor))}` : ""}</small></div>
+                  {a.id && <Link className="go ghost" href={`/dashboard/erp/atendimentos/${a.id}`}>Abrir</Link>}
+                </div>
+              ))}
+            <div className="atalhos"><Link href="/dashboard/calendario">📅 Ver minha agenda completa</Link></div>
+          </div>
+          <div className="card">
+            <div className="card-h"><span>🔔</span><span className="ttl">Minhas tarefas</span><span className="r">{loading ? "…" : `${tarefasVet.reduce((s, p) => s + p.count, 0)}`}</span></div>
+            {tarefasVet.length === 0 && !lotes.length
+              ? <div style={{ padding: 16, textAlign: "center", color: "#8A938F", fontSize: 12.5 }}>Tudo em ordem. 🎉</div>
+              : <>
+                {tarefasVet.map((p) => (
+                  <div className="att" key={p.key}>
+                    <div className="ic">{p.emoji}</div>
+                    <div className="tx"><b>{p.title}</b><small>{p.sub}</small></div>
+                    <span className="cnt">{p.count}</span>
+                    {p.href !== "#" && <Link className="go ghost" href={p.href}>Ver</Link>}
+                  </div>
+                ))}
+                {lotes.map(([lab, exs]) => (
+                  <button key={lab} className="lote" onClick={() => baixarLoteRetirada(lab, exs as any[])}>🧪 {lab} retirou — baixa em lote ({(exs as any[]).length})</button>
+                ))}
+              </>}
+          </div>
+        </div>
+        <div className="sec">📊 Meu desempenho por produto e valor</div>
+        {minhasMetas.length > 0 ? (
+          <div className="card"><div style={{ overflowX: "auto" }}><table>
+            <thead><tr><th>Meta</th><th className="r">Realizado</th><th className="r">Meta</th><th className="r">%</th></tr></thead>
+            <tbody>
+              {minhasMetas.map((m: any) => {
+                const meta = Number(m.valorMeta || 0), real = Number(m.valorRealizado || 0);
+                const pct = meta > 0 ? Math.round((real / meta) * 100) : 0;
+                const pc = pct >= 100 ? { bg: "#E7F6EE", fg: "#0F6E56" } : pct >= 70 ? { bg: "#FBF3E3", fg: "#8A6400" } : { bg: "#FBEDE3", fg: "#B45309" };
+                return (<tr key={m.id}><td>{metaLabel(m)}</td><td className="r">{metaFmt(m, real)}</td><td className="r">{metaFmt(m, meta)}</td><td className="r"><span className="pill" style={{ background: pc.bg, color: pc.fg }}>{pct}%</span></td></tr>);
+              })}
+            </tbody>
+          </table></div></div>
+        ) : (
+          <div className="card"><div style={{ padding: 16, fontSize: 12.5, color: "#5C6B70" }}>Sem metas definidas ainda. O Admin define em <b>Configurações › Metas</b> escolhendo você como profissional.</div></div>
+        )}
+      </div>
+    );
+  }
+
+  // 👑 Painel do ADMIN — visão da clínica (KPIs + meta + marcas + funil). Time = MetasTimeCard abaixo.
+  function renderPainelAdmin() {
+    const tot = resumoVendas?.totais || {};
+    const marcas: any[] = resumoVendas?.porMarca || [];
+    const maxMarca = Math.max(1, ...marcas.map((m: any) => Number(m.valor ?? m.liquido ?? m.total ?? 0)));
+    const metaClinica = metas.find((m: any) => !m.profissionalId && (String(m.tipo).includes("GERAL") || String(m.tipo).includes("FATURAMENTO")));
+    const mcMeta = Number(metaClinica?.valorMeta || 0), mcReal = Number(metaClinica?.valorRealizado || 0);
+    const mcPct = mcMeta > 0 ? Math.min(100, Math.round((mcReal / mcMeta) * 100)) : 0;
+    const marcaCor = (i: number) => ["#009AAC", "#639922", "#7F77DD", "#D85A30"][i % 4];
+    return (
+      <div className="mpv">
+        <style>{MPV_CSS}</style>
+        <div className="kpis k6">
+          <div className="kpi"><div className="l">💰 Faturamento (mês)</div><div className="n">{brl(Number(tot.liquido || 0))}</div><div className="d">líquido</div></div>
+          <div className="kpi"><div className="l">🧾 Ticket médio</div><div className="n">{brl(Number(tot.ticket || 0))}</div></div>
+          <div className="kpi"><div className="l">🛒 Vendas (mês)</div><div className="n">{Number(tot.qtdVendas || 0)}</div></div>
+          <div className="kpi"><div className="l">📦 Itens vendidos</div><div className="n">{Number(tot.qtdItens || 0)}</div></div>
+          <div className="kpi"><div className="l">🔬 Exames a entregar</div><div className="n">{examesPend.length}</div></div>
+          <div className="kpi"><div className="l">🎂 Aniversariantes</div><div className="n">{aniv.length}</div></div>
+        </div>
+        <div className="grid2">
+          <div className="card">
+            <div className="card-h"><span>🎯</span><span className="ttl">Meta da clínica</span></div>
+            {metaClinica ? (
+              <div className="hero" style={{ border: "none", margin: 0 }}>
+                <div className="ring" style={{ background: `conic-gradient(#009AAC ${mcPct}%, #F0EBE0 0)` }}><div className="in"><b>{mcPct}%</b><small>da meta</small></div></div>
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <div style={{ fontSize: 13, color: "#1F2A2E" }}>{brl(mcReal)} <span style={{ color: "#8A938F" }}>de</span> {brl(mcMeta)}</div>
+                  <div className="miss" style={{ marginTop: 4 }}>Faltam <b style={{ color: "#D85A30" }}>{brl(Math.max(0, mcMeta - mcReal))}</b> pra bater a meta do mês.</div>
+                </div>
+              </div>
+            ) : <div style={{ padding: 16, fontSize: 12.5, color: "#5C6B70" }}>Defina a meta da clínica em <b>Configurações › Metas</b> (sem profissional = meta geral).</div>}
+          </div>
+          <div className="card">
+            <div className="card-h"><span>🏷️</span><span className="ttl">Onde o cliente gasta (marcas)</span></div>
+            {marcas.length === 0
+              ? <div style={{ padding: 16, fontSize: 12.5, color: "#5C6B70" }}>Sem vendas com marca no mês.</div>
+              : <div className="sow">{marcas.slice(0, 5).map((m: any, i: number) => {
+                const v = Number(m.valor ?? m.liquido ?? m.total ?? 0);
+                return (<div className="row" key={i}><span className="nm">{m.marca || m.nome || m.label || "—"}</span><span className="bar"><i style={{ width: `${Math.round(v / maxMarca * 100)}%`, background: marcaCor(i) }} /></span><span className="pc">{brl(v)}</span></div>);
+              })}</div>}
+          </div>
+        </div>
+        <div className="sec">📈 Análise comercial</div>
+        <div className="card"><div className="atalhos">
+          <Link href="/dashboard/erp/vendas-graficos">📊 BI de Vendas (funil · turno · produtos)</Link>
+          <Link href="/dashboard/erp/retencao">🔄 Retenção e Churn</Link>
+          <Link href="/dashboard/erp/relacionamento">💎 Relacionamento (RFM)</Link>
+        </div></div>
+      </div>
+    );
+  }
+
   return (
     <PageShell pad="p-6">
       {/* Abas do "Meu painel" (Fatia 1) — perfil vem de quem está logado */}
@@ -784,7 +1000,9 @@ export default function HojePage() {
 
       {aba === "painel" && (<>
       {isRecep && renderPainelRecep()}
-      {!isRecep && (<>
+      {isVet && renderPainelVet()}
+      {isAdmin && renderPainelAdmin()}
+      {!isRecep && !isVet && !isAdmin && (<>
       {/* 🏆 Gamificação (Fatia 3) — score/nível/selos a partir das metas; sem ranking */}
       {!loading && gamif && (
         <div className="mb-4 bg-white border rounded-[16px] p-4 flex items-center gap-4 flex-wrap" style={{ borderColor: B44.line }}>
@@ -986,7 +1204,7 @@ export default function HojePage() {
       {!loading && effectiveRole === "ADMIN" && <MetasTimeCard metas={metas} />}
 
       {/* 📋 Boletins pendentes — VET e ADMIN */}
-      {!loading && (effectiveRole === "VET" || effectiveRole === "ADMIN") && (
+      {!loading && (effectiveRole === "VETERINARIAN" || effectiveRole === "ADMIN") && (
         <SectionCard>
           <SectionHeader emoji="📋" tileBg="#EAF3DE" title="📋 Boletins pendentes" sub="Boletins de fisioterapia salvos e ainda não enviados ao tutor" count={boletinsPend.length} />
           {boletinsPend.length === 0 ? (
