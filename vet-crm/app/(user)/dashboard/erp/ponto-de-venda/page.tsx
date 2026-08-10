@@ -349,7 +349,8 @@ export default function PDVPage() {
   const confirmarRecebimento = () => enviar(payload({ tipo: 'VENDA', formas: formas.filter((f) => Number(f.valor) > 0) }), 'Venda registrada!');
   const salvar = () => enviar(payload({ tipo }), tipo === 'ORCAMENTO' ? 'Orçamento salvo!' : 'Venda salva (a receber)');
 
-  const vendasFiltradas = vendas.filter((v) => vendaTab === 'PAGO' ? v.pagoTotal : !v.pagoTotal);
+  // Só venda com valor (> 0) — atendimentos de R$ 0 (agenda/clínico) não são comanda nem venda.
+  const vendasFiltradas = vendas.filter((v) => Number(v.valor) > 0 && (vendaTab === 'PAGO' ? v.pagoTotal : !v.pagoTotal));
   const formasList = formasCfg.length ? formasCfg : FORMAS;
 
   // Clientes com 2+ contas abertas (pra baixar todas de uma vez)
