@@ -155,6 +155,90 @@ function ComissaoAba({ isAdmin }: { isAdmin: boolean }) {
   );
 }
 
+/* 👥 Metas do time (Fatia 5, admin) — pessoa · vendas · meta · % · comissão (metas + /commissions/aberto) */
+function MetasTimeCard({ metas }: { metas: any[] }) {
+  const [aberto, setAberto] = useState<any>(null);
+  const [users, setUsers] = useState<any[]>([]);
+  useEffect(() => {
+    let a = true;
+    (async () => {
+      const [ab, us] = await Promise.all([
+        safeJson<any>(await fetch("/api/commissions/aberto", { cache: "no-store" }), null),
+        safeJson<any>(await fetch("/api/users", { cache: "no-store" }), []),
+      ]);
+      if (a) { setAberto(ab); setUsers(Array.isArray(us) ? us : (us.users || us.data || [])); }
+    })();
+    return () => { a = false; };
+  }, []);
+
+  const ini = (nome: string) => (nome || "—").trim().split(/\s+/).slice(0, 2).map((s) => s[0]).join("").toUpperCase();
+  const rows = useMemo(() => {
+    const nomeDe = (id: string) => users.find((u: any) => u.id === id)?.name || "";
+    const map = new Map<string, { nome: string; ini: string; meta: number; real: number; comissao: number }>();
+    for (const m of metas) {
+      if (!m.profissionalId) continue;
+      const cur = map.get(m.profissionalId) || { nome: nomeDe(m.profissionalId), ini: "", meta: 0, real: 0, comissao: 0 };
+      cur.meta += Number(m.valorMeta || 0); cur.real += Number(m.valorRealizado || 0);
+      map.set(m.profissionalId, cur);
+    }
+    for (const r of (aberto?.resumo || [])) {
+      const cur = map.get(r.userId) || { nome: r.nome, ini: r.iniciais, meta: 0, real: 0, comissao: 0 };
+      cur.comissao = Number(r.comissao || 0);
+      if (!cur.nome) cur.nome = r.nome; if (!cur.ini) cur.ini = r.iniciais;
+      map.set(r.userId, cur);
+    }
+    return [...map.values()].map((v) => ({ ...v, ini: v.ini || ini(v.nome) })).sort((a, b) => b.real - a.real);
+  }, [metas, aberto, users]);
+
+  if (rows.length === 0) return null;
+  const tot = rows.reduce((a, r) => ({ meta: a.meta + r.meta, real: a.real + r.real, comissao: a.comissao + r.comissao }), { meta: 0, real: 0, comissao: 0 });
+
+  return (
+    <SectionCard>
+      <SectionHeader emoji="👥" tileBg={B44.tint} title="👥 Metas do time" sub="sem ranking — acompanhamento por pessoa" count={rows.length} />
+      <div className="px-[6px] py-1 overflow-x-auto">
+        <table className="w-full" style={{ borderCollapse: "collapse" }}>
+          <thead><tr style={{ color: B44.text3 }} className="text-[10.5px] uppercase tracking-wide text-left">
+            <th className="px-3 py-2">Funcionário</th><th className="px-3 py-2 text-right">Vendas</th><th className="px-3 py-2 text-right">Meta</th><th className="px-3 py-2 text-right">%</th><th className="px-3 py-2 text-right">Comissão</th>
+          </tr></thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const pct = r.meta > 0 ? Math.min(999, Math.round((r.real / r.meta) * 100)) : null;
+              const pcor = pct == null ? B44.text3 : pct >= 100 ? "#0F6E56" : pct >= 70 ? "#8A6400" : "#B45309";
+              const pbg = pct == null ? B44.soft : pct >= 100 ? "#E7F6EE" : pct >= 70 ? "#FBF3E3" : "#FBEDE3";
+              return (
+                <tr key={i} style={{ borderTop: `1px solid ${B44.lineSoft}` }} className="text-[13px]">
+                  <td className="px-3 py-2">
+                    <span className="inline-flex items-center gap-2">
+                      <span className="w-7 h-7 rounded-full flex items-center justify-center text-[10.5px] font-bold flex-shrink-0" style={{ background: B44.tint, color: B44.navy }}>{r.ini}</span>
+                      <span style={{ color: B44.text1 }}>{r.nome}</span>
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-right" style={{ color: B44.text1, fontVariantNumeric: "tabular-nums" }}>{brl(r.real)}</td>
+                  <td className="px-3 py-2 text-right" style={{ color: B44.text2, fontVariantNumeric: "tabular-nums" }}>{r.meta > 0 ? brl(r.meta) : "—"}</td>
+                  <td className="px-3 py-2 text-right">{pct == null ? <span style={{ color: B44.text3 }}>—</span> : <span className="text-[11.5px] font-semibold px-2 py-0.5 rounded-full" style={{ background: pbg, color: pcor }}>{pct}%</span>}</td>
+                  <td className="px-3 py-2 text-right font-medium" style={{ color: B44.navy, fontVariantNumeric: "tabular-nums" }}>{brl(r.comissao)}</td>
+                </tr>
+              );
+            })}
+            <tr style={{ borderTop: `1px solid ${B44.line}`, background: B44.soft }} className="text-[13px] font-bold">
+              <td className="px-3 py-2" style={{ color: B44.navy }}>Total</td>
+              <td className="px-3 py-2 text-right" style={{ color: B44.navy }}>{brl(tot.real)}</td>
+              <td className="px-3 py-2 text-right" style={{ color: B44.navy }}>{tot.meta > 0 ? brl(tot.meta) : "—"}</td>
+              <td className="px-3 py-2 text-right" style={{ color: B44.navy }}>{tot.meta > 0 ? `${Math.round((tot.real / tot.meta) * 100)}%` : "—"}</td>
+              <td className="px-3 py-2 text-right" style={{ color: B44.navy }}>{brl(tot.comissao)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center gap-2 flex-wrap px-[15px] py-3 border-t" style={{ borderColor: B44.lineSoft }}>
+        <Link href="/dashboard/configuracoes/metas" className="text-[12px] font-medium px-3 py-1.5 rounded-lg text-white" style={{ background: B44.primary }}>⚙️ Configurar metas</Link>
+        <Link href="/dashboard/erp/vendas-graficos" className="text-[12px] font-medium px-3 py-1.5 rounded-lg border" style={{ borderColor: B44.line, color: B44.navy }}>📊 Marcas · funil · faturamento</Link>
+      </div>
+    </SectionCard>
+  );
+}
+
 export default function HojePage() {
   const { data: session } = useSession();
   const { effectiveRole, isPreviewing } = useRolePreview();
@@ -744,6 +828,9 @@ export default function HojePage() {
           </div>
         </SectionCard>
       )}
+
+      {/* 👥 Metas do time (Fatia 5) — só admin */}
+      {!loading && effectiveRole === "ADMIN" && <MetasTimeCard metas={metas} />}
 
       {/* 📋 Boletins pendentes — VET e ADMIN */}
       {!loading && (effectiveRole === "VET" || effectiveRole === "ADMIN") && (
