@@ -134,7 +134,8 @@ const NAV: Entry[] = [
     group: true, key: "financeiro", label: "Financeiro", emoji: "💵", roles: ["ADMIN"], section: "GESTAO",
     children: [
       { href: "/dashboard/financeiro", label: "Financeiro", emoji: "💵", roles: ["ADMIN"] },
-      { href: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", emoji: "💸", roles: ["ADMIN"] },
+      // "Fin. Terceiros" (/erp/financeiro-terceiros) REMOVIDO do menu 08/08 — o Financeiro novo
+      // (Fornecedores › contas a pagar) cobre pagamento a laboratórios/parceiros. Código mantido.
       // "Financeiro (antigo)" (/dashboard/erp/financeiro) REMOVIDO do menu 05/08 — código/tabela mantidos
       // por baixo como rota de volta até a Cintia validar o novo em uso; religar = re-adicionar esta linha.
     ],

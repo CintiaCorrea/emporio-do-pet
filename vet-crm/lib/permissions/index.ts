@@ -95,7 +95,6 @@ export const PERM_SECTIONS: PermSection[] = [
       {
         key: "financeiro", label: "Financeiro", emoji: "💵", children: [
           { key: "/dashboard/erp/financeiro", label: "Financeiro", emoji: "💵" },
-          { key: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", emoji: "💸" },
         ],
       },
     ],

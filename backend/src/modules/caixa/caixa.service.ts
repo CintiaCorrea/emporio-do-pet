@@ -80,6 +80,10 @@ export class CaixaService {
     if (abertas) {
       where.paymentStatus = { not: 'PAID' };
       where.value = { gt: 0 };
+      // Agendamento FUTURO não é comanda — só é "conta a receber" o atendimento de hoje/passado
+      // (venda do PDV nasce com data de hoje; agendamento de outro dia fica de fora).
+      const fimHoje = new Date(); fimHoje.setHours(23, 59, 59, 999);
+      where.date = { ...(where.date || {}), lte: fimHoje };
     }
     const appts = await this.prisma.appointment.findMany({
       where,
