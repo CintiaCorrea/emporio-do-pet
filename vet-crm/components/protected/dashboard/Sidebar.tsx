@@ -53,7 +53,7 @@ const isGroup = (e: Entry): e is Group => (e as Group).group === true;
 
 const NAV: Entry[] = [
   // ───────── DIA A DIA ─────────
-  { href: "/dashboard/hoje", label: "Hoje", emoji: "✨", roles: ALL, section: "DIA" },
+  { href: "/dashboard/hoje", label: "Meu painel", emoji: "🏠", roles: ALL, section: "DIA" },
   { href: "/dashboard", label: "Painel", emoji: "📊", roles: ALL, exact: true, section: "DIA" },
   { href: "/dashboard/inbox", label: "Inbox BC", emoji: "💬", roles: ALL, section: "DIA" },
   { href: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲", roles: ALL, section: "DIA" },

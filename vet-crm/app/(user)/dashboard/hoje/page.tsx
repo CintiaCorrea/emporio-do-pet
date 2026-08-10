@@ -113,6 +113,7 @@ export default function HojePage() {
   const [entConf, setEntConf] = useState<Record<string, string>>({});
   const [entConfOpen, setEntConfOpen] = useState(false);
   const [encMine, setEncMine] = useState<any[]>([]);
+  const [aba, setAba] = useState<"painel" | "comissao" | "metas">("painel"); // Meu painel (Fatia 1)
 
   useEffect(() => {
     if (!meId) return;
@@ -426,6 +427,14 @@ export default function HojePage() {
 
   return (
     <PageShell pad="p-6">
+      {/* Abas do "Meu painel" (Fatia 1) — perfil vem de quem está logado */}
+      <div className="flex gap-1 border-b mb-4" style={{ borderColor: B44.line }}>
+        {(([["painel", "🏠 Meu painel"], ["comissao", "🧾 Comissionamento"], ...(effectiveRole === "ADMIN" ? [["metas", "⚙️ Metas"]] : [])]) as [string, string][]).map(([k, lbl]) => (
+          <button key={k} onClick={() => setAba(k as any)} className="text-[13.5px] px-3.5 py-2.5 -mb-px border-b-2 transition" style={{ borderColor: aba === k ? B44.primary : "transparent", color: aba === k ? B44.primary : B44.text3, fontWeight: aba === k ? 600 : 400, background: "none", cursor: "pointer" }}>{lbl}</button>
+        ))}
+      </div>
+
+      {aba === "painel" && (<>
       <div className="flex items-center gap-3 mb-4">
         <h2 className="text-[15px] font-medium" style={{ color: B44.navy }}>{effectiveRole === "ADMIN" ? "O que a clínica precisa de atenção hoje" : "O que você precisa atender hoje"}</h2>
         <span className="text-xs font-medium px-3 py-1 rounded-full" style={{ background: B44.tint, color: "#00798A" }}>
@@ -637,6 +646,26 @@ export default function HojePage() {
         Métricas e relatórios ficam no <Link href="/dashboard" className="underline">Dashboard</Link>.
         Conversas no <Link href="/dashboard/inbox" className="underline">Inbox</Link>.
       </div>
+      </>)}
+
+      {aba === "comissao" && (
+        <div className="bg-white border rounded-[14px] p-6" style={{ borderColor: B44.line }}>
+          <div className="text-[15px] font-medium mb-1" style={{ color: B44.navy }}>🧾 Comissionamento</div>
+          <p className="text-sm mb-4" style={{ color: B44.text2 }}>Em breve suas comissões aparecem aqui dentro do painel. Por ora, use as telas atuais:</p>
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/dashboard/erp/comissoes/minhas" className="text-[13px] font-medium px-3.5 py-2 rounded-lg text-white" style={{ background: B44.primary }}>👤 Minhas comissões</Link>
+            {effectiveRole === "ADMIN" && <Link href="/dashboard/erp/comissoes" className="text-[13px] font-medium px-3.5 py-2 rounded-lg border" style={{ borderColor: B44.line, color: B44.navy }}>📂 Comissões de todos</Link>}
+          </div>
+        </div>
+      )}
+
+      {aba === "metas" && effectiveRole === "ADMIN" && (
+        <div className="bg-white border rounded-[14px] p-6" style={{ borderColor: B44.line }}>
+          <div className="text-[15px] font-medium mb-1" style={{ color: B44.navy }}>⚙️ Metas</div>
+          <p className="text-sm mb-4" style={{ color: B44.text2 }}>Aqui você vai definir as metas por perfil que alimentam a gamificação e a comissão. Por ora, a configuração está na tela atual:</p>
+          <Link href="/dashboard/configuracoes/metas" className="text-[13px] font-medium px-3.5 py-2 rounded-lg text-white inline-block" style={{ background: B44.primary }}>🎯 Configurar metas</Link>
+        </div>
+      )}
     </PageShell>
   );
 }
