@@ -89,6 +89,72 @@ const SectionHeader = ({ emoji, tileBg, title, sub, count, countColor }: { emoji
   </div>
 );
 
+/* 🧾 Aba Comissionamento (Fatia 4) — resumo compacto por pessoa (reusa /api/commissions/minhas) */
+function ComissaoAba({ isAdmin }: { isAdmin: boolean }) {
+  const [d, setD] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let a = true;
+    (async () => {
+      const r = await safeJson<any>(await fetch("/api/commissions/minhas", { cache: "no-store" }), null);
+      if (a) { setD(r); setLoading(false); }
+    })();
+    return () => { a = false; };
+  }, []);
+
+  const resumo = d?.resumo || { itens: 0, base: 0, comissao: 0, pctMedio: 0 };
+  const grupos: any[] = d?.porGrupo || [];
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: B44.line }}>
+        <div className="flex items-center gap-3.5 px-[18px] py-[13px] border-b" style={{ borderColor: B44.lineSoft }}>
+          <div className="w-[38px] h-[38px] rounded-[10px] flex items-center justify-center flex-shrink-0" style={{ background: B44.tint }}><span style={{ fontSize: 19 }}>🧾</span></div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[13.5px] font-medium" style={{ color: B44.text1 }}>Suas comissões em aberto</div>
+            <div className="text-xs" style={{ color: B44.text2 }}>{resumo.itens} item(ns) · base {brl(resumo.base)}</div>
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: B44.navy }}>{brl(resumo.comissao)}</div>
+        </div>
+        {loading ? (
+          <div className="px-6 py-8 text-center text-sm" style={{ color: B44.text3 }}>Carregando suas comissões…</div>
+        ) : grupos.length === 0 ? (
+          <div className="px-6 py-8 text-center text-sm" style={{ color: B44.text3 }}>Sem comissões em aberto no período. 🎉</div>
+        ) : (
+          <div className="px-[6px] py-1 overflow-x-auto">
+            <table className="w-full" style={{ borderCollapse: "collapse" }}>
+              <thead><tr style={{ color: B44.text3 }} className="text-[10.5px] uppercase tracking-wide text-left">
+                <th className="px-3 py-2">Grupo</th><th className="px-3 py-2 text-right">Base</th><th className="px-3 py-2 text-right">%</th><th className="px-3 py-2 text-right">Comissão</th>
+              </tr></thead>
+              <tbody>
+                {grupos.map((g, i) => (
+                  <tr key={i} style={{ borderTop: `1px solid ${B44.lineSoft}` }} className="text-[13px]">
+                    <td className="px-3 py-2" style={{ color: B44.text1 }}>{g.grupo || "—"}</td>
+                    <td className="px-3 py-2 text-right" style={{ color: B44.text2, fontVariantNumeric: "tabular-nums" }}>{brl(g.base)}</td>
+                    <td className="px-3 py-2 text-right" style={{ color: B44.text2 }}>{Math.round(g.pctMedio || 0)}%</td>
+                    <td className="px-3 py-2 text-right font-medium" style={{ color: B44.navy, fontVariantNumeric: "tabular-nums" }}>{brl(g.comissao)}</td>
+                  </tr>
+                ))}
+                <tr style={{ borderTop: `1px solid ${B44.line}`, background: B44.soft }} className="text-[13px] font-bold">
+                  <td className="px-3 py-2" style={{ color: B44.navy }}>Total</td>
+                  <td className="px-3 py-2 text-right" style={{ color: B44.navy }}>{brl(resumo.base)}</td>
+                  <td className="px-3 py-2 text-right" style={{ color: B44.navy }}>{Math.round(resumo.pctMedio || 0)}%</td>
+                  <td className="px-3 py-2 text-right" style={{ color: B44.navy }}>{brl(resumo.comissao)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <Link href="/dashboard/erp/comissoes/extratos" className="text-[12.5px] font-medium px-3 py-2 rounded-lg border" style={{ borderColor: B44.line, color: B44.navy }}>📁 Meus extratos</Link>
+        {isAdmin && <Link href="/dashboard/erp/comissoes" className="text-[12.5px] font-medium px-3 py-2 rounded-lg text-white" style={{ background: B44.primary }}>📂 Comissões de todos · fechar período</Link>}
+      </div>
+      <p className="text-[11.5px]" style={{ color: B44.text3 }}>💡 Bater as metas gera <b style={{ color: B44.text2 }}>bônus</b> na comissão (regra definida pelo Admin) — chega numa próxima fatia.</p>
+    </div>
+  );
+}
+
 export default function HojePage() {
   const { data: session } = useSession();
   const { effectiveRole, isPreviewing } = useRolePreview();
@@ -744,16 +810,7 @@ export default function HojePage() {
       </div>
       </>)}
 
-      {aba === "comissao" && (
-        <div className="bg-white border rounded-[14px] p-6" style={{ borderColor: B44.line }}>
-          <div className="text-[15px] font-medium mb-1" style={{ color: B44.navy }}>🧾 Comissionamento</div>
-          <p className="text-sm mb-4" style={{ color: B44.text2 }}>Em breve suas comissões aparecem aqui dentro do painel. Por ora, use as telas atuais:</p>
-          <div className="flex gap-2 flex-wrap">
-            <Link href="/dashboard/erp/comissoes/minhas" className="text-[13px] font-medium px-3.5 py-2 rounded-lg text-white" style={{ background: B44.primary }}>👤 Minhas comissões</Link>
-            {effectiveRole === "ADMIN" && <Link href="/dashboard/erp/comissoes" className="text-[13px] font-medium px-3.5 py-2 rounded-lg border" style={{ borderColor: B44.line, color: B44.navy }}>📂 Comissões de todos</Link>}
-          </div>
-        </div>
-      )}
+      {aba === "comissao" && <ComissaoAba isAdmin={effectiveRole === "ADMIN"} />}
 
       {aba === "metas" && effectiveRole === "ADMIN" && (
         <div className="bg-white border rounded-[14px] p-6" style={{ borderColor: B44.line }}>
