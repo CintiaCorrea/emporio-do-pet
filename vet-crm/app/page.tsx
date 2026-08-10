@@ -24,7 +24,7 @@ export default function LoginPage() {
         
         if (session) {
           // Se já estiver autenticado, redirecionar para o dashboard
-          router.push("/dashboard");
+          router.push("/dashboard/hoje");
         } else {
           setIsCheckingAuth(false);
         }
@@ -92,10 +92,10 @@ export default function LoginPage() {
         const session = await getSession();
 
         if (session) {
-          router.push("/dashboard");
+          router.push("/dashboard/hoje");
           router.refresh();
         } else {
-          router.push("/dashboard");
+          router.push("/dashboard/hoje");
         }
       } else {
         toast.error("Erro desconhecido no login. Tente novamente.", {

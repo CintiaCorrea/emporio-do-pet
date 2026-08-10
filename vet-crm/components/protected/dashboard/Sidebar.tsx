@@ -54,7 +54,6 @@ const isGroup = (e: Entry): e is Group => (e as Group).group === true;
 const NAV: Entry[] = [
   // ───────── DIA A DIA ─────────
   { href: "/dashboard/hoje", label: "Meu painel", emoji: "🏠", roles: ALL, section: "DIA" },
-  { href: "/dashboard", label: "Painel", emoji: "📊", roles: ALL, exact: true, section: "DIA" },
   { href: "/dashboard/inbox", label: "Inbox BC", emoji: "💬", roles: ALL, section: "DIA" },
   { href: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲", roles: ALL, section: "DIA" },
   { href: "/dashboard/comercial", label: "Comercial", emoji: "🎯", roles: ["ADMIN", "RECEPTIONIST"], section: "DIA" },
@@ -76,20 +75,12 @@ const NAV: Entry[] = [
       { href: "/dashboard/erp/agendamentos/configuracoes", label: "Configuração", emoji: "⚙️", roles: ["ADMIN"] },
     ],
   },
-  {
-    group: true, key: "clinico", label: "Atendimento clínico", emoji: "🩺", roles: ALL, section: "DIA",
-    children: [
-      { href: "/dashboard/erp/consultas", label: "Consultas", emoji: "🩺", roles: ALL },
-      { href: "/dashboard/erp/tratamentos", label: "Tratamentos", emoji: "💉", roles: ALL },
-    ],
-  },
   { href: "/dashboard/erp/internacoes", label: "Internação", emoji: "🏥", roles: ALL, section: "DIA" },
 
   // ───────── GESTÃO ─────────
   {
     group: true, key: "vendas", label: "Vendas", emoji: "💰", roles: ALL, section: "GESTAO",
     children: [
-      { href: "/dashboard/erp/comandas", label: "Em atendimento", emoji: "🛎️", roles: ALL },
       { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒", roles: ALL },
       { href: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵", roles: ALL },
       { href: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", emoji: "🔄", roles: ALL },

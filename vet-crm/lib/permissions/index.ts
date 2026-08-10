@@ -25,8 +25,7 @@ export interface PermSection { titulo: string; emoji: string; itens: PermItem[];
 export const PERM_SECTIONS: PermSection[] = [
   {
     titulo: "Dia a dia", emoji: "🗂️", itens: [
-      { key: "/dashboard/hoje", label: "Hoje", emoji: "✨" },
-      { key: "/dashboard", label: "Painel", emoji: "📊" },
+      { key: "/dashboard/hoje", label: "Meu painel", emoji: "🏠" },
       { key: "/dashboard/inbox", label: "Inbox BC", emoji: "💬" },
       { key: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲" },
       { key: "/dashboard/comercial", label: "Comercial", emoji: "🎯" },
@@ -41,10 +40,8 @@ export const PERM_SECTIONS: PermSection[] = [
       { key: "/dashboard/erp/vacinacao", label: "Vacinação", emoji: "💉" },
       { key: "/dashboard/erp/aniversarios", label: "Aniversários", emoji: "🎂" },
       {
-        key: "clinico", label: "Atendimento clínico", emoji: "🩺", children: [
-          { key: "/dashboard/erp/consultas", label: "Consultas", emoji: "🩺" },
+        key: "clinico", label: "Documentos clínicos", emoji: "📄", children: [
           { key: "/dashboard/erp/documentos", label: "Documentos", emoji: "📄" },
-          { key: "/dashboard/erp/tratamentos", label: "Tratamentos", emoji: "💉" },
         ],
       },
       { key: "/dashboard/erp/internacoes", label: "Internação", emoji: "🏥" },
@@ -54,7 +51,6 @@ export const PERM_SECTIONS: PermSection[] = [
     titulo: "Gestão", emoji: "📊", itens: [
       {
         key: "vendas", label: "Vendas", emoji: "💰", children: [
-          { key: "/dashboard/erp/comandas", label: "Em atendimento", emoji: "🛎️" },
           { key: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒" },
           { key: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵" },
           { key: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦" },
