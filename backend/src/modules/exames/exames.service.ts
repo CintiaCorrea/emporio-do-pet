@@ -41,6 +41,101 @@ export class ExamesService {
     } catch { return 'Paciente'; }
   }
 
+  /** FILA (Kanban): todos os exames em andamento (exclui os já "Entregue"), com nome do pet/tutor e lab. */
+  async listarFila() {
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: { startsWith: 'petexa_' } },
+      select: { id: true, lista: true, valor: true },
+    });
+    const linhas: any[] = [];
+    const petIds = new Set<string>();
+    const fornIds = new Set<string>();
+    for (const it of itens) {
+      let d: any = null;
+      try { d = JSON.parse(it.valor); } catch { continue; }
+      if (!d?.nome) continue;
+      if (/entreg/i.test(String(d.status || ''))) continue; // "Entregue" saiu do quadro
+      const petId = it.lista.replace('petexa_', '');
+      petIds.add(petId);
+      if (d.fornecedorId) fornIds.add(d.fornecedorId);
+      linhas.push({
+        itemId: it.id, petId, nome: d.nome, status: String(d.status || ''),
+        fornecedorId: d.fornecedorId || null, externo: !!d.externo,
+        labAvisadoAt: d.labAvisadoAt || null, date: d.date || null,
+        resultadoUrl: d.resultadoUrl || null,
+      });
+    }
+    const [pets, forns] = await Promise.all([
+      petIds.size ? this.prisma.pet.findMany({ where: { id: { in: [...petIds] } }, select: { id: true, name: true, tutor: { select: { name: true } } } }) : Promise.resolve([]),
+      fornIds.size ? this.prisma.fornecedor.findMany({ where: { id: { in: [...fornIds] } }, select: { id: true, nome: true, telefone: true } }) : Promise.resolve([]),
+    ]);
+    const petMap: Record<string, any> = Object.fromEntries(pets.map((p) => [p.id, p]));
+    const fornMap: Record<string, any> = Object.fromEntries(forns.map((f) => [f.id, f]));
+    return linhas.map((l) => ({
+      ...l,
+      petNome: petMap[l.petId]?.name || 'Paciente',
+      tutorNome: petMap[l.petId]?.tutor?.name || '',
+      fornecedorNome: l.fornecedorId ? (fornMap[l.fornecedorId]?.nome || null) : null,
+      labTemWhatsapp: l.fornecedorId ? !!fornMap[l.fornecedorId]?.telefone : false,
+    }));
+  }
+
+  /** Move o exame de fase (drag no Kanban). Registra no histórico sem apagar o anterior. */
+  async mudarFase(itemId: string, status: string): Promise<{ ok: boolean; erro?: string }> {
+    const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true, valor: true } });
+    if (!it || !it.lista.startsWith('petexa_')) return { ok: false, erro: 'Exame não encontrado' };
+    let d: any = null;
+    try { d = JSON.parse(it.valor); } catch { return { ok: false, erro: 'Exame ilegível' }; }
+    const nova = String(status || '').trim();
+    if (!nova) return { ok: false, erro: 'Fase inválida' };
+    const historico = { ...(d.historico || {}) };
+    if (!historico[nova]) historico[nova] = { at: new Date().toISOString() };
+    await this.prisma.listaItem.update({ where: { id: itemId }, data: { valor: JSON.stringify({ ...d, status: nova, historico }) } });
+    return { ok: true };
+  }
+
+  /** 1ª fase configurada dos exames (Config › Exames = exame_fases). Fallback "Solicitado". */
+  private async faseInicialExame(): Promise<string> {
+    try {
+      const arr = await this.prisma.listaItem.findMany({ where: { lista: 'exame_fases' }, orderBy: { createdAt: 'asc' } });
+      for (const it of arr) { try { const v = JSON.parse(it.valor); const n = v?.nome || it.valor; if (n) return String(n); } catch { if (it.valor) return it.valor; } }
+    } catch { /* usa fallback */ }
+    return 'Solicitado';
+  }
+
+  /**
+   * Inicia o ciclo (petexa_<pet>) de cada exame VENDIDO/CONVERTIDO. Fonte única usada tanto pela
+   * venda direta (PDV) quanto pela conversão de orçamento — sem duplicar lógica.
+   * examItems: { descricao, catalogoExameId, fornecedorId, valorUnitario, origem? }.
+   */
+  async iniciarExamesDaVenda(petId: string, examItems: any[]): Promise<number> {
+    if (!petId || !examItems?.length) return 0;
+    const fase = await this.faseInicialExame();
+    let n = 0;
+    for (const it of examItems) {
+      let cat: any = null;
+      if (it.catalogoExameId) {
+        cat = await this.prisma.catalogoExame.findUnique({
+          where: { id: it.catalogoExameId },
+          select: { valorFornecedor: true, valorClienteSugerido: true, fornecedorId: true, fornecedor: { select: { nome: true } } },
+        }).catch(() => null);
+      }
+      const now = new Date().toISOString();
+      const origem = it.origem || 'PDV';
+      const d = {
+        nome: it.descricao || it.nome || 'Exame', status: fase, date: now, externo: true,
+        fornecedorId: it.fornecedorId || cat?.fornecedorId || null,
+        fornecedorNome: cat?.fornecedor?.nome || null,
+        custo: cat?.valorFornecedor ?? null,
+        valor: cat?.valorClienteSugerido ?? (Number(it.valorUnitario) || null),
+        origem,
+        historico: { [fase]: { at: now, por: origem } },
+      };
+      try { await this.prisma.listaItem.create({ data: { lista: `petexa_${petId}`, valor: JSON.stringify(d) } }); n++; } catch { /* não trava a venda */ }
+    }
+    return n;
+  }
+
   /** Batch (cron 11:30 e 17:00): avisa todos os exames em "Coleta solicitada" ainda não avisados. */
   async avisarLaboratorios(): Promise<{ enviados: number; semWhatsapp: number }> {
     const itens = await this.prisma.listaItem.findMany({

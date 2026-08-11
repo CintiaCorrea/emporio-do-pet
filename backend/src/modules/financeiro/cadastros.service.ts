@@ -64,10 +64,35 @@ export class CadastrosService {
 
   /* ---------- gestão de Contas (inclui inativas) ---------- */
 
-  contasTodas() {
-    return this.prisma.contaFinanceira.findMany({
+  async contasTodas() {
+    const contas = await this.prisma.contaFinanceira.findMany({
       orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
       include: { unidade: true },
+    });
+    // Saldo REAL de cada conta = saldo inicial + entradas − saídas dos lançamentos JÁ realizados
+    // (CONFIRMADO/CONCILIADO; PENDENTE de a-pagar/a-receber não conta ainda).
+    const status = { in: ['CONFIRMADO', 'CONCILIADO'] } as any;
+    const [somas, transfOut, transfIn] = await Promise.all([
+      this.prisma.lancamento.groupBy({ by: ['contaId', 'tipo'], where: { status, tipo: { in: ['RECEITA', 'DESPESA'] } as any }, _sum: { valorCentavos: true } }),
+      // Transferência SAINDO da conta (origem) = saída; ENTRANDO (destino) = entrada. Neutra no DRE, mexe no saldo.
+      this.prisma.lancamento.groupBy({ by: ['contaId'], where: { status, tipo: 'TRANSFERENCIA' as any }, _sum: { valorCentavos: true } }),
+      this.prisma.lancamento.groupBy({ by: ['contaDestinoId'], where: { status, tipo: 'TRANSFERENCIA' as any }, _sum: { valorCentavos: true } }),
+    ]);
+    const mapa = new Map<string, { entradas: number; saidas: number }>();
+    const bump = (id: string | null, campo: 'entradas' | 'saidas', v: number) => {
+      if (!id) return; const cur = mapa.get(id) || { entradas: 0, saidas: 0 }; cur[campo] += v || 0; mapa.set(id, cur);
+    };
+    for (const s of somas) bump(s.contaId, s.tipo === 'RECEITA' ? 'entradas' : 'saidas', s._sum?.valorCentavos || 0);
+    for (const s of transfOut) bump(s.contaId, 'saidas', s._sum?.valorCentavos || 0);
+    for (const s of transfIn) bump((s as any).contaDestinoId, 'entradas', s._sum?.valorCentavos || 0);
+    return contas.map((c) => {
+      const m = mapa.get(c.id) || { entradas: 0, saidas: 0 };
+      return {
+        ...c,
+        entradasCentavos: m.entradas,
+        saidasCentavos: m.saidas,
+        saldoAtualCentavos: (c.saldoInicialCentavos || 0) + m.entradas - m.saidas,
+      };
     });
   }
 

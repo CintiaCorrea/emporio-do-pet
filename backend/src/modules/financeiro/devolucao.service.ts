@@ -36,6 +36,11 @@ export class DevolucaoService {
     });
     return conta?.id ?? null;
   }
+  /** Devolução em DINHEIRO sai da conta de dinheiro (Espécie) — pra o saldo dela cair certo. */
+  private async contaDinheiro(): Promise<string | null> {
+    const din = await this.prisma.contaFinanceira.findFirst({ where: { ativo: true, tipo: 'DINHEIRO' as any }, select: { id: true } });
+    return din?.id ?? null;
+  }
   private async unidadePadrao(): Promise<string | null> {
     const u = await this.prisma.unidade.findFirst({ orderBy: { createdAt: 'asc' } });
     return u?.id ?? null;
@@ -158,7 +163,7 @@ export class DevolucaoService {
     const base = Math.floor(liquidoCent / N);
     const parcelasCent = Array.from({ length: N }, (_, i) => (i < N - 1 ? base : liquidoCent - base * (N - 1)));
 
-    const contaId = await this.contaPadrao();
+    const contaId = (formaEstorno === 'DINHEIRO' ? (await this.contaDinheiro()) : null) ?? (await this.contaPadrao());
     const unidadeId = (await this.unidadePadrao()) ?? undefined;
     if (!contaId) throw new BadRequestException('Cadastre uma conta financeira antes de devolver.');
     const categoriaId = await this.catDevolucao();

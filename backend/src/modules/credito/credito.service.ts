@@ -1,9 +1,48 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { LancamentosService } from '../financeiro/lancamentos.service';
 
 @Injectable()
 export class CreditoService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly lancamentos: LancamentosService,
+  ) {}
+
+  private async contaDinheiroId(): Promise<string | null> {
+    const din = await this.prisma.contaFinanceira.findFirst({ where: { ativo: true, tipo: 'DINHEIRO' as any }, select: { id: true } });
+    if (din) return din.id;
+    const q = await this.prisma.contaFinanceira.findFirst({ where: { ativo: true }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+    return q?.id ?? null;
+  }
+
+  /**
+   * Recarga de crédito = ADIANTAMENTO (não é receita). Entra dinheiro agora, mas só vira receita quando
+   * o cliente USA o crédito numa venda (lá é feita a baixa do adiantamento — recebimentos.processar).
+   * RECARGA → RECEITA "Adiantamento de Clientes" (fora da Receita Bruta). ESTORNO → DESPESA "(baixa)".
+   */
+  private async lancarAdiantamento(mov: any, tipo: string): Promise<void> {
+    const contaId = await this.contaDinheiroId();
+    if (!contaId) return;
+    const ehRecarga = tipo === 'RECARGA';
+    const cat = await this.prisma.categoria.findFirst({
+      where: ehRecarga
+        ? ({ tipo: 'RECEITA', natureza: 'NAO_OPERACIONAL', nome: { contains: 'Adiantamento' } } as any)
+        : ({ tipo: 'DESPESA', nome: { contains: 'Adiantamento' } } as any),
+      select: { id: true },
+    });
+    if (!cat) return;
+    const data = mov?.data ? new Date(mov.data) : new Date();
+    await this.lancamentos.create({
+      tipo: ehRecarga ? 'RECEITA' : 'DESPESA',
+      valorCentavos: Math.round(Number(mov.valor) * 100),
+      data: data.toISOString(), dataPagamento: data.toISOString(),
+      descricao: `${ehRecarga ? 'Recarga de crédito' : 'Estorno de crédito'} — adiantamento`,
+      contaId, categoriaId: cat.id,
+      origem: 'CRM', externalId: `credito-mov:${mov.id}`,
+      status: 'CONFIRMADO', aplicarRegras: false,
+    } as any);
+  }
 
   static saldoFrom(movs: { tipo: string; valor: number }[]) {
     return movs.reduce((s, m) => s + (m.tipo === 'USO' ? -Number(m.valor) : Number(m.valor)), 0);
@@ -70,6 +109,8 @@ export class CreditoService {
         createdById: userId,
       },
     });
+    // 💳 Reflete no financeiro como ADIANTAMENTO (fire-and-forget, não trava a recarga).
+    if (tipo === 'RECARGA' || tipo === 'ESTORNO') this.lancarAdiantamento(mov, tipo).catch(() => undefined);
     return { mov, saldo: await this.saldo(tutorId) };
   }
 }

@@ -21,7 +21,8 @@ export class DreController {
     @Query('marcaId') marcaId?: string,
     @Query('linhaServicoId') linhaServicoId?: string,
     @Query('modo') modo?: 'CONSOLIDADO' | 'POR_UNIDADE' | 'POR_LINHA',
+    @Query('regime') regime?: 'CAIXA' | 'COMPETENCIA',
   ) {
-    return this.service.dre({ competencia, comparar, unidadeId, marcaId, linhaServicoId, modo });
+    return this.service.dre({ competencia, comparar, unidadeId, marcaId, linhaServicoId, modo, regime });
   }
 }

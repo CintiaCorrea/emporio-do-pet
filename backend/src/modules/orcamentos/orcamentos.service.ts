@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrcamentoDto } from './dto/create-orcamento.dto';
 import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { ExamesService } from '../exames/exames.service';
 
 function calcItemTotal(it: any): number {
   const q = Number(it.quantidade ?? 1);
@@ -28,6 +29,7 @@ export class OrcamentosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly appointmentsService: AppointmentsService,
+    private readonly examesService: ExamesService,
   ) {}
 
   // include padrão — traz itens + autor + pet/tutor (necessários p/ impressão com timbrado)
@@ -85,7 +87,7 @@ export class OrcamentosService {
     const itens = await this.resolverItens(mapItens(dto.itens));
     const valorTotal = itens.reduce((s, it) => s + it.valorTotal, 0);
 
-    return this.prisma.orcamento.create({
+    const orcamento = await this.prisma.orcamento.create({
       data: {
         petId: dto.petId,
         tutorId: dto.tutorId ?? pet.tutorId ?? null,
@@ -97,6 +99,19 @@ export class OrcamentosService {
       },
       include: { itens: true },
     });
+
+    // Registro-companheiro (orcexa_) guarda a IDENTIDADE dos exames — na conversão inicia o ciclo
+    // SEM depender de casar por nome (robusto p/ vários usuários).
+    const examItens = (dto.itens ?? []).filter((it: any) => String(it.tipoItem || '').toUpperCase() === 'EXAME' || it.catalogoExameId);
+    for (const it of examItens) {
+      try {
+        await this.prisma.listaItem.create({ data: {
+          lista: `orcexa_${orcamento.id}`,
+          valor: JSON.stringify({ descricao: it.descricao ?? null, catalogoExameId: it.catalogoExameId ?? null, fornecedorId: it.fornecedorId ?? null, valorUnitario: Number(it.valorUnitario) || null }),
+        } });
+      } catch { /* não quebra o orçamento */ }
+    }
+    return orcamento;
   }
 
   // Resolve os FKs dos itens: um id só vira servicoId se existir em Servico; se for produto vai
@@ -184,6 +199,15 @@ export class OrcamentosService {
       where: { id },
       data: { appointmentId: (appointment as any).id, status: 'APROVADO' },
     });
+
+    // 🔬 Converteu o orçamento → inicia o ciclo dos exames dele no Kanban (lê o registro-companheiro
+    // orcexa_, NÃO casa por nome). Mesmo método único da venda direta.
+    try {
+      const orcExa = await this.prisma.listaItem.findMany({ where: { lista: `orcexa_${id}` }, select: { valor: true } });
+      const examItems = orcExa.map((r) => { try { return { ...JSON.parse(r.valor), origem: 'ORCAMENTO' }; } catch { return null; } }).filter(Boolean);
+      if (examItems.length) await this.examesService.iniciarExamesDaVenda(orc.petId, examItems as any[]);
+    } catch { /* não quebra a conversão */ }
+
     return appointment;
   }
 }

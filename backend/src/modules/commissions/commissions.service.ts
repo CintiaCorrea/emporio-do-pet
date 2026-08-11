@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CreateCommissionDto } from './dto/create-commission.dto';
 import { UpdateCommissionDto } from './dto/update-commission.dto';
 
@@ -8,7 +9,10 @@ type CommissionType = 'CONSULTATION' | 'SURGERY' | 'HOSPITALIZATION' | 'SERVICE'
 
 @Injectable()
 export class CommissionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly lancamentos: LancamentosService,
+  ) {}
 
   async list(params?: {
     page?: number;
@@ -637,16 +641,43 @@ export class CommissionsService {
         });
       }
 
-      // TODO: lancarContasPagar — quando ativo, lançar cada extrato como conta
-      // a pagar no módulo financeiro. Não implementado nesta fase.
-
       return tx.comissaoFechamento.findUnique({
         where: { id: fechamento.id },
         include: { extratos: { include: { user: { select: { id: true, name: true } } } } },
       });
     });
 
+    // ✅ Comissão → conta A PAGAR no financeiro (respeita o toggle config.lancarContasPagar).
+    // Fora da transação (LancamentosService usa o prisma próprio); best-effort, não quebra o fechamento.
+    if (config?.lancarContasPagar && (result as any)?.extratos?.length) {
+      await this.lancarComissoesAPagar((result as any).extratos, dto, baixadasAte).catch(() => undefined);
+    }
+
     return result;
+  }
+
+  /** Cada extrato de comissão vira uma conta A PAGAR (DESPESA PENDENTE, categoria Comissões). Dedup por extrato. */
+  private async lancarComissoesAPagar(extratos: any[], dto: any, baixadasAte?: any): Promise<void> {
+    const cat = await this.prisma.categoria.findFirst({ where: { tipo: 'DESPESA' as any, nome: { contains: 'Comiss' } }, select: { id: true } });
+    const conta = await this.prisma.contaFinanceira.findFirst({ where: { ativo: true }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+    if (!cat || !conta) return;
+    const quando = baixadasAte ? new Date(baixadasAte) : new Date();
+    for (const ex of extratos) {
+      const valor = Number(ex?.comissao || 0);
+      if (valor <= 0) continue;
+      const nome = ex?.user?.name || ex?.linhas?.nome || 'Equipe';
+      try {
+        await this.lancamentos.create({
+          tipo: 'DESPESA',
+          valorCentavos: Math.round(valor * 100),
+          data: quando.toISOString(), vencimento: quando.toISOString(), competencia: quando.toISOString(),
+          descricao: `Comissão — ${nome}${dto?.referencia ? ' · ref ' + dto.referencia : ''}`,
+          contaId: conta.id, categoriaId: cat.id,
+          origem: 'CRM', externalId: `comissao-ext:${ex.id}`,
+          status: 'PENDENTE', aplicarRegras: false,
+        } as any);
+      } catch { /* dedup (unique origem+externalId) / erro não quebra o fechamento */ }
+    }
   }
 
   async extratos(params: {

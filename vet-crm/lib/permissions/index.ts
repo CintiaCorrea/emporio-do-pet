@@ -16,7 +16,7 @@ export const PERFIS_SISTEMA = ["Admin", "Veterinário", "Recepção"];
 
 // Telas que NUNCA entram na matriz: são gateadas por cargo (só Admin) e
 // ficam sempre visíveis pro Admin (trava anti-lockout).
-export const LOCKED_KEYS = ["/dashboard/configuracoes", "/dashboard/configuracoes/permissoes"];
+export const LOCKED_KEYS = ["/dashboard/configuracoes", "/dashboard/configuracoes/permissoes", "/dashboard/hoje"];
 
 export interface PermItem { key: string; label: string; emoji: string; children?: PermItem[]; }
 export interface PermSection { titulo: string; emoji: string; itens: PermItem[]; }

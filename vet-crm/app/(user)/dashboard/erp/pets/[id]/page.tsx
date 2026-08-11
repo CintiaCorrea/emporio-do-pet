@@ -518,6 +518,24 @@ export default function PetDetailPage() {
   }
   function fmtLocal(d: any) { const x = new Date(d); const p = (n: number) => String(n).padStart(2, "0"); return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`; }
   async function editarEntrada(it: any) {
+    // 📄 Documento/receita feito no sistema (clinical-document): abre na CAIXA DE EDIÇÃO pra modificar/reimprimir.
+    if (it.src === "doc") {
+      const d = it.raw || {};
+      if (d.pdfUrl || d.fileUrl) { setLaudoView({ url: d.pdfUrl || d.fileUrl, nome: d.title }); return; } // importado (PDF) = só visualiza
+      const conteudo = d.htmlContent || d.content || "";
+      const vetId = d.user?.id || meId || "";
+      setEditId(d.appointment?.id || null); setTab("HISTORICO"); setAtdOpen(false);
+      if (d.type === "PRESCRIPTION") {
+        setRecModeloNome(d.title || ""); setRecCorpo(conteudo); setRecVetId(vetId);
+        try { const ms = await listasGet("receita_modelo"); setRecModelos(ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; })); } catch {}
+        setArtefato("RECEITA");
+      } else {
+        setDocModeloNome(d.title || ""); setDocCorpo(conteudo); setDocVetId(vetId);
+        try { const ms = await listasGet("documento_modelo"); setDocModelos(ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; })); } catch {}
+        setArtefato("DOCUMENTO");
+      }
+      return;
+    }
     if (it.src !== "atd") { toast("Edite pelo atendimento de origem"); return; }
     const ap = it.raw; setEditId(ap.id); setTab("HISTORICO"); setAtdOpen(false);
     const t = ap.type;
@@ -543,6 +561,8 @@ export default function PetDetailPage() {
       const url = it.src === "doc" ? `/api/clinical-documents/${it.rawId}` : `/api/appointments/${it.rawId}`;
       const r = await fetch(url, { method: "DELETE" });
       if (!r.ok) throw new Error();
+      // receita/documento vive em appointment + clinical-document — apaga o outro lado também
+      if (it.src === "atd") { const doc = (clinDocs || []).find((d: any) => d?.appointment?.id === it.rawId); if (doc) { try { await fetch(`/api/clinical-documents/${doc.id}`, { method: "DELETE" }); } catch {} } }
       toast.success("Registro excluído"); await loadAtendimentos(); await loadClinDocs();
     } catch { toast.error("Erro ao excluir"); }
   }
@@ -676,11 +696,14 @@ export default function PetDetailPage() {
   function imprimirComTimbrado(titulo: string, corpo: string, vetId?: string) {
     const cab = montarTimbradoHtml({ titulo, clinica, pet, tutor: (pet as any)?.tutor });
     let corpoFinal = corpoParaImpressao(corpo);
+    // Receituário de CONTROLE ESPECIAL: já é um formulário A4 completo (assinaturas do emitente e
+    // do farmacêutico + 1ª/2ª via). NÃO anexamos assinatura extra e imprimimos COMPACTO pra caber.
+    const especial = /especial/i.test(titulo);
     // 🖋️ Assinatura ÚNICA do veterinário — do lado DIREITO (padrão de receita).
     // O próprio modelo já escreve "Cidade, UF, data … Nome CRMV" no rodapé; pra NÃO
     // duplicar, removemos esse rodapé do corpo e montamos UMA assinatura só aqui.
     const vet: any = vetId ? vets.find((u: any) => u.id === vetId) : null;
-    if (vet) {
+    if (vet && !especial) {
       const vnome = vet.nomeExibicao || vet.name || "";
       const vcrmv = vet.crmv || (vet.profissional && vet.profissional.crmv) || "";
       const vsig = vet.signatureUrl || "";
@@ -695,15 +718,17 @@ export default function PetDetailPage() {
       const h = new Date();
       const dataStr = `${String(h.getDate()).padStart(2, "0")}/${String(h.getMonth() + 1).padStart(2, "0")}/${h.getFullYear()}`;
       const local = [cidade && estado ? `${cidade}, ${estado}` : (cidade || estado || ""), dataStr].filter(Boolean).join(", ");
-      // 🖋️ assinatura-imagem (perfil do vet) por cima da linha, quando houver
-      const sigImg = vsig ? `<div style="margin-bottom:-6px"><img src="${vsig}" alt="assinatura" style="max-height:72px;max-width:260px;object-fit:contain;mix-blend-mode:multiply" /></div>` : "";
+      // 🖋️ assinatura-imagem (perfil do vet) por cima da linha, quando houver.
+      // O storage é PRIVADO (URL direta dá 403) → servir pelo proxy autenticado /api/media/ver.
+      const sigSrc = vsig ? `/api/media/ver?u=${encodeURIComponent(vsig)}` : "";
+      const sigImg = sigSrc ? `<div style="margin-bottom:-6px"><img src="${sigSrc}" alt="assinatura" style="max-height:72px;max-width:260px;object-fit:contain;mix-blend-mode:multiply" /></div>` : "";
       corpoFinal += `<div style="margin-top:${vsig ? 40 : 56}px;text-align:right;page-break-inside:avoid">`
         + `<div style="font-size:13px;color:#334155;margin-bottom:${vsig ? 4 : 34}px">${local}</div>`
         + sigImg
         + `<div style="display:inline-block;min-width:260px;border-top:1px solid #14253a;padding-top:6px;font-size:13px;text-align:center"><b>${vnome}</b>${vcrmv ? `<div style="font-size:12px;color:#475569;margin-top:2px">${vcrmv}</div>` : ""}</div>`
         + `</div>`;
     }
-    imprimirDocumento(titulo, corpoFinal, cab);
+    imprimirDocumento(titulo, corpoFinal, cab, undefined, { compacto: especial });
   }
   // Preenche as variáveis @VAR@ do modelo com os dados reais (pet, tutor, profissional, clínica, data)
   function preencherModelo(corpo: string, vetId: string): string {
@@ -774,13 +799,17 @@ export default function PetDetailPage() {
       if (!r.ok) throw new Error(await r.text());
       const dc = await r.json().catch(() => null);
       const apptId = editId || dc?.id || dc?.appointment?.id;
-      // 📄 Também registra a receita na ABA DE DOCUMENTOS (clinical-document), com anexo/PDF.
-      if (apptId && !editId) {
+      // 📄 Sincroniza a receita na ABA DE DOCUMENTOS (clinical-document): CRIA no novo, ATUALIZA no editar.
+      if (apptId) {
         const vetNome = vets.find((u: any) => u.id === recVetId)?.name || meNome || "";
-        try { await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "PRESCRIPTION", title: recModeloNome || "Receita", content: recCorpo, htmlContent: recCorpo, signedBy: vetNome || undefined }) }); } catch {}
+        const docExistente = editId ? (clinDocs || []).find((d: any) => d?.appointment?.id === editId && d?.type === "PRESCRIPTION") : null;
+        const rd = docExistente
+          ? await fetch(`/api/clinical-documents/${docExistente.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: recModeloNome || "Receita", content: recCorpo, htmlContent: recCorpo, signedBy: vetNome || undefined }) })
+          : await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "PRESCRIPTION", title: recModeloNome || "Receita", content: recCorpo, htmlContent: recCorpo, signedBy: vetNome || undefined }) });
+        if (!rd.ok) throw new Error("Não foi possível salvar o documento da receita");
       }
-      toast.success("Receita registrada e anexada aos documentos"); setArtefato(null); setRecModeloNome(""); setRecCorpo(""); await loadAtendimentos(); await loadClinDocs();
-    } catch { toast.error("Erro ao salvar receita"); } finally { setSavingArt(false); }
+      toast.success(editId ? "Receita atualizada ✅" : "Receita registrada e anexada aos documentos ✅"); setArtefato(null); setRecModeloNome(""); setRecCorpo(""); setEditId(null); await loadAtendimentos(); await loadClinDocs();
+    } catch (e: any) { toast.error(String(e?.message || "Erro ao salvar receita").slice(0, 140)); } finally { setSavingArt(false); }
   }
   async function saveName() {
     const novo = nameVal.trim();
@@ -980,8 +1009,8 @@ export default function PetDetailPage() {
                 <div className="text-[10.5px] text-[#5C6B70]">{d.createdAt ? fmtDataBR(d.createdAt) : ""}{d.signedBy ? " · " + d.signedBy : ""}</div>
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
-                {d.pdfUrl ? <button type="button" onClick={() => setLaudoView({ url: d.pdfUrl, nome: d.title })} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir</button> : <span className="text-[10.5px] text-[#94a3a0]">sem arquivo</span>}
-                <button type="button" title="Excluir" onClick={async () => { if (!(await confirmDelete({ entityLabel: entity, itemName: d.title || entity }))) return; try { const r = await fetch(`/api/clinical-documents/${d.id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); await loadClinDocs(); toast.success("Excluído"); } catch { toast.error("Erro ao excluir"); } }} className="text-[13px] px-2 py-1 rounded-lg border hover:bg-[#FBEEEC]" style={{ borderColor: "#E8DFC8", color: "#b23b39" }}>🗑️</button>
+                {d.pdfUrl ? <button type="button" onClick={() => setLaudoView({ url: d.pdfUrl, nome: d.title })} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir</button> : (d.htmlContent || d.content) ? <button type="button" title="Abrir na caixa de edição (modificar / imprimir)" onClick={() => editarEntrada({ src: "doc", raw: d })} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>✏️ abrir</button> : <span className="text-[10.5px] text-[#94a3a0]">sem arquivo</span>}
+                <button type="button" title="Excluir" onClick={async () => { if (!(await confirmDelete({ entityLabel: entity, itemName: d.title || entity }))) return; try { const r = await fetch(`/api/clinical-documents/${d.id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); if (d?.appointment?.id) { try { await fetch(`/api/appointments/${d.appointment.id}`, { method: "DELETE" }); } catch {} } await loadClinDocs(); await loadAtendimentos(); toast.success("Excluído"); } catch { toast.error("Erro ao excluir"); } }} className="text-[13px] px-2 py-1 rounded-lg border hover:bg-[#FBEEEC]" style={{ borderColor: "#E8DFC8", color: "#b23b39" }}>🗑️</button>
               </div>
             </div>
           ))}

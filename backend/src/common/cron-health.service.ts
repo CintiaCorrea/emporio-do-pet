@@ -23,6 +23,7 @@ export class CronHealthService {
     { key: 'boletim_internacao', label: 'Boletins de internação', tolMin: 30, grupo: 'Mensagens' },
     { key: 'digest', label: 'Resumo semanal de gestão (e-mail)', tolMin: 8 * 24 * 60, grupo: 'Gestão' },
     { key: 'fechamento_caixa', label: 'Fechamento de caixa (23:59)', tolMin: 26 * 60, grupo: 'Financeiro' },
+    { key: 'financeiro', label: 'Lançamentos das vendas (tempo real)', tolMin: 40, grupo: 'Financeiro' },
     { key: 'exames', label: 'Avisos de exame a entregar', tolMin: 26 * 60, grupo: 'Clínico' },
   ];
 

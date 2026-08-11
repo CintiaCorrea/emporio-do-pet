@@ -27,6 +27,7 @@ export interface DreFiltros {
   unidadeId?: string;
   marcaId?: string;
   linhaServicoId?: string;
+  regime?: 'CAIXA' | 'COMPETENCIA'; // CAIXA = pela data que o $ moveu (realizado); COMPETENCIA = quando foi ganho/incorrido
 }
 
 interface Detalhe {
@@ -82,7 +83,11 @@ export class DreService {
   }
 
   async calcular(f: DreFiltros): Promise<DreCalculado> {
-    const where: any = { competencia: this.range(f.competencia) };
+    // Regime CAIXA: agrupa pela DATA em que o dinheiro entrou/saiu (dataPagamento) e só o REALIZADO.
+    // Regime COMPETÊNCIA (padrão): agrupa pela competência (quando foi ganho/incorrido, inclui pendente).
+    const where: any = f.regime === 'CAIXA'
+      ? { dataPagamento: this.range(f.competencia), status: { in: ['CONFIRMADO', 'CONCILIADO'] } }
+      : { competencia: this.range(f.competencia) };
     if (f.unidadeId) where.unidadeId = f.unidadeId;
     if (f.marcaId) where.marcaId = f.marcaId;
     if (f.linhaServicoId) where.linhaServicoId = f.linhaServicoId;
@@ -202,11 +207,13 @@ export class DreService {
     marcaId?: string;
     linhaServicoId?: string;
     modo?: 'CONSOLIDADO' | 'POR_UNIDADE' | 'POR_LINHA';
+    regime?: 'CAIXA' | 'COMPETENCIA';
   }) {
     // LAZY: transforma vendas concluídas do caixa em receita antes de calcular (best-effort).
     await this.recebimentos.processar().catch(() => {});
     const filtros: DreFiltros = {
       competencia: params.competencia,
+      regime: params.regime === 'CAIXA' ? 'CAIXA' : 'COMPETENCIA',
       unidadeId: params.unidadeId,
       marcaId: params.marcaId,
       linhaServicoId: params.linhaServicoId,

@@ -71,6 +71,11 @@ export class CaixaController {
     return this.service.vendasResumo(query);
   }
 
+  @Get('previsao-credito')
+  previsaoCredito() {
+    return this.service.previsaoCredito();
+  }
+
   @Post('pdv')
   pdv(@Body() dto: any, @CurrentUser('id') userId: string) {
     return this.service.vendaDireta(dto, userId);

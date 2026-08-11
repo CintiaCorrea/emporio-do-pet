@@ -76,6 +76,7 @@ const NAV: Entry[] = [
     ],
   },
   { href: "/dashboard/erp/internacoes", label: "Internação", emoji: "🏥", roles: ALL, section: "DIA" },
+  { href: "/dashboard/erp/exames-kanban", label: "Exames", emoji: "🔬", roles: ALL, section: "DIA" },
 
   // ───────── GESTÃO ─────────
   {

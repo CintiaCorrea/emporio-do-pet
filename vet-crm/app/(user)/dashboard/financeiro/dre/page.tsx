@@ -91,6 +91,7 @@ export default function DrePage() {
   const meses = useMemo(() => mesesRecentes(), []);
   const [competencia, setCompetencia] = useState(meses[0]?.v ?? '');
   const [comparar, setComparar] = useState(mesAnterior(meses[0]?.v ?? '2026-01'));
+  const [regime, setRegime] = useState<'CAIXA' | 'COMPETENCIA'>('COMPETENCIA'); // lente do DRE
   const [unidadeSel, setUnidadeSel] = useState(''); // '' consolidado · 'LADO' · unidadeId
   const [fMarca, setFMarca] = useState('');
   const [fLinha, setFLinha] = useState('');
@@ -119,7 +120,7 @@ export default function DrePage() {
   const carregar = useCallback(async () => {
     setCarregando(true);
     try {
-      const qs = new URLSearchParams({ competencia });
+      const qs = new URLSearchParams({ competencia, regime });
       const ladoUnid = unidadeSel === 'LADO';
       const ladoLinha = !ladoUnid && fLinha === 'LADO'; // unidade lado a lado tem precedência
       if (ladoUnid) qs.set('modo', 'POR_UNIDADE');
@@ -134,7 +135,7 @@ export default function DrePage() {
     } finally {
       setCarregando(false);
     }
-  }, [competencia, comparar, unidadeSel, fMarca, fLinha]);
+  }, [competencia, comparar, unidadeSel, fMarca, fLinha, regime]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -199,6 +200,15 @@ export default function DrePage() {
 
       {/* filtros */}
       <div className="dre-filters">
+        <div className="f"><label>Regime</label>
+          <div style={{ display: 'inline-flex', border: '1px solid var(--line, #E8E2D6)', borderRadius: 9, overflow: 'hidden' }}>
+            {(['CAIXA', 'COMPETENCIA'] as const).map((r) => (
+              <button key={r} type="button" onClick={() => setRegime(r)} title={r === 'CAIXA' ? 'Receita/despesa quando o dinheiro entrou/saiu (sua gestão)' : 'Receita/despesa quando foi ganho/incorrido (contábil)'}
+                style={{ border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, padding: '8px 14px', background: regime === r ? '#009AAC' : '#fff', color: regime === r ? '#fff' : '#5C6B70' }}>
+                {r === 'CAIXA' ? '💵 Caixa' : '📅 Competência'}
+              </button>
+            ))}
+          </div></div>
         <div className="f"><label>Período</label>
           <select className="fin-ctl" value={competencia} onChange={(e) => { setCompetencia(e.target.value); setComparar(mesAnterior(e.target.value)); }}>
             {meses.map((m) => <option key={m.v} value={m.v}>{m.label}</option>)}
@@ -240,7 +250,7 @@ export default function DrePage() {
       <div className="fin-card">
         <div className="fin-card-head">
           <h2>{tituloCard} — {meses.find((m) => m.v === competencia)?.label}</h2>
-          <span className="pill">por competência</span>
+          <span className="pill">{regime === 'CAIXA' ? '💵 por caixa (dinheiro que entrou/saiu)' : '📅 por competência (quando foi ganho/incorrido)'}</span>
         </div>
         <div className="fin-tbl-scroll">
           {carregando && <div className="dre-loading">Calculando…</div>}

@@ -158,7 +158,7 @@ export default function EditorDocumento({
           <div
             ref={ref}
             className="edt-area border rounded-b-lg px-4 py-3 text-sm overflow-auto"
-            style={{ borderColor: "#E8DFC8", borderTop: "none", minHeight, lineHeight: 1.6, color: "#33454A", background: "#fff" }}
+            style={{ borderColor: "#E8DFC8", borderTop: "none", minHeight, maxHeight: "52vh", overflowY: "auto", lineHeight: 1.6, color: "#33454A", background: "#fff" }}
             contentEditable
             suppressContentEditableWarning
             onInput={emitir}

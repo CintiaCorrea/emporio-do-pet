@@ -6,7 +6,7 @@ import { useState } from "react";
 // O conteúdo (guia + maquete) vive em /public/academia/*.html e entra por iframe,
 // então não depende de link externo — qualquer pessoa logada acessa por aqui.
 
-type Tema = "whatsapp" | "agenda" | "fisio" | "gravacao" | "docs" | "regras";
+type Tema = "whatsapp" | "agenda" | "fisio" | "gravacao" | "financeiro" | "vendas" | "docs" | "regras";
 type ConteudoWa = "guia" | "maquete" | "api";
 type ConteudoAg = "guia" | "maquete";
 
@@ -20,6 +20,8 @@ export default function AcademiaPage() {
     { key: "agenda", label: "Agenda", emoji: "📅" },
     { key: "fisio", label: "Boletim de Fisio", emoji: "🌿" },
     { key: "gravacao", label: "Gravação de consulta", emoji: "🎤" },
+    { key: "financeiro", label: "Financeiro", emoji: "💰" },
+    { key: "vendas", label: "Vendas", emoji: "🛒" },
     { key: "docs", label: "Documentação do sistema", emoji: "📘" },
     { key: "regras", label: "Regras da empresa", emoji: "📋" },
   ];
@@ -146,6 +148,40 @@ export default function AcademiaPage() {
           <iframe
             src="/academia/guia-gravacao.html"
             title="Guia da Gravação de Consulta"
+            className="w-full block"
+            style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}
+          />
+        </div>
+      )}
+
+      {/* TEMA: Financeiro (guia interativo — contas, formas, DRE Caixa/Competência) */}
+      {tema === "financeiro" && (
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
+            <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Financeiro</span>
+            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>💰 Guia interativo</span>
+            <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Passe o mouse nos termos. Experimente o botão Caixa / Competência.</span>
+          </div>
+          <iframe
+            src="/academia/guia-financeiro.html"
+            title="Guia do Financeiro"
+            className="w-full block"
+            style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}
+          />
+        </div>
+      )}
+
+      {/* TEMA: Vendas (guia interativo — catálogo, PDV, orçamento, comissão) */}
+      {tema === "vendas" && (
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
+            <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Vendas</span>
+            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>🛒 Guia interativo</span>
+            <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Passe o mouse nos termos. Clique nos passos da venda.</span>
+          </div>
+          <iframe
+            src="/academia/guia-vendas.html"
+            title="Guia de Vendas"
             className="w-full block"
             style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}
           />

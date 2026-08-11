@@ -99,11 +99,18 @@ export default function CaixaPage() {
   const [tutorSaldo, setTutorSaldo] = useState<number | null>(null);
   const [movOpen, setMovOpen] = useState(false);
   const [movTipo, setMovTipo] = useState('SUPRIMENTO');
-  const [movForm, setMovForm] = useState({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '' });
+  const [movForm, setMovForm] = useState({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '' });
+  const [categoriasDespesa, setCategoriasDespesa] = useState<any[]>([]); // categorias de DESPESA (DRE)
+  const [contasFin, setContasFin] = useState<any[]>([]); // contas reais (id+nome) p/ transferência
   const [credOpen, setCredOpen] = useState(false);
   const [credForm, setCredForm] = useState({ appointmentId: '', tipo: 'RECARGA', valor: '', descricao: '' });
+  const [prevCred, setPrevCred] = useState<{ totalCentavos: number; porData: { data: string; liquidoCentavos: number }[] } | null>(null); // item 10 — previsão de crédito das maquininhas (D+1)
   const [fecharOpen, setFecharOpen] = useState(false);
   const [fecharForm, setFecharForm] = useState({ valorContado: '', observacao: '' });
+  const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas cadastradas (fonte única — igual PDV)
+  const [contasCfg, setContasCfg] = useState<string[]>([]); // contas financeiras reais
+  const formasList = formasCfg.length ? formasCfg : FORMAS_PADRAO;
+  const contasList = contasCfg.length ? contasCfg : CONTAS;
 
   const fetchCaixas = useCallback(async () => {
     try {
@@ -136,6 +143,29 @@ export default function CaixaPage() {
 
   useEffect(() => { fetchCaixas(); fetchAppointments(); }, [date]); // eslint-disable-line
   useEffect(() => { if (selectedId) fetchDetail(selectedId); }, [selectedId, fetchDetail]);
+  useEffect(() => { fetch('/api/caixa/previsao-credito', { cache: 'no-store' }).then((r) => r.json()).then(setPrevCred).catch(() => setPrevCred(null)); }, [date]);
+  useEffect(() => { // fonte única: formas + contas cadastradas no Financeiro
+    (async () => {
+      try {
+        const d = await fetch('/api/listas?lista=formasrecebimento', { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
+        const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+        const nomes = arr.map((x: any) => { try { const v = JSON.parse(x.valor); return v?.ativo !== false ? v?.nome : null; } catch { return null; } }).filter(Boolean);
+        if (nomes.length) setFormasCfg(nomes);
+      } catch { /* usa padrão */ }
+      try {
+        const cs = await fetch('/api/financeiro/contas', { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
+        const list = Array.isArray(cs) ? cs : (cs.itens || cs.data || []);
+        const nomes = list.map((c: any) => c?.nome).filter(Boolean);
+        if (nomes.length) setContasCfg(nomes);
+        setContasFin(list.filter((c: any) => c?.id && c?.nome).map((c: any) => ({ id: c.id, nome: c.nome })));
+      } catch { /* usa padrão */ }
+      try {
+        const cats = await fetch('/api/financeiro/categorias', { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
+        const arr = Array.isArray(cats) ? cats : (cats.itens || cats.data || []);
+        setCategoriasDespesa(arr.filter((c: any) => String(c?.tipo || '') === 'DESPESA').sort((a: any, b: any) => (a.nome || '').localeCompare(b.nome || '')));
+      } catch { /* sem categorias */ }
+    })();
+  }, []);
 
   const mudarDia = (delta: number) => { const d = new Date(date + 'T00:00:00'); d.setDate(d.getDate() + delta); setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); };
   const tutorIdDe = (a?: Appointment | null) => a?.tutorId || a?.tutor?.id || null;
@@ -243,12 +273,12 @@ export default function CaixaPage() {
       toast.success('Recebimento registrado!'); setReceberOpen(false); await fetchDetail(detail.id); await fetchAppointments();
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar recebimento'); }
   };
-  const abrirMov = (tipo: string) => { setMovTipo(tipo); setMovForm({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '' }); setMovOpen(true); };
+  const abrirMov = (tipo: string) => { setMovTipo(tipo); setMovForm({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '' }); setMovOpen(true); };
   const registrarMovimento = async () => {
     if (!detail) return; const valor = Number(String(movForm.valor).replace(',', '.')) || 0;
     if (valor <= 0) { toast.error('Informe o valor'); return; }
     try {
-      const r = await fetch(`/api/caixa/${detail.id}/movimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: movTipo, valor, forma: movForm.forma || null, conta: movTipo === 'TRANSFERENCIA' ? movForm.conta : null, descricao: movForm.descricao || null, observacao: movForm.observacao || null }) });
+      const r = await fetch(`/api/caixa/${detail.id}/movimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: movTipo, valor, forma: movForm.forma || null, conta: movTipo === 'TRANSFERENCIA' ? movForm.conta : null, descricao: movForm.descricao || null, observacao: movForm.observacao || null, ...(movTipo === 'DESPESA' && movForm.categoriaId ? { categoriaId: movForm.categoriaId } : {}), ...((movTipo === 'SUPRIMENTO' || movTipo === 'TRANSFERENCIA') && movForm.contaOrigemId ? { contaOrigemId: movForm.contaOrigemId } : {}), ...((movTipo === 'SANGRIA' || movTipo === 'TRANSFERENCIA') && movForm.contaDestinoId ? { contaDestinoId: movForm.contaDestinoId } : {}) }) });
       if (!r.ok) throw new Error('Erro ao registrar movimento');
       toast.success(`${tipoLabel[movTipo]} registrada!`); setMovOpen(false); await fetchDetail(detail.id);
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar movimento'); }
@@ -460,23 +490,29 @@ export default function CaixaPage() {
                 {tab === 'receb' && (
                   <>
                     {aberto && (
-                      <div className="no-print" style={{ marginBottom: 12 }}>
-                        {vendasEmAberto.length > 0 ? (
-                          <details style={{ fontSize: 13 }}>
-                            <summary style={{ cursor: 'pointer', fontWeight: 500, color: TEAL }}>+ Registrar recebimento ({vendasEmAberto.length} venda(s) em aberto)</summary>
-                            <div style={{ marginTop: 8, border: '1px solid #eef2f3', borderRadius: 10 }}>
-                              {vendasEmAberto.map((v) => (
-                                <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid #F0EBE0' }}>
-                                  <span style={{ color: '#1F2A2E' }}>{v.numeroVenda != null && <b style={{ color: '#014D5E', fontWeight: 500, marginRight: 6 }}>{vendaLabel(v)}</b>}{v.tutor?.name || 'Cliente'} · {v.pet?.name || 'Pet'}</span>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <span style={{ color: ORANGE, fontWeight: 500 }}>{money(Number(v.value) - (pagoPorAppt.get(v.id) || 0))}</span>
-                                    {podeEditar && <button onClick={() => abrirReceber(v)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}>Receber</button>}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </details>
-                        ) : (<p style={{ fontSize: 13, color: '#374151' }}>Nenhuma venda em aberto neste dia.</p>)}
+                      <div className="no-print" style={{ marginBottom: 12, fontSize: 12.5, color: '#5C6B70', background: '#EAF6F7', border: '1px solid #CFE7EA', borderRadius: 10, padding: '10px 13px' }}>
+                        💡 Recebimentos são registrados no <b style={{ color: '#014D5E' }}>Ponto de venda</b> (aba “Não pago”). Aqui você <b>acompanha e confere</b> os recebimentos do dia para o fechamento.
+                      </div>
+                    )}
+                    {prevCred && prevCred.totalCentavos > 0 && (
+                      <div className="no-print" style={{ marginBottom: 12, background: '#F0FAF6', border: '1px solid #BFE6D4', borderRadius: 12, padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                          <div style={{ fontSize: 13, color: '#0F5132', fontWeight: 600 }}>💳 A receber das maquininhas <span style={{ fontWeight: 400, color: '#5C6B70' }}>(previsão de crédito · líquido · pelo prazo de cada maquininha)</span></div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: '#0F5132' }}>{money(prevCred.totalCentavos / 100)}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                          {prevCred.porData.map((p) => {
+                            const [y, m, d] = p.data.split('-');
+                            const base = new Date(); base.setHours(0, 0, 0, 0);
+                            const diff = Math.round((new Date(Number(y), Number(m) - 1, Number(d)).getTime() - base.getTime()) / 86400000);
+                            const quando = diff <= 0 ? 'hoje' : diff === 1 ? 'amanhã' : `${d}/${m}`;
+                            return (
+                              <div key={p.data} style={{ background: '#fff', border: '1px solid #D8ECE0', borderRadius: 9, padding: '6px 11px', fontSize: 12.5 }}>
+                                <span style={{ color: '#5C6B70' }}>{quando}</span> · <b style={{ color: '#0F5132' }}>{money(p.liquidoCentavos / 100)}</b>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -575,10 +611,24 @@ export default function CaixaPage() {
       {movOpen && (
         <Modal title={tipoLabel[movTipo]} onClose={() => setMovOpen(false)} onConfirm={registrarMovimento} confirmLabel="Confirmar" dark={!ehEntrada(movTipo)}>
           <Field label="Valor"><input value={movForm.valor} onChange={(e) => setMovForm({ ...movForm, valor: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field>
-          {movTipo === 'TRANSFERENCIA' ? (
-            <Field label="Conta destino"><select value={movForm.conta} onChange={(e) => setMovForm({ ...movForm, conta: e.target.value })} style={inp}>{CONTAS.filter((c) => c !== 'Caixa').map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
-          ) : (
-            <Field label="Forma"><select value={movForm.forma} onChange={(e) => setMovForm({ ...movForm, forma: e.target.value })} style={inp}>{FORMAS_PADRAO.filter((f) => !ehCredito(f)).map((f) => <option key={f} value={f}>{f}</option>)}</select></Field>
+          {movTipo === 'TRANSFERENCIA' && (<>
+            <Field label="Conta de origem"><select value={movForm.contaOrigemId} onChange={(e) => setMovForm({ ...movForm, contaOrigemId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
+            <Field label="Conta de destino"><select value={movForm.contaDestinoId} onChange={(e) => setMovForm({ ...movForm, contaDestinoId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
+          </>)}
+          {movTipo === 'SANGRIA' && (
+            <Field label="Conta de destino (sai do caixa em dinheiro)"><select value={movForm.contaDestinoId} onChange={(e) => setMovForm({ ...movForm, contaDestinoId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
+          )}
+          {movTipo === 'SUPRIMENTO' && (
+            <Field label="Conta de origem (entra no caixa em dinheiro)"><select value={movForm.contaOrigemId} onChange={(e) => setMovForm({ ...movForm, contaOrigemId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
+          )}
+          {movTipo === 'DESPESA' && (
+            <Field label="Forma"><select value={movForm.forma} onChange={(e) => setMovForm({ ...movForm, forma: e.target.value })} style={inp}>{formasList.filter((f) => !ehCredito(f)).map((f) => <option key={f} value={f}>{f}</option>)}</select></Field>
+          )}
+          {movTipo === 'DESPESA' && (
+            <Field label="Categoria (entra no DRE)"><select value={movForm.categoriaId} onChange={(e) => setMovForm({ ...movForm, categoriaId: e.target.value })} style={inp}>
+              <option value="">— Escolher categoria —</option>
+              {categoriasDespesa.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>{categoriasDespesa.length === 0 ? <div style={{ fontSize: 11, color: '#5C6B70', marginTop: 3 }}>Sem categorias — a despesa entra sem classificação.</div> : null}</Field>
           )}
           <Field label="Descrição"><input value={movForm.descricao} onChange={(e) => setMovForm({ ...movForm, descricao: e.target.value })} style={inp} /></Field>
           <Field label="Observação"><input value={movForm.observacao} onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })} style={inp} /></Field>
@@ -616,7 +666,7 @@ export default function CaixaPage() {
             <label style={lbl}>Formas de pagamento</label>
             {formas.map((f, i) => (
               <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.4 }}>{FORMAS_PADRAO.map((op) => <option key={op} value={op}>{op}</option>)}</select>
+                <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.4 }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
                 <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, valor: Number(String(e.target.value).replace(',', '.')) || 0 } : x))} style={{ ...inp, flex: 1 }} />
                 <input value={f.parcelas || 1} type="number" min={1} title="Parcelas" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, parcelas: Number(e.target.value) || 1 } : x))} style={{ ...inp, width: 52, textAlign: 'center' }} />
                 {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} aria-label="Remover" style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuTrash2 size={15} color="#374151" /></button>}

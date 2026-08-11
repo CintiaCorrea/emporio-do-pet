@@ -261,7 +261,7 @@ export default function CatalogoPage() {
   // ── Ações por linha ──
   const abrirEdicao = (it: Item) => {
     if (!it.rawId) return;
-    if (it.grupo === "EXAME") setExameEdit({ id: it.rawId, nome: it.nome, codigo: it.codigo, fornecedor: it.fornecedor, valorFornecedor: it.custo, valorClienteSugerido: it.preco, tempo: it.tempo, ativo: it.ativo });
+    if (it.grupo === "EXAME") setExameEdit({ id: it.rawId, nome: it.nome, codigo: it.codigo, fornecedor: it.fornecedor, fornecedorId: it.fornId, categoria: it.categoria, valorFornecedor: it.custo, valorClienteSugerido: it.preco, tempo: it.tempo, ativo: it.ativo });
     else { setEditId(it.rawId); setModalOpen(true); }
   };
   async function toggleAtivo(it: Item) {
@@ -331,6 +331,8 @@ export default function CatalogoPage() {
 
       {grupo === "EXAME" && isAdmin && (
         <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#F0E9F7", border: "1px solid #E8E2D6", borderLeft: "4px solid #6b3fa0", borderRadius: 12, padding: "11px 15px", marginBottom: 14 }}>
+          <button onClick={() => setExameEdit({ id: "", nome: "", ativo: true })} className="cat-btn" style={{ background: "#6b3fa0", borderColor: "#6b3fa0", color: "#fff", fontWeight: 600 }}>➕ Adicionar exame</button>
+          <span style={{ width: 1, height: 20, background: "#d9c8ea" }} />
           <span style={{ fontSize: 13, color: "#1F2A2E" }}>🔬 <b style={{ color: "#6b3fa0" }}>% padrão dos exames{fForn ? ` de ${fForn}` : ""}:</b></span>
           <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid #d9c98f", background: "#fffdf5", borderRadius: 8, padding: "5px 9px" }}>
             <input value={percExame} onChange={(e) => setPercExame(e.target.value)} inputMode="decimal" style={{ width: 52, border: "none", background: "transparent", fontSize: 13, textAlign: "right", color: "#1F2A2E", outline: "none", fontFamily: "inherit" }} />

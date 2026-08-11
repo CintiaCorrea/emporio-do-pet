@@ -5,6 +5,10 @@ import { LuTrash, LuPlus, LuMessageSquare } from "react-icons/lu";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ddmm = (iso: string) => { const [, m, d] = String(iso).split("-"); return d && m ? `${d}/${m}` : iso; };
+// Valor em pt-BR: aceita "1.234,50" (milhar . + decimal ,) ou "1234.5" (ponto); sempre p/ número.
+const parseVal = (s: any): number => { const str = String(s ?? "").trim(); if (!str) return 0; return (str.includes(",") ? Number(str.replace(/\./g, "").replace(",", ".")) : Number(str)) || 0; };
+// Formata p/ "0,00" (2 casas) ao sair do campo. Vazio continua vazio.
+const fmtVal = (s: any): string => { const str = String(s ?? "").trim(); if (!str) return ""; return parseVal(str).toFixed(2).replace(".", ","); };
 
 type Item = { descricao: string; qtd: string; valor: string };
 type Props = {
@@ -53,16 +57,16 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
 
   if (!open) return null;
 
-  const total = itens.reduce((s, it) => s + (Number(it.qtd) || 1) * (Number(it.valor) || 0), 0);
+  const total = itens.reduce((s, it) => s + (Number(it.qtd) || 1) * parseVal(it.valor), 0);
   const setItem = (i: number, patch: Partial<Item>) => setItens((arr) => arr.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
   const addItem = () => setItens((arr) => [...arr, { descricao: "", qtd: "1", valor: "" }]);
   const delItem = (i: number) => setItens((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
-  const preencherDoCatalogo = (i: number, nome: string) => { const s = cat.find((c) => c.nome === nome); if (s) setItem(i, { descricao: s.nome, valor: s.valor ? String(s.valor) : "" }); };
+  const preencherDoCatalogo = (i: number, nome: string) => { const s = cat.find((c) => c.nome === nome); if (s) setItem(i, { descricao: s.nome, valor: s.valor ? fmtVal(s.valor) : "" }); };
   const aplicarModelo = (id: string) => {
     setModeloSel(id);
     const m = modelos.find((x) => x.id === id);
     if (!m) { setItens([{ descricao: "", qtd: "1", valor: "" }]); setObs(""); return; }
-    const its = (m.itens || []).map((it: any) => ({ descricao: it.descricao || "", qtd: String(it.quantidade ?? 1), valor: it.valorUnitario != null ? String(it.valorUnitario) : "" }));
+    const its = (m.itens || []).map((it: any) => ({ descricao: it.descricao || "", qtd: String(it.quantidade ?? 1), valor: it.valorUnitario != null ? fmtVal(it.valorUnitario) : "" }));
     setItens(its.length ? its : [{ descricao: "", qtd: "1", valor: "" }]);
     setObs(m.observacao != null ? String(m.observacao) : "");
   };
@@ -78,7 +82,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
         petId: pet.id, tutorId: tutor?.id,
         validade: validade ? new Date(validade + "T12:00:00").toISOString() : undefined,
         observacao: obs.trim() || undefined,
-        itens: vs.map((it) => ({ descricao: it.descricao.trim(), quantidade: Number(it.qtd) || 1, valorUnitario: Number(it.valor) || 0 })),
+        itens: vs.map((it) => ({ descricao: it.descricao.trim(), quantidade: Number(it.qtd) || 1, valorUnitario: parseVal(it.valor) })),
       };
       const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();
@@ -89,7 +93,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
   function montarTexto(): string {
     const hoje = new Date().toLocaleDateString("pt-BR");
     const linhas = itensValidos().map((it) => {
-      const q = Number(it.qtd) || 1; const v = Number(it.valor) || 0;
+      const q = Number(it.qtd) || 1; const v = parseVal(it.valor);
       return q > 1
         ? `• ${it.descricao.trim()}\n   ${q} × ${BRL(v)} = *${BRL(q * v)}*`
         : `• ${it.descricao.trim()} — *${BRL(v)}*`;
@@ -155,7 +159,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
               <input list={`cat-${i}`} value={it.descricao} onChange={(e) => { setItem(i, { descricao: e.target.value }); preencherDoCatalogo(i, e.target.value); }} placeholder="Descrição ou catálogo…" style={inp} />
               <datalist id={`cat-${i}`}>{cat.map((c) => <option key={c.nome} value={c.nome} />)}</datalist>
               <input value={it.qtd} onChange={(e) => setItem(i, { qtd: e.target.value })} inputMode="numeric" style={{ ...inp, textAlign: "center" }} />
-              <input value={it.valor} onChange={(e) => setItem(i, { valor: e.target.value })} inputMode="decimal" placeholder="0,00" style={{ ...inp, textAlign: "right" }} />
+              <input value={it.valor} onChange={(e) => setItem(i, { valor: e.target.value })} onBlur={(e) => setItem(i, { valor: fmtVal(e.target.value) })} inputMode="decimal" placeholder="0,00" style={{ ...inp, textAlign: "right" }} />
               <button onClick={() => delItem(i)} title="Remover" className="text-[#b23b39] flex items-center justify-center"><LuTrash size={13} /></button>
             </div>
           ))}

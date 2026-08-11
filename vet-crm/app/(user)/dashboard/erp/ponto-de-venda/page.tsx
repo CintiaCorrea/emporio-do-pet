@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
 import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
+import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 
 const TEAL = '#009AAC';
 const NAVY = '#014D5E';
@@ -30,10 +31,10 @@ const AV = [
 
 interface Pet { id: string; name: string }
 interface Tutor { id: string; name: string; pets?: Pet[] }
-interface Servico { id: string; nome: string; valorPadrao?: number | null }
+interface Servico { id: string; nome: string; valorPadrao?: number | null; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null }
 interface Prof { id: string; name: string }
-interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string }
-interface Forma { forma: string; valor: number; nsu?: string }
+interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null }
+interface Forma { forma: string; valor: number; nsu?: string; modalidade?: string; bandeira?: string; parcelas?: number }
 interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string; tutorId?: string }
 
 const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
@@ -78,7 +79,9 @@ export default function PDVPage() {
 
   const [modal, setModal] = useState(false);
   const [formas, setFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0 }]);
-  const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas configuradas (Fase 2)
+  const [formasCfg, setFormasCfg] = useState<string[]>([]); // nomes das formas (Fase 2)
+  const [formasConfig, setFormasConfig] = useState<any[]>([]); // config completa (tipo/adquirente/conta)
+  const [taxas, setTaxas] = useState<any[]>([]); // tabela de taxas por bandeira (TaxaContratada)
   const [salvando, setSalvando] = useState(false);
 
   const [vendas, setVendas] = useState<Venda[]>([]);
@@ -203,7 +206,35 @@ export default function PDVPage() {
 
   useEffect(() => {
     (async () => {
-      try { const r = await fetch('/api/servicos/itens', { cache: 'no-store' }); if (r.ok) setServicos(await r.json()); } catch { /* */ }
+      try {
+        const [rs, re, rp] = await Promise.all([
+          fetch('/api/servicos/itens', { cache: 'no-store' }),
+          fetch('/api/fornecedores/exames/lista', { cache: 'no-store' }),
+          fetch('/api/products?limit=2000&excludeService=1', { cache: 'no-store' }), // 🛒 produtos/vacinas
+        ]);
+        const prods: Servico[] = rs.ok ? await rs.json() : [];
+        const examesRaw: any[] = re.ok ? await re.json() : [];
+        // 🛒 Produtos e vacinas (type != SERVICE) TAMBÉM entram na busca do PDV (antes só vinham serviços+exames).
+        const produtosRaw: any = rp.ok ? await rp.json() : {};
+        const produtosArr: any[] = Array.isArray(produtosRaw?.products) ? produtosRaw.products : (Array.isArray(produtosRaw) ? produtosRaw : []);
+        const produtosItens: Servico[] = produtosArr
+          .filter((p: any) => p && p.ativo !== false && p.type !== 'SERVICE')
+          .map((p: any) => ({ id: p.id, nome: p.name, valorPadrao: p.price ?? 0 }));
+        // Exames entram na busca do PDV: dedup por NOME preferindo o lab Veter (padrão), marcados como _exame.
+        const porNome = new Map<string, any>();
+        for (const ex of (Array.isArray(examesRaw) ? examesRaw : [])) {
+          const nome = String(ex?.nome || '').trim(); if (!nome) continue;
+          const chave = nome.toLowerCase();
+          const atual = porNome.get(chave);
+          const ehVeter = /veter/i.test(ex?.fornecedor?.nome || '');
+          if (!atual || (ehVeter && !/veter/i.test(atual?.fornecedor?.nome || ''))) porNome.set(chave, ex);
+        }
+        const examesItens: Servico[] = [...porNome.values()].map((ex: any) => ({
+          id: ex.id, nome: `🔬 ${ex.nome}`, valorPadrao: ex.valorClienteSugerido ?? ex.valorCliente ?? 0,
+          _exame: true, _fornecedorId: ex.fornecedorId ?? ex.fornecedor?.id ?? null, _fornecedorNome: ex.fornecedor?.nome ?? null,
+        }));
+        setServicos([...(Array.isArray(prods) ? prods : []), ...produtosItens, ...examesItens]);
+      } catch { /* */ }
       try {
         const r = await fetch('/api/users', { cache: 'no-store' });
         if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.users || d.data || []); setProfs(arr.map((u: any) => ({ id: u.id, name: u.name || u.nome || u.email }))); }
@@ -215,7 +246,11 @@ export default function PDVPage() {
       } catch { setCaixaAberto(false); }
       try {
         const r = await fetch('/api/listas?lista=formasrecebimento', { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); const arr = (Array.isArray(d) ? d : (d.itens || d.data || [])).map((x: any) => { try { return JSON.parse(x.valor); } catch { return null; } }).filter((v: any) => v && v.ativo !== false).map((v: any) => v.nome); setFormasCfg(arr); }
+        if (r.ok) { const d = await r.json(); const full = (Array.isArray(d) ? d : (d.itens || d.data || [])).map((x: any) => { try { return JSON.parse(x.valor); } catch { return null; } }).filter((v: any) => v && v.ativo !== false); setFormasConfig(full); setFormasCfg(full.map((v: any) => v.nome)); }
+      } catch { /* */ }
+      try {
+        const r = await fetch('/api/financeiro/auditoria/taxas', { cache: 'no-store' });
+        if (r.ok) { const d = await r.json(); setTaxas(Array.isArray(d) ? d : (d.data || d.itens || [])); }
       } catch { /* */ }
     })();
     loadVendas();
@@ -293,9 +328,12 @@ export default function PDVPage() {
 
   const addItem = (s: Servico) => {
     setCarrinho((c) => {
-      const i = c.findIndex((x) => x.servicoId === s.id);
+      const i = s._exame ? c.findIndex((x) => x.catalogoExameId === s.id) : c.findIndex((x) => x.servicoId === s.id);
       if (i >= 0) { const cp = [...c]; cp[i] = { ...cp[i], quantidade: cp[i].quantidade + qtd }; return cp; }
-      return [...c, { servicoId: s.id, descricao: s.nome, quantidade: qtd, valorUnitario: Number(s.valorPadrao || 0), desconto: 0, executorUserId: profId || undefined }];
+      const base = { descricao: s.nome.replace(/^🔬\s*/, ''), quantidade: qtd, valorUnitario: Number(s.valorPadrao || 0), desconto: 0, executorUserId: profId || undefined };
+      return [...c, s._exame
+        ? { ...base, _exame: true, catalogoExameId: s.id, fornecedorId: s._fornecedorId, fornecedorNome: s._fornecedorNome }
+        : { ...base, servicoId: s.id }];
     });
     setItemBusca(''); setItemAberto(false); setQtd(1);
   };
@@ -330,7 +368,7 @@ export default function PDVPage() {
 
   const payload = (extra: any) => ({
     tutorId: cliente!.id, petId, userId: profId || undefined, date: new Date(data + 'T12:00:00').toISOString(),
-    itens: carrinho.map((it) => ({ servicoId: it.servicoId, productId: it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), executorUserId: it.executorUserId || profId || undefined })),
+    itens: carrinho.map((it) => ({ servicoId: it._exame ? undefined : it.servicoId, productId: it._exame ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), executorUserId: it.executorUserId || profId || undefined, ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId } : {}) })),
     desconto: Number(descGlobalVal().toFixed(2)), observacao: obs || null, ...extra,
   });
 
@@ -347,7 +385,23 @@ export default function PDVPage() {
 
   const abrirRecebimento = () => { if (!baseValida) return; setFormas([{ forma: 'Dinheiro', valor: Number(total.toFixed(2)) }]); setModal(true); };
   const confirmarRecebimento = () => enviar(payload({ tipo: 'VENDA', formas: formas.filter((f) => Number(f.valor) > 0) }), 'Venda registrada!');
-  const salvar = () => enviar(payload({ tipo }), tipo === 'ORCAMENTO' ? 'Orçamento salvo!' : 'Venda salva (a receber)');
+  const salvar = () => { if (tipo === 'ORCAMENTO') return salvarOrcamento(); return enviar(payload({ tipo }), 'Venda salva (a receber)'); };
+  // Orçamento vai pro MÓDULO de orçamentos (salvar/aprovar/converter), não pro endpoint de venda.
+  const salvarOrcamento = async () => {
+    if (!cliente) { toast.error('Escolha o cliente'); return; }
+    if (!petId) { toast.error('Escolha o pet do orçamento'); return; }
+    setSalvando(true);
+    try {
+      const body = {
+        petId, tutorId: cliente.id, observacao: obs || null,
+        itens: carrinho.map((it) => ({ servicoId: it._exame ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId } : {}) })),
+      };
+      const r = await fetch('/api/orcamentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.message || d.error || 'Erro ao salvar orçamento');
+      toast.success('Orçamento salvo!'); setModal(false); reset(); loadVendas();
+    } catch (e: any) { toast.error(e.message || 'Erro ao salvar orçamento'); } finally { setSalvando(false); }
+  };
 
   // Só venda com valor (> 0) — atendimentos de R$ 0 (agenda/clínico) não são comanda nem venda.
   const vendasFiltradas = vendas.filter((v) => Number(v.valor) > 0 && (vendaTab === 'PAGO' ? v.pagoTotal : !v.pagoTotal));
@@ -673,15 +727,7 @@ export default function PDVPage() {
                 <span style={{ fontSize: 13, color: INK2 }}>Total da venda</span>
                 <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(total)}</span>
               </div>
-              {formas.map((f, i) => { const ehCartao = /cart|maquin/i.test(f.forma || ''); return (
-                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7, flexWrap: 'wrap' }}>
-                  <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.3, padding: '8px', minWidth: 120 }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
-                  <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, valor: num(e.target.value) } : x))} style={{ ...inp, flex: 1, padding: '8px', minWidth: 80 }} />
-                  {ehCartao && <input value={f.nsu || ''} placeholder="NSU" title="NSU do cartão (para conciliação)" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, nsu: e.target.value } : x))} style={{ ...inp, flex: 1, padding: '8px', minWidth: 80 }} />}
-                  {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }}>🗑️</button>}
-                </div>
-              ); })}
-              <button onClick={() => setFormas([...formas, { forma: 'Pix', valor: 0 }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>➕ outra forma</button>
+              <PagamentoFormas formas={formas} onChange={setFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
 
               <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Pago</span><b style={{ color: NAVY }}>{brl(pago)}</b></div>
@@ -811,14 +857,7 @@ export default function PDVPage() {
                   <span style={{ fontSize: 13, color: INK2 }}>Saldo a receber</span>
                   <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(aReceber)}</span>
                 </div>
-                {recFormas.map((f, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7 }}>
-                    <select value={f.forma} onChange={(e) => setRecFormas(recFormas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.3, padding: '8px' }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
-                    <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setRecFormas(recFormas.map((x, j) => j === i ? { ...x, valor: num(e.target.value) } : x))} style={{ ...inp, flex: 1, padding: '8px' }} />
-                    {recFormas.length > 1 && <button onClick={() => setRecFormas(recFormas.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }}>🗑️</button>}
-                  </div>
-                ))}
-                <button onClick={() => setRecFormas([...recFormas, { forma: 'Pix', valor: 0 }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>➕ outra forma</button>
+                <PagamentoFormas formas={recFormas} onChange={setRecFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
 
                 <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Recebido agora</span><b style={{ color: NAVY }}>{brl(pagoR)}</b></div>

@@ -14,6 +14,7 @@ import { montarPetExame, faseInicialExame } from "@/lib/petExame";
 import PetComandaRail from "@/components/pets/PetComandaRail";
 import ConsultationRecorder from "@/components/protected/dashboard/clinical-documents/ConsultationRecorder";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
+import { assignFollowUp } from "@/lib/followup";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -60,7 +61,7 @@ export default function NovoAtendimentoPage() {
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 16), type: "CONSULTA", userId: "", status: "Realizado",
     peso: "", chiefComplaint: "", anamnesis: "", physicalExam: "", diagnosis: "", conduct: "",
-    recModelo: "", followUpNotes: "", followUpDate: "",
+    recModelo: "", followUpNotes: "", followUpDate: "", followUpResp: "",
   });
   const set = (k: keyof typeof form, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -426,6 +427,12 @@ export default function NovoAtendimentoPage() {
       if (form.followUpNotes !== (pet.followUpNotes || "")) fuBody.followUpNotes = form.followUpNotes || null;
       if (form.followUpDate) fuBody.proximoFollowupAt = new Date(form.followUpDate + "T12:00:00").toISOString();
       if (Object.keys(fuBody).length) { try { await fetch(`/api/pets/${pet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fuBody) }); } catch {} }
+      // 👤 quem acompanha o follow-up (padrão único): avisa a pessoa + rastro + KV → cai no painel dela.
+      if (form.followUpResp) {
+        const nome = vets.find((u) => u.id === form.followUpResp)?.name || "";
+        const fuLabel = form.followUpDate ? new Date(form.followUpDate + "T12:00:00").toLocaleDateString("pt-BR") : "";
+        try { await assignFollowUp({ petId: pet.id, userId: form.followUpResp, nome, petNome: pet.name, fuLabel }); } catch {}
+      }
 
       toast.success("Atendimento registrado");
       limparRascunho();
@@ -703,7 +710,14 @@ export default function NovoAtendimentoPage() {
             <div><label className={lbl}>O que acompanhar</label><input value={form.followUpNotes} onChange={(e) => set("followUpNotes", e.target.value)} placeholder="Ex.: verificar se a coceira melhorou, se está tomando o remédio…" className={inp} /></div>
             <div><label className={lbl}>Data do follow-up</label><input type="date" value={form.followUpDate} onChange={(e) => set("followUpDate", e.target.value)} className={inp} /></div>
           </div>
-          <p className="text-[11px] text-[#374151] mt-1.5">Grava no follow-up do pet (aparece na Visão geral e no Hoje).</p>
+          <div className="mt-2 flex items-center gap-1.5" style={{ maxWidth: 380 }}>
+            <span className="text-[11px] whitespace-nowrap text-[#00798A]">👤 Acompanha:</span>
+            <select value={form.followUpResp} onChange={(e) => set("followUpResp", e.target.value)} className={inp}>
+              <option value="">Ninguém específico</option>
+              {vets.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+          <p className="text-[11px] text-[#374151] mt-1.5">Grava no follow-up do pet (aparece na Visão geral e no Hoje). Quem acompanha recebe um aviso e o follow-up cai no painel dele.</p>
         </div>
 
         {/* ⚡ SEQUÊNCIA DE CUIDADO — mesma da Visão geral, embutida no atendimento */}

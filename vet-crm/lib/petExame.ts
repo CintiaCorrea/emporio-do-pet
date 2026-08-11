@@ -47,7 +47,11 @@ export function acharExameNoCatalogo<T extends ExameCatalogo>(
 ): T | undefined {
   const alvo = (nome || "").trim().toLowerCase();
   if (!alvo) return undefined;
-  return (catalogo || []).find((c) => (c?.nome || "").trim().toLowerCase() === alvo);
+  const candidatos = (catalogo || []).filter((c) => (c?.nome || "").trim().toLowerCase() === alvo);
+  if (candidatos.length === 0) return undefined;
+  // PADRÃO = laboratório VETER. Só cai em outro lab quando a Veter não tem esse exame.
+  const veter = candidatos.find((c) => /veter/i.test((c as any)?.fornecedor?.nome || ""));
+  return veter || candidatos[0];
 }
 
 // Fase inicial padrão. Externo pode ter fase própria ("... externo") se existir na

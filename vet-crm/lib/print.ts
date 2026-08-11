@@ -30,7 +30,7 @@ async function getClinica(): Promise<any> {
  * que inclui o quadro de dados do animal), usa esse; senão gera um cabeçalho padrão
  * (logo + dados da clínica).
  */
-export async function imprimirDocumento(titulo: string, corpoHtml: string, cabecalhoHtml?: string, dados?: { pet?: any; tutor?: any }): Promise<void> {
+export async function imprimirDocumento(titulo: string, corpoHtml: string, cabecalhoHtml?: string, dados?: { pet?: any; tutor?: any }, opts?: { compacto?: boolean }): Promise<void> {
   let cab = cabecalhoHtml || "";
   if (!cab) {
     const clinica = await getClinica();
@@ -41,13 +41,17 @@ export async function imprimirDocumento(titulo: string, corpoHtml: string, cabec
   const w = window.open("", "_blank", "width=840,height=1000");
   if (!w) { alert("Permita pop-ups para imprimir."); return; }
 
+  // compacto = documentos longos (ex.: receituário de controle especial) que precisam caber em 1 página A4
+  const pad = opts?.compacto ? '8mm 12mm 8mm' : '16mm 16mm 18mm';
+  const fs = opts?.compacto ? '10.5px' : '13px';
+  const lh = opts?.compacto ? '1.32' : '1.5';
   w.document.write(
     `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8" /><title>${titulo}</title>
     <style>
       @page { size: A4; margin: 0; }
       * { box-sizing: border-box; }
-      body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #14253a; font-size: 13px; line-height: 1.5; }
-      .conteudo { padding: 16mm 16mm 18mm; }
+      body { margin: 0; font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: #14253a; font-size: ${fs}; line-height: ${lh}; }
+      .conteudo { padding: ${pad}; }
       h1, h2, h3 { color: #014D5E; margin: 0 0 8px; }
       pre { white-space: pre-wrap; font-family: inherit; margin: 0; }
       table { width: 100%; border-collapse: collapse; }

@@ -42,7 +42,8 @@ const MENU: { grupo: string; itens: { v: Secao; ic: string; label: string; pront
   ] },
   { grupo: 'Apoios', itens: [
     { v: 'contatos', ic: '👥', label: 'Contatos', pronto: true },
-    { v: 'formas', ic: '💰', label: 'Formas de pagamento', pronto: true },
+    // 'Formas de pagamento' removida: era lista redundante (só nome). A fonte única das formas
+    // (com taxa/adquirente/conta) é a tela Vendas › Formas de recebimento.
   ] },
 ];
 
@@ -223,11 +224,11 @@ function SecaoContas() {
       </div>
       <div className="fin-tbl-scroll">
         <table className="fin-tbl">
-          <thead><tr><th>Conta</th><th>Tipo</th><th>Unidade</th><th style={{ textAlign: 'right' }}>Saldo inicial</th><th>Situação</th><th></th></tr></thead>
+          <thead><tr><th>Conta</th><th>Tipo</th><th>Unidade</th><th style={{ textAlign: 'right' }}>Saldo inicial</th><th style={{ textAlign: 'right' }}>Saldo atual</th><th>Situação</th><th></th></tr></thead>
           <tbody>
-            {carregando && <tr><td colSpan={6} className="fin-empty">Carregando…</td></tr>}
+            {carregando && <tr><td colSpan={7} className="fin-empty">Carregando…</td></tr>}
             {!carregando && contas.length === 0 && (
-              <tr><td colSpan={6} className="fin-empty">Nenhuma conta. Clique em “+ Nova conta”.</td></tr>
+              <tr><td colSpan={7} className="fin-empty">Nenhuma conta. Clique em “+ Nova conta”.</td></tr>
             )}
             {!carregando && contas.map((c) => {
               const dados = [c.banco, c.agencia && `Ag ${c.agencia}`, c.numeroConta && `Cc ${c.numeroConta}`].filter(Boolean).join(' · ');
@@ -243,6 +244,11 @@ function SecaoContas() {
                 <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', color: cents < 0 ? '#c0392b' : 'inherit' }}>
                   {cents ? `${cents < 0 ? '-' : ''}R$ ${centavosParaBRL(cents)}` : '—'}
                 </td>
+                {(() => { const sal = (c as any).saldoAtualCentavos ?? cents; const ent = (c as any).entradasCentavos ?? 0; const sai = (c as any).saidasCentavos ?? 0; return (
+                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600, color: sal < 0 ? '#c0392b' : '#0F6E56' }}>
+                  {`${sal < 0 ? '-' : ''}R$ ${centavosParaBRL(sal)}`}
+                  {(ent || sai) ? <div style={{ fontSize: 10, color: 'var(--text2)', fontWeight: 400 }}>+{centavosParaBRL(ent)} · −{centavosParaBRL(sai)}</div> : null}
+                </td>); })()}
                 <td>{c.ativo ? <span className="pill okp">ativa</span> : <span className="pill">inativa</span>}</td>
                 <td className="cad-acao">
                   <button className="fin-btn sm" onClick={() => abrirEdicao(c)}>Editar</button>{' '}

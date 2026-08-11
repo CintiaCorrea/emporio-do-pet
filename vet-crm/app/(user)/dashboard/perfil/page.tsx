@@ -236,31 +236,18 @@ export default function PerfilPage() {
     setIsUploadingSig(true);
     const toastId = toast.loading('Enviando assinatura...');
     try {
-      const sigRes = await fetch('/api/cloudinary/signature', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ kind: 'signature' }) });
-      const sigData = await sigRes.json();
-      if (!sigRes.ok) throw new Error(sigData?.error || 'Erro ao preparar upload');
-      const { cloudName, apiKey, timestamp, signature, folder, publicId, overwrite, invalidate } = sigData;
-
-      const form = new FormData();
-      form.append('file', file);
-      form.append('api_key', apiKey);
-      form.append('timestamp', String(timestamp));
-      form.append('signature', signature);
-      form.append('folder', folder);
-      form.append('public_id', publicId);
-      form.append('overwrite', String(Boolean(overwrite)));
-      form.append('invalidate', String(Boolean(invalidate)));
-
-      const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: form });
-      const uploadData = await uploadRes.json();
-      if (!uploadRes.ok) throw new Error(uploadData?.error?.message || `Falha no upload (HTTP ${uploadRes.status})`);
-      const secureUrl: string | undefined = uploadData?.secure_url;
-      if (!secureUrl) throw new Error('Cloudinary não retornou a URL da imagem');
+      // Storage real do sistema = S3 (Tigris), a MESMA rota dos documentos (Cloudinary nunca foi configurado).
+      const fd = new FormData();
+      fd.append('file', file);
+      const uploadRes = await fetch(`/api/media/upload?pasta=documentos&origem=assinatura&origemId=${encodeURIComponent(userId)}`, { method: 'POST', body: fd });
+      const uploadData = await uploadRes.json().catch(() => null);
+      if (!uploadRes.ok || !uploadData?.url) throw new Error(uploadData?.error || uploadData?.message || `Falha no upload (HTTP ${uploadRes.status})`);
+      const secureUrl: string = uploadData.url;
 
       setSignatureUrl(secureUrl);
       const patchRes = await fetch(`/api/users/${encodeURIComponent(userId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureUrl: secureUrl }) });
       const patchData = await patchRes.json().catch(() => null);
-      if (!patchRes.ok) throw new Error(patchData?.error || 'Erro ao salvar assinatura');
+      if (!patchRes.ok) throw new Error(patchData?.error || patchData?.message || 'Erro ao salvar assinatura');
       toast.success('Assinatura salva!', { id: toastId });
     } catch (err) {
       console.error(err);
@@ -406,7 +393,7 @@ export default function PerfilPage() {
               <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center h-28 mb-3 overflow-hidden">
                 {signatureUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={signatureUrl} alt="Assinatura" className="max-h-24 max-w-full object-contain" style={{ mixBlendMode: 'multiply' }} />
+                  <img src={signatureUrl?.startsWith('http') ? `/api/media/ver?u=${encodeURIComponent(signatureUrl)}` : signatureUrl} alt="Assinatura" className="max-h-24 max-w-full object-contain" style={{ mixBlendMode: 'multiply' }} />
                 ) : (
                   <span className="text-xs text-gray-400">Nenhuma assinatura enviada ainda</span>
                 )}

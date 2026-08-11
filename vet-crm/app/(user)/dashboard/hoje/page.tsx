@@ -10,6 +10,7 @@ import {
 } from "react-icons/lu";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
+import ExamesResumoCard from "@/components/exames/ExamesResumoCard";
 import { roleShort } from "@/lib/ui/role";
 import { PageShell, ProgressBar, B44 } from "@/components/ui/base44";
 import { loadExameFases, EXAME_FASES_PADRAO, EXAME_FASES_CONCLUIDAS } from "@/lib/exameFases";
@@ -311,6 +312,7 @@ export default function HojePage() {
   const [examFases, setExamFases] = useState<string[]>(EXAME_FASES_PADRAO);
   const [dosesPend, setDosesPend] = useState<any[]>([]);
   const [examesOpen, setExamesOpen] = useState(false);
+  const [saudeOpen, setSaudeOpen] = useState(false); // Saúde das automações começa recolhida (Fig 1)
   const [boletinsPend, setBoletinsPend] = useState<any[]>([]);
   const [fuDue, setFuDue] = useState<any[]>([]);
   const [fuDueOpen, setFuDueOpen] = useState(false);
@@ -483,6 +485,14 @@ export default function HojePage() {
     toast.success(`${ok} exame(s) de ${lab} → ${faseRetirado} 🧪`);
   }
 
+  // 🗑 Excluir boletim pendente (limpa a listagem). Boletim = listaItem petboletim_<pet>.
+  async function deletarBoletim(id: string, nome?: string) {
+    if (!window.confirm(`Excluir o boletim${nome ? ` de ${nome}` : ""}? Ele sai da lista (não é enviado ao tutor). Não dá pra desfazer.`)) return;
+    setBoletinsPend((prev) => prev.filter((b) => b.id !== id));
+    try { const r = await fetch(`/api/listas/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); toast.success("Boletim excluído"); }
+    catch { toast.error("Erro ao excluir"); }
+  }
+
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -537,16 +547,22 @@ export default function HojePage() {
         const endToday = new Date(); endToday.setHours(23, 59, 59, 999);
         // 👤 responsável pelo FU (KV fu_responsavel) — mapa petId → {userId,nome}
         const fuRespMap: Record<string, { userId: string; nome: string }> = {};
+        const fuRespTutorMap: Record<string, { userId: string; nome: string }> = {};
+        const fuRespLeadMap: Record<string, { userId: string; nome: string }> = {};
         for (const it of listArr) {
           if ((it.lista || "") === "fu_responsavel") {
             let dd: any = {}; try { dd = JSON.parse(it.valor); } catch {}
-            if (dd.petId && dd.userId) fuRespMap[dd.petId] = { userId: dd.userId, nome: dd.nome || "" };
+            if (dd.userId) {
+              if (dd.petId) fuRespMap[dd.petId] = { userId: dd.userId, nome: dd.nome || "" };
+              if (dd.tutorId) fuRespTutorMap[dd.tutorId] = { userId: dd.userId, nome: dd.nome || "" };
+              if (dd.leadId) fuRespLeadMap[dd.leadId] = { userId: dd.userId, nome: dd.nome || "" };
+            }
           }
         }
         const fu: any[] = [];
-        for (const t of tutorArr) if (t.proximoFollowupAt && new Date(t.proximoFollowupAt) <= endToday) fu.push({ id: "t" + t.id, tipo: "Cliente", nome: t.name || "Cliente", date: t.proximoFollowupAt, href: `/dashboard/erp/tutores/${t.id}` });
+        for (const t of tutorArr) if (t.proximoFollowupAt && new Date(t.proximoFollowupAt) <= endToday) { const rr = fuRespTutorMap[t.id]; fu.push({ id: "t" + t.id, tipo: "Cliente", nome: t.name || "Cliente", date: t.proximoFollowupAt, href: `/dashboard/erp/tutores/${t.id}`, respUserId: rr?.userId, respNome: rr?.nome }); }
         for (const p of petArr) if (p.proximoFollowupAt && new Date(p.proximoFollowupAt) <= endToday) { const rr = fuRespMap[p.id]; fu.push({ id: "p" + p.id, tipo: "Pet", nome: p.name || "Pet", date: p.proximoFollowupAt, href: `/dashboard/erp/pets/${p.id}`, respUserId: rr?.userId, respNome: rr?.nome }); }
-        for (const l of leadArr) if (l.proximoFollowupAt && new Date(l.proximoFollowupAt) <= endToday) fu.push({ id: "l" + l.id, tipo: "Lead", nome: l.name || "Lead", date: l.proximoFollowupAt, href: `/dashboard/crm/leads/${l.id}` });
+        for (const l of leadArr) if (l.proximoFollowupAt && new Date(l.proximoFollowupAt) <= endToday) { const rr = fuRespLeadMap[l.id]; fu.push({ id: "l" + l.id, tipo: "Lead", nome: l.name || "Lead", date: l.proximoFollowupAt, href: `/dashboard/crm/leads/${l.id}`, respUserId: rr?.userId, respNome: rr?.nome }); }
         fu.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setFuDue(fu);
         // Toques de cadencia: passos das cadencias (clientes/pets) que vencem hoje
@@ -687,16 +703,7 @@ export default function HojePage() {
         Icon: LuPackage,
         emoji: "📦",
       },
-      {
-        key: "exames",
-        title: "Exames a entregar",
-        sub: "Resultados aguardando envio ao tutor",
-        count: examesPend.length,
-        link: "Pets",
-        href: "/dashboard/erp/pets?exames=pendentes",
-        Icon: LuFlaskConical,
-        emoji: "🔬",
-      },
+      // "Exames a entregar" removido da lista de tarefas (11/08): o Kanban de exames já cobre isso.
       {
         key: "doses",
         title: "Doses a aplicar",
@@ -792,6 +799,8 @@ export default function HojePage() {
           <div className="kpi"><div className="l">🔬 Exames a entregar</div><div className="n">{examesPend.length}</div><div className="d">acompanhar</div></div>
           <div className="kpi"><div className="l">🎂 Aniversariantes</div><div className="n">{aniv.length}</div><div className="d">parabenizar</div></div>
         </div>
+
+        <div style={{ marginBottom: 12 }}><ExamesResumoCard /></div>
 
         {/* Minhas tarefas de hoje */}
         <div className="card">
@@ -894,6 +903,7 @@ export default function HojePage() {
           <div className="kpi"><div className="l">💉 Doses a aplicar</div><div className="n">{dosesView.length}</div><div className="d">hoje/semana</div></div>
           <div className="kpi"><div className="l">🔬 Exames a entregar</div><div className="n">{examesPend.length}</div><div className="d">acompanhar</div></div>
         </div>
+        <div style={{ marginBottom: 12 }}><ExamesResumoCard /></div>
         <div className="grid2">
           <div className="card">
             <div className="card-h"><span>📅</span><span className="ttl">Meus atendimentos de hoje</span><span className="r">{atendHoje.length}</span></div>
@@ -950,6 +960,13 @@ export default function HojePage() {
   // 👑 Painel do ADMIN — visão da clínica (KPIs + meta + marcas + funil). Time = MetasTimeCard abaixo.
   function renderPainelAdmin() {
     const tot = resumoVendas?.totais || {};
+    // Fig 4 — acompanhar recepção/execução: mesmas tarefas do painel da recepção (retornos/pacotes/exames/doses/aniversários)
+    const tarefasAdmin = items.filter((p) => p.count > 0);
+    const totalAdmin = items.reduce((s, p) => s + p.count, 0);
+    const aguardandoAdmin = examesPend.filter(aguardandoRetirada);
+    const byLabAdmin: Record<string, any[]> = {};
+    aguardandoAdmin.forEach((e) => { const lab = e?.data?.laboratorio || e?.data?.lab || "Laboratório"; (byLabAdmin[lab] = byLabAdmin[lab] || []).push(e); });
+    const lotesAdmin = Object.entries(byLabAdmin);
     const marcas: any[] = resumoVendas?.porMarca || [];
     const maxMarca = Math.max(1, ...marcas.map((m: any) => Number(m.valor ?? m.liquido ?? m.total ?? 0)));
     const metaClinica = metas.find((m: any) => !m.profissionalId && (String(m.tipo).includes("GERAL") || String(m.tipo).includes("FATURAMENTO")));
@@ -975,14 +992,38 @@ export default function HojePage() {
           <div className="kpi"><div className="l">🎂 Aniversariantes</div><div className="n">{aniv.length}</div></div>
         </div>
 
+        <div style={{ marginBottom: 12 }}><ExamesResumoCard /></div>
+
+        {/* Fig 4 — Recepção & execução: o admin acompanha as tarefas da recepção (retornos/pacotes/exames/doses/aniversários) */}
+        <div className="card">
+          <div className="card-h"><span>⚠️</span><span className="ttl">Recepção &amp; execução</span><span className="r">{loading ? "carregando…" : `${totalAdmin} pendências`}</span></div>
+          {tarefasAdmin.length === 0 && !lotesAdmin.length
+            ? <div style={{ padding: 18, textAlign: "center", color: "#8A938F", fontSize: 13 }}>Tudo em ordem por aqui. 🎉</div>
+            : <>
+              {tarefasAdmin.map((p) => (
+                <div className="att" key={p.key}>
+                  <div className="ic">{p.emoji}</div>
+                  <div className="tx"><b>{p.title}</b><small>{p.sub}</small></div>
+                  <span className="cnt">{p.count}</span>
+                  {p.href !== "#" && <Link className="go" href={p.href}>Abrir</Link>}
+                </div>
+              ))}
+              {lotesAdmin.map(([lab, exs]) => (
+                <button key={lab} className="lote" onClick={() => baixarLoteRetirada(lab, exs as any[])}>🧪 {lab} retirou — dar baixa em lote ({(exs as any[]).length})</button>
+              ))}
+            </>}
+        </div>
+
         {/* 🩺 Saúde das automações */}
         {saudeAuto && (() => {
           const stUI = (s: string) => s === "ok" ? { e: "🟢", c: "#0F6E56", l: "OK" } : s === "atrasado" ? { e: "🟡", c: "#8A6400", l: "Atrasado" } : s === "parado" ? { e: "🔴", c: "#B91C1C", l: "Parado" } : { e: "⚪", c: "#8A938F", l: "Aguardando 1ª" };
           const fmtId = (m: number | null) => m == null ? "sem dados" : m < 1 ? "agora" : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : `há ${Math.round(m / 1440)} d`;
           const motorSt = saudeAuto.cronVivo ? "ok" : "parado";
+          const temProblema = !saudeAuto.cronVivo || (saudeAuto.resumo?.parado > 0) || (saudeAuto.jobs || []).some((j: any) => j.status === "parado" || j.status === "atrasado");
           return (
             <div className="card">
-              <div className="card-h"><span>🩺</span><span className="ttl">Saúde das automações</span><span className="r">{saudeAuto.cronVivo ? "motor OK" : "🔴 motor PARADO"} · atualiza sozinho</span></div>
+              <div className="card-h" style={{ cursor: "pointer" }} onClick={() => setSaudeOpen((o) => !o)}><span>🩺</span><span className="ttl">Saúde das automações</span>{temProblema && <span title="Há automação com problema" style={{ width: 9, height: 9, borderRadius: "50%", background: "#DC2626", display: "inline-block", flexShrink: 0, boxShadow: "0 0 0 3px #FBEDE3" }} />}<span className="r">{temProblema ? (saudeAuto.cronVivo ? "🔴 ver problema" : "🔴 motor PARADO") : "tudo OK"} · {saudeOpen ? "▲ recolher" : "▼ abrir"}</span></div>
+              {saudeOpen && (
               <div style={{ padding: "4px 15px 8px" }}>
                 {/* motor (batida-mestre) */}
                 <div className="att" style={{ borderBottom: "1px solid #F0EBE0" }}>
@@ -998,6 +1039,7 @@ export default function HojePage() {
                   </div>
                 ); })}
               </div>
+              )}
             </div>
           );
         })()}
@@ -1256,13 +1298,16 @@ export default function HojePage() {
           {boletinsPend.length === 0 ? (
             <div className="px-[18px] py-8 text-center text-sm" style={{ color: B44.text3 }}>Nenhum boletim pendente. 🎉</div>
           ) : boletinsPend.map((b) => (
-            <Link key={b.id} href={`/dashboard/erp/pets/${b.petId}/fisio/boletim/novo?id=${b.id}`} className="flex items-center gap-2.5 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: B44.lineSoft }}>
-              {b.sessao && <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#EAF3DE", color: "#3B6D11" }}>#{b.sessao}</span>}
-              <span className="font-medium text-[13px] truncate" style={{ color: B44.text1 }}>{b.petName}</span>
-              {b.mv && <span className="text-xs hidden sm:block truncate" style={{ color: B44.text2 }}>· 🧑‍⚕️ {b.mv}</span>}
-              {b.date && <span className="ml-auto text-[11px] flex-shrink-0" style={{ color: B44.text3 }}>{new Date(b.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
-              <span className="text-[11px] flex-shrink-0" style={{ color: B44.primary }}>abrir / enviar →</span>
-            </Link>
+            <div key={b.id} className="flex items-center gap-2.5 px-[18px] py-2.5 border-b hover:bg-[#E0F4F6]/40" style={{ borderColor: B44.lineSoft }}>
+              <Link href={`/dashboard/erp/pets/${b.petId}/fisio/boletim/novo?id=${b.id}`} className="flex items-center gap-2.5 flex-1 min-w-0">
+                {b.sessao && <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0" style={{ background: "#EAF3DE", color: "#3B6D11" }}>#{b.sessao}</span>}
+                <span className="font-medium text-[13px] truncate" style={{ color: B44.text1 }}>{b.petName}</span>
+                {b.mv && <span className="text-xs hidden sm:block truncate" style={{ color: B44.text2 }}>· 🧑‍⚕️ {b.mv}</span>}
+                {b.date && <span className="ml-auto text-[11px] flex-shrink-0" style={{ color: B44.text3 }}>{new Date(b.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+                <span className="text-[11px] flex-shrink-0" style={{ color: B44.primary }}>abrir / enviar →</span>
+              </Link>
+              <button onClick={() => deletarBoletim(b.id, b.petName)} title="Excluir boletim" className="flex-shrink-0 text-[13px] px-1.5 py-1 rounded-md hover:bg-[#FBEDEC]" style={{ color: "#B23B39", lineHeight: 1 }}>🗑</button>
+            </div>
           ))}
         </SectionCard>
       )}

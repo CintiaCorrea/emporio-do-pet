@@ -29,8 +29,12 @@ export class ConciliacaoService {
    */
   async preview(dto: PreviewConciliacaoDto) {
     const tolDias = dto.toleranciaDias ?? 15;
+    // Pool de casamento: contas a pagar/receber PENDENTES (manuais) + receitas/despesas do
+    // CAIXA já CONFIRMADAS mas ainda não batidas com o banco. Sem isso o extrato não enxerga
+    // as vendas do caixa (elas nascem CONFIRMADO) e sugeria "criar" (duplicava). CONCILIADO fica
+    // de fora (já batido). TRANSFERENCIA idem (extrato traz receita/despesa, não transferência).
     const pendentes = await this.prisma.lancamento.findMany({
-      where: { status: 'PENDENTE' },
+      where: { status: { in: ['PENDENTE', 'CONFIRMADO'] }, tipo: { in: ['RECEITA', 'DESPESA'] } },
     });
 
     const eids = dto.linhas.map((l) => l.externalId || this.eid(l));
@@ -55,9 +59,12 @@ export class ConciliacaoService {
         const diff = Math.abs(linha.valorCentavos - p.valorCentavos);
         const tolValor = Math.max(Math.round(p.valorCentavos * 0.3), 5000); // 30% ou R$50
         if (diff > tolValor) continue;
-        if (p.vencimento) {
+        // Janela de data: PENDENTE compara pelo vencimento; CONFIRMADO (venda do caixa, sem
+        // vencimento) compara pela data em que o $ entrou (dataPagamento) ou pela data do lançamento.
+        const refData = p.vencimento ?? p.dataPagamento ?? p.data;
+        if (refData) {
           const dd = Math.abs(
-            (new Date(linha.data).getTime() - new Date(p.vencimento).getTime()) / 86400000,
+            (new Date(linha.data).getTime() - new Date(refData).getTime()) / 86400000,
           );
           if (dd > tolDias) continue;
         }

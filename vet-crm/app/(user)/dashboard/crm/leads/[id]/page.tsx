@@ -8,6 +8,7 @@ import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import EncaminharBox from "@/components/inbox/EncaminharBox";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
+import { assignFollowUpFor, loadFuRespFor } from "@/lib/followup";
 
 const PIPELINE_STAGES = [
   "Aguardando triagem",
@@ -67,6 +68,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [pipeComercial, setPipeComercial] = useState<string[]>([]);
   const [fuDate, setFuDate] = useState("");
   const [savingFu, setSavingFu] = useState(false);
+  const [fuResp, setFuResp] = useState(""); // 👤 quem acompanha (padrão único)
+  const [staff, setStaff] = useState<any[]>([]);
   const [leadTags, setLeadTags] = useState<{ id: string; texto: string }[]>([]);
   const [tagTpls, setTagTpls] = useState<any[]>([]);
   const [tagPicker, setTagPicker] = useState(false);
@@ -119,6 +122,12 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
     } catch { toast.error("Erro ao salvar motivo"); }
   }
   useEffect(() => { load(); loadComercial(); loadLeadTags(); loadTagTpls(); loadLeadInteracoes(); loadMotivo(); }, [id]);
+  useEffect(() => {
+    (async () => {
+      try { const u = await fetch(`/api/users`, { cache: "no-store" }).then((r) => r.json()).catch(() => []); const arr = Array.isArray(u) ? u : (u.users || u.data || []); setStaff(arr.filter((x: any) => !x.isBlocked)); } catch {}
+      try { const fr = await loadFuRespFor("lead", id); setFuResp(fr?.userId || ""); } catch {}
+    })();
+  }, [id]);
 
   async function setStage(stage: string) {
     try {
@@ -133,7 +142,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       await load();
     } catch (e: any) { toast.error("Erro ao mudar etapa: " + (e?.message || "")); }
   }
-  async function saveFu() { if (!fuDate) { toast.error("Escolha uma data"); return; } setSavingFu(true); try { const r = await fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() }) }); if (!r.ok) throw new Error(); toast.success("Follow-up agendado"); setFuDate(""); await load(); } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); } }
+  async function saveFu() { if (!fuDate) { toast.error("Escolha uma data"); return; } setSavingFu(true); try { const r = await fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() }) }); if (!r.ok) throw new Error(); if (fuResp) { const nome = staff.find((s: any) => s.id === fuResp)?.name || ""; await assignFollowUpFor({ kind: "lead", id, userId: fuResp, nome, alvoNome: lead?.name, fuLabel: new Date(fuDate + "T12:00:00").toLocaleDateString("pt-BR") }); } toast.success("Follow-up agendado"); setFuDate(""); await load(); } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); } }
   async function clearFu() { try { const r = await fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) }); if (!r.ok) throw new Error(); toast.success("Follow-up removido"); await load(); } catch { toast.error("Erro"); } }
   async function addTagLead(texto: string) { setSavingTag(true); try { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `leadtag_${id}`, valor: texto }) }); if (!r.ok) throw new Error(); toast.success("Etiqueta adicionada"); setTagPicker(false); await loadLeadTags(); } catch { toast.error("Erro (talvez já exista)"); } finally { setSavingTag(false); } }
   async function delTagLead(tid: string) { try { const r = await fetch(`/api/listas/${tid}`, { method: "DELETE" }); if (!r.ok) throw new Error(); await loadLeadTags(); } catch { toast.error("Erro ao remover"); } }
@@ -380,6 +389,13 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
           <div className="flex gap-1">
             <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 min-w-0 border border-[#E8E2D6] rounded px-1.5 py-1 text-[10px]" />
             <button onClick={saveFu} disabled={savingFu} className="bg-[#009AAC] text-white px-2 py-1 rounded text-[10px] disabled:opacity-50">{savingFu ? "..." : "Agendar"}</button>
+          </div>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <span className="text-[10px] whitespace-nowrap text-[#00798A]">👤 Acompanha:</span>
+            <select value={fuResp} onChange={(e) => setFuResp(e.target.value)} className="flex-1 min-w-0 border border-[#E8E2D6] rounded px-1.5 py-1 text-[10px]">
+              <option value="">Ninguém específico</option>
+              {staff.map((s: any) => <option key={s.id} value={s.id}>{s.name || "Sem nome"}</option>)}
+            </select>
           </div>
           </div>
           <div className="mt-3 pt-3 border-t border-[#F0EBE0]">

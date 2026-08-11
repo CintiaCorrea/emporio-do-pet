@@ -19,6 +19,7 @@ import { criarPetEAbrir } from "@/lib/actions/pets";
 import { buscarCep } from "@/lib/cep";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import EncaminharBox from "@/components/inbox/EncaminharBox";
+import { assignFollowUpFor, loadFuRespFor } from "@/lib/followup";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
@@ -194,6 +195,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [showValues, setShowValues] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [fuOpen, setFuOpen] = useState(false);
+  const [fuResp, setFuResp] = useState(""); // 👤 quem acompanha (padrão único)
+  const [fuStaff, setFuStaff] = useState<any[]>([]);
   const [notaOpen, setNotaOpen] = useState(false);
   const [situacaoOpen, setSituacaoOpen] = useState(false);
   const [comprasPet, setComprasPet] = useState<string>("");
@@ -308,7 +311,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   async function saveFollowup() {
     if (!fuDate) { toast.error("Escolha uma data"); return; }
     setSavingFu(true);
-    try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() }) }); if (!r.ok) throw new Error(); toast.success("Follow-up agendado"); setFuDate(""); await load(); } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); }
+    try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() }) }); if (!r.ok) throw new Error(); if (fuResp) { const nome = fuStaff.find((s: any) => s.id === fuResp)?.name || ""; await assignFollowUpFor({ kind: "tutor", id, userId: fuResp, nome, alvoNome: tutor?.name ?? undefined, fuLabel: new Date(fuDate + "T12:00:00").toLocaleDateString("pt-BR") }); } toast.success("Follow-up agendado"); setFuDate(""); await load(); } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); }
   }
   async function clearFollowup() {
     try { const r = await fetch(`/api/tutors/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) }); if (!r.ok) throw new Error(); toast.success("Follow-up removido"); await load(); } catch { toast.error("Erro ao remover"); }
@@ -357,6 +360,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   }
   useEffect(() => { load(); loadStats(); loadInteracoes(); loadTemplates(); loadPipelineCliente();
     (async () => { try { const r = await fetch(`/api/listas?lista=origens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setOrigensCat(arr.map((i: any) => { const v = i?.valor; if (typeof v !== "string") return ""; const t = v.trim(); if (t.startsWith("{")) { try { const o = JSON.parse(t); return o.nome || o.valor || t; } catch { return t; } } return t; }).filter(Boolean)); } catch {} })();
+    (async () => {
+      try { const u = await fetch(`/api/users`, { cache: "no-store" }).then((r) => r.json()).catch(() => []); const arr = Array.isArray(u) ? u : (u.users || u.data || []); setFuStaff(arr.filter((x: any) => !x.isBlocked)); } catch {}
+      try { const fr = await loadFuRespFor("tutor", id); setFuResp(fr?.userId || ""); } catch {}
+    })();
   }, [id]);
   const ORIGENS_DEFAULT = ["Indicação", "Google", "Instagram", "Facebook", "Passando na rua", "WhatsApp", "Outro"];
   const origensOpcoes = Array.from(new Set([...origensCat, ...ORIGENS_DEFAULT]));
@@ -1194,6 +1201,13 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">📞 Agendar follow-up</h3>
             <p className="text-[12px] text-[#374151] mb-3">Quando falar de novo com {tutor.name?.split(" ")[0] || "o cliente"}?</p>
             <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="w-full px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white" />
+            <div className="mt-2.5"><label className="text-[11px] text-[#00798A]">👤 Acompanha</label>
+              <select value={fuResp} onChange={(e) => setFuResp(e.target.value)} className="w-full px-3 py-2 border border-[#E8E2D6] rounded-[9px] text-[13px] bg-white">
+                <option value="">Ninguém específico</option>
+                {fuStaff.map((s: any) => <option key={s.id} value={s.id}>{s.name || "Sem nome"}</option>)}
+              </select>
+              <div className="text-[10.5px] text-[#8a938f] mt-0.5">A pessoa recebe um aviso e o follow-up cai no painel dela.</div>
+            </div>
             <div className="flex justify-between items-center mt-4">
               {tutor.proximoFollowupAt ? <button onClick={async () => { await clearFollowup(); setFuOpen(false); }} className="text-[12px] text-[#b23b39]">Remover</button> : <span />}
               <div className="flex gap-2">

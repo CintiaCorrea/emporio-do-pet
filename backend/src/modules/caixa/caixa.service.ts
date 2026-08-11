@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { ExamesService } from '../exames/exames.service';
+import { RecebimentosService } from '../financeiro/recebimentos.service';
+import { LancamentosService } from '../financeiro/lancamentos.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
 
 function dayRange(dateStr?: string) {
@@ -26,6 +29,9 @@ export class CaixaService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly appointmentsService: AppointmentsService,
+    private readonly examesService: ExamesService,
+    private readonly recebimentos: RecebimentosService,
+    private readonly lancamentos: LancamentosService,
   ) {}
 
   private async saldoTutor(tutorId: string) {
@@ -385,6 +391,62 @@ export class CaixaService {
       porForma: toArr(porForma), porUsuario: toArr(porUsuario),
       porDia: toArr(porDia).sort((a, b) => a.nome.localeCompare(b.nome)), porMarca: toArr(porMarca),
     };
+  }
+
+  /** Item 10 — Previsão de crédito das maquininhas: quanto (LÍQUIDO) ainda vai CAIR e quando.
+   *  InfinityPay credita cartão em D+1 e PIX no mesmo dia; dinheiro fica no caixa (não entra aqui).
+   *  Líquido = bruto − taxa já lançada (externalId `taxa:<rec>:<idx>`, reusa o cálculo do recebimento).
+   *  Mostra só de hoje pra frente (o que ainda não caiu). Informativo — NÃO mexe na DRE/Caixa. */
+  async previsaoCredito() {
+    const desde = new Date(Date.now() - 45 * 86400000); // vendas dos últimos 45 dias
+    const [recs, cfgItens, taxas] = await Promise.all([
+      this.prisma.recebimento.findMany({ where: { data: { gte: desde } }, select: { id: true, data: true, formas: true } }),
+      this.prisma.listaItem.findMany({ where: { lista: 'formasrecebimento' } }), // prazo de crédito por maquininha (Formas de recebimento)
+      this.prisma.lancamento.findMany({ where: { origem: 'CRM' as any, externalId: { startsWith: 'taxa:' } }, select: { externalId: true, valorCentavos: true } }),
+    ]);
+    const norm = (s: string) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+    // prazo (dias) cadastrado por forma: crédito e débito separados. Vazio → cai no fallback D+1.
+    const prazoCfg = new Map<string, { credito: number; debito: number }>();
+    for (const c of cfgItens) {
+      try { const v = JSON.parse(c.valor); prazoCfg.set(norm(v?.nome), { credito: Number(v?.prazoCredito) || 0, debito: Number(v?.prazoDebito) || 0 }); } catch { /* forma inválida */ }
+    }
+    const taxaPorRec = new Map<string, number>();
+    for (const t of taxas) {
+      const recId = String(t.externalId).split(':')[1];
+      if (recId) taxaPorRec.set(recId, (taxaPorRec.get(recId) || 0) + t.valorCentavos);
+    }
+    const ehDinheiro = (s: string) => /dinheiro|esp[eé]cie/i.test(s);
+    const ehPix = (s: string) => /pix/i.test(s);
+    const ehDebito = (s: string) => /d[eé]bito/i.test(s);
+    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+    const porData = new Map<string, number>(); // dia previsto (ISO) -> líquido em centavos
+    let totalCent = 0;
+    for (const r of recs) {
+      let formas: any[] = [];
+      try { formas = Array.isArray(r.formas) ? (r.formas as any[]) : JSON.parse(String(r.formas)); } catch { /* forma inválida */ }
+      // bruto das maquininhas (exclui dinheiro) p/ ratear a taxa do recebimento entre as formas
+      const brutoMaqTotal = formas.reduce((s: number, f: any) => { const v = Number(f?.valor) || 0; return s + (v > 0 && !ehDinheiro(`${f?.forma || ''} ${f?.modalidade || ''}`) ? v : 0); }, 0);
+      if (brutoMaqTotal <= 0) continue;
+      const taxaTot = taxaPorRec.get(r.id) || 0;
+      for (const f of formas) {
+        const nm = `${f?.forma || ''} ${f?.modalidade || ''}`;
+        const val = Number(f?.valor) || 0;
+        if (val <= 0 || ehDinheiro(nm)) continue; // dinheiro fica no caixa (não é crédito de maquininha)
+        const liqCent = Math.max(0, Math.round(val * 100) - Math.round(taxaTot * (val / brutoMaqTotal)));
+        // prazo (dias): pix no mesmo dia; senão pelo cadastro da forma (débito/crédito), fallback D+1.
+        const cfg = prazoCfg.get(norm(f?.forma));
+        const prazo = ehPix(nm) ? 0 : ehDebito(nm) ? (cfg?.debito || 1) : (cfg?.credito || 1);
+        const prev = new Date(r.data); prev.setDate(prev.getDate() + prazo); prev.setHours(0, 0, 0, 0);
+        if (prev < hoje) continue; // já caiu na conta
+        const key = prev.toISOString().slice(0, 10);
+        porData.set(key, (porData.get(key) || 0) + liqCent);
+        totalCent += liqCent;
+      }
+    }
+    const porDataArr = [...porData.entries()]
+      .map(([data, liquidoCentavos]) => ({ data, liquidoCentavos }))
+      .sort((a, b) => a.data.localeCompare(b.data));
+    return { totalCentavos: totalCent, porData: porDataArr };
   }
 
   // Vendas — gráficos / BI Fatia 1: evolução RICA (bruto/desconto/líquido/nº vendas/nº
@@ -798,6 +860,11 @@ export class CaixaService {
         }
       }
     }
+
+    // ⚡ TEMPO REAL: gera o lançamento financeiro DESTA venda na hora (não só ao abrir o DRE) → saldo/DRE
+    // sempre atuais. Fire-and-forget: não trava/atrasa o recebimento; a rede de segurança (cron) cobre falhas.
+    if (appointmentId) this.recebimentos.processar(appointmentId).catch(() => undefined);
+
     return rec;
   }
 
@@ -899,7 +966,7 @@ export class CaixaService {
   async registrarMovimento(caixaId: string, dto: any, userId: string) {
     const caixa = await this.prisma.caixaSessao.findUnique({ where: { id: caixaId } });
     if (!caixa) throw new NotFoundException('Caixa nao encontrado');
-    return this.prisma.caixaMovimento.create({
+    const mov = await this.prisma.caixaMovimento.create({
       data: {
         caixaSessaoId: caixaId,
         tipo: String(dto.tipo || 'SANGRIA').toUpperCase(),
@@ -912,6 +979,59 @@ export class CaixaService {
         createdById: userId,
       },
     });
+    // Movimento do caixa → financeiro (tempo real; fire-and-forget, não trava o caixa):
+    const tp = String(dto.tipo).toUpperCase();
+    if (tp === 'DESPESA' && Number(dto.valor) > 0 && dto.categoriaId) {
+      await this.despesaCaixaFinanceiro(mov, dto).catch(() => undefined); // gasto → DESPESA no DRE + reduz saldo
+    } else if ((tp === 'SANGRIA' || tp === 'SUPRIMENTO' || tp === 'TRANSFERENCIA') && Number(dto.valor) > 0) {
+      await this.transferenciaCaixaFinanceiro(mov, dto).catch(() => undefined); // dinheiro muda de conta → saldo
+    }
+    return mov;
+  }
+
+  /** Sangria/Suprimento/Transferência = dinheiro mudando de conta → TRANSFERENCIA (neutra no DRE, mexe no saldo). */
+  private async transferenciaCaixaFinanceiro(mov: any, dto: any): Promise<void> {
+    const cash = await this.contaDinheiro();
+    const tp = String(dto.tipo).toUpperCase();
+    let origemId: string | null = null, destinoId: string | null = null;
+    if (tp === 'SANGRIA') { origemId = cash; destinoId = dto.contaDestinoId || null; }        // sai do caixa (Espécie)
+    else if (tp === 'SUPRIMENTO') { origemId = dto.contaOrigemId || null; destinoId = cash; }  // entra no caixa (Espécie)
+    else { origemId = dto.contaOrigemId || null; destinoId = dto.contaDestinoId || null; }     // transferência livre
+    if (!origemId || !destinoId || origemId === destinoId) return; // precisa das duas contas
+    const data = mov?.data ? new Date(mov.data) : new Date();
+    const label: Record<string, string> = { SANGRIA: 'Sangria', SUPRIMENTO: 'Suprimento', TRANSFERENCIA: 'Transferência' };
+    await this.lancamentos.create({
+      tipo: 'TRANSFERENCIA',
+      valorCentavos: Math.round(Number(dto.valor) * 100),
+      data: data.toISOString(), dataPagamento: data.toISOString(),
+      descricao: `${label[tp] || 'Transferência'} (caixa)${dto.descricao ? ' — ' + dto.descricao : ''}`,
+      contaId: origemId, contaDestinoId: destinoId,
+      origem: 'CRM', externalId: `caixa-mov:${mov.id}`,
+      status: 'CONFIRMADO', aplicarRegras: false,
+    } as any);
+  }
+
+  /** Conta de DINHEIRO (Espécie) do caixa — de onde a despesa em dinheiro sai; fallback 1ª conta ativa. */
+  private async contaDinheiro(): Promise<string | null> {
+    const din = await this.prisma.contaFinanceira.findFirst({ where: { ativo: true, tipo: 'DINHEIRO' as any }, select: { id: true } });
+    if (din) return din.id;
+    const qualquer = await this.prisma.contaFinanceira.findFirst({ where: { ativo: true }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+    return qualquer?.id ?? null;
+  }
+
+  private async despesaCaixaFinanceiro(mov: any, dto: any): Promise<void> {
+    const contaId = await this.contaDinheiro();
+    if (!contaId) return;
+    const data = mov?.data ? new Date(mov.data) : new Date();
+    await this.lancamentos.create({
+      tipo: 'DESPESA',
+      valorCentavos: Math.round(Number(dto.valor) * 100),
+      data: data.toISOString(), dataPagamento: data.toISOString(),
+      descricao: `Despesa (caixa)${dto.descricao ? ' — ' + dto.descricao : ''}`,
+      contaId, categoriaId: dto.categoriaId,
+      origem: 'CRM', externalId: `caixa-mov:${mov.id}`,
+      status: 'CONFIRMADO', aplicarRegras: false,
+    } as any);
   }
 
   async vendaDireta(dto: any, userId: string) {
@@ -920,6 +1040,8 @@ export class CaixaService {
 
     const itensRaw = Array.isArray(dto.itens) ? dto.itens : [];
     if (itensRaw.length === 0) throw new BadRequestException('Adicione ao menos um item');
+    // 🔬 Itens que são EXAME (vindos do catálogo de exames) — vão iniciar o ciclo no Kanban.
+    const examItems = itensRaw.filter((it: any) => String(it.tipoItem || '').toUpperCase() === 'EXAME');
 
     const items = itensRaw.map((it: any) => {
       const quantidade = Number(it.quantidade || 1);
@@ -946,6 +1068,13 @@ export class CaixaService {
       value: valorVenda, items,
     } as any);
 
+    // 🔬 Exame vendido = inicia o ciclo do exame no Kanban (petexa_) ligado ao pet. Só em VENDA
+    // (orçamento vira exame de verdade só quando é convertido). Não quebra a venda se falhar.
+    let examesCriados = 0;
+    if (!orcamento && examItems.length) {
+      examesCriados = await this.examesService.iniciarExamesDaVenda(dto.petId, examItems).catch(() => 0);
+    }
+
     const formas = orcamento ? [] : (Array.isArray(dto.formas) ? dto.formas : []);
     const somaFormas = formas.reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
     const temDinheiro = formas.some((f: any) => /dinheiro/i.test(f.forma || ''));
@@ -967,13 +1096,15 @@ export class CaixaService {
       }, userId);
     }
 
-    return { ok: true, orcamento, appointment, recebimento, valorVenda, valorAplicado, troco };
+    return { ok: true, orcamento, appointment, recebimento, valorVenda, valorAplicado, troco, examesCriados };
   }
 
   async deleteMovimento(caixaId: string, itemId: string) {
     const mov = await this.prisma.caixaMovimento.findUnique({ where: { id: itemId } });
     if (!mov || mov.caixaSessaoId !== caixaId) throw new NotFoundException('Movimento nao encontrado');
     await this.prisma.caixaMovimento.delete({ where: { id: itemId } });
+    // remove também o lançamento financeiro da despesa (se houver) — mantém DRE/saldo coerentes
+    await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: `caixa-mov:${itemId}` } }).catch(() => undefined);
     return { ok: true };
   }
 

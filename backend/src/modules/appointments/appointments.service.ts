@@ -95,6 +95,34 @@ export class AppointmentsService {
     return { success: true, to: phone, templateName };
   }
 
+  /**
+   * Aviso automático de AGENDADO — o MESMO texto simples que o "+" da conversa manda ao criar
+   * ("✅ Agendamento confirmado! Pet — dd/mm às HH:MM..."). Usado no REAGENDAMENTO feito pelo inbox,
+   * pra NÃO mandar o template de confirmação de presença. A confirmação de véspera continua saindo
+   * normalmente pelo scheduler no dia anterior à nova data.
+   */
+  async sendAvisoAgendado(id: string) {
+    const appt = await this.findById(id);
+    const contatos = await this.prisma.contact.findMany({
+      where: { tutorId: appt.tutorId },
+      orderBy: [{ isPrimary: 'desc' }, { isWhatsApp: 'desc' }],
+      take: 1,
+    });
+    const phone = contatos[0]?.number;
+    if (!phone) return { success: false, error: 'Tutor sem telefone/WhatsApp cadastrado.' };
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Fortaleza',
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(new Date(appt.date));
+    const get = (t: string) => parts.find((p) => p.type === t)?.value || '';
+    const dia = `${get('day')}/${get('month')}`;
+    const hora = `${get('hour')}:${get('minute')}`;
+    const pet = appt.pet?.name ? `${appt.pet.name} — ` : '';
+    const msg = `✅ Agendamento confirmado! ${pet}${dia} às ${hora}. Qualquer coisa é só chamar por aqui. 🐾`;
+    const res = await this.whatsapp.enviarTextoRegistrando(phone, msg);
+    return res?.success ? { success: true, to: phone } : { success: false, error: res?.error };
+  }
+
   /** Confirma a presença MANUALMENTE (cliente confirmou por telefone/pessoalmente, sem WhatsApp). */
   async confirmarManual(id: string) {
     await this.findById(id);
@@ -289,7 +317,10 @@ export class AppointmentsService {
     // agendamento ATIVO hoje, REAPROVEITA esse agendamento (atualiza, mantendo horário/coluna)
     // em vez de criar outro — senão a agenda mostra o agendado + o atendimento como 2 cartões.
     let reuseId: string | null = null;
-    if (/(realiz|conclu|atend)/.test(String(finalStatus).toLowerCase())) {
+    // ⚠️ NÃO reaproveitar quando o NOVO registro é um documento/receita/peso/venda — senão
+    // salvar uma receita durante um atendimento ativo "sequestra" a consulta (bug ficha 10/08).
+    const tiposDoc = ['Documento', 'Peso', 'Receitas', 'Receita', 'Venda', 'Observação'];
+    if (!tiposDoc.includes(String(appointmentData.type)) && /(realiz|conclu|atend)/.test(String(finalStatus).toLowerCase())) {
       const d0 = new Date(appointmentDate); d0.setHours(0, 0, 0, 0);
       const d1 = new Date(appointmentDate); d1.setHours(23, 59, 59, 999);
       const agendado = await this.prisma.appointment.findFirst({
@@ -735,9 +766,10 @@ export class AppointmentsService {
           });
           return criado;
         });
-        // Reagendamento: avisa o cliente do NOVO dia/horário pelo WhatsApp (mesma confirmação
-        // do agendamento). Best-effort — se o WhatsApp falhar, a remarcação segue valendo.
-        this.sendConfirmation(novo.id).catch(() => undefined);
+        // Reagendamento: avisa o cliente do NOVO dia/horário com a MESMA mensagem automática do "+"
+        // da conversa ("✅ Agendamento confirmado! …"), NÃO o template de confirmação de presença.
+        // Best-effort — se o WhatsApp falhar, a remarcação segue valendo.
+        this.sendAvisoAgendado(novo.id).catch(() => undefined);
         return this.findById(novo.id);
       }
     }

@@ -88,15 +88,17 @@ export default function FeedTimeline({ atendimentos = [], clinDocs = [], histori
                   if (it.src === "hist" && it.temArquivo) return void window.open(`/api/pets/historico/${it.rawId}/arquivo`, "_blank");
                   if ((it.src === "doc" || it.src === "exame") && it.arquivoUrl) return void window.open(`/api/media/ver?u=${encodeURIComponent(it.arquivoUrl)}`, "_blank");
                   if (it.src === "hist" && onDetalhe) return void onDetalhe(it.rawId);
-                }} className="group flex gap-2.5 py-2 pl-2.5 pr-2 rounded-r-lg" style={{ borderLeft: `3px solid ${cor}`, background: "#f6fdfd", cursor: (it.temArquivo || it.src === "hist") ? "pointer" : undefined }}>
+                  // Documento/receita feito no sistema (sem PDF) ou atendimento → abre na CAIXA DE EDIÇÃO
+                  if (onEditar && (it.src === "atd" || (it.src === "doc" && !it.temArquivo))) return void onEditar(it);
+                }} className="group flex gap-2.5 py-2 pl-2.5 pr-2 rounded-r-lg" style={{ borderLeft: `3px solid ${cor}`, background: "#f6fdfd", cursor: (it.temArquivo || it.src === "hist" || (onEditar && (it.src === "atd" || (it.src === "doc" && !it.temArquivo)))) ? "pointer" : undefined }}>
                   <div className="flex-1 min-w-0">
                     <div className="text-[11px] font-semibold" style={{ color: cor }}>{FMT(it.date)}</div>
                     <div className="text-[13px] font-semibold flex items-center gap-1.5" style={{ color: "#0E2244" }}><span>{it.title}{it.status ? ` · ${it.status}` : ""}</span>{it.imported ? <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded" style={{ background: "#F3ECDD", color: "#8A6D3B" }}>SimplesVet</span> : null}{it.temArquivo ? <span title="Abrir PDF" style={{ fontSize: "12px" }}>📎</span> : null}</div>
                     {it.summary ? <div className="text-[12px] text-gray-500 truncate">{it.summary}</div> : null}
                   </div>
                   <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition">
-                    {onEditar && it.src === "atd" ? <button onClick={() => onEditar(it)} title="Editar" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#009AAC] hover:bg-white"><LuPencil size={13} /></button> : null}
-                    {onExcluir ? <button onClick={() => onExcluir(it)} title="Excluir" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#E24B4A] hover:bg-white"><LuTrash2 size={13} /></button> : null}
+                    {onEditar && (it.src === "atd" || (it.src === "doc" && !it.temArquivo)) ? <button onClick={(e) => { e.stopPropagation(); onEditar(it); }} title="Editar" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#009AAC] hover:bg-white"><LuPencil size={13} /></button> : null}
+                    {onExcluir ? <button onClick={(e) => { e.stopPropagation(); onExcluir(it); }} title="Excluir" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#E24B4A] hover:bg-white"><LuTrash2 size={13} /></button> : null}
                   </div>
                   <div className="w-7 h-7 rounded-full bg-white border text-[10px] font-bold flex items-center justify-center shrink-0" style={{ color: "#014D5E", borderColor: "#E8DFC8" }} title={it.prof || ""}>{INITIALS(it.prof)}</div>
                 </div>
