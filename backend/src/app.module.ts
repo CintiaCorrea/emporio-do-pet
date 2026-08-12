@@ -46,6 +46,7 @@ import { ServicosModule } from './modules/servicos/servicos.module';
 import { OrcamentosModule } from './modules/orcamentos/orcamentos.module';
 import { CaixaModule } from './modules/caixa/caixa.module';
 import { PacotesModule } from './modules/pacotes/pacotes.module';
+import { CatalogoModule } from './modules/catalogo/catalogo.module';
 import { CreditoModule } from './modules/credito/credito.module';
 import { ProtocolosModule } from './modules/protocolos/protocolos.module';
 import { RacasModule } from './modules/racas/racas.module';
@@ -196,6 +197,7 @@ import configuration from './config/configuration';
     OrcamentosModule,
     CaixaModule,
     PacotesModule,
+    CatalogoModule,
     CreditoModule,
     ProtocolosModule,
     RacasModule,

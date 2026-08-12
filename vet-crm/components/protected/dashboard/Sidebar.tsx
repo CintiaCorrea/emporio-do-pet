@@ -121,6 +121,7 @@ const NAV: Entry[] = [
     group: true, key: "estoque", label: "Estoque e serviços", emoji: "📦", roles: ALL, section: "GESTAO",
     children: [
       { href: "/dashboard/erp/catalogo", label: "Produtos e Serviços", emoji: "🗂️", roles: ALL },
+      { href: "/dashboard/erp/catalogo-novo", label: "Catálogo (novo) 🆕", emoji: "🗂️", roles: ALL },
       { href: "/dashboard/erp/estoque", label: "Estoque", emoji: "📊", roles: ALL },
       { href: "/dashboard/erp/estoque/compras", label: "Compras", emoji: "🛒", roles: ALL },
       { href: "/dashboard/erp/estoque/saidas", label: "Outras saídas de estoque", emoji: "📤", roles: ALL },

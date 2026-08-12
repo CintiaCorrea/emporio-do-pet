@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppointmentsService } from './appointments.service';
 import { CronHealthService } from '../../common/cron-health.service';
+import { STATUS_NAO_CONFIRMAVEL } from './appointment-confirmacao.regras';
 
 /**
  * Envia automaticamente a confirmação das agendas do DIA SEGUINTE.
@@ -82,9 +83,10 @@ export class AppointmentConfirmationScheduler {
       where: {
         date: { gte: start, lte: end },
         confirmacaoStatus: null,
-        status: {
-          notIn: ['Cancelado', 'CANCELLED', 'Concluído', 'CONCLUIDO', 'Realizado', 'NO_SHOW'],
-        },
+        // Remarcado/Cancelado/etc. ficam de fora (fonte única STATUS_NAO_CONFIRMAVEL): senão o
+        // confirmador pega um agendamento JÁ remarcado (morto) e, ao confirmar, ele "ressuscita"
+        // como duplicado do horário novo (bug da Margarida 12/08: 11:30 remarcado p/ 10:00 voltou).
+        status: { notIn: STATUS_NAO_CONFIRMAVEL },
         // Não confirmar consulta de pet FALECIDO (o agendamento pode ter ficado no futuro).
         pet: { status: { not: 'DECEASED' } },
       },

@@ -3746,3 +3746,164 @@ model FaturaFornecedorItem {
   @@index([faturaId])
   @@map("fin_fatura_itens")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATÁLOGO ÚNICO (rebuild do zero — 12/08). Um cadastro só p/ tudo que se vende.
+// Produto/Serviço/Exame/Vacina/Pacote/Kit numa entidade, campos condicionais por tipo.
+// Tabelas prefixo cat_. NÃO reaproveita Product/Servico/CatalogoExame (arquivados).
+// ═══════════════════════════════════════════════════════════════════════════
+enum ItemTipo {
+  PRODUTO
+  SERVICO
+  EXAME
+  VACINA
+  PACOTE
+  KIT
+}
+
+enum PropositoItem {
+  VENDA
+  CONSUMO_INTERNO
+  AMBOS
+}
+
+enum ComissaoTipoItem {
+  PERCENTUAL
+  VALOR_FIXO
+}
+
+enum DescontoModo {
+  LIMITE_GERAL
+  LIMITE_ITEM
+  SEM_DESCONTO
+  ATE_100
+}
+
+// Grupos em árvore (2 camadas): agrupador (não recebe item, só organiza) + folha.
+model CatGrupo {
+  id        String     @id @default(cuid())
+  nome      String
+  paiId     String?
+  pai       CatGrupo?  @relation("CatGrupoTree", fields: [paiId], references: [id])
+  filhos    CatGrupo[] @relation("CatGrupoTree")
+  agrupador Boolean    @default(false) // true = não pode receber item diretamente
+  ordem     Int        @default(0)
+  ativo     Boolean    @default(true)
+  itens     ItemCatalogo[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  @@map("cat_grupos")
+}
+
+// Marcas/fabricantes (cadastro à parte).
+model CatMarca {
+  id    String @id @default(cuid())
+  nome  String @unique
+  ativo Boolean @default(true)
+  itens ItemCatalogo[]
+  @@map("cat_marcas")
+}
+
+// A ENTIDADE ÚNICA do catálogo.
+model ItemCatalogo {
+  id                  String    @id @default(cuid())
+  codigo              Int?      @unique // sequencial interno visível
+  tipo                ItemTipo
+  nome                String
+  grupoId             String?
+  grupo               CatGrupo? @relation(fields: [grupoId], references: [id])
+  // preço
+  custo               Float?
+  markup              Float?    // % desejado
+  preco               Float     @default(0)
+  exibeListaPreco     Boolean   @default(true)
+  permiteAlterarPreco Boolean   @default(true)
+  // básico (produto/vacina)
+  codigoBarras        String?
+  unidadeVenda        String?
+  marcaId             String?
+  marca               CatMarca? @relation(fields: [marcaId], references: [id])
+  proposito           PropositoItem @default(VENDA)
+  duracaoMin          Int?      // serviço: duração da sessão
+  // estoque (flags + saldo; movimentações vêm na Fatia 4)
+  controlaEstoque     Boolean   @default(false)
+  estoqueAtual        Float     @default(0)
+  estoqueMin          Float?
+  estoqueMax          Float?
+  controlaValidade    Boolean   @default(false)
+  validadeMaisAntiga  DateTime?
+  // comissão (camada 1 — padrão do item)
+  comissionado        Boolean   @default(false)
+  comissaoTipo        ComissaoTipoItem?
+  comissaoValor       Float?
+  // desconto (cascata: empresa → usuário → item)
+  descontoModo        DescontoModo @default(LIMITE_GERAL)
+  descontoLimite      Float?
+  // vacina: liga ao protocolo clínico (ProtocoloTemplate) — FK string simples
+  protocoloTemplateId String?
+  // status
+  ativo               Boolean   @default(true)
+  arquivado           Boolean   @default(false) // soft delete (≠ excluir)
+  // relações do catálogo
+  exame               ItemExame?
+  composicao          ItemComposicao[] @relation("CatComposicaoPai")
+  comoInsumo          ItemComposicao[] @relation("CatComposicaoFilho")
+  overrides           ItemComissaoOverride[]
+  historico           ItemHistorico[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  @@index([tipo, ativo, arquivado])
+  @@index([grupoId])
+  @@map("cat_itens")
+}
+
+// Extensão 1:1 do EXAME (laboratório + custo do lab).
+model ItemExame {
+  id                 String  @id @default(cuid())
+  itemId             String  @unique
+  item               ItemCatalogo @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  fornecedorId       String? // laboratório (Fornecedor) — FK string simples
+  custoLab           Float?
+  prazoResultadoDias Int?
+  categoria          String? // categoria de exame (livre)
+  externo            Boolean @default(false)
+  @@map("cat_item_exame")
+}
+
+// Composição de Pacote/Kit (itens que compõem).
+model ItemComposicao {
+  id         String  @id @default(cuid())
+  paiId      String
+  pai        ItemCatalogo @relation("CatComposicaoPai", fields: [paiId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       ItemCatalogo @relation("CatComposicaoFilho", fields: [itemId], references: [id])
+  quantidade Float   @default(1)
+  @@index([paiId])
+  @@map("cat_composicao")
+}
+
+// Comissão diferenciada por funcionário (camada 2, sobre a padrão do item).
+model ItemComissaoOverride {
+  id            String  @id @default(cuid())
+  itemId        String
+  item          ItemCatalogo @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  userId        String
+  comissaoTipo  ComissaoTipoItem
+  comissaoValor Float
+  @@unique([itemId, userId])
+  @@map("cat_comissao_override")
+}
+
+// Auditoria por item (histórico de alterações).
+model ItemHistorico {
+  id        String   @id @default(cuid())
+  itemId    String
+  item      ItemCatalogo @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  evento    String   // criado | alterado | arquivado | reativado | estoque
+  detalhe   String?  // o que mudou
+  userId    String?
+  userName  String?
+  createdAt DateTime @default(now())
+  @@index([itemId])
+  @@map("cat_historico")
+}
