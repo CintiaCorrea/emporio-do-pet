@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { LancamentosService } from './lancamentos.service';
+import { calcDevolucao } from './financeiro.regras';
 
 /**
  * Devolução de venda (estorno completo, ligado ao Financeiro).
@@ -151,17 +152,11 @@ export class DevolucaoService {
     const selecionados = pedidos.length ? ap.items.filter((it) => pedidos.includes(it.id)) : ap.items;
     if (!selecionados.length) throw new BadRequestException('Nenhum item selecionado para devolução.');
 
-    const brutoCent = selecionados.reduce((s, it) => s + Math.round((Number(it.valorTotal || it.valorUnitario * (it.quantidade || 1)) || 0) * 100), 0);
-    if (brutoCent <= 0) throw new BadRequestException('Valor da devolução inválido.');
-
+    const itensValor = selecionados.map((it) => Number(it.valorTotal || it.valorUnitario * (it.quantidade || 1)) || 0);
     const { formaNome, parcelas, taxaPct } = await this.taxaInfo(melhor);
-    const taxaCent = Math.round(brutoCent * (taxaPct / 100));
-    const liquidoCent = brutoCent - taxaCent;
-    const N = Math.max(1, parcelas);
-
-    // rateio das parcelas (a última absorve o arredondamento)
-    const base = Math.floor(liquidoCent / N);
-    const parcelasCent = Array.from({ length: N }, (_, i) => (i < N - 1 ? base : liquidoCent - base * (N - 1)));
+    // Núcleo puro + testado (financeiro.regras): bruto − taxa = líquido, rateado em N parcelas.
+    const { brutoCent, taxaCent, liquidoCent, N, parcelasCent } = calcDevolucao({ itensValor, taxaPct, parcelas });
+    if (brutoCent <= 0) throw new BadRequestException('Valor da devolução inválido.');
 
     const contaId = (formaEstorno === 'DINHEIRO' ? (await this.contaDinheiro()) : null) ?? (await this.contaPadrao());
     const unidadeId = (await this.unidadePadrao()) ?? undefined;

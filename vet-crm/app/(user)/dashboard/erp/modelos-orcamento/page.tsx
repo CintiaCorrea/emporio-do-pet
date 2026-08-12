@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState , useRef} from "react";
 import { useSession } from "next-auth/react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { usePodeEditar } from "@/lib/permissions/context";
+import { carregarCatalogoVendavel } from "@/lib/catalogoVendavel";
 
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const num = (s: any) => Number(String(s ?? "").replace(",", ".")) || 0;
@@ -31,20 +32,13 @@ export default function ModelosOrcamentoPage() {
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
     try {
-      const [m, s, p] = await Promise.all([
+      const [m, catalogo] = await Promise.all([
         fetch("/api/listas?lista=orcamentomodelo").then((r) => r.json()).catch(() => []),
-        fetch("/api/servicos/itens?limit=1000").then((r) => r.json()).catch(() => []),
-        fetch("/api/products?limit=1000").then((r) => r.json()).catch(() => []),
+        carregarCatalogoVendavel({ exames: true }), // FONTE ÚNICA: serviços + produtos + medicamentos/vacinas + exames
       ]);
       const arr = Array.isArray(m) ? m : (m.itens || m.data || []);
       setModelos(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return { id: x.id, nome: "?", itens: [] }; } }));
-      // Catálogo = serviços + produtos (o que existir), dedup por id, só ativos.
-      const sv = Array.isArray(s) ? s : (s.itens || s.data || []);
-      const prRaw = Array.isArray(p) ? p : (p.products || p.produtos || p.data || p.itens || []);
-      const pr = prRaw.map((x: any) => ({ id: x.id, nome: x.name || x.nome, valorPadrao: Number(x.price ?? x.preco ?? x.valorPadrao ?? 0), ativo: x.ativo }));
-      const byId = new Map<string, any>();
-      [...sv, ...pr].forEach((x: any) => { if (x && x.id && x.nome && x.ativo !== false) byId.set(x.id, x); });
-      setServicos(Array.from(byId.values()).sort((a, b) => String(a.nome).localeCompare(String(b.nome))));
+      setServicos(([...catalogo].sort((a, b) => String(a.nome).localeCompare(String(b.nome)))) as any);
     } catch {}
     jaCarregou.current = true; setLoading(false);
   };

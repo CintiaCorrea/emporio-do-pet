@@ -2,8 +2,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { LuX, LuSearch, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus, LuExternalLink } from "react-icons/lu";
+import { LuX, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus, LuExternalLink } from "react-icons/lu";
 import BuscaClientePet, { SelecaoClientePet } from "@/components/common/BuscaClientePet";
+import toast from "react-hot-toast";
 
 type Defaults = { date?: string; time?: string; userId?: string; duration?: number; tutor?: any; petId?: string; agendaAvulsa?: string; avulsaNome?: string; novoCliente?: { nome?: string; tel?: string } } | null;
 // agendarAposCriar: ao criar um cliente novo aqui, EM VEZ de pular pra ficha, continua pro
@@ -63,12 +64,13 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     if (!open) return;
     (async () => {
       const [p, c] = await Promise.all([
-        fetch("/api/profissionais").then((r) => r.json()).catch(() => []),
-        fetch("/api/listas?lista=agenda_config", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+        fetch("/api/profissionais").then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch("/api/listas?lista=agenda_config", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
-      try { const ca = Array.isArray(c) ? c : (c.itens || c.data || []); if (ca[0]?.valor) setCfgAgenda(JSON.parse(ca[0].valor)); } catch {}
-      const pl = Array.isArray(p) ? p : (p.data || []);
-      setProfs(pl.filter((x: any) => x.ativo !== false && x.userId && !["RECEPCIONISTA", "GERENTE"].includes(x.tipo)));
+      try { const ca = Array.isArray(c) ? c : (c?.itens || c?.data || []); if (ca[0]?.valor) setCfgAgenda(JSON.parse(ca[0].valor)); } catch {}
+      // 🛡️ blip de rede NÃO zera a lista de profissionais (senão trava o salvar) — só troca se veio válido.
+      const pl = Array.isArray(p) ? p : (p?.data || null);
+      if (pl) setProfs(pl.filter((x: any) => x.ativo !== false && x.userId && !["RECEPCIONISTA", "GERENTE"].includes(x.tipo)));
       try { const r = await fetch("/api/listas?lista=atendimento_tipo", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); const ts = arr.map((i: any) => { try { const o = JSON.parse(i.valor); return o.l || o.nome || o.v || i.valor; } catch { return i.valor; } }).filter(Boolean); setTipos(ts.length ? ts : TIPOS_FALLBACK); } catch { setTipos(TIPOS_FALLBACK); }
       try { const r = await fetch("/api/servicos/itens?limit=1000", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.servicos || d.itens || d.data || []); setServicos(arr); } catch {}
       try { const r = await fetch("/api/listas?lista=agenda_avulsa", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setAvulsas(arr.map((i: any) => { try { return JSON.parse(i.valor); } catch { return null; } }).filter((a: any) => a && a.ativo !== false)); } catch {}
@@ -106,15 +108,20 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     if (!date || (!agendaAvulsa && !userId)) { setDayAppts([]); return; }
     let cancelled = false;
     (async () => {
-      try {
-        const q = agendaAvulsa
-          ? `startDate=${date}T00:00:00&endDate=${date}T23:59:59&limit=500`
-          : `userId=${userId}&startDate=${date}T00:00:00&endDate=${date}T23:59:59&limit=200`;
-        const r = await fetch(`/api/appointments?${q}`, { cache: "no-store" });
-        const d = await r.json();
-        const arr = Array.isArray(d) ? d : (d.appointments || d.data || []);
-        if (!cancelled) setDayAppts(arr);
-      } catch { if (!cancelled) setDayAppts([]); }
+      const q = agendaAvulsa
+        ? `startDate=${date}T00:00:00&endDate=${date}T23:59:59&limit=500`
+        : `userId=${userId}&startDate=${date}T00:00:00&endDate=${date}T23:59:59&limit=200`;
+      // 🛡️ tenta 2×; se falhar, NÃO zera a ocupação (mostrar tudo "livre" causaria agendamento em cima de outro).
+      for (let tent = 0; tent < 2; tent++) {
+        try {
+          const r = await fetch(`/api/appointments?${q}`, { cache: "no-store" });
+          if (!r.ok) throw new Error();
+          const d = await r.json();
+          const arr = Array.isArray(d) ? d : (d.appointments || d.data || []);
+          if (!cancelled) setDayAppts(arr);
+          return;
+        } catch { if (tent === 0) await new Promise((res) => setTimeout(res, 500)); }
+      }
     })();
     return () => { cancelled = true; };
   }, [userId, date, agendaAvulsa]);
@@ -245,9 +252,11 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
       const all = await fetch(`/api/listas?lista=agenda_terceiro_prof`).then((r) => r.json());
       const arr = Array.isArray(all) ? all : (all.itens || all.data || []);
       const ex = arr.find((x: any) => { try { return JSON.parse(x.valor).appointmentId === apptId; } catch { return false; } });
-      if (ex?.id) await fetch(`/api/listas/${ex.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
-      else if (parc) await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: "agenda_terceiro_prof", valor }) });
-    } catch {}
+      const rr = ex?.id
+        ? await fetch(`/api/listas/${ex.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) })
+        : (parc ? await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: "agenda_terceiro_prof", valor }) }) : null);
+      if (rr && !rr.ok) throw new Error();
+    } catch { toast.error("Não consegui salvar quem atende — refaça pelo card do agendamento."); }
   };
 
   const salvar = async () => {

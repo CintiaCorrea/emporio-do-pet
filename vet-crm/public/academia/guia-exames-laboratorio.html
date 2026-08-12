@@ -1,0 +1,142 @@
+<!doctype html><html lang="pt-BR" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Guia — Exames & Laboratório</title></head><body>
+<style>
+  :root{--turq:#009AAC;--marinho:#014D5E;--verde:#0F6E56;--vermelho:#A32D2D;--azul:#185FA5;--amber:#B45309;--roxo:#7C3AED;--ink:#14253a;--muted:#5F5E5A;--faint:#8A8778;--bg:#F6F2EA;--card:#fff;--line:#e8e1d2;--soft:#FBF9F4;--shadow:0 1px 3px rgba(1,77,94,.07),0 6px 20px rgba(1,77,94,.05);}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bg:#0e1516;--card:#16201f;--line:#26332f;--soft:#131c1b;--shadow:0 1px 3px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);}}
+  :root[data-theme="dark"]{--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bg:#0e1516;--card:#16201f;--line:#26332f;--soft:#131c1b;--shadow:0 1px 3px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);}
+  *{box-sizing:border-box;} body{margin:0;}
+  .wrap{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;padding:0 20px 80px;}
+  .container{max-width:880px;margin:0 auto;}
+  header.hero{background:linear-gradient(135deg,var(--marinho),var(--turq));color:#fff;border-radius:20px;padding:34px 30px 30px;margin:28px auto 26px;max-width:880px;box-shadow:var(--shadow);}
+  header.hero .eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:700;opacity:.85;margin:0 0 8px;}
+  header.hero h1{margin:0 0 8px;font-size:30px;line-height:1.15;font-weight:800;text-wrap:balance;}
+  header.hero p{margin:0;font-size:15px;opacity:.92;max-width:62ch;}
+  header.hero .meta{margin-top:16px;font-size:12px;opacity:.85;display:flex;gap:14px;flex-wrap:wrap;}
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin:0 0 18px;box-shadow:var(--shadow);}
+  section>h2{margin:0 0 4px;font-size:20px;color:var(--marinho);font-weight:800;display:flex;align-items:center;gap:9px;}
+  :root:not([data-theme="light"]) section>h2{color:var(--turq);} :root[data-theme="dark"] section>h2{color:var(--turq);}
+  section>.lead{margin:0 0 18px;color:var(--muted);font-size:14px;}
+  h3{font-size:15px;margin:20px 0 8px;color:var(--ink);font-weight:700;}
+  p.tx{color:var(--muted);font-size:14px;margin:0 0 10px;} p.tx b{color:var(--ink);}
+  .cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .cols2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .colbox{border:1.5px solid var(--line);border-radius:12px;padding:14px;background:var(--soft);}
+  .colbox .ic{font-size:20px;margin-bottom:6px;}
+  .colbox b{display:block;font-size:13.5px;color:var(--ink);margin-bottom:3px;} .colbox span{font-size:12.5px;color:var(--muted);}
+  @media (max-width:620px){.cols3,.cols2{grid-template-columns:1fr;}}
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;}
+  .st{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:11px;font-weight:700;font-size:13px;background:var(--soft);border:1px solid var(--line);color:var(--ink);}
+  .arrow{color:var(--turq);font-weight:800;font-size:16px;}
+  ul.clean{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:9px;}
+  ul.clean li{display:flex;gap:10px;align-items:baseline;font-size:13.5px;color:var(--muted);}
+  ul.clean li b{color:var(--ink);} ul.clean li .ic{font-size:15px;width:22px;text-align:center;flex-shrink:0;}
+  .rules{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media (max-width:620px){.rules{grid-template-columns:1fr;}}
+  .rule{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:11px;font-size:13.5px;}
+  .rule.do{background:color-mix(in srgb,var(--verde) 10%,var(--card));border:1px solid color-mix(in srgb,var(--verde) 25%,var(--line));}
+  .rule.dont{background:color-mix(in srgb,var(--vermelho) 9%,var(--card));border:1px solid color-mix(in srgb,var(--vermelho) 22%,var(--line));}
+  .rule .mk{font-size:15px;flex-shrink:0;} .rule b{color:var(--ink);} .rule span{color:var(--muted);display:block;margin-top:1px;font-size:12.5px;}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--soft);border:1px solid var(--line);color:var(--ink);}
+  .callout{display:flex;gap:12px;align-items:flex-start;background:color-mix(in srgb,var(--turq) 8%,var(--card));border:1px solid color-mix(in srgb,var(--turq) 25%,var(--line));border-radius:12px;padding:14px 16px;margin-top:14px;}
+  .callout.warn{background:color-mix(in srgb,var(--amber) 10%,var(--card));border-color:color-mix(in srgb,var(--amber) 30%,var(--line));}
+  .callout .mk{font-size:20px;flex-shrink:0;} .callout p{margin:0;font-size:13.5px;color:var(--muted);} .callout p b{color:var(--ink);}
+  .demo{border:1.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--soft);}
+  .demo .steps{display:flex;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;align-items:center;}
+  .demo button.sw{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted);cursor:pointer;transition:.12s;}
+  .demo button.sw .n{width:20px;height:20px;border-radius:50%;background:var(--line);color:var(--muted);font-size:11px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;}
+  .demo button.sw.on{background:var(--turq);color:#fff;border-color:var(--turq);} .demo button.sw.on .n{background:#fff;color:var(--turq);}
+  .demo .body{padding:18px;} .demo .body h4{margin:0 0 6px;font-size:16px;color:var(--marinho);font-weight:800;}
+  :root:not([data-theme="light"]) .demo .body h4{color:var(--turq);}
+  .demo .body p{margin:0 0 10px;font-size:13.5px;color:var(--muted);} .demo .body p b{color:var(--ink);}
+  .demo .mock{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:12px 14px;font-size:13px;color:var(--ink);}
+  [data-tip]{cursor:help;border-bottom:1.5px dotted var(--turq);}
+  #tip{position:fixed;z-index:99;max-width:280px;background:var(--marinho);color:#fff;font-size:12.5px;line-height:1.45;padding:9px 12px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.22);opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;pointer-events:none;}
+  #tip.on{opacity:1;transform:translateY(0);} #tip b{color:#8fe3ee;}
+  .foot{text-align:center;color:var(--faint);font-size:12px;margin:26px 0 0;}
+</style>
+<div class="wrap"><div class="container">
+
+  <header class="hero">
+    <p class="eyebrow">Academia · Empório do Pet</p>
+    <h1>🔬 Exames & Laboratório</h1>
+    <p>Como o pedido de coleta chega ao laboratório <b>sozinho</b>, como pedir na urgência, e como o custo do lab vira <b>conta a pagar</b> automaticamente. O objetivo: ninguém mais precisa perguntar “a mensagem foi?”.</p>
+    <div class="meta"><span>👥 Recepção · Veterinários · Administração</span><span>⏱️ 4 min de leitura</span></div>
+  </header>
+
+  <section>
+    <h2>🔁 O exame tem dois ciclos</h2>
+    <p class="lead">Toda vez que um exame é vendido, duas coisas acontecem em paralelo — e as duas são automáticas.</p>
+    <div class="cols2">
+      <div class="colbox"><div class="ic">📲</div><b>Operacional — pedir a coleta</b><span>Um WhatsApp para o laboratório pedindo que passe para coletar. Sai em lote, 2× por dia.</span></div>
+      <div class="colbox"><div class="ic">💰</div><b>Financeiro — pagar o laboratório</b><span>Quando o cliente paga o exame, o sistema gera a <b>conta a pagar</b> ao lab (o custo), numa fatura mensal.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>📲 Ciclo 1 — a solicitação ao laboratório</h2>
+    <p class="lead">O caminho que um exame percorre. Ele anda sozinho — vocês só acompanham no <b>Kanban de Exames</b>.</p>
+    <div class="flow">
+      <span class="st">🛒 Vendido</span><span class="arrow">→</span>
+      <span class="st">📋 <span data-tip="Fase inicial. É aqui que o exame fica 'aguardando' o lote sair.">Solicitar</span></span><span class="arrow">→</span>
+      <span class="st">📤 <span data-tip="O lote das 11h e 17h manda 1 mensagem por laboratório, listando nada além de 'temos coletas hoje'.">Solicitado ao lab</span></span><span class="arrow">→</span>
+      <span class="st">✅ <span data-tip="A Meta confirma que a mensagem foi entregue/lida pelo laboratório. Aparece no exame.">Entregue / Lido</span></span>
+    </div>
+    <h3>Como o pedido sai</h3>
+    <ul class="clean">
+      <li><span class="ic">🕚</span><span><b>Automático, 11h e 17h:</b> todos os exames solicitados até o horário saem juntos — <b>uma mensagem por laboratório</b> (genérica: “temos exames para coleta hoje”). Não precisa listar os exames.</span></li>
+      <li><span class="ic">⚡</span><span><b>Urgência:</b> no <b>Kanban de Exames</b> (ou na ficha do pet, ou no inbox), clique <b>“📲 Solicitar ao laboratório”</b>. Aparece um <b>pop-up de confirmação</b> antes de enviar.</span></li>
+      <li><span class="ic">🔔</span><span>Quando enviado, o card mostra <b>“avisado”</b>. Cada exame só é avisado <b>uma vez</b> — o sistema não duplica, mesmo com o lote e o clique juntos.</span></li>
+      <li><span class="ic">🚨</span><span>Se a mensagem <b>falhar</b> (lab sem WhatsApp, erro), a equipe recebe <b>aviso + notificação</b> e o sistema <b>re-tenta</b> sozinho no próximo lote (até 3×).</span></li>
+    </ul>
+    <div class="callout"><span class="mk">💡</span><p><b>Por que não precisa perguntar se foi.</b> O card mostra o estado (avisado / entregue), e se algo der errado a equipe é <b>avisada na hora</b>. Silêncio = está tudo certo.</p></div>
+  </section>
+
+  <section>
+    <h2>💰 Ciclo 2 — a conta a pagar ao laboratório</h2>
+    <p class="lead">Vocês não lançam nada à mão. Quando a venda é recebida no caixa, o sistema monta o a-pagar sozinho.</p>
+    <div class="flow">
+      <span class="st">🛒 Exame vendido <span data-tip="A linha do exame já carrega o custo (valorFornecedor) e o laboratório.">(com custo + lab)</span></span><span class="arrow">→</span>
+      <span class="st">💵 Cliente paga no caixa</span><span class="arrow">→</span>
+      <span class="st">📅 <span data-tip="Fatura mensal por laboratório, que fecha no dia configurado no cadastro do lab.">Fatura do mês</span></span><span class="arrow">→</span>
+      <span class="st">🧾 A pagar ao lab</span>
+    </div>
+    <p class="tx" style="margin-top:12px">Onde ver: <b>Financeiro › Fornecedores</b>. Ao abrir a tela, o sistema calcula sozinho — o a-pagar aparece agrupado por laboratório. Vale para venda no <b>PDV</b>, <b>comanda</b>, <b>atendimento</b>, <b>internação</b> e <b>orçamento</b>.</p>
+    <div class="callout warn"><span class="mk">⚠️</span><p><b>Pré-requisito:</b> o exame precisa ter o <b>custo (valor do fornecedor)</b> cadastrado no catálogo. Sem custo, não há o que pagar — então não gera a-pagar (isso é o certo).</p></div>
+  </section>
+
+  <section>
+    <h2>⚙️ O que se configura (uma vez)</h2>
+    <div class="cols3">
+      <div class="colbox"><div class="ic">💲</div><b>Custo do exame</b><span>Configurações › Exames → editar o exame → “valor do fornecedor”. (Hoje todos já têm.)</span></div>
+      <div class="colbox"><div class="ic">📆</div><b>Dia de fechamento do lab</b><span>Configurações › Exames → aba Laboratórios → editar → “Dia fechamento (1-31)”.</span></div>
+      <div class="colbox"><div class="ic">📞</div><b>WhatsApp do lab</b><span>Mesmo lugar. Sem número, o lab não recebe a solicitação nem o alerta.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>✔️ Regras de ouro</h2>
+    <div class="rules">
+      <div class="rule do"><span class="mk">✅</span><div><b>Deixe o lote trabalhar</b><span>O envio de 11h/17h cuida de tudo. Só use o “Solicitar agora” na urgência real.</span></div></div>
+      <div class="rule do"><span class="mk">✅</span><div><b>Confie no card</b><span>“avisado / entregue” = feito. Falha = a equipe é avisada. Não precisa conferir no WhatsApp do lab.</span></div></div>
+      <div class="rule dont"><span class="mk">🚫</span><div><b>Não mande o mesmo exame duas vezes</b><span>Não precisa. O sistema já bloqueia duplicidade — reenviar só confunde o lab.</span></div></div>
+      <div class="rule dont"><span class="mk">🚫</span><div><b>Não crie “laboratório” pra comissão/config</b><span>Fornecedor é só lab/profissional de verdade. Cadastro errado polui o a-pagar.</span></div></div>
+    </div>
+  </section>
+
+  <p class="foot">Empório do Pet · Academia — Exames & Laboratório. Dúvida? Chame a administração.</p>
+
+</div></div>
+<div id="tip"></div>
+<script>
+  (function(){
+    var tip=document.getElementById('tip');
+    function show(el){var t=el.getAttribute('data-tip');if(!t)return;tip.innerHTML=t;tip.classList.add('on');move(el);}
+    function move(el){var r=el.getBoundingClientRect();var top=r.bottom+8;tip.style.left=Math.max(10,Math.min(r.left,window.innerWidth-tip.offsetWidth-10))+'px';tip.style.top=top+'px';}
+    function hide(){tip.classList.remove('on');}
+    document.querySelectorAll('[data-tip]').forEach(function(el){
+      el.addEventListener('mouseenter',function(){show(el);});
+      el.addEventListener('mouseleave',hide);
+      el.addEventListener('focus',function(){show(el);}); el.addEventListener('blur',hide);
+    });
+  })();
+</script>
+</body></html>

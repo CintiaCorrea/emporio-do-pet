@@ -15,6 +15,7 @@ import PetComandaRail from "@/components/pets/PetComandaRail";
 import ConsultationRecorder from "@/components/protected/dashboard/clinical-documents/ConsultationRecorder";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { assignFollowUp } from "@/lib/followup";
+import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -130,8 +131,8 @@ export default function NovoAtendimentoPage() {
       const rtArr = (Array.isArray(rt) ? rt : (rt.itens || rt.data || [])).map((i: any) => { try { const o = JSON.parse(i.valor); return { v: o.v, l: o.l }; } catch { return { v: i.valor, l: i.valor }; } }).filter((x: any) => x.v);
       if (rtArr.length) setTipos(rtArr);
       // catálogo de serviços (coluna direita — venda)
-      const sv = await safeJson<any>(await fetch(`/api/servicos/itens?limit=1000`, { cache: "no-store" }), []);
-      const svArr = Array.isArray(sv) ? sv : (sv.servicos || sv.itens || sv.data || []);
+      // FONTE ÚNICA: serviços + produtos + medicamentos/vacinas (antes só serviços).
+      const svArr: any[] = await carregarCatalogoVendavel();
       setServicos(svArr);
       setFisioSrv(svArr.filter((s: any) => JSON.stringify(s).toLowerCase().includes("fisio")));
       // orçamentos do pet (aba Orçamentos — leitura)
@@ -199,7 +200,7 @@ export default function NovoAtendimentoPage() {
   function addItem() { setItens((p) => [...p, { servicoId: "", descricao: "", quantidade: 1, valorUnitario: 0, custoUnitario: 0, executorUserId: form.userId || "", comissaoValor: 0 }]); }
   function updItem(i: number, patch: any) { setItens((p) => p.map((x, idx) => idx === i ? { ...x, ...patch } : x)); }
   function rmItem(i: number) { setItens((p) => p.filter((_, idx) => idx !== i)); }
-  function pickServico(i: number, servicoId: string) { const s = servicos.find((x: any) => x.id === servicoId); updItem(i, { servicoId, descricao: s?.nome || "", valorUnitario: s?.valorPadrao ?? 0, custoUnitario: s?.custoPadrao ?? 0 }); }
+  function pickServico(i: number, servicoId: string) { const s = servicos.find((x: any) => x.id === servicoId); if (!s) return; const l = linhaDoItem(s); updItem(i, { servicoId: l.servicoId || "", descricao: l.descricao, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId ?? null, catalogoExameId: l.catalogoExameId, _exame: l._exame }); }
   const totalVenda = itens.reduce((sm, it) => sm + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0);
 
   async function addPacote() {
@@ -257,7 +258,9 @@ export default function NovoAtendimentoPage() {
   // Lança o exame na comanda lateral com o VALOR AO CLIENTE (tabela de exames por laboratório).
   function lancarExameNaComanda(ex: ExameCat) {
     const valor = Number((ex as any).valorClienteSugerido ?? (ex as any).valorCliente ?? 0) || 0;
-    try { window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: ex.nome, valorUnitario: valor, quantidade: 1 } })); } catch { /* noop */ }
+    const custo = Number((ex as any).valorFornecedor ?? 0) || 0; // custo do lab → a-pagar
+    const fornecedorId = (ex as any).fornecedorId ?? (ex as any).fornecedor?.id ?? null;
+    try { window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: ex.nome, valorUnitario: valor, custoUnitario: custo, fornecedorId, catalogoExameId: (ex as any).id, _exame: true, quantidade: 1 } })); } catch { /* noop */ }
   }
   function pickExameClinica(ex: ExameCat) {
     if (exClinica.some((x) => x.nome === ex.nome)) return;
@@ -357,6 +360,8 @@ export default function NovoAtendimentoPage() {
           quantidade: Number(it.quantidade) || 1,
           valorUnitario: Number(it.valorUnitario) || 0,
           custoUnitario: Number(it.custoUnitario) || 0,
+          ...(it.fornecedorId ? { fornecedorId: it.fornecedorId } : {}),
+          ...(it._exame ? { tipoItem: "EXAME", catalogoExameId: it.catalogoExameId } : {}),
           valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0),
           ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}),
         }));

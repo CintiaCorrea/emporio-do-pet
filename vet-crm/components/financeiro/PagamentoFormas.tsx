@@ -4,20 +4,12 @@
 // calculados nos bastidores (backend) pela tabela TaxaContratada e ficam só no Financeiro (admin).
 
 import React, { useState } from "react";
-
-export type PagForma = { forma: string; valor: number; nsu?: string; modalidade?: string; bandeira?: string; parcelas?: number };
-export type FormaCfg = { nome: string; tipo?: string; adquirente?: string; contaId?: string; conta?: string };
-export type TaxaRow = { adquirente: string; bandeira: string; forma: string; parcelas: number; aliquotaBps: number };
+// Fonte única: tipos + modalidades + helpers vêm de lib/formasPagamento (re-exportados aqui p/ compat).
+import { PagForma, FormaCfg, TaxaRow, MODALIDADES, PARC, modalidadeToTaxaForma, ehMaquininha, adquirenteDe } from "@/lib/formasPagamento";
+export type { PagForma, FormaCfg, TaxaRow };
+export { modalidadeToTaxaForma, ehMaquininha, adquirenteDe };
 
 const C = { teal: "#009AAC", navy: "#014D5E", line: "#E8E2D6", ink: "#112", mut: "#5C6B70" };
-const MODALIDADES = ["Débito", "Crédito à vista", "Crédito parcelado"];
-const PARC = Array.from({ length: 11 }, (_, i) => i + 2); // 2..12
-
-/** UI modalidade → TaxaContratada.forma (mesmos rótulos da tabela). */
-export const modalidadeToTaxaForma = (m?: string) =>
-  m === "Débito" ? "Debito" : m === "Crédito à vista" ? "Credito a vista" : m === "Crédito parcelado" ? "Credito parcelado" : "";
-export const ehMaquininha = (cfg?: FormaCfg) => /maquin|cart/i.test(cfg?.tipo || "");
-export const adquirenteDe = (cfg?: FormaCfg) => (cfg?.adquirente || cfg?.nome || "").trim();
 
 const inp: React.CSSProperties = { padding: "8px 9px", border: `1px solid ${C.line}`, borderRadius: 9, fontSize: 13, background: "#fff", color: C.ink, fontFamily: "inherit", boxSizing: "border-box", width: "100%" };
 const lbl: React.CSSProperties = { fontSize: 10, textTransform: "uppercase", letterSpacing: ".3px", color: C.mut, marginBottom: 3, display: "block" };

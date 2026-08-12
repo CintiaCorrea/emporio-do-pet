@@ -720,6 +720,9 @@ export class WhatsAppController {
       failedReason,
     );
 
+    // Reflete o status nos avisos de exame ao laboratório (desacoplado — nunca afeta o WhatsApp).
+    try { this.eventEmitter.emit('whatsapp.status', { waMessageId: status.id, status: status.status, erro: failedReason }); } catch { /* best-effort */ }
+
     // Find the userId for this message to send targeted WebSocket event
     let userId: string | undefined;
     try {

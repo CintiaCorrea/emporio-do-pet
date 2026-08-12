@@ -26,7 +26,6 @@ import PetProtocolosPanel from "@/components/pets/PetProtocolosPanel";
 import PetAtendimentoPanel from "@/components/pets/PetAtendimentoPanel";
 import PetFichaHeaderCard from "@/components/pets/PetFichaHeaderCard";
 import { LuPrinter } from "react-icons/lu";
-import PetVendaPanel from "@/components/pets/PetVendaPanel";
 import PetComandaRail from "@/components/pets/PetComandaRail";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
@@ -47,9 +46,10 @@ const COAT_VALID = new Set(COAT_OPTS.map(([v]) => v));
 const CORES_DEFAULT = ["Preto", "Branco", "Marrom", "Caramelo", "Cinza", "Dourado", "Rajado", "Tricolor", "Malhado", "Creme", "Amarelo", "Frajola"];
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { montarTextoBoletim } from "@/lib/pets/boletim";
-import { loadExameFases, EXAME_FASES_PADRAO } from "@/lib/exameFases";
+import { loadExameFases, EXAME_FASES_PADRAO, podeAvisarLab } from "@/lib/exameFases";
 import { montarPetExame, acharExameNoCatalogo, registrarHistoricoFase } from "@/lib/petExame";
 import BoletimModal from "@/components/pets/BoletimModal";
+import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
 
 // Emoji da espécie (avatar do cabeçalho — padrão Base44)
 const PET_EMOJI = (species: string) => {
@@ -878,7 +878,7 @@ export default function PetDetailPage() {
     // #2 — inclui as sequências DESLIGADAS pra elas aparecerem no "+iniciar" da ficha (escolher por diagnóstico).
     // Iniciar aqui só MARCA a sequência no pet (não dispara mensagem sozinho) — o envio automático é separado (ativo do template).
     try { const r = await fetch(`/api/cadencias?includeInactive=true`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.cadencias || d.data || []); setCadOpts(arr); } catch {}
-    try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setServicosCat(arr); setFisioSrv(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {}
+    try { const arr = await carregarCatalogoVendavel(); setServicosCat(arr); setFisioSrv(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {}
     try { const r = await fetch(`/api/fornecedores/exames/lista`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.exames || d.data || d.itens || []); setExCat(arr); } catch {}
     try { const r = await fetch(`/api/users`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.users || d.data || []); setVets(arr.filter((u: any) => !u.isBlocked)); } catch {}
     try { const r = await fetch(`/api/listas?lista=dadosclinica`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); const raw = arr[0]?.valor; if (raw) { try { setClinica(JSON.parse(raw)); } catch { setClinica({}); } } } catch {}
@@ -1030,14 +1030,15 @@ export default function PetDetailPage() {
       toast.success("Exame lançado na comanda 🧾");
     } catch { toast.error("Não consegui lançar na comanda"); }
   }
-  // Fatia 3: avisar o laboratório da coleta AGORA (fora das janelas automáticas 11:30/17:00)
-  async function avisarLab(itemId: string) {
+  // Solicitar coleta ao laboratório AGORA (urgência — fora do lote automático 11:30/17:00).
+  async function avisarLab(itemId: string, resumo?: string) {
+    if (!window.confirm(`📲 Solicitar coleta ao laboratório?\n\n${resumo || ""}`.trim())) return;
     try {
       const r = await fetch(`/api/exames/avisar-lab/${itemId}`, { method: "POST", credentials: "include" });
       const d = await r.json().catch(() => ({}));
-      if (r.ok && d?.ok) { toast.success("Laboratório avisado no WhatsApp"); await loadPetColecoes(); }
-      else toast.error(d?.erro || "Não consegui avisar o laboratório");
-    } catch { toast.error("Erro ao avisar o laboratório"); }
+      if (r.ok && d?.ok) { toast.success("Solicitação enviada ao laboratório"); await loadPetColecoes(); }
+      else toast.error(d?.erro || "Não consegui solicitar ao laboratório");
+    } catch { toast.error("Erro ao solicitar ao laboratório"); }
   }
   // 📎 Anexa o resultado (link) ao exame e avança o status para "Resultado"
   // Anexo de arquivo DE VERDADE (o antigo só aceitava link colado num window.prompt).
@@ -1094,7 +1095,7 @@ export default function PetDetailPage() {
       if (atd.nextReturnDate) body.nextReturnDate = new Date(atd.nextReturnDate + "T12:00:00").toISOString();
       const itensValidos = items.filter((it: any) => it.descricao || it.servicoId);
       if (itensValidos.length) {
-        body.items = itensValidos.map((it: any) => ({ ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}), ...(it.descricao ? { descricao: it.descricao } : {}), ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}), quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}) }));
+        body.items = itensValidos.map((it: any) => ({ ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}), ...(it.descricao ? { descricao: it.descricao } : {}), ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}), quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, ...(it.fornecedorId ? { fornecedorId: it.fornecedorId } : {}), ...(it._exame ? { tipoItem: "EXAME", catalogoExameId: it.catalogoExameId } : {}), valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}) }));
         body.value = body.items.reduce((sm: number, it: any) => sm + (it.valorTotal || 0), 0);
       }
       const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -1114,7 +1115,7 @@ export default function PetDetailPage() {
   function addItem() { setItems(prev => [...prev, { servicoId: "", descricao: "", quantidade: 1, valorUnitario: 0, custoUnitario: 0, executorUserId: "", comissaoValor: 0 }]); }
   function updItem(i: number, patch: any) { setItems(prev => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it)); }
   function rmItem(i: number) { setItems(prev => prev.filter((_, idx) => idx !== i)); }
-  function pickServico(i: number, servicoId: string) { const sv = servicosCat.find((x: any) => x.id === servicoId); updItem(i, { servicoId, descricao: sv?.nome || "", valorUnitario: sv?.valorPadrao ?? 0, custoUnitario: sv?.custoPadrao ?? 0 }); }
+  function pickServico(i: number, servicoId: string) { const sv = servicosCat.find((x: any) => x.id === servicoId); if (!sv) return; const l = linhaDoItem(sv); updItem(i, { servicoId: l.servicoId || "", descricao: l.descricao, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId ?? null, catalogoExameId: l.catalogoExameId, _exame: l._exame }); }
   async function loadInteracoesPet() {
     try { const r = await fetch(`/api/interacoes?petId=${petId}&limit=100`, { cache: "no-store" }); const d = await r.json(); setPetInteracoes(Array.isArray(d) ? d : (d.interacoes || d.data || [])); } catch {}
     // Responsável pelo follow-up (KV fu_responsavel, uma entrada por pet)
@@ -2313,15 +2314,15 @@ export default function PetDetailPage() {
                           );
                         })}
                       </div>
-                      {/* Fatia 3 — aviso ao laboratório quando o exame está em "Coleta solicitada" */}
-                      {String(x.data.status || "").toLowerCase().includes("coleta") && x.data.fornecedorId && (
+                      {/* Aviso ao laboratório — regra única podeAvisarLab (tem lab + não avisado + não concluído). */}
+                      {(x.data.labAvisadoAt || podeAvisarLab(x.data)) && (
                         <div className="mt-2 rounded-[9px] px-3 py-2 text-[11.5px] flex items-center gap-2 flex-wrap" style={{ background: "#EDE7FA", color: "#6A4FB0" }}>
                           {x.data.labAvisadoAt ? (
                             <span>✅ Laboratório avisado ({fmtDataBR(x.data.labAvisadoAt)}).</span>
                           ) : (
                             <>
-                              <span>📲 O aviso ao laboratório sai sozinho às 11:30 e 17:00.</span>
-                              <button onClick={() => avisarLab(x.id)} className="rounded-md px-2.5 py-1 text-[11px] font-semibold" style={{ background: "#fff", border: "1px solid #d9cef2", color: "#6A4FB0" }}>Enviar agora</button>
+                              <span>📲 Pronto para solicitar ao laboratório.</span>
+                              <button onClick={() => avisarLab(x.id, `${x.data.fornecedorNome || "Laboratório"}: ${x.data.nome}`)} className="rounded-md px-2.5 py-1 text-[11px] font-semibold" style={{ background: "#fff", border: "1px solid #d9cef2", color: "#6A4FB0" }}>Solicitar ao laboratório</button>
                             </>
                           )}
                         </div>

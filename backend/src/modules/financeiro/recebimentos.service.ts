@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LancamentosService } from './lancamentos.service';
+import { ratearCentavos, competenciaMes, dataExpiracao } from './financeiro.regras';
 
 /**
  * RECEITA automática das VENDAS (espelho do FornecedoresService, lado receita).
@@ -364,13 +365,13 @@ export class RecebimentosService {
       if (valorCent <= 0) continue;
       const appt = await this.prisma.appointment.findUnique({ where: { id: saleAppt }, select: { date: true, tutorId: true, recebimentos: { select: { data: true }, orderBy: { data: 'asc' }, take: 1 } } });
       const saleDate = appt?.recebimentos?.[0]?.data ?? appt?.date ?? new Date();
-      const perCent = Math.floor(valorCent / total);
+      const parcelas = ratearCentavos(valorCent, total); // rateio unificado (financeiro.regras)
       // 1) garante os N lançamentos diferidos (sentinela)
       for (let i = 0; i < total; i++) {
         const extId = `pacote:${d.origemVenda}:${i}`;
         const ja = await this.prisma.lancamento.findFirst({ where: { origem: 'CRM' as any, externalId: extId }, select: { id: true } });
         if (ja) continue;
-        const val = i === total - 1 ? (valorCent - perCent * (total - 1)) : perCent; // ajuste de arredondamento no último
+        const val = parcelas[i]; // rateio: a última parcela absorve o resíduo
         try {
           await this.lancamentos.create({
             tipo: 'RECEITA', status: 'CONFIRMADO', valorCentavos: val,
@@ -390,7 +391,7 @@ export class RecebimentosService {
       for (let i = 0; i < baixas.length && i < total; i++) {
         const sess = await this.prisma.appointment.findUnique({ where: { id: baixas[i] }, select: { date: true } }).catch(() => null);
         const quando = sess?.date ?? saleDate;
-        const comp = new Date(Date.UTC(quando.getUTCFullYear(), quando.getUTCMonth(), 1));
+        const comp = competenciaMes(quando);
         const r = await this.prisma.lancamento.updateMany({
           where: { origem: 'CRM' as any, externalId: `pacote:${d.origemVenda}:${i}`, competencia: this.COMP_DIFERIDO },
           data: { competencia: comp },
@@ -407,11 +408,9 @@ export class RecebimentosService {
         const vqtd = Math.max(0, Math.round(Number(prod?.pacoteValidadeQtd) || 0));
         if (vqtd > 0) {
           const inicio = new Date(it.createdAt ?? saleDate);
-          const exp = new Date(inicio);
-          if (/mes/i.test(String(prod?.pacoteValidadeUnidade || ''))) exp.setMonth(exp.getMonth() + vqtd);
-          else exp.setDate(exp.getDate() + vqtd); // padrão: Dias
+          const exp = dataExpiracao(inicio, vqtd, prod?.pacoteValidadeUnidade);
           if (new Date() > exp) {
-            const compExp = new Date(Date.UTC(exp.getUTCFullYear(), exp.getUTCMonth(), 1));
+            const compExp = competenciaMes(exp);
             for (let i = usados; i < total; i++) {
               const r = await this.prisma.lancamento.updateMany({
                 where: { origem: 'CRM' as any, externalId: `pacote:${d.origemVenda}:${i}`, competencia: this.COMP_DIFERIDO },

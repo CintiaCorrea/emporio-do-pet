@@ -7,6 +7,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { usePodeEditar } from '@/lib/permissions/context';
+import { ehDinheiro, carregarFormasRecebimento, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
+import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
   LuX, LuWallet, LuTrash2, LuGift, LuSettings, LuCircleDollarSign, LuEye, LuEyeOff,
@@ -18,7 +20,7 @@ const ORANGE = '#D85A30';
 const GREEN = '#0f6e56';
 const LINE = '#E8E2D6';
 
-type Forma = { forma: string; valor: number; parcelas: number; nsu: string };
+type Forma = PagForma; // fonte única (lib/formasPagamento): forma+valor +modalidade/bandeira/parcelas/nsu
 interface Movimento { id: string; tipo: string; valor: number; forma?: string | null; conta?: string | null; descricao?: string | null; observacao?: string | null; data: string; }
 interface CreditoUtil { id: string; tipo: string; valor: number; descricao?: string | null; data: string; appointmentId?: string | null; tutor?: { id: string; name: string } | null; }
 interface Recebimento { id: string; valorTotal: number; desconto: number; troco: number; formas: Forma[]; observacao?: string | null; data: string; appointmentId?: string | null; appointment?: { id: string; value: number; numeroVenda?: number | null; codigoExterno?: string | null; pet?: { name: string }; tutor?: { name: string } } | null; }
@@ -27,7 +29,6 @@ interface Appointment { id: string; value: number; numeroVenda?: number | null; 
 
 const FORMAS_PADRAO = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
 const CONTAS = ['Caixa', 'Banco', 'Cofre'];
-const ehDinheiro = (f?: string | null) => /dinheiro/i.test(f || '');
 const ehCredito = (f?: string | null) => /cr[eé]dito do pet/i.test(f || '');
 const ehEntrada = (tipo: string) => tipo === 'SUPRIMENTO';
 const tipoLabel: Record<string, string> = { SUPRIMENTO: 'Suprimento', SANGRIA: 'Sangria', DESPESA: 'Despesa', TRANSFERENCIA: 'Transferência' };
@@ -108,6 +109,8 @@ export default function CaixaPage() {
   const [fecharOpen, setFecharOpen] = useState(false);
   const [fecharForm, setFecharForm] = useState({ valorContado: '', observacao: '' });
   const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas cadastradas (fonte única — igual PDV)
+  const [formasConfig, setFormasConfig] = useState<FormaCfg[]>([]); // config completa por forma (p/ cartão: adquirente/bandeira)
+  const [taxas, setTaxas] = useState<TaxaRow[]>([]); // tabela TaxaContratada (mostra bandeiras do cartão)
   const [contasCfg, setContasCfg] = useState<string[]>([]); // contas financeiras reais
   const formasList = formasCfg.length ? formasCfg : FORMAS_PADRAO;
   const contasList = contasCfg.length ? contasCfg : CONTAS;
@@ -147,10 +150,10 @@ export default function CaixaPage() {
   useEffect(() => { // fonte única: formas + contas cadastradas no Financeiro
     (async () => {
       try {
-        const d = await fetch('/api/listas?lista=formasrecebimento', { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
-        const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
-        const nomes = arr.map((x: any) => { try { const v = JSON.parse(x.valor); return v?.ativo !== false ? v?.nome : null; } catch { return null; } }).filter(Boolean);
-        if (nomes.length) setFormasCfg(nomes);
+        // FONTE ÚNICA (lib/formasPagamento) — mesma lista + config + taxas do PDV.
+        const { formasList, formasConfig, taxas } = await carregarFormasRecebimento();
+        if (formasList.length) setFormasCfg(formasList);
+        setFormasConfig(formasConfig); setTaxas(taxas);
       } catch { /* usa padrão */ }
       try {
         const cs = await fetch('/api/financeiro/contas', { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
@@ -664,15 +667,8 @@ export default function CaixaPage() {
           )}
           <div>
             <label style={lbl}>Formas de pagamento</label>
-            {formas.map((f, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.4 }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
-                <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, valor: Number(String(e.target.value).replace(',', '.')) || 0 } : x))} style={{ ...inp, flex: 1 }} />
-                <input value={f.parcelas || 1} type="number" min={1} title="Parcelas" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, parcelas: Number(e.target.value) || 1 } : x))} style={{ ...inp, width: 52, textAlign: 'center' }} />
-                {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} aria-label="Remover" style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuTrash2 size={15} color="#374151" /></button>}
-              </div>
-            ))}
-            <button onClick={() => setFormas([...formas, { forma: 'Pix', valor: 0, parcelas: 1, nsu: '' }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}><LuPlus size={13} /> adicionar forma</button>
+            {/* FONTE ÚNICA: mesmo componente do PDV (captura modalidade/bandeira → taxa correta no Financeiro). */}
+            <PagamentoFormas formas={formas} onChange={setFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
             {creditoExcede && <p style={{ fontSize: 11, color: ORANGE, margin: '6px 0 0' }}>Crédito usado ({brl(creditoNasFormas)}) maior que o disponível ({brl(tutorSaldo || 0)}).</p>}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>

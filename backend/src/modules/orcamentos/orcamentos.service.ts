@@ -107,7 +107,7 @@ export class OrcamentosService {
       try {
         await this.prisma.listaItem.create({ data: {
           lista: `orcexa_${orcamento.id}`,
-          valor: JSON.stringify({ descricao: it.descricao ?? null, catalogoExameId: it.catalogoExameId ?? null, fornecedorId: it.fornecedorId ?? null, valorUnitario: Number(it.valorUnitario) || null }),
+          valor: JSON.stringify({ descricao: it.descricao ?? null, catalogoExameId: it.catalogoExameId ?? null, fornecedorId: it.fornecedorId ?? null, valorUnitario: Number(it.valorUnitario) || null, custoUnitario: (it as any).custoUnitario != null ? Number((it as any).custoUnitario) : null }),
         } });
       } catch { /* não quebra o orçamento */ }
     }
@@ -178,21 +178,35 @@ export class OrcamentosService {
     const userId = dto.userId ?? currentUserId;
     if (!userId) throw new BadRequestException('Profissional (userId) é obrigatório');
 
+    // Identidade dos exames do orçamento (orcexa_) carregada ANTES — pra injetar fornecedor + custo do
+    // lab no AppointmentItem (alimenta o a-pagar) e depois iniciar o ciclo do exame.
+    let examItemsRaw: any[] = [];
+    const examPorNome: Record<string, any> = {};
+    try {
+      const orcExa = await this.prisma.listaItem.findMany({ where: { lista: `orcexa_${id}` }, select: { valor: true } });
+      examItemsRaw = orcExa.map((r) => { try { return JSON.parse(r.valor); } catch { return null; } }).filter(Boolean);
+      for (const e of examItemsRaw) { if (e?.descricao) examPorNome[String(e.descricao).toLowerCase().trim()] = e; }
+    } catch { /* sem companheiro */ }
+
     const appointment = await this.appointmentsService.create({
       tutorId,
       petId: orc.petId,
       userId,
       date: dto.date ?? new Date().toISOString(),
       value: orc.valorTotal,
-      items: orc.itens.map((it) => ({
-        servicoId: it.servicoId ?? undefined,
-        productId: (it as any).productId ?? undefined,
-        descricao: it.descricao ?? undefined,
-        quantidade: it.quantidade,
-        valorUnitario: it.valorUnitario,
-        desconto: it.desconto,
-        valorTotal: it.valorTotal,
-      })),
+      items: orc.itens.map((it) => {
+        const ex = examPorNome[String(it.descricao || '').toLowerCase().trim()];
+        return {
+          servicoId: it.servicoId ?? undefined,
+          productId: (it as any).productId ?? undefined,
+          descricao: it.descricao ?? undefined,
+          quantidade: it.quantidade,
+          valorUnitario: it.valorUnitario,
+          desconto: it.desconto,
+          valorTotal: it.valorTotal,
+          ...(ex ? { fornecedorId: ex.fornecedorId ?? undefined, custoUnitario: ex.custoUnitario != null ? Number(ex.custoUnitario) : undefined } : {}),
+        };
+      }),
     } as any);
 
     await this.prisma.orcamento.update({
@@ -200,11 +214,9 @@ export class OrcamentosService {
       data: { appointmentId: (appointment as any).id, status: 'APROVADO' },
     });
 
-    // 🔬 Converteu o orçamento → inicia o ciclo dos exames dele no Kanban (lê o registro-companheiro
-    // orcexa_, NÃO casa por nome). Mesmo método único da venda direta.
+    // 🔬 Converteu o orçamento → inicia o ciclo dos exames dele no Kanban (usa o companheiro orcexa_).
     try {
-      const orcExa = await this.prisma.listaItem.findMany({ where: { lista: `orcexa_${id}` }, select: { valor: true } });
-      const examItems = orcExa.map((r) => { try { return { ...JSON.parse(r.valor), origem: 'ORCAMENTO' }; } catch { return null; } }).filter(Boolean);
+      const examItems = examItemsRaw.map((e) => ({ ...e, origem: 'ORCAMENTO' }));
       if (examItems.length) await this.examesService.iniciarExamesDaVenda(orc.petId, examItems as any[]);
     } catch { /* não quebra a conversão */ }
 

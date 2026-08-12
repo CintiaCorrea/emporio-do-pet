@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { LuTrash, LuPlus, LuMessageSquare } from "react-icons/lu";
+import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, ItemVendavel } from "@/lib/catalogoVendavel";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ddmm = (iso: string) => { const [, m, d] = String(iso).split("-"); return d && m ? `${d}/${m}` : iso; };
@@ -24,7 +25,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
   const [itens, setItens] = useState<Item[]>([{ descricao: "", qtd: "1", valor: "" }]);
   const [validade, setValidade] = useState("");
   const [obs, setObs] = useState("");
-  const [cat, setCat] = useState<{ nome: string; valor: number }[]>([]);
+  const [cat, setCat] = useState<ItemVendavel[]>([]); // catálogo COMPLETO (guarda identidade do exame)
   const [modelos, setModelos] = useState<any[]>([]);
   const [modeloSel, setModeloSel] = useState("");
   const [saving, setSaving] = useState(false);
@@ -41,16 +42,11 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
         setModelos(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return null; } }).filter((m: any) => m && m.ativo !== false));
       } catch { setModelos([]); }
     })();
-    // Catálogo (produtos/serviços) p/ preencher rápido — busca defensiva de nome/preço.
+    // Catálogo COMPLETO (fonte única lib/catalogoVendavel): serviços + produtos + medicamentos/vacinas + exames.
     (async () => {
       try {
-        const r = await fetch(`/api/products?limit=1000`, { cache: "no-store" });
-        const d = await r.json();
-        const arr = Array.isArray(d) ? d : (d.data || d.products || d.produtos || d.itens || []);
-        const mapped = arr
-          .map((s: any) => ({ nome: s.name || s.nome || "", valor: Number(s.price ?? s.preco ?? s.valor ?? 0), ativo: s.ativo }))
-          .filter((x: any) => x.nome && x.ativo !== false);
-        setCat(mapped);
+        const itens = await carregarCatalogoVendavel({ exames: true });
+        setCat(itens);
       } catch { setCat([]); }
     })();
   }, [open]);
@@ -61,7 +57,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
   const setItem = (i: number, patch: Partial<Item>) => setItens((arr) => arr.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
   const addItem = () => setItens((arr) => [...arr, { descricao: "", qtd: "1", valor: "" }]);
   const delItem = (i: number) => setItens((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
-  const preencherDoCatalogo = (i: number, nome: string) => { const s = cat.find((c) => c.nome === nome); if (s) setItem(i, { descricao: s.nome, valor: s.valor ? fmtVal(s.valor) : "" }); };
+  const preencherDoCatalogo = (i: number, nome: string) => { const s = cat.find((c) => c.nome === nome); if (s) setItem(i, { descricao: s.nome, valor: s.valorPadrao ? fmtVal(s.valorPadrao) : "" }); };
   const aplicarModelo = (id: string) => {
     setModeloSel(id);
     const m = modelos.find((x) => x.id === id);
@@ -82,7 +78,8 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
         petId: pet.id, tutorId: tutor?.id,
         validade: validade ? new Date(validade + "T12:00:00").toISOString() : undefined,
         observacao: obs.trim() || undefined,
-        itens: vs.map((it) => ({ descricao: it.descricao.trim(), quantidade: Number(it.qtd) || 1, valorUnitario: parseVal(it.valor) })),
+        // casa o nome escolhido de volta com o catálogo → leva identidade do exame (custo+fornecedor) pro orcexa_
+        itens: vs.map((it) => { const s = cat.find((c) => c.nome === it.descricao); const extra = s ? itemParaVenda(linhaDoItem(s)) : {}; return { ...extra, descricao: (extra.descricao ?? it.descricao.trim()), quantidade: Number(it.qtd) || 1, valorUnitario: parseVal(it.valor) }; }),
       };
       const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();

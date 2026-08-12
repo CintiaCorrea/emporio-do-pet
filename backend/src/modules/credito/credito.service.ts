@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
+import { classificarSaldo, realizadaAReceber } from './credito.regras';
 
 @Injectable()
 export class CreditoService {
@@ -60,21 +61,35 @@ export class CreditoService {
     return { saldo: CreditoService.saldoFrom(movimentos as any), movimentos };
   }
 
-  // Saldo consolidado por cliente (tutor). Retorna apenas quem tem saldo != 0.
+  // Saldo consolidado por cliente (tutor): CRÉDITO de loja (+) menos CONTAS A RECEBER (−).
+  // Assim a tela "Saldo dos clientes" mostra CREDORES (têm crédito) e DEVEDORES (devem, ex.:
+  // saldos em aberto migrados do SimplesVet) na MESMA lista. Retorna só quem tem saldo != 0.
   async listSaldos() {
+    // (1) crédito de loja (CreditoMovimento)
     const movs = await this.prisma.creditoMovimento.findMany({ select: { tutorId: true, tipo: true, valor: true } });
-    const map = new Map<string, number>();
+    const credito = new Map<string, number>();
     for (const m of movs) {
       if (!m.tutorId) continue;
-      const cur = map.get(m.tutorId) || 0;
-      map.set(m.tutorId, cur + (m.tipo === 'USO' ? -Number(m.valor) : Number(m.valor)));
+      credito.set(m.tutorId, (credito.get(m.tutorId) || 0) + (m.tipo === 'USO' ? -Number(m.valor) : Number(m.valor)));
     }
-    const tutorIds = Array.from(map.keys());
+    // (2) contas A RECEBER = atendimentos realizados NÃO pagos (o cliente DEVE) — mesma regra do "A receber" da ficha.
+    const now = new Date();
+    const aps = await this.prisma.appointment.findMany({
+      where: { value: { gt: 0 }, paymentStatus: { not: 'PAID' } },
+      select: { tutorId: true, value: true, status: true, date: true },
+    });
+    const receber = new Map<string, number>();
+    for (const a of aps) {
+      if (!a.tutorId) continue;
+      if (!realizadaAReceber(a.status, a.date, now)) continue;
+      receber.set(a.tutorId, (receber.get(a.tutorId) || 0) + (Number(a.value) || 0));
+    }
+    // (3) saldo líquido = crédito − a receber
+    const tutorIds = Array.from(new Set<string>([...credito.keys(), ...receber.keys()]));
     const tutors = tutorIds.length
       ? await this.prisma.tutor.findMany({ where: { id: { in: tutorIds } }, select: { id: true, name: true } })
       : [];
     const tmap = new Map(tutors.map((t) => [t.id, t.name]));
-    // última compra por cliente (último atendimento com valor > 0)
     const compras = tutorIds.length
       ? await this.prisma.appointment.groupBy({ by: ['tutorId'], where: { tutorId: { in: tutorIds }, value: { gt: 0 } }, _max: { date: true } })
       : [];
@@ -82,8 +97,8 @@ export class CreditoService {
     for (const c of compras) if (c.tutorId && c._max.date) cmap.set(c.tutorId, c._max.date as Date);
     return tutorIds
       .map((id) => {
-        const saldo = Number((map.get(id) || 0).toFixed(2));
-        return { tutorId: id, nome: tmap.get(id) || 'Cliente', saldo, situacao: saldo >= 0 ? 'CREDOR' : 'DEVEDOR', ultimaCompra: cmap.get(id) || null };
+        const { saldo, situacao } = classificarSaldo(credito.get(id) || 0, receber.get(id) || 0);
+        return { tutorId: id, nome: tmap.get(id) || 'Cliente', saldo, situacao, ultimaCompra: cmap.get(id) || null };
       })
       .filter((x) => Math.abs(x.saldo) > 0.001)
       .sort((a, b) => b.saldo - a.saldo);

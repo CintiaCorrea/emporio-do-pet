@@ -4,9 +4,10 @@ import { LuShoppingCart, LuPlus, LuTrash, LuX, LuPrinter, LuArrowRight } from "r
 import toast from "react-hot-toast";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
+import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number };
+type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; catalogoExameId?: string; _exame?: boolean };
 
 const ST: any = {
   RASCUNHO: { l: "Rascunho", c: "#64748b", b: "#eef2f4" },
@@ -19,7 +20,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const [aberto, setAberto] = useState(false);
   const [sub, setSub] = useState<"VENDA" | "ORC">("VENDA");
   const [itens, setItens] = useState<Item[]>([]);
-  const [cat, setCat] = useState<{ id: string; nome: string; valor: number }[]>([]);
+  const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null }[]>([]);
   const [busca, setBusca] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [orcs, setOrcs] = useState<any[]>([]);
@@ -41,10 +42,9 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch(`/api/products?limit=1000`, { cache: "no-store" });
-        const d = await r.json();
-        const arr = Array.isArray(d) ? d : (d.products || d.data || d.itens || []);
-        setCat(arr.map((s: any) => ({ id: s.id, nome: s.name || s.nome, valor: Number(s.price ?? s.preco ?? 0), ativo: s.ativo })).filter((x: any) => x.nome && x.ativo !== false));
+        // FONTE ÚNICA: serviços + produtos + medicamentos/vacinas (todos ativos, sem truncar).
+        const itens = await carregarCatalogoVendavel();
+        setCat(itens.map((i) => ({ id: i.id, nome: i.nome, valor: i.valorPadrao, custoPadrao: i.custoPadrao, _exame: i._exame, _fornecedorId: i._fornecedorId, _fornecedorNome: i._fornecedorNome })));
       } catch {}
     })();
   }, []);
@@ -56,7 +56,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
 
   // Gancho p/ outras partes da ficha lançarem itens: window.dispatchEvent(new CustomEvent('comanda:add', {detail:{descricao,valorUnitario,servicoId,quantidade}}))
   useEffect(() => {
-    function onAdd(e: any) { const d = e?.detail; if (!d?.descricao) return; addItem({ descricao: d.descricao, servicoId: d.servicoId, valorUnitario: Number(d.valorUnitario) || 0, quantidade: Number(d.quantidade) || 1 }); setAberto(true); toast.success("Lançado na comanda"); }
+    function onAdd(e: any) { const d = e?.detail; if (!d?.descricao) return; addItem({ descricao: d.descricao, servicoId: d.servicoId, valorUnitario: Number(d.valorUnitario) || 0, custoUnitario: d.custoUnitario != null ? Number(d.custoUnitario) : undefined, fornecedorId: d.fornecedorId ?? undefined, catalogoExameId: d.catalogoExameId, _exame: d._exame, quantidade: Number(d.quantidade) || 1 }); setAberto(true); toast.success("Lançado na comanda"); }
     window.addEventListener("comanda:add", onAdd as any);
     return () => window.removeEventListener("comanda:add", onAdd as any);
     // eslint-disable-next-line
@@ -69,7 +69,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   function limpar() { setItens([]); }
   const matches = useMemo(() => { const q = busca.trim().toLowerCase(); if (!q) return cat.slice(0, 20); return cat.filter((c) => c.nome.toLowerCase().includes(q)).slice(0, 20); }, [cat, busca]);
 
-  const linhasBody = () => itens.map((it) => ({ descricao: it.descricao, quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}) }));
+  const linhasBody = () => itens.map((it) => ({ descricao: it.descricao, quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, ...(it.custoUnitario != null ? { custoUnitario: it.custoUnitario } : {}), ...(it.fornecedorId ? { fornecedorId: it.fornecedorId } : {}), ...(it._exame ? { tipoItem: "EXAME", catalogoExameId: it.catalogoExameId } : {}), ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}) }));
 
   async function gerarOrcamento() {
     if (!itens.length) { toast.error("Comanda vazia."); return; }
@@ -141,7 +141,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                 <div className="border rounded-lg mt-1 max-h-44 overflow-auto" style={{ borderColor: "#F0EBE0" }}>
                   {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
                     matches.map((c) => (
-                      <button key={c.id} onClick={() => { addItem({ descricao: c.nome, servicoId: c.id, valorUnitario: c.valor, quantidade: 1 }); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
+                      <button key={c.id} onClick={() => { const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome }); addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, catalogoExameId: l.catalogoExameId, _exame: l._exame, quantidade: 1 }); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
                         <span className="text-[#1F2A2E] truncate pr-2">{c.nome}</span><span className="text-[#0F6E56] font-semibold shrink-0">{BRL(c.valor)}</span>
                       </button>
                     ))}

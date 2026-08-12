@@ -12,6 +12,7 @@ import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { imprimirDocumento } from "@/lib/print";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { usePodeEditar } from "@/lib/permissions/context";
+import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda } from "@/lib/catalogoVendavel";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -223,8 +224,11 @@ export default function FichaInternacaoPage() {
       setBolProgId(bpItem?.id || null);
       try { setBolProg(bpItem ? JSON.parse(bpItem.valor) : {}); } catch { setBolProg({}); }
       setIntBolPronto(true); // dados dos boletins carregados → liga o auto-save de rascunho
-      setServicos(Array.isArray(sv) ? sv : (sv.itens || sv.data || []));
-      setProdutos(Array.isArray(pd) ? pd : (pd.products || pd.data || []));
+      // FONTE ÚNICA (exames + produtos + serviços): dropdown Serviço = serviços + exames;
+      // dropdown Produto = produtos/medicamentos/vacinas. (sv/pd acima ficam ignorados de propósito.)
+      const catalogo = await carregarCatalogoVendavel();
+      setServicos(catalogo.filter((i) => i.tipo === "SERVICE" || i._exame));
+      setProdutos(catalogo.filter((i) => i.tipo && i.tipo !== "SERVICE" && !i._exame).map((i) => ({ id: i.id, name: i.nome, price: i.valorPadrao, valorPadrao: i.valorPadrao })));
       const tutorId = d?.tutor?.id;
       if (tutorId) { try { const cr = await fetch(`/api/credito/tutor/${tutorId}`).then((r) => r.json()); setCaucaoSaldo(Number(cr?.saldo) || 0); } catch { setCaucaoSaldo(0); } }
     } catch {}
@@ -461,8 +465,8 @@ export default function FichaInternacaoPage() {
     const totalFaturavel = diariaTotal + totalItensFat;
     return { dias, diariaVU, diariaTotal, itensFat, itensInsumo, totalFaturavel };
   };
-  const abrirItem = (p?: any) => { setItemForm(p ? { id: p.id, descricao: p.descricao || "", categoria: p.categoria || "Procedimento", quantidade: String(p.quantidade || "1"), valorUnitario: String(p.valorUnitario ?? ""), servicoId: p.servicoId || "", productId: p.productId || "" } : { id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "" }); setItemOpen(true); };
-  const pickServico = (sid: string) => { const s = servicos.find((x) => x.id === sid); setItemForm((f: any) => ({ ...f, servicoId: sid, descricao: s?.nome || f.descricao, valorUnitario: s?.valorPadrao != null ? String(s.valorPadrao) : f.valorUnitario })); };
+  const abrirItem = (p?: any) => { setItemForm(p ? { id: p.id, descricao: p.descricao || "", categoria: p.categoria || "Procedimento", quantidade: String(p.quantidade || "1"), valorUnitario: String(p.valorUnitario ?? ""), servicoId: p.servicoId || "", productId: p.productId || "", custoUnitario: p.custoUnitario, fornecedorId: p.fornecedorId ?? null, catalogoExameId: p.catalogoExameId, _exame: p._exame } : { id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "" }); setItemOpen(true); };
+  const pickServico = (sid: string) => { const s = servicos.find((x) => x.id === sid); if (!s) return; const l = linhaDoItem(s); setItemForm((f: any) => ({ ...f, servicoId: l.servicoId || "", descricao: l.descricao, valorUnitario: String(l.valorUnitario), custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId ?? null, catalogoExameId: l.catalogoExameId, _exame: l._exame })); };
   const pickProduto = (pid: string) => { const p = produtos.find((x) => x.id === pid); setItemForm((f: any) => ({ ...f, productId: pid, descricao: p?.name || f.descricao })); };
   // Vínculo da PRESCRIÇÃO com o catálogo (serviço OU produto) p/ cobrança automática ao aplicar.
   // val = "" | "s:<id>" (serviço) | "p:<id>" (produto).
@@ -489,7 +493,7 @@ export default function FichaInternacaoPage() {
     setItemSaving(true);
     try {
       const insumo = itemForm.categoria === "Insumo";
-      const payload = { descricao: itemForm.descricao.trim(), categoria: itemForm.categoria, quantidade: Number(itemForm.quantidade) || 1, valorUnitario: insumo ? 0 : (Number(itemForm.valorUnitario) || 0), servicoId: itemForm.servicoId || "", productId: itemForm.productId || "", baixado: false };
+      const payload = { descricao: itemForm.descricao.trim(), categoria: itemForm.categoria, quantidade: Number(itemForm.quantidade) || 1, valorUnitario: insumo ? 0 : (Number(itemForm.valorUnitario) || 0), servicoId: itemForm.servicoId || "", productId: itemForm.productId || "", baixado: false, ...(itemForm.custoUnitario != null ? { custoUnitario: Number(itemForm.custoUnitario) } : {}), ...(itemForm.fornecedorId ? { fornecedorId: itemForm.fornecedorId } : {}), ...(itemForm._exame ? { _exame: true, catalogoExameId: itemForm.catalogoExameId } : {}) };
       if (itemForm.id) await fetch(`/api/listas/${itemForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
       else await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(payload) }) });
       setItemOpen(false); load();
@@ -520,8 +524,8 @@ export default function FichaInternacaoPage() {
     try {
       const itens = [
         { descricao: `Diária internação (${dias}×)`, quantidade: dias, valorUnitario: diariaVU, desconto: 0 },
-        ...itensFat.map((i) => ({ servicoId: i.servicoId || undefined, descricao: i.descricao, quantidade: Number(i.quantidade) || 1, valorUnitario: Number(i.valorUnitario) || 0, desconto: 0 })),
-      ].filter((it) => it.quantidade > 0 && (it.valorUnitario > 0 || it.descricao));
+        ...itensFat.map((i) => ({ ...itemParaVenda(i), quantidade: Number(i.quantidade) || 1, desconto: 0 })), // núcleo único: leva custo+fornecedor do exame → a-pagar
+      ].filter((it: any) => it.quantidade > 0 && (it.valorUnitario > 0 || it.descricao));
       const body = {
         tutorId: h.tutor?.id, petId: h.pet?.id, userId: (session as any)?.user?.id || h.veterinarian?.id || undefined, date: new Date().toISOString(),
         itens, tipo: "VENDA", observacao: `Internação${boxCodigo ? ` · Box ${boxCodigo}` : ""} · ${h.pet?.name}`,

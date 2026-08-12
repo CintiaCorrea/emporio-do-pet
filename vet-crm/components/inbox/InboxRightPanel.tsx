@@ -21,7 +21,7 @@ import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
 import ClienteEditModal from "@/components/inbox/ClienteEditModal";
 import PetEditModal from "@/components/inbox/PetEditModal";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
-import { loadExameFases } from "@/lib/exameFases";
+import { loadExameFases, podeAvisarLab } from "@/lib/exameFases";
 import { loadFuResp, assignFollowUp } from "@/lib/followup";
 
 function scorePie(score: number, max: number, color: string) {
@@ -328,7 +328,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     }
     const arr = Array.from(map.values());
     for (const g of arr) {
-      g.pendentesColeta = g.exames.filter((e) => /coleta/i.test(String(e.data?.status || "")) && !e.data?.labAvisadoAt && e.data?.fornecedorId);
+      g.pendentesColeta = g.exames.filter((e) => podeAvisarLab(e.data)); // regra única (tem lab + não avisado + não concluído)
       const avisados = g.exames.map((e) => e.data?.labAvisadoAt).filter(Boolean).sort();
       g.avisadoEm = avisados.length ? avisados[avisados.length - 1] : null;
     }
@@ -510,8 +510,10 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
 
   // UM botão por laboratório: avisa a coleta de TODOS os exames daquele lab que estão
   // em coleta e ainda não avisados (mesmo endpoint do "Enviar agora" da ficha e do cron 11:30/17:00).
-  async function avisarLabBloco(g: { key: string; pendentesColeta: { id: string; data: any }[] }) {
+  async function avisarLabBloco(g: { key: string; nome?: string; pendentesColeta: { id: string; data: any }[] }) {
     if (!g.pendentesColeta.length) return;
+    const nomes = g.pendentesColeta.map((e) => e.data?.nome).filter(Boolean).join(", ");
+    if (!window.confirm(`📲 Solicitar coleta ao ${g.nome || "laboratório"}?\n\n${nomes}`)) return;
     setAvisandoLab(g.key);
     let ok = 0, erros = 0;
     for (const e of g.pendentesColeta) {
@@ -1925,7 +1927,10 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                         <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
                       </div>
                     ) : (
-                      <div onClick={() => setClienteEditOpen(true)} className="text-[15px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Editar dados do cliente">{tutor.name} <LuPencil className="inline -mt-0.5 text-gray-300" size={12} /></div>
+                      <div className="text-[15px] font-semibold flex items-center gap-1 min-w-0" style={{ color: "#014D5E" }}>
+                        <Link href={`/dashboard/erp/tutores/${tutor.id}`} className="truncate hover:underline" title="Abrir ficha do cliente">{tutor.name}</Link>
+                        <button type="button" onClick={() => setClienteEditOpen(true)} title="Editar dados do cliente" className="flex-shrink-0 leading-none"><LuPencil className="text-gray-300 hover:text-[#009AAC]" size={12} /></button>
+                      </div>
                     )}
                     {tutorScore?.nivel && NIVEL_UI[tutorScore.nivel] && (
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5" style={{ background: NIVEL_UI[tutorScore.nivel].bg, color: NIVEL_UI[tutorScore.nivel].fg }} title="Nível de relacionamento (RFM)">{NIVEL_UI[tutorScore.nivel].emoji} {tutorScore.nivel}</span>
@@ -2203,16 +2208,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                       const active = selectedPet?.id === p.id;
                       return (
                         <div key={p.id} className={`border ${active ? "w-full order-last rounded-lg mt-1" : "rounded-full hover:brightness-[0.97]"}`} style={active ? { background: "#cdebef", borderColor: "#009AAC" } : { background: "#e0f4f6", borderColor: "#9fd0d7" }}>
-                          <button onClick={() => setSelectedPet(active ? null : p)} className="w-full flex items-center gap-2 px-2 py-1.5 text-left">
+                          <div onClick={() => setSelectedPet(active ? null : p)} className="w-full flex items-center gap-2 px-2 py-1.5 text-left cursor-pointer">
                             <span className="text-[18px] leading-none flex-shrink-0" aria-hidden>{speciesEmoji(p.species)}</span>
                             <div className="min-w-0 flex-1">
-                              <div className="text-[11.5px] font-semibold truncate" style={{ color: "#014D5E" }}>{p.name}</div>
+                              <Link href={`/dashboard/erp/pets/${p.id}`} onClick={(e) => e.stopPropagation()} title="Abrir ficha do pet" className="block text-[11.5px] font-semibold truncate hover:underline" style={{ color: "#014D5E" }}>{p.name}</Link>
                               {(p.breed || p.birthDate) && (
                                 <div className="text-[10px] text-gray-500 truncate">{[p.breed, p.birthDate ? ageFromBirth(p.birthDate) : null].filter(Boolean).join(" · ")}</div>
                               )}
                             </div>
                             <span onClick={(e) => { e.stopPropagation(); setPetEdit(p); }} title="Editar pet" className="text-gray-300 hover:text-[#009AAC] flex-shrink-0 cursor-pointer"><LuPencil size={13} /></span>
-                          </button>
+                          </div>
                           {active && (
                             <div className="px-2 pt-1.5 pb-2 border-t space-y-1.5" style={{ borderColor: "#cfe8eb" }}>
                               <div className="flex items-center gap-1.5">
@@ -2576,9 +2581,47 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
               </div>
             )}
 
-            {/* BLOCO 3.46 (Próximo agendamento do pet) REMOVIDO do inbox em 11/08 a pedido da Cintia:
-                o box da agenda + o aviso de follow-up saíram daqui pra limpar o painel. A agenda
-                continua no box de conversação e o follow-up na ficha do pet. */}
+            {/* BLOCO 3.46: PROXIMAS CONSULTAS DO PET (recolocado 12/08 a pedido da Cintia) */}
+            {tutor && selectedPet && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL} style={LBL_STYLE}><span>📅 Próximo agendamento · {selectedPet.name}</span></div>
+                {/* Follow-up agendado (mesmo campo da ficha; setado pela interação "próxima ação") */}
+                {selectedPet.proximoFollowupAt && new Date(selectedPet.proximoFollowupAt).getTime() > Date.now() && (
+                  <div className="border rounded-lg px-2.5 py-1.5 mb-1.5" style={{ borderColor: "#F0D8A8", background: "#FFFDF5" }}>
+                    <div className="flex items-center gap-2">
+                      <span>📌</span>
+                      <div className="text-[11.5px]" style={{ color: "#8a6400" }}>Follow-up agendado: <b>{fmtDate(selectedPet.proximoFollowupAt)}</b></div>
+                    </div>
+                    {selectedPet.followUpNotes && (
+                      <div className="text-[11px] mt-1 pl-6 leading-snug" style={{ color: "#9a7400" }}>📝 {selectedPet.followUpNotes}</div>
+                    )}
+                  </div>
+                )}
+                {proximasConsultas.length === 0 ? (
+                  <div className="text-[11px] text-gray-400 py-1">Nenhuma consulta agendada.</div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {proximasConsultas.slice(0, 1).map((a: any) => (
+                      <div key={a.id} className="flex items-stretch gap-1.5">
+                        <Link href={`/dashboard/erp/atendimentos/${a.id}`} className="flex items-start gap-2 border rounded-lg p-2 hover:bg-gray-50 flex-1 min-w-0" style={{ borderColor: "#E8DFC8" }}>
+                          <LuCalendar size={13} style={{ color: "#009AAC", marginTop: 1, flexShrink: 0 }} />
+                          <div className="min-w-0">
+                            <div className="text-[11.5px] font-medium" style={{ color: "#014D5E" }}>{fmtConsultaDateTime(a.date, a.duration)}</div>
+                            <div className="text-[10.5px] text-gray-500 truncate">{TYPE_LABEL[a.type] || a.type || "Consulta"}{a.user?.name ? ` · ${a.user.name}` : ""}</div>
+                          </div>
+                        </Link>
+                        <button type="button" title="Editar ou cancelar este agendamento"
+                          onClick={() => setEditAppt({ ...a, tutorId: tutor?.id, tutor: tutor ? { id: tutor.id, name: tutor.name } : undefined, petId: selectedPet?.id, pet: selectedPet ? { id: selectedPet.id, name: selectedPet.name } : undefined, userId: a.userId || a.user?.id })}
+                          className="flex items-center justify-center w-9 rounded-lg border hover:bg-[#E1F2F4] flex-shrink-0" style={{ borderColor: "#009AAC", background: "white", color: "#009AAC" }}>✏️</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {editAppt && (
+                  <NovoAgendamentoModal open={!!editAppt} editAppt={editAppt} onClose={() => setEditAppt(null)} onCreated={() => { setEditAppt(null); setProximasTick((t) => t + 1); }} />
+                )}
+              </section>
+            )}
 
             {/* BLOCO 3.5: ACOES DO PET (F1 - barra de icones) */}
             {tutor && selectedPet && (
@@ -2587,7 +2630,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                 <button type="button" onClick={() => window.open(`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`, "_self")} title="Iniciar atendimento" className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 mb-2 text-white font-semibold text-[12px]" style={{ background: "#0E5560" }}>
                   <LuStethoscope size={16} /> Atendimento
                 </button>
-                <div className="grid grid-cols-4 gap-1.5">
+                <div className="grid grid-cols-3 gap-1.5">
                   {/* Botão de agenda removido daqui (03/08): a agenda já fica no box de conversação.
                       Botão 🕐 "Follow-up em breve" (desabilitado) removido 11/08 — estava sem uso. */}
                   <button type="button" onClick={() => { setPetActForward(false); const pid = selectedPet?.id; setInteracaoForm((f) => ({ ...f, proximoFollowupAt: selectedPet?.proximoFollowupAt ? String(selectedPet.proximoFollowupAt).slice(0, 10) : "", responsavelUserId: "" })); if (pid) loadFuResp(pid).then((fr) => setInteracaoForm((f) => ({ ...f, responsavelUserId: fr?.userId || "" }))); setInteracaoOpen(true); }} title="Registrar interação" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMessageSquare size={18} style={{ color: "#009AAC" }} /></button>

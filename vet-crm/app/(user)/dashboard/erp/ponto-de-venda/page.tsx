@@ -8,6 +8,8 @@ import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
 import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
+import { carregarCatalogoVendavel, linhaDoItem } from '@/lib/catalogoVendavel';
+import { ehDinheiro, carregarFormasRecebimento, PagForma } from '@/lib/formasPagamento';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 
 const TEAL = '#009AAC';
@@ -33,8 +35,7 @@ interface Pet { id: string; name: string }
 interface Tutor { id: string; name: string; pets?: Pet[] }
 interface Servico { id: string; nome: string; valorPadrao?: number | null; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null }
 interface Prof { id: string; name: string }
-interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null }
-interface Forma { forma: string; valor: number; nsu?: string; modalidade?: string; bandeira?: string; parcelas?: number }
+interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null }
 interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string; tutorId?: string }
 
 const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
@@ -78,7 +79,7 @@ export default function PDVPage() {
   const [obs, setObs] = useState('');
 
   const [modal, setModal] = useState(false);
-  const [formas, setFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0 }]);
+  const [formas, setFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]);
   const [formasCfg, setFormasCfg] = useState<string[]>([]); // nomes das formas (Fase 2)
   const [formasConfig, setFormasConfig] = useState<any[]>([]); // config completa (tipo/adquirente/conta)
   const [taxas, setTaxas] = useState<any[]>([]); // tabela de taxas por bandeira (TaxaContratada)
@@ -99,7 +100,7 @@ export default function PDVPage() {
   const [editItens, setEditItens] = useState<any[] | null>(null); // itens em edição no detalhe (null = modo leitura)
   const [savingEdit, setSavingEdit] = useState(false);
   const [recOpen, setRecOpen] = useState(false);            // modal de recebimento de venda existente
-  const [recFormas, setRecFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0 }]);
+  const [recFormas, setRecFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]);
   const [recSaving, setRecSaving] = useState(false);
 
   const loadVendas = useCallback(async () => {
@@ -172,7 +173,7 @@ export default function PDVPage() {
     const soma = formasValidas.reduce((s, f) => s + Number(f.valor || 0), 0);
     if (soma <= 0.001) { toast.error('Informe o valor recebido.'); return; }
     const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
-    const temDin = formasValidas.some((f) => /dinheiro/i.test(f.forma));
+    const temDin = formasValidas.some((f) => ehDinheiro(f.forma));
     const trocoR = temDin && soma > aReceber ? Number((soma - aReceber).toFixed(2)) : 0;
     const valorAplicado = Math.max(0, Number((soma - trocoR).toFixed(2)));
     setRecSaving(true);
@@ -207,33 +208,9 @@ export default function PDVPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [rs, re, rp] = await Promise.all([
-          fetch('/api/servicos/itens', { cache: 'no-store' }),
-          fetch('/api/fornecedores/exames/lista', { cache: 'no-store' }),
-          fetch('/api/products?limit=2000&excludeService=1', { cache: 'no-store' }), // 🛒 produtos/vacinas
-        ]);
-        const prods: Servico[] = rs.ok ? await rs.json() : [];
-        const examesRaw: any[] = re.ok ? await re.json() : [];
-        // 🛒 Produtos e vacinas (type != SERVICE) TAMBÉM entram na busca do PDV (antes só vinham serviços+exames).
-        const produtosRaw: any = rp.ok ? await rp.json() : {};
-        const produtosArr: any[] = Array.isArray(produtosRaw?.products) ? produtosRaw.products : (Array.isArray(produtosRaw) ? produtosRaw : []);
-        const produtosItens: Servico[] = produtosArr
-          .filter((p: any) => p && p.ativo !== false && p.type !== 'SERVICE')
-          .map((p: any) => ({ id: p.id, nome: p.name, valorPadrao: p.price ?? 0 }));
-        // Exames entram na busca do PDV: dedup por NOME preferindo o lab Veter (padrão), marcados como _exame.
-        const porNome = new Map<string, any>();
-        for (const ex of (Array.isArray(examesRaw) ? examesRaw : [])) {
-          const nome = String(ex?.nome || '').trim(); if (!nome) continue;
-          const chave = nome.toLowerCase();
-          const atual = porNome.get(chave);
-          const ehVeter = /veter/i.test(ex?.fornecedor?.nome || '');
-          if (!atual || (ehVeter && !/veter/i.test(atual?.fornecedor?.nome || ''))) porNome.set(chave, ex);
-        }
-        const examesItens: Servico[] = [...porNome.values()].map((ex: any) => ({
-          id: ex.id, nome: `🔬 ${ex.nome}`, valorPadrao: ex.valorClienteSugerido ?? ex.valorCliente ?? 0,
-          _exame: true, _fornecedorId: ex.fornecedorId ?? ex.fornecedor?.id ?? null, _fornecedorNome: ex.fornecedor?.nome ?? null,
-        }));
-        setServicos([...(Array.isArray(prods) ? prods : []), ...produtosItens, ...examesItens]);
+        // FONTE ÚNICA (lib/catalogoVendavel): serviços + produtos + medicamentos/vacinas (todos ativos, sem truncar) + exames.
+        const itens = await carregarCatalogoVendavel({ exames: true });
+        setServicos(itens as any);
       } catch { /* */ }
       try {
         const r = await fetch('/api/users', { cache: 'no-store' });
@@ -245,12 +222,9 @@ export default function PDVPage() {
         else setCaixaAberto(false);
       } catch { setCaixaAberto(false); }
       try {
-        const r = await fetch('/api/listas?lista=formasrecebimento', { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); const full = (Array.isArray(d) ? d : (d.itens || d.data || [])).map((x: any) => { try { return JSON.parse(x.valor); } catch { return null; } }).filter((v: any) => v && v.ativo !== false); setFormasConfig(full); setFormasCfg(full.map((v: any) => v.nome)); }
-      } catch { /* */ }
-      try {
-        const r = await fetch('/api/financeiro/auditoria/taxas', { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); setTaxas(Array.isArray(d) ? d : (d.data || d.itens || [])); }
+        // FONTE ÚNICA (lib/formasPagamento): formas de recebimento + tabela de taxas.
+        const { formasConfig, formasList, taxas } = await carregarFormasRecebimento();
+        setFormasConfig(formasConfig); setFormasCfg(formasList); setTaxas(taxas);
       } catch { /* */ }
     })();
     loadVendas();
@@ -327,13 +301,14 @@ export default function PDVPage() {
   }, [servicos, itemBusca]);
 
   const addItem = (s: Servico) => {
+    const l = linhaDoItem(s as any);   // núcleo único: exame × produto/serviço, id certo, tira "🔬"
     setCarrinho((c) => {
-      const i = s._exame ? c.findIndex((x) => x.catalogoExameId === s.id) : c.findIndex((x) => x.servicoId === s.id);
+      const i = l._exame ? c.findIndex((x) => x.catalogoExameId === l.catalogoExameId) : c.findIndex((x) => x.servicoId === l.servicoId);
       if (i >= 0) { const cp = [...c]; cp[i] = { ...cp[i], quantidade: cp[i].quantidade + qtd }; return cp; }
-      const base = { descricao: s.nome.replace(/^🔬\s*/, ''), quantidade: qtd, valorUnitario: Number(s.valorPadrao || 0), desconto: 0, executorUserId: profId || undefined };
-      return [...c, s._exame
-        ? { ...base, _exame: true, catalogoExameId: s.id, fornecedorId: s._fornecedorId, fornecedorNome: s._fornecedorNome }
-        : { ...base, servicoId: s.id }];
+      const base = { descricao: l.descricao, quantidade: qtd, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined };
+      return [...c, l._exame
+        ? { ...base, _exame: true, catalogoExameId: l.catalogoExameId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome }
+        : { ...base, servicoId: l.servicoId }];
     });
     setItemBusca(''); setItemAberto(false); setQtd(1);
   };
@@ -350,7 +325,7 @@ export default function PDVPage() {
   const total = useMemo(() => Math.max(0, subtotal - (descontoGlobalTipo === '%' ? subtotal * num(descontoGlobal) / 100 : num(descontoGlobal))), [subtotal, descontoGlobal, descontoGlobalTipo]);
 
   const somaFormas = useMemo(() => formas.reduce((s, f) => s + Number(f.valor || 0), 0), [formas]);
-  const temDinheiro = formas.some((f) => /dinheiro/i.test(f.forma));
+  const temDinheiro = formas.some((f) => ehDinheiro(f.forma));
   const troco = temDinheiro && somaFormas > total ? somaFormas - total : 0;
   const pago = Math.max(0, somaFormas - troco);
   const restante = Math.max(0, total - pago);
@@ -368,7 +343,7 @@ export default function PDVPage() {
 
   const payload = (extra: any) => ({
     tutorId: cliente!.id, petId, userId: profId || undefined, date: new Date(data + 'T12:00:00').toISOString(),
-    itens: carrinho.map((it) => ({ servicoId: it._exame ? undefined : it.servicoId, productId: it._exame ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), executorUserId: it.executorUserId || profId || undefined, ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId } : {}) })),
+    itens: carrinho.map((it) => ({ servicoId: it._exame ? undefined : it.servicoId, productId: it._exame ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), executorUserId: it.executorUserId || profId || undefined, ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}) })),
     desconto: Number(descGlobalVal().toFixed(2)), observacao: obs || null, ...extra,
   });
 
@@ -841,7 +816,7 @@ export default function PDVPage() {
       {recOpen && detVenda && (() => {
         const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
         const soma = recFormas.reduce((s, f) => s + Number(f.valor || 0), 0);
-        const temDin = recFormas.some((f) => /dinheiro/i.test(f.forma));
+        const temDin = recFormas.some((f) => ehDinheiro(f.forma));
         const trocoR = temDin && soma > aReceber ? soma - aReceber : 0;
         const pagoR = Math.max(0, soma - trocoR);
         const restanteR = Math.max(0, aReceber - pagoR);
