@@ -289,7 +289,7 @@ export default function PetDetailPage() {
     // Fases de exame: fonte \u00daNICA em Configura\u00e7\u00f5es \u203a Listas (exame_fases)
     setExamFases(await loadExameFases());
   }
-  async function loadProtocolos() { try { const r = await fetch(`/api/protocolos?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); setProtocolos(Array.isArray(d) ? d : (d.data || [])); } catch {} }
+  async function loadProtocolos() { try { const r = await fetch(`/api/protocolos?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.protocolos || d.data || []); setProtocolos(arr); setVacinasFmt(formatarVacinas(arr)); /* mantém o resumo {vacinas} em dia após aplicar dose */ } catch {} }
   async function loadBoletins() {
     try {
       const r = await fetch(`/api/listas?lista=petboletim_${petId}`, { cache: "no-store" });
@@ -527,6 +527,13 @@ export default function PetDetailPage() {
       const conteudo = d.htmlContent || d.content || "";
       const vetId = d.user?.id || meId || "";
       setEditId(d.appointment?.id || null); setTab("HISTORICO"); setAtdOpen(false);
+      // 🦠 Patologia (clinDoc GENERAL com título "Patologia — …"): edita no editor de PATOLOGIA,
+      // pra não virar "Documento" nem perder o título (senão sai da lista de patologias).
+      if (/^patologia/i.test(d.title || "")) {
+        setPatModeloNome((d.title || "").replace(/^patologia\s*—?\s*/i, "").trim()); setPatCorpo(conteudo); setPatVetId(vetId);
+        try { const ms = await listasGet("patologia_modelo"); setPatModelos(parseModelos(ms)); } catch { setPatModelos([]); }
+        setArtefato("PATOLOGIA"); return;
+      }
       if (d.type === "PRESCRIPTION") {
         setRecModeloNome(d.title || ""); setRecCorpo(conteudo); setRecVetId(vetId);
         try { const ms = await listasGet("receita_modelo"); setRecModelos(ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; })); } catch {}
@@ -570,8 +577,9 @@ export default function PetDetailPage() {
       const url = it.src === "doc" ? `/api/clinical-documents/${it.rawId}` : `/api/appointments/${it.rawId}`;
       const r = await fetch(url, { method: "DELETE" });
       if (!r.ok) throw new Error();
-      // receita/documento vive em appointment + clinical-document — apaga o outro lado também
+      // receita/documento vive em appointment + clinical-document — apaga o OUTRO LADO também (senão sobra fantasma)
       if (it.src === "atd") { const doc = (clinDocs || []).find((d: any) => d?.appointment?.id === it.rawId); if (doc) { try { await fetch(`/api/clinical-documents/${doc.id}`, { method: "DELETE" }); } catch {} } }
+      if (it.src === "doc") { const apId = it.raw?.appointment?.id || it.raw?.appointmentId; if (apId) { try { await fetch(`/api/appointments/${apId}`, { method: "DELETE" }); } catch {} } }
       toast.success("Registro excluído"); await loadAtendimentos(); await loadClinDocs();
     } catch { toast.error("Erro ao excluir"); }
   }
@@ -594,15 +602,20 @@ export default function PetDetailPage() {
       // título marcado com "Patologia — …" pra cair na lista de PATOLOGIAS (e sair da de documentos)
       const titulo = patModeloNome ? `Patologia — ${patModeloNome}` : "Patologia";
       const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: patVetId, date: new Date().toISOString(), type: "Patologia", status: "Realizado", prescription: patCorpo, chiefComplaint: patModeloNome || "Patologia" };
-      const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       const dc = await r.json().catch(() => null);
-      const apptId = dc?.id || dc?.appointment?.id;
+      const apptId = editId || dc?.id || dc?.appointment?.id;
       if (apptId) {
         const vetNome = vets.find((u: any) => u.id === patVetId)?.name || meNome || "";
-        try { await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "GENERAL", title: titulo, content: patCorpo, htmlContent: patCorpo, signedBy: vetNome || undefined }) }); } catch {}
+        // CRIA no novo, ATUALIZA no editar — mantém o título "Patologia — …" e a cópia sincronizada.
+        const docExistente = editId ? (clinDocs || []).find((d: any) => d?.appointment?.id === editId && d?.type === "GENERAL") : null;
+        try {
+          if (docExistente) await fetch(`/api/clinical-documents/${docExistente.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: titulo, content: patCorpo, htmlContent: patCorpo, signedBy: vetNome || undefined }) });
+          else await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "GENERAL", title: titulo, content: patCorpo, htmlContent: patCorpo, signedBy: vetNome || undefined }) });
+        } catch {}
       }
-      toast.success("Patologia salva"); setArtefato(null); await loadAtendimentos(); await loadClinDocs();
+      toast.success(editId ? "Patologia atualizada ✅" : "Patologia salva"); setArtefato(null); setEditId(null); await loadAtendimentos(); await loadClinDocs();
     } catch { toast.error("Erro ao salvar patologia"); } finally { setSavingArt(false); }
   }
   async function salvarDocumento() {
@@ -617,12 +630,17 @@ export default function PetDetailPage() {
       if (!r.ok) throw new Error(await r.text());
       const dc = await r.json().catch(() => null);
       const apptId = editId || dc?.id || dc?.appointment?.id;
-      // 📄 Também registra na ABA DE DOCUMENTOS (clinical-document).
-      if (apptId && !editId) {
+      // 📄 Sincroniza na ABA DE DOCUMENTOS (clinical-document): CRIA no novo, ATUALIZA no editar
+      // (antes só criava no novo → editar deixava a cópia da timeline/impressão desatualizada).
+      if (apptId) {
         const vetNome = vets.find((u: any) => u.id === docVetId)?.name || meNome || "";
-        try { await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "GENERAL", title: docModeloNome || "Documento", content: docCorpo, htmlContent: docCorpo, signedBy: vetNome || undefined }) }); } catch {}
+        const docExistente = editId ? (clinDocs || []).find((d: any) => d?.appointment?.id === editId && d?.type === "GENERAL") : null;
+        try {
+          if (docExistente) await fetch(`/api/clinical-documents/${docExistente.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: docModeloNome || docExistente.title || "Documento", content: docCorpo, htmlContent: docCorpo, signedBy: vetNome || undefined }) });
+          else await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "GENERAL", title: docModeloNome || "Documento", content: docCorpo, htmlContent: docCorpo, signedBy: vetNome || undefined }) });
+        } catch {}
       }
-      toast.success("Documento salvo e anexado aos documentos"); setArtefato(null); await loadAtendimentos(); await loadClinDocs();
+      toast.success(editId ? "Documento atualizado ✅" : "Documento salvo e anexado aos documentos"); setArtefato(null); setEditId(null); await loadAtendimentos(); await loadClinDocs();
     } catch { toast.error("Erro ao salvar documento"); } finally { setSavingArt(false); }
   }
   function abrirVideo() { setEditId(null); setAtdOpen(false); setArtefato("VIDEO"); setVidUrl(""); setVidVetId(vets[0]?.id || ""); setVidFile(null); }
@@ -668,8 +686,10 @@ export default function PetDetailPage() {
         try {
           const url = await subirArquivo(exFile, "exames");
           const statusRes = examFases.find((f) => /resultado/i.test(f)) || examFases[0] || "Solicitado";
-          await fetch(`/api/listas/${exId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ..._payload, resultadoUrl: url, resultadoArquivo: exFile.name, status: statusRes }) }) });
-          try { await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: meId || vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: url, chiefComplaint: nome }) }); } catch {}
+          // cria o "Resultado de exames" e GUARDA o id no exame → excluir o exame remove o registro ligado (sem fantasma)
+          let resAptId: string | undefined;
+          try { const rr = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: meId || vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: url, chiefComplaint: nome }) }); const aj = await rr.json().catch(() => null); resAptId = aj?.id || aj?.appointment?.id; } catch {}
+          await fetch(`/api/listas/${exId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ..._payload, resultadoUrl: url, resultadoArquivo: exFile.name, status: statusRes, ...(resAptId ? { resultadoAppointmentId: resAptId } : {}) }) }) });
           toast.success("Exame anexado ✅ — aparece no histórico e na aba 🔬 Exames");
         } catch (upErr: any) {
           toast.error("Exame salvo, mas o arquivo NÃO subiu (" + String(upErr?.message || upErr).slice(0, 55) + "). Anexe o laudo de novo na aba Exames.");
@@ -980,7 +1000,15 @@ export default function PetDetailPage() {
   async function delPacote(id: string) { try { await listasDel(id); toast.success("Pacote removido"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
   async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { const _cat = acharExameNoCatalogo(exCat as any, exPick); await listasAdd(`petexa_${petId}`, JSON.stringify(montarPetExame({ nome: exPick, catalogo: _cat, fases: examFases, externo: false, por: meNome }))); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch (e: any) { toast.error("Não salvou o exame: " + String(e?.message || e).slice(0, 90)); } finally { setSavingEx(false); } }
   async function updExameStatus(id: string, data: any, novoStatus: string) { try { const historico = registrarHistoricoFase(data.historico, novoStatus, meNome); const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novoStatus, historico }) }) }); if (!r.ok) throw new Error(); await loadPetColecoes(); } catch { toast.error("Erro ao atualizar fase"); } }
-  async function delExame(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro"); } }
+  async function delExame(id: string) {
+    try {
+      const ex = (exames || []).find((e: any) => e.id === id);
+      const aptId = ex?.data?.resultadoAppointmentId; // vínculo guardado ao anexar o laudo
+      await listasDel(id);
+      if (aptId) { try { await fetch(`/api/appointments/${aptId}`, { method: "DELETE" }); } catch {} } // remove o "Resultado de exames" ligado (sem fantasma)
+      await loadPetColecoes(); await loadAtendimentos();
+    } catch { toast.error("Erro"); }
+  }
   // Solicitação de exame (clínica/externo) — nasce como SOLICITADO e dispara o fluxo (Hoje/lab/financeiro).
   async function solicitarExame(externo: boolean) {
     const nome = exNome.trim();
