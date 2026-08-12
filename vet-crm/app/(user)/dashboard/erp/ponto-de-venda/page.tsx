@@ -536,6 +536,7 @@ export default function PDVPage() {
                     {/* linha 1: descrição + total + excluir */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <input value={it.descricao} onChange={(e) => updItem(i, { descricao: e.target.value })} placeholder="Descrição do item" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                      {(() => { const lab = labDoItem({ _exame: it._exame, _fornecedorNome: it.fornecedorNome }); return lab ? <span title={`Laboratório: ${lab.nome}`} style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: lab.veter ? '#E1F5EE' : '#EEF2F6', color: lab.veter ? '#0F6E56' : '#4D6A8A' }}>{lab.veter ? '⭐ ' : '🏥 '}{lab.nome}</span> : null; })()}
                       <span style={{ fontSize: 13, fontWeight: 500, color: NAVY, minWidth: 78, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
                       <button onClick={() => rmItem(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                     </div>
