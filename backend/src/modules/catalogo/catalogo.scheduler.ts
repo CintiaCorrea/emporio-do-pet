@@ -17,5 +17,11 @@ export class CatalogoScheduler {
     } catch (e) {
       this.logger.warn(`estoque vendas: ${String((e as any)?.message || e)}`);
     }
+    try {
+      const c = await this.service.processarComissaoVendas();
+      if (c.comissoes) this.logger.log(`comissão: ${c.comissoes} linha(s) do catálogo novo`);
+    } catch (e) {
+      this.logger.warn(`comissão vendas: ${String((e as any)?.message || e)}`);
+    }
   }
 }

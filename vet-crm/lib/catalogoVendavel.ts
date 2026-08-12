@@ -15,6 +15,8 @@ export type ItemVendavel = {
   _fornecedorId?: string | null;
   _fornecedorNome?: string | null;
   _novo?: boolean;        // veio do CATÁLOGO NOVO (cat_itens) — vende por descrição+valor
+  _descontoModo?: string; // política de desconto do item (LIMITE_GERAL/LIMITE_ITEM/SEM_DESCONTO/ATE_100)
+  _descontoLimite?: number | null;
 };
 
 // LINHA de venda padronizada — o "centro operacional" de um item, IGUAL em toda tela.
@@ -23,6 +25,7 @@ export type LinhaVendavel = {
   servicoId?: string; productId?: string;
   _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null;
   _novo?: boolean; catalogoItemId?: string; // catálogo novo
+  descontoModo?: string; descontoLimite?: number | null;
 };
 
 /** Transforma um item do catálogo numa LINHA de venda/comanda/orçamento PADRÃO — trata exame vs
@@ -54,7 +57,7 @@ export function linhaDoItem(item: ItemVendavel): LinhaVendavel {
     // Catálogo NOVO: vende por descrição+valor+custo + catalogoItemId. Carrega o LAB (fornecedorId) —
     // é o que gera o a-pagar do laboratório (Fatia 5) — e o nome do lab p/ o selo. NÃO seta _exame na
     // linha (senão entraria no fluxo de exame ANTIGO/petexa_, que é de outra base).
-    return { ...base, _novo: true, catalogoItemId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null };
+    return { ...base, _novo: true, catalogoItemId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null, descontoModo: item._descontoModo, descontoLimite: item._descontoLimite ?? null };
   }
   if (item._exame) {
     return { ...base, _exame: true, catalogoExameId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null };

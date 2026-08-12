@@ -207,6 +207,8 @@ export class CatalogoService {
       _exame: i.tipo === 'EXAME',
       _fornecedorId: i.exame?.fornecedorId ?? null,
       _fornecedorNome: i.exame?.fornecedorId ? (fornMap.get(i.exame.fornecedorId) ?? null) : null,
+      _descontoModo: i.descontoModo,     // política de desconto por item (Fatia 6b)
+      _descontoLimite: i.descontoLimite ?? null,
     }));
   }
 
@@ -319,6 +321,36 @@ export class CatalogoService {
       try { await this.movimentarEstoque(it.catalogoItemId as string, { tipo: 'SAIDA', quantidade: Number(it.quantidade) || 1, origem: 'VENDA', refId: it.id }, { name: 'Venda' }); baixados++; } catch { /* segue */ }
     }
     return { baixados };
+  }
+
+  // Comissão por ITEM do catálogo novo (Fatia 6b): popula comissaoTipo/comissaoValor na linha de venda
+  // a partir da config do item (+ override por funcionário) — o motor de comissão já lê esses 2 campos.
+  // "não comissionado" vira VALOR_FIXO 0 (comissão zero). Processa cada linha UMA vez (comissaoTipo null).
+  async processarComissaoVendas() {
+    const itens = await this.prisma.appointmentItem.findMany({
+      where: { catalogoItemId: { not: null }, executorUserId: { not: null }, comissaoExtratoId: null, comissaoTipo: null },
+      select: { id: true, catalogoItemId: true, executorUserId: true },
+      take: 3000,
+    });
+    if (itens.length === 0) return { comissoes: 0 };
+    const catIds = [...new Set(itens.map((i) => i.catalogoItemId as string))];
+    const cats = await this.prisma.itemCatalogo.findMany({
+      where: { id: { in: catIds } },
+      select: { id: true, comissionado: true, comissaoTipo: true, comissaoValor: true, overrides: { select: { userId: true, comissaoTipo: true, comissaoValor: true } } },
+    });
+    const catMap = new Map(cats.map((c) => [c.id, c]));
+    let n = 0;
+    for (const it of itens) {
+      const cat = catMap.get(it.catalogoItemId as string); if (!cat) continue;
+      const ov = cat.overrides.find((o) => o.userId === it.executorUserId); // camada 2: por funcionário
+      let tipo: string, valor: number;
+      if (ov) { tipo = ov.comissaoTipo; valor = ov.comissaoValor; }
+      else if (cat.comissionado && cat.comissaoTipo && cat.comissaoValor != null) { tipo = cat.comissaoTipo; valor = cat.comissaoValor; }
+      else { tipo = 'VALOR_FIXO'; valor = 0; } // não comissionado → comissão zero
+      await this.prisma.appointmentItem.update({ where: { id: it.id }, data: { comissaoTipo: tipo, comissaoValor: valor } });
+      n++;
+    }
+    return { comissoes: n };
   }
 
   // ── IMPORTADOR (CSV) ──────────────────────────────────────────────
