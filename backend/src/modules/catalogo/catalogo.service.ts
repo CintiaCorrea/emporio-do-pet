@@ -252,6 +252,50 @@ export class CatalogoService {
     return { item, mediaMensal: Math.round(consumo30 * 10) / 10, duracaoDias, movimentos };
   }
 
+  // ── INVENTÁRIO (Fatia 4b): contagem física → ajustes ─────────────
+  async criarInventario(user?: any) {
+    return this.prisma.catInventario.create({ data: { responsavelId: user?.id || user?.userId, responsavelNome: user?.name || user?.nome, status: 'ABERTO' } });
+  }
+  async listInventarios() {
+    return this.prisma.catInventario.findMany({ orderBy: { createdAt: 'desc' }, take: 30, include: { _count: { select: { itens: true } } } });
+  }
+  async getInventario(id: string) {
+    const inv = await this.prisma.catInventario.findUnique({ where: { id }, include: { itens: { orderBy: { createdAt: 'asc' } } } });
+    if (!inv) throw new NotFoundException('Inventário não encontrado');
+    return inv;
+  }
+  async addContagem(invId: string, dto: any, user?: any) {
+    const inv = await this.prisma.catInventario.findUnique({ where: { id: invId } });
+    if (!inv) throw new NotFoundException('Inventário não encontrado');
+    if (inv.status !== 'ABERTO') throw new BadRequestException('Inventário já fechado');
+    const item = await this.prisma.itemCatalogo.findUnique({ where: { id: dto?.itemId }, select: { id: true, nome: true, estoqueAtual: true } });
+    if (!item) throw new NotFoundException('Item não encontrado');
+    const contada = Number(dto?.quantidadeContada) || 0;
+    return this.prisma.catInventarioItem.upsert({
+      where: { inventarioId_itemId: { inventarioId: invId, itemId: dto.itemId } },
+      create: { inventarioId: invId, itemId: dto.itemId, itemNome: item.nome, quantidadeSistema: Number(item.estoqueAtual) || 0, quantidadeContada: contada },
+      update: { quantidadeContada: contada },
+    });
+  }
+  async removeContagem(rowId: string) {
+    await this.prisma.catInventarioItem.delete({ where: { id: rowId } });
+    return { ok: true };
+  }
+  async fecharInventario(invId: string, user?: any) {
+    const inv = await this.prisma.catInventario.findUnique({ where: { id: invId }, include: { itens: true } });
+    if (!inv) throw new NotFoundException('Inventário não encontrado');
+    if (inv.status !== 'ABERTO') throw new BadRequestException('Inventário já fechado');
+    let corretos = 0, corrigidos = 0;
+    for (const it of inv.itens) {
+      if (Number(it.quantidadeContada) === Number(it.quantidadeSistema)) { corretos++; continue; }
+      corrigidos++;
+      // aplica AJUSTE (saldo absoluto = contada), origem INVENTARIO — o físico manda.
+      await this.movimentarEstoque(it.itemId, { tipo: 'INVENTARIO', quantidade: Number(it.quantidadeContada), origem: 'INVENTARIO', refId: invId, obs: `Inventário (sistema tinha ${it.quantidadeSistema})` }, user);
+      await this.prisma.catInventarioItem.update({ where: { id: it.id }, data: { aplicado: true } });
+    }
+    return this.prisma.catInventario.update({ where: { id: invId }, data: { status: 'FECHADO', fechadoAt: new Date(), totalItens: inv.itens.length, totalCorretos: corretos, totalCorrigidos: corrigidos } });
+  }
+
   // ── IMPORTADOR (CSV) ──────────────────────────────────────────────
   private norm(s?: string) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
   private parseCsvLine(line: string, sep: string): string[] {

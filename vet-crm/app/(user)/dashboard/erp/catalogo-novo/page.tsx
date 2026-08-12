@@ -46,6 +46,7 @@ export default function CatalogoNovoPage() {
   const [usarNovo, setUsarNovo] = useState(false); // chave: telas de venda usam este catálogo
   const [flagItemId, setFlagItemId] = useState<string | null>(null);
   const [estoqueItem, setEstoqueItem] = useState<{ id: string; nome: string } | null>(null);
+  const [invOpen, setInvOpen] = useState(false);
 
   const carregarItens = useCallback(async () => {
     const p = new URLSearchParams();
@@ -159,6 +160,7 @@ export default function CatalogoNovoPage() {
           <p className="text-[12.5px]" style={{ color: MUT }}>Cadastro único de tudo que se vende. Estrutura nova — o catálogo antigo fica à parte.</p>
         </div>
         <div className="flex-1" />
+        <button onClick={() => setInvOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>📋 Inventário</button>
         <button onClick={() => setImportOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>📥 Importar</button>
         <button onClick={() => setGrupoOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>🌳 Grupos</button>
         <button onClick={novo} className="text-[13px] font-semibold px-3.5 py-2 rounded-lg text-white" style={{ background: T }}>＋ Novo item</button>
@@ -339,6 +341,109 @@ export default function CatalogoNovoPage() {
       {grupoOpen && <GruposModal grupos={grupos} onClose={() => setGrupoOpen(false)} onChanged={carregarApoio} />}
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onDone={() => { carregarApoio(); carregarItens(); }} />}
       {estoqueItem && <EstoqueModal item={estoqueItem} onClose={() => setEstoqueItem(null)} onChanged={carregarItens} />}
+      {invOpen && <InventarioModal itensEstoque={itens.filter((i) => temEstoque(i.tipo))} onClose={() => setInvOpen(false)} onChanged={carregarItens} />}
+    </div>
+  );
+}
+
+// ── Inventário (contagem física → ajustes) ──
+function InventarioModal({ itensEstoque, onClose, onChanged }: { itensEstoque: any[]; onClose: () => void; onChanged: () => void }) {
+  const [lista, setLista] = useState<any[]>([]);
+  const [atual, setAtual] = useState<any>(null); // inventário aberto/visualizado
+  const [busca, setBusca] = useState("");
+  const [contagem, setContagem] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const B = "#014D5E", T = "#009AAC", LINE = "#E8DFC8", MUT = "#5C6B70", OK = "#0F6E56", WARN = "#B45309";
+  const loadLista = async () => { try { const d = await fetch("/api/catalogo/inventarios", { cache: "no-store" }).then((r) => r.json()).catch(() => []); setLista(Array.isArray(d) ? d : []); } catch {} };
+  const abrir = async (id: string) => { try { const d = await fetch(`/api/catalogo/inventarios/${id}`, { cache: "no-store" }).then((r) => r.json()); setAtual(d); } catch {} };
+  useEffect(() => { loadLista(); /* eslint-disable-next-line */ }, []);
+  async function novo() { try { const d = await fetch("/api/catalogo/inventarios", { method: "POST" }).then((r) => r.json()); await loadLista(); setAtual({ ...d, itens: [] }); } catch { toast.error("Erro"); } }
+  async function addItem(itemId: string) {
+    const q = contagem[itemId]; if (q == null || q === "") { toast.error("Digite a quantidade contada"); return; }
+    try { await fetch(`/api/catalogo/inventarios/${atual.id}/contagem`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId, quantidadeContada: Number(String(q).replace(",", ".")) }) }); setContagem((c) => ({ ...c, [itemId]: "" })); setBusca(""); await abrir(atual.id); } catch { toast.error("Erro"); }
+  }
+  async function delRow(rowId: string) { try { await fetch(`/api/catalogo/inventarios/${atual.id}/itens/${rowId}`, { method: "DELETE" }); await abrir(atual.id); } catch {} }
+  async function fechar() {
+    if (!confirm(`Fechar o inventário? Os itens contados diferentes do sistema vão ser AJUSTADOS pro valor contado (o físico manda).`)) return;
+    setSaving(true);
+    try { const d = await fetch(`/api/catalogo/inventarios/${atual.id}/fechar`, { method: "POST" }).then((r) => r.json()); toast.success(`Inventário fechado ✅ — ${d.totalCorrigidos} ajuste(s)`); await abrir(atual.id); await loadLista(); onChanged(); } catch { toast.error("Erro ao fechar"); } finally { setSaving(false); }
+  }
+  const jaContados = new Set((atual?.itens || []).map((x: any) => x.itemId));
+  const matches = busca.trim() ? itensEstoque.filter((i) => i.nome.toLowerCase().includes(busca.toLowerCase()) && !jaContados.has(i.id)).slice(0, 8) : [];
+  const inp = { border: `1px solid ${LINE}`, borderRadius: 9, padding: "8px 10px", fontSize: 13, background: "#fff", color: "#1F2A2E" } as const;
+  const aberto = atual && atual.status === "ABERTO";
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-2xl my-6" style={{ border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: LINE }}>
+          <div className="font-semibold text-[15px]" style={{ color: B }}>📋 Inventário {atual ? (aberto ? "· em contagem" : "· fechado") : ""}</div>
+          <div className="flex items-center gap-2">{atual && <button onClick={() => setAtual(null)} className="text-[12px]" style={{ color: T }}>← lista</button>}<button onClick={onClose} className="text-[18px]" style={{ color: MUT }}>✕</button></div>
+        </div>
+        <div className="p-5">
+          {!atual ? (
+            <>
+              <button onClick={novo} className="text-[13px] font-semibold px-4 py-2 rounded-lg text-white mb-4" style={{ background: T }}>＋ Novo inventário</button>
+              <div className="text-[12px] font-bold uppercase mb-2" style={{ color: MUT }}>Inventários</div>
+              {lista.length === 0 ? <div className="text-[13px]" style={{ color: MUT }}>Nenhum ainda.</div> : (
+                <div className="flex flex-col gap-1">
+                  {lista.map((iv) => (
+                    <button key={iv.id} onClick={() => abrir(iv.id)} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-left hover:bg-[#F6FBFC]" style={{ borderColor: LINE }}>
+                      <span className="text-[15px]">{iv.status === "ABERTO" ? "🟡" : "✅"}</span>
+                      <span className="text-[12.5px]" style={{ color: B }}>{new Date(iv.createdAt).toLocaleDateString("pt-BR")}{iv.responsavelNome ? ` · ${iv.responsavelNome.split(" ")[0]}` : ""}</span>
+                      <span className="ml-auto text-[11.5px]" style={{ color: MUT }}>{iv.status === "ABERTO" ? `${iv._count?.itens ?? 0} contados` : `${iv.totalCorretos} ok · ${iv.totalCorrigidos} corrigidos`}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              {aberto && (
+                <div className="rounded-xl border p-3 mb-3" style={{ borderColor: LINE, background: "#FBFAF7" }}>
+                  <div className="text-[12px] font-bold uppercase mb-1.5" style={{ color: MUT }}>Adicionar item à contagem</div>
+                  <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="🔍 Buscar produto/vacina…" style={{ ...inp, width: "100%" }} />
+                  {matches.length > 0 && (
+                    <div className="mt-1.5 flex flex-col gap-1">
+                      {matches.map((i) => (
+                        <div key={i.id} className="flex items-center gap-2">
+                          <span className="text-[12.5px] flex-1 truncate" style={{ color: B }}>{i.nome}</span>
+                          <input value={contagem[i.id] || ""} onChange={(e) => setContagem((c) => ({ ...c, [i.id]: e.target.value }))} placeholder="contado" inputMode="decimal" style={{ ...inp, width: 90 }} />
+                          <button onClick={() => addItem(i.id)} className="text-[12px] font-semibold px-2.5 py-1.5 rounded-lg text-white" style={{ background: T }}>Add</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {/* itens contados */}
+              <div className="text-[12px] font-bold uppercase mb-1.5" style={{ color: MUT }}>Contagem</div>
+              {(atual.itens || []).length === 0 ? <div className="text-[13px]" style={{ color: MUT }}>Nenhum item contado ainda.</div> : (
+                <table className="w-full text-[12.5px]">
+                  <thead><tr style={{ color: MUT }}><th className="text-left py-1">Item</th><th className="text-right py-1">Sistema</th><th className="text-right py-1">Contado</th><th className="text-right py-1">Dif.</th><th></th></tr></thead>
+                  <tbody>
+                    {atual.itens.map((it: any) => { const dif = Number(it.quantidadeContada) - Number(it.quantidadeSistema); return (
+                      <tr key={it.id} style={{ borderTop: `1px solid ${LINE}` }}>
+                        <td className="py-1.5" style={{ color: B }}>{it.itemNome}</td>
+                        <td className="py-1.5 text-right" style={{ color: MUT }}>{it.quantidadeSistema}</td>
+                        <td className="py-1.5 text-right font-semibold">{it.quantidadeContada}</td>
+                        <td className="py-1.5 text-right font-semibold" style={{ color: dif === 0 ? OK : WARN }}>{dif === 0 ? "✓" : (dif > 0 ? `+${dif}` : dif)}</td>
+                        <td className="py-1.5 text-right">{aberto && <button onClick={() => delRow(it.id)} className="text-[#b23b39] text-[13px]">🗑</button>}</td>
+                      </tr>
+                    ); })}
+                  </tbody>
+                </table>
+              )}
+              {aberto ? (
+                <div className="flex justify-end mt-4 pt-3 border-t" style={{ borderColor: LINE }}>
+                  <button onClick={fechar} disabled={saving || (atual.itens || []).length === 0} className="text-[13px] font-semibold px-4 py-2 rounded-lg text-white disabled:opacity-50" style={{ background: OK }}>{saving ? "Fechando…" : "✅ Fechar e ajustar estoque"}</button>
+                </div>
+              ) : (
+                <div className="mt-4 pt-3 border-t text-[12.5px]" style={{ borderColor: LINE, color: OK }}>Fechado: <b>{atual.totalCorretos}</b> bateram · <b>{atual.totalCorrigidos}</b> ajustados.</div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

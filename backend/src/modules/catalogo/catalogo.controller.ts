@@ -39,6 +39,14 @@ export class CatalogoController {
   @Get('itens/:id/estoque') estoque(@Param('id') id: string) { return this.service.estoqueDoItem(id); }
   @Post('itens/:id/estoque/movimento') movimentar(@Param('id') id: string, @Body() b: any, @CurrentUser() user: any) { return this.service.movimentarEstoque(id, b, user); }
 
+  // Inventário
+  @Get('inventarios') listInventarios() { return this.service.listInventarios(); }
+  @Post('inventarios') criarInventario(@CurrentUser() user: any) { return this.service.criarInventario(user); }
+  @Get('inventarios/:id') getInventario(@Param('id') id: string) { return this.service.getInventario(id); }
+  @Post('inventarios/:id/contagem') addContagem(@Param('id') id: string, @Body() b: any, @CurrentUser() user: any) { return this.service.addContagem(id, b, user); }
+  @Delete('inventarios/:id/itens/:rowId') removeContagem(@Param('rowId') rowId: string) { return this.service.removeContagem(rowId); }
+  @Post('inventarios/:id/fechar') fecharInventario(@Param('id') id: string, @CurrentUser() user: any) { return this.service.fecharInventario(id, user); }
+
   // Importar catálogo por CSV. dryRun=true → só prévia (não grava).
   @Post('importar') importar(@Body() b: { csv: string; dryRun?: boolean }) { return this.service.importarItens(b?.csv || '', { dryRun: !!b?.dryRun }); }
 }

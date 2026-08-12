@@ -3946,3 +3946,38 @@ model CatEstoqueMovimento {
   @@index([itemId, createdAt])
   @@map("cat_estoque_movimentos")
 }
+
+// ── INVENTÁRIO (Fatia 4b): contagem física → gera ajustes de estoque ──
+enum InventarioStatus {
+  ABERTO
+  FECHADO
+}
+
+model CatInventario {
+  id              String              @id @default(cuid())
+  responsavelId   String?
+  responsavelNome String?
+  status          InventarioStatus    @default(ABERTO)
+  totalItens      Int                 @default(0)
+  totalCorretos   Int                 @default(0) // contagem bateu com o sistema
+  totalCorrigidos Int                 @default(0) // precisou de ajuste
+  obs             String?
+  itens           CatInventarioItem[]
+  createdAt       DateTime            @default(now())
+  fechadoAt       DateTime?
+  @@map("cat_inventarios")
+}
+
+model CatInventarioItem {
+  id                String        @id @default(cuid())
+  inventarioId      String
+  inventario        CatInventario @relation(fields: [inventarioId], references: [id], onDelete: Cascade)
+  itemId            String        // FK string simples p/ ItemCatalogo
+  itemNome          String        // snapshot
+  quantidadeSistema Float         // saldo no momento em que o item entrou na contagem
+  quantidadeContada Float
+  aplicado          Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  @@unique([inventarioId, itemId])
+  @@map("cat_inventario_itens")
+}
