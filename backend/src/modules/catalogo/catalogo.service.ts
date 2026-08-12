@@ -390,6 +390,53 @@ export class CatalogoService {
     return { agendados };
   }
 
+  // ── CONVÊNIO (Fatia 7b): cadastro + tabela "o que o convênio paga" ──
+  async listConvenios() {
+    return this.prisma.catConvenio.findMany({ orderBy: { nome: 'asc' }, include: { _count: { select: { precos: true } } } });
+  }
+  async criarConvenio(dto: any) {
+    const nome = String(dto?.nome || '').trim(); if (!nome) throw new BadRequestException('Informe o nome do convênio');
+    return this.prisma.catConvenio.create({ data: { nome, diaFechamento: dto.diaFechamento != null ? Number(dto.diaFechamento) : null, contato: dto.contato || null } });
+  }
+  async atualizarConvenio(id: string, dto: any) {
+    return this.prisma.catConvenio.update({ where: { id }, data: { nome: dto.nome?.trim(), diaFechamento: dto.diaFechamento != null ? Number(dto.diaFechamento) : undefined, contato: dto.contato, ativo: dto.ativo } });
+  }
+  async getConvenio(id: string) {
+    const c = await this.prisma.catConvenio.findUnique({ where: { id }, include: { precos: { orderBy: { itemNome: 'asc' }, take: 5000 } } });
+    if (!c) throw new NotFoundException('Convênio não encontrado');
+    return c;
+  }
+  async importarPrecosConvenio(convenioId: string, csv: string, opts: { dryRun?: boolean } = {}) {
+    const conv = await this.prisma.catConvenio.findUnique({ where: { id: convenioId } });
+    if (!conv) throw new NotFoundException('Convênio não encontrado');
+    const linhas = String(csv || '').replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim());
+    if (!linhas.length) throw new BadRequestException('Planilha vazia');
+    const h0 = linhas[0];
+    const cont = (s: string, ch: string) => s.split(ch).length - 1;
+    const sep = cont(h0, '\t') ? '\t' : (cont(h0, ';') > 0 && cont(h0, ';') >= cont(h0, ',')) ? ';' : cont(h0, ',') > 0 ? ',' : ';';
+    const header = this.parseCsvLine(h0, sep).map((x) => this.norm(x));
+    const col = (nomes: string[]) => { for (const n of nomes) { const i = header.indexOf(this.norm(n)); if (i >= 0) return i; } return -1; };
+    const iItem = col(['item', 'procedimento', 'nome', 'exame', 'servico']);
+    const iValor = col(['valor', 'preco', 'valor_convenio']);
+    const iCod = col(['codigo', 'codigo_convenio', 'cod']);
+    if (iItem < 0 || iValor < 0) throw new BadRequestException('A planilha precisa das colunas "item" (ou procedimento) e "valor".');
+    const rows: any[] = [];
+    const vistos = new Set<string>();
+    let dup = 0;
+    for (let i = 1; i < linhas.length; i++) {
+      const c = this.parseCsvLine(linhas[i], sep);
+      const nome = (c[iItem] || '').trim(); if (!nome) continue;
+      const k = this.norm(nome);
+      if (vistos.has(k)) { dup++; continue; } vistos.add(k);
+      rows.push({ itemNome: nome, valor: this.csvNum(c[iValor]) ?? 0, codigo: iCod >= 0 ? (c[iCod] || '').trim() : '' });
+    }
+    const relatorio = { total: rows.length, duplicadosRemovidos: dup, amostra: rows.slice(0, 12) };
+    if (opts.dryRun) return { dryRun: true, ...relatorio };
+    await this.prisma.catConvenioPreco.deleteMany({ where: { convenioId } }); // substitui a tabela (previsível)
+    if (rows.length) await this.prisma.catConvenioPreco.createMany({ data: rows.map((r) => ({ convenioId, itemNome: r.itemNome, valor: r.valor, codigoConvenio: r.codigo || null })) });
+    return { dryRun: false, ...relatorio, gravados: rows.length };
+  }
+
   // ── IMPORTADOR (CSV) ──────────────────────────────────────────────
   private norm(s?: string) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
   private parseCsvLine(line: string, sep: string): string[] {

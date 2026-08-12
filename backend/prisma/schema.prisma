@@ -3982,3 +3982,30 @@ model CatInventarioItem {
   @@unique([inventarioId, itemId])
   @@map("cat_inventario_itens")
 }
+
+// ── CONVÊNIO (Fatia 7b): pagador MENSAL (a receber) — espelho do laboratório ──
+// A clínica atende, marca a venda como "convênio X", fecha o mês e recebe no mês seguinte.
+// A tabela "o que o convênio paga" (CatConvenioPreco) traz o valor por procedimento/item.
+model CatConvenio {
+  id            String             @id @default(cuid())
+  nome          String             @unique
+  diaFechamento Int?               // dia do mês em que fecha o lote
+  contato       String?            // telefone/e-mail do convênio
+  ativo         Boolean            @default(true)
+  precos        CatConvenioPreco[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  @@map("cat_convenios")
+}
+
+// Tabela do convênio: quanto ele paga por procedimento (casado pelo NOME do item; código opcional).
+model CatConvenioPreco {
+  id             String      @id @default(cuid())
+  convenioId     String
+  convenio       CatConvenio @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  itemNome       String      // nome do procedimento/exame/serviço na tabela do convênio
+  valor          Float       // o que o convênio paga
+  codigoConvenio String?     // código do procedimento na tabela deles (opcional)
+  @@index([convenioId])
+  @@map("cat_convenio_precos")
+}

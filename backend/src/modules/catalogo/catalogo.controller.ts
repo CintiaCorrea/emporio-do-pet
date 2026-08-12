@@ -47,6 +47,13 @@ export class CatalogoController {
   @Delete('inventarios/:id/itens/:rowId') removeContagem(@Param('rowId') rowId: string) { return this.service.removeContagem(rowId); }
   @Post('inventarios/:id/fechar') fecharInventario(@Param('id') id: string, @CurrentUser() user: any) { return this.service.fecharInventario(id, user); }
 
+  // Convênios
+  @Get('convenios') listConvenios() { return this.service.listConvenios(); }
+  @Post('convenios') criarConvenio(@Body() b: any) { return this.service.criarConvenio(b); }
+  @Get('convenios/:id') getConvenio(@Param('id') id: string) { return this.service.getConvenio(id); }
+  @Patch('convenios/:id') atualizarConvenio(@Param('id') id: string, @Body() b: any) { return this.service.atualizarConvenio(id, b); }
+  @Post('convenios/:id/precos/importar') importarPrecos(@Param('id') id: string, @Body() b: any) { return this.service.importarPrecosConvenio(id, b?.csv || '', { dryRun: !!b?.dryRun }); }
+
   // Importar catálogo por CSV. dryRun=true → só prévia (não grava).
   @Post('importar') importar(@Body() b: { csv: string; dryRun?: boolean }) { return this.service.importarItens(b?.csv || '', { dryRun: !!b?.dryRun }); }
 }

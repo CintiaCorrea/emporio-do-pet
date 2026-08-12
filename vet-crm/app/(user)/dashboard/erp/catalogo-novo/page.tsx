@@ -47,6 +47,7 @@ export default function CatalogoNovoPage() {
   const [flagItemId, setFlagItemId] = useState<string | null>(null);
   const [estoqueItem, setEstoqueItem] = useState<{ id: string; nome: string } | null>(null);
   const [invOpen, setInvOpen] = useState(false);
+  const [convOpen, setConvOpen] = useState(false);
 
   const carregarItens = useCallback(async () => {
     const p = new URLSearchParams();
@@ -160,6 +161,7 @@ export default function CatalogoNovoPage() {
           <p className="text-[12.5px]" style={{ color: MUT }}>Cadastro único de tudo que se vende. Estrutura nova — o catálogo antigo fica à parte.</p>
         </div>
         <div className="flex-1" />
+        <button onClick={() => setConvOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>🏥 Convênios</button>
         <button onClick={() => setInvOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>📋 Inventário</button>
         <button onClick={() => setImportOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>📥 Importar</button>
         <button onClick={() => setGrupoOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>🌳 Grupos</button>
@@ -342,6 +344,86 @@ export default function CatalogoNovoPage() {
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onDone={() => { carregarApoio(); carregarItens(); }} />}
       {estoqueItem && <EstoqueModal item={estoqueItem} onClose={() => setEstoqueItem(null)} onChanged={carregarItens} />}
       {invOpen && <InventarioModal itensEstoque={itens.filter((i) => temEstoque(i.tipo))} onClose={() => setInvOpen(false)} onChanged={carregarItens} />}
+      {convOpen && <ConveniosModal onClose={() => setConvOpen(false)} />}
+    </div>
+  );
+}
+
+// ── Convênios (pagador mensal) + tabela do que o convênio paga ──
+function ConveniosModal({ onClose }: { onClose: () => void }) {
+  const [lista, setLista] = useState<any[]>([]);
+  const [atual, setAtual] = useState<any>(null);
+  const [novo, setNovo] = useState({ nome: "", diaFechamento: "" });
+  const [csv, setCsv] = useState(""); const [nomeArq, setNomeArq] = useState(""); const [prev, setPrev] = useState<any>(null);
+  const [busy, setBusy] = useState(false);
+  const B = "#014D5E", T = "#009AAC", LINE = "#E8DFC8", MUT = "#5C6B70";
+  const loadLista = async () => { try { const d = await fetch("/api/catalogo/convenios", { cache: "no-store" }).then((r) => r.json()).catch(() => []); setLista(Array.isArray(d) ? d : []); } catch {} };
+  const abrir = async (id: string) => { try { const d = await fetch(`/api/catalogo/convenios/${id}`, { cache: "no-store" }).then((r) => r.json()); setAtual(d); setCsv(""); setNomeArq(""); setPrev(null); } catch {} };
+  useEffect(() => { loadLista(); /* eslint-disable-next-line */ }, []);
+  async function criar() { if (!novo.nome.trim()) { toast.error("Informe o nome"); return; } try { await fetch("/api/catalogo/convenios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: novo.nome, diaFechamento: novo.diaFechamento ? Number(novo.diaFechamento) : null }) }); setNovo({ nome: "", diaFechamento: "" }); await loadLista(); toast.success("Convênio criado"); } catch { toast.error("Erro"); } }
+  const baixarModelo = () => { const blob = new Blob(["﻿item;valor;codigo\nHemograma completo;45,00;40304361\nConsulta;60,00;\nUltrassom abdominal;120,00;"], { type: "text/csv;charset=utf-8" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "modelo-tabela-convenio.csv"; a.click(); };
+  const lerArq = (f: File | null) => { if (!f) return; setNomeArq(f.name); setPrev(null); const r = new FileReader(); r.onload = () => setCsv(String(r.result || "")); r.readAsText(f, "utf-8"); };
+  async function enviar(dryRun: boolean) { if (!csv.trim()) { toast.error("Escolha o arquivo"); return; } setBusy(true); try { const r = await fetch(`/api/catalogo/convenios/${atual.id}/precos/importar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csv, dryRun }) }); const d = await r.json(); if (!r.ok) throw new Error(d?.message); if (dryRun) { setPrev(d); toast.success("Prévia gerada"); } else { toast.success(`Tabela importada (${d.gravados}) ✅`); await abrir(atual.id); } } catch (e: any) { toast.error(String(e?.message || "Erro").slice(0, 120)); } finally { setBusy(false); } }
+  const inp = { border: `1px solid ${LINE}`, borderRadius: 9, padding: "8px 10px", fontSize: 13, background: "#fff", color: "#1F2A2E" } as const;
+  const brl = (v: any) => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-2xl my-6" style={{ border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: LINE }}>
+          <div className="font-semibold text-[15px]" style={{ color: B }}>🏥 Convênios {atual ? `· ${atual.nome}` : ""}</div>
+          <div className="flex items-center gap-2">{atual && <button onClick={() => setAtual(null)} className="text-[12px]" style={{ color: T }}>← lista</button>}<button onClick={onClose} className="text-[18px]" style={{ color: MUT }}>✕</button></div>
+        </div>
+        <div className="p-5">
+          {!atual ? (
+            <>
+              <div className="rounded-xl border p-3 mb-4 flex gap-2 items-end flex-wrap" style={{ borderColor: LINE, background: "#FBFAF7" }}>
+                <div className="flex-1 min-w-[160px]"><label className="text-[10px] uppercase" style={{ color: MUT }}>Novo convênio</label><input value={novo.nome} onChange={(e) => setNovo((n) => ({ ...n, nome: e.target.value }))} placeholder="Ex.: Petlife" style={{ ...inp, width: "100%" }} /></div>
+                <div><label className="text-[10px] uppercase" style={{ color: MUT }}>Dia fecham.</label><input value={novo.diaFechamento} onChange={(e) => setNovo((n) => ({ ...n, diaFechamento: e.target.value.replace(/\D/g, "").slice(0, 2) }))} placeholder="20" style={{ ...inp, width: 64 }} /></div>
+                <button onClick={criar} className="text-[13px] font-semibold px-3 py-2 rounded-lg text-white" style={{ background: T }}>Adicionar</button>
+              </div>
+              {lista.length === 0 ? <div className="text-[13px]" style={{ color: MUT }}>Nenhum convênio ainda.</div> : (
+                <div className="flex flex-col gap-1">
+                  {lista.map((c) => (
+                    <button key={c.id} onClick={() => abrir(c.id)} className="flex items-center gap-2 px-3 py-2 rounded-lg border text-left hover:bg-[#F6FBFC]" style={{ borderColor: LINE }}>
+                      <span className="text-[15px]">🏥</span>
+                      <span className="text-[13px] font-medium" style={{ color: B }}>{c.nome}</span>
+                      {c.diaFechamento && <span className="text-[11px]" style={{ color: MUT }}>· fecha dia {c.diaFechamento}</span>}
+                      <span className="ml-auto text-[11.5px]" style={{ color: MUT }}>{c._count?.precos ?? 0} itens na tabela</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="rounded-xl border p-3 mb-3 flex items-center gap-2 flex-wrap" style={{ borderColor: LINE, background: "#FBFAF7" }}>
+                <span className="text-[12px] font-bold uppercase mr-1" style={{ color: MUT }}>Tabela do convênio</span>
+                <button onClick={baixarModelo} className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border" style={{ borderColor: T, color: T, background: "#fff" }}>⬇️ Modelo</button>
+                <label className="text-[12px] font-semibold px-3 py-1.5 rounded-lg border cursor-pointer" style={{ borderColor: LINE, color: B, background: "#fff" }}>📄 Arquivo<input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => lerArq(e.target.files?.[0] || null)} /></label>
+                <span className="text-[11.5px]" style={{ color: nomeArq ? "#1F2A2E" : "#9aa" }}>{nomeArq || "nenhum"}</span>
+                {csv && <button onClick={() => enviar(true)} disabled={busy} className="ml-auto text-[12px] font-semibold px-3 py-1.5 rounded-lg text-white" style={{ background: T }}>🔎 Analisar</button>}
+              </div>
+              {prev && (
+                <div className="rounded-xl border p-3 mb-3" style={{ borderColor: LINE }}>
+                  <div className="text-[12.5px] mb-1" style={{ color: B }}><b>{prev.total}</b> itens na planilha · {prev.duplicadosRemovidos} duplicados. Isto <b>substitui</b> a tabela atual.</div>
+                  <div className="flex justify-end"><button onClick={() => enviar(false)} disabled={busy} className="text-[13px] font-semibold px-4 py-2 rounded-lg text-white" style={{ background: B }}>{busy ? "…" : "💾 Confirmar"}</button></div>
+                </div>
+              )}
+              <div className="text-[12px] font-bold uppercase mb-1.5" style={{ color: MUT }}>O que o convênio paga ({(atual.precos || []).length})</div>
+              {(atual.precos || []).length === 0 ? <div className="text-[13px]" style={{ color: MUT }}>Nenhum item ainda — importe a tabela do convênio.</div> : (
+                <div className="flex flex-col gap-0.5 max-h-72 overflow-y-auto">
+                  {atual.precos.map((p: any) => (
+                    <div key={p.id} className="flex items-center gap-2 text-[12.5px] py-1 border-b" style={{ borderColor: "#F0EBE0" }}>
+                      <span className="flex-1 truncate" style={{ color: "#1F2A2E" }}>{p.itemNome}{p.codigoConvenio ? <span className="text-[10.5px] ml-1" style={{ color: "#9aa" }}>#{p.codigoConvenio}</span> : null}</span>
+                      <span className="font-semibold" style={{ color: "#0F6E56" }}>{brl(p.valor)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
