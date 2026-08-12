@@ -3850,6 +3850,7 @@ model ItemCatalogo {
   comoInsumo          ItemComposicao[] @relation("CatComposicaoFilho")
   overrides           ItemComissaoOverride[]
   historico           ItemHistorico[]
+  movimentos          CatEstoqueMovimento[]
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   @@index([tipo, ativo, arquivado])
@@ -3906,4 +3907,42 @@ model ItemHistorico {
   createdAt DateTime @default(now())
   @@index([itemId])
   @@map("cat_historico")
+}
+
+// ── ESTOQUE do catálogo novo (Fatia 4): livro-caixa de movimentações + motivos de saída ──
+enum MovEstoqueTipo {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  INVENTARIO
+}
+
+// Motivos de saída configuráveis (avaria, consumo interno, perda de validade, doação…).
+model CatMotivoSaida {
+  id    String  @id @default(cuid())
+  nome  String
+  ativo Boolean @default(true)
+  @@map("cat_motivos_saida")
+}
+
+// Cada entrada/saída/ajuste — com saldo antes/depois (dá o histórico e a média/duração).
+model CatEstoqueMovimento {
+  id            String         @id @default(cuid())
+  itemId        String
+  item          ItemCatalogo   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tipo          MovEstoqueTipo
+  quantidade    Float          // ENTRADA/SAIDA = delta; AJUSTE/INVENTARIO = saldo novo absoluto
+  saldoAntes    Float
+  saldoDepois   Float
+  custoUnitario Float?
+  motivoId      String?        // p/ SAIDA (CatMotivoSaida)
+  motivoNome    String?        // snapshot do motivo
+  origem        String         @default("MANUAL") // MANUAL | VENDA | INVENTARIO | COMPRA
+  refId         String?        // ex.: id da venda/appointmentItem
+  userId        String?
+  userName      String?
+  obs           String?
+  createdAt     DateTime       @default(now())
+  @@index([itemId, createdAt])
+  @@map("cat_estoque_movimentos")
 }

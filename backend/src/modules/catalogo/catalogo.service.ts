@@ -209,6 +209,49 @@ export class CatalogoService {
     }));
   }
 
+  // ── ESTOQUE (Fatia 4): movimentações + motivos + previsão ─────────
+  async listMotivos() {
+    let m = await this.prisma.catMotivoSaida.findMany({ where: { ativo: true }, orderBy: { nome: 'asc' } });
+    if (m.length === 0) { // semeia os comuns na 1ª vez
+      await this.prisma.catMotivoSaida.createMany({ data: ['Avaria', 'Consumo interno', 'Perda de validade', 'Doação', 'Devolução de compra'].map((nome) => ({ nome })) });
+      m = await this.prisma.catMotivoSaida.findMany({ where: { ativo: true }, orderBy: { nome: 'asc' } });
+    }
+    return m;
+  }
+  async criarMotivo(nome: string) {
+    const n = String(nome || '').trim(); if (!n) throw new BadRequestException('Informe o motivo');
+    return this.prisma.catMotivoSaida.create({ data: { nome: n } });
+  }
+  async movimentarEstoque(itemId: string, dto: any, user?: any) {
+    const item = await this.prisma.itemCatalogo.findUnique({ where: { id: itemId } });
+    if (!item) throw new NotFoundException('Item não encontrado');
+    const tipo = String(dto?.tipo || '').toUpperCase();
+    const qtd = Number(dto?.quantidade);
+    if (!['ENTRADA', 'SAIDA', 'AJUSTE', 'INVENTARIO'].includes(tipo)) throw new BadRequestException('Tipo de movimento inválido');
+    if (isNaN(qtd) || qtd < 0) throw new BadRequestException('Quantidade inválida');
+    const saldoAntes = Number(item.estoqueAtual) || 0;
+    const saldoDepois = tipo === 'ENTRADA' ? saldoAntes + qtd : tipo === 'SAIDA' ? saldoAntes - qtd : qtd;
+    let motivoNome: string | undefined;
+    if (dto.motivoId) { const mo = await this.prisma.catMotivoSaida.findUnique({ where: { id: dto.motivoId } }); motivoNome = mo?.nome; }
+    const [mov] = await this.prisma.$transaction([
+      this.prisma.catEstoqueMovimento.create({ data: { itemId, tipo: tipo as any, quantidade: qtd, saldoAntes, saldoDepois, custoUnitario: dto.custoUnitario != null ? Number(dto.custoUnitario) : null, motivoId: dto.motivoId || null, motivoNome: motivoNome || null, origem: dto.origem || 'MANUAL', refId: dto.refId || null, userId: user?.id || user?.userId, userName: user?.name || user?.nome, obs: dto.obs || null } }),
+      this.prisma.itemCatalogo.update({ where: { id: itemId }, data: { estoqueAtual: saldoDepois } }),
+    ]);
+    await this.log(itemId, 'estoque', `${tipo}: ${saldoAntes} → ${saldoDepois}${motivoNome ? ' (' + motivoNome + ')' : ''}`, user);
+    return mov;
+  }
+  async estoqueDoItem(itemId: string) {
+    const item = await this.prisma.itemCatalogo.findUnique({ where: { id: itemId }, select: { id: true, nome: true, estoqueAtual: true, estoqueMin: true, estoqueMax: true, controlaEstoque: true } });
+    if (!item) throw new NotFoundException('Item não encontrado');
+    const desde = new Date(Date.now() - 30 * 86400000);
+    const saidas = await this.prisma.catEstoqueMovimento.aggregate({ where: { itemId, tipo: 'SAIDA', createdAt: { gte: desde } }, _sum: { quantidade: true } });
+    const consumo30 = Number(saidas._sum.quantidade) || 0;
+    const mediaDia = consumo30 / 30;
+    const duracaoDias = mediaDia > 0 ? Math.round(Number(item.estoqueAtual) / mediaDia) : null;
+    const movimentos = await this.prisma.catEstoqueMovimento.findMany({ where: { itemId }, orderBy: { createdAt: 'desc' }, take: 30 });
+    return { item, mediaMensal: Math.round(consumo30 * 10) / 10, duracaoDias, movimentos };
+  }
+
   // ── IMPORTADOR (CSV) ──────────────────────────────────────────────
   private norm(s?: string) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
   private parseCsvLine(line: string, sep: string): string[] {

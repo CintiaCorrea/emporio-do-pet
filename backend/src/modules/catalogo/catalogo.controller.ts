@@ -33,6 +33,12 @@ export class CatalogoController {
   @Post('itens/:id/arquivar') arquivar(@Param('id') id: string, @Body() b: any, @CurrentUser() user: any) { return this.service.arquivarItem(id, b?.arquivar !== false, user); }
   @Delete('itens/:id') excluir(@Param('id') id: string, @CurrentUser() user: any) { return this.service.excluirItem(id, user); }
 
+  // Estoque
+  @Get('motivos-saida') listMotivos() { return this.service.listMotivos(); }
+  @Post('motivos-saida') criarMotivo(@Body() b: any) { return this.service.criarMotivo(b?.nome); }
+  @Get('itens/:id/estoque') estoque(@Param('id') id: string) { return this.service.estoqueDoItem(id); }
+  @Post('itens/:id/estoque/movimento') movimentar(@Param('id') id: string, @Body() b: any, @CurrentUser() user: any) { return this.service.movimentarEstoque(id, b, user); }
+
   // Importar catálogo por CSV. dryRun=true → só prévia (não grava).
   @Post('importar') importar(@Body() b: { csv: string; dryRun?: boolean }) { return this.service.importarItens(b?.csv || '', { dryRun: !!b?.dryRun }); }
 }

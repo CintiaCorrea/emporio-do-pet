@@ -45,6 +45,7 @@ export default function CatalogoNovoPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [usarNovo, setUsarNovo] = useState(false); // chave: telas de venda usam este catálogo
   const [flagItemId, setFlagItemId] = useState<string | null>(null);
+  const [estoqueItem, setEstoqueItem] = useState<{ id: string; nome: string } | null>(null);
 
   const carregarItens = useCallback(async () => {
     const p = new URLSearchParams();
@@ -196,6 +197,7 @@ export default function CatalogoNovoPage() {
                   <td className="px-3 py-2.5" style={{ color: MUT }}>{nomeGrupo(it.grupoId)}</td>
                   <td className="px-3 py-2.5 text-right tabular-nums" style={{ color: "#0F6E56", fontWeight: 600 }}>{brl(it.preco)}</td>
                   <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                    {temEstoque(it.tipo) && <button onClick={() => setEstoqueItem({ id: it.id, nome: it.nome })} title="Estoque" className="text-[13px] px-2 py-1 rounded-lg border mr-1" style={{ borderColor: LINE, color: B }}>📦</button>}
                     <button onClick={() => editar(it.id)} title="Editar" className="text-[13px] px-2 py-1 rounded-lg border mr-1" style={{ borderColor: LINE, color: T }}>✏️</button>
                     <button onClick={() => arquivar(it, fSit !== "ARQUIVADO")} title={fSit === "ARQUIVADO" ? "Reativar" : "Arquivar"} className="text-[13px] px-2 py-1 rounded-lg border" style={{ borderColor: LINE, color: MUT }}>{fSit === "ARQUIVADO" ? "♻️" : "🗄️"}</button>
                   </td>
@@ -336,6 +338,95 @@ export default function CatalogoNovoPage() {
 
       {grupoOpen && <GruposModal grupos={grupos} onClose={() => setGrupoOpen(false)} onChanged={carregarApoio} />}
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onDone={() => { carregarApoio(); carregarItens(); }} />}
+      {estoqueItem && <EstoqueModal item={estoqueItem} onClose={() => setEstoqueItem(null)} onChanged={carregarItens} />}
+    </div>
+  );
+}
+
+// ── Estoque de um item (saldo + previsão + movimentar) ──
+function EstoqueModal({ item, onClose, onChanged }: { item: { id: string; nome: string }; onClose: () => void; onChanged: () => void }) {
+  const [dados, setDados] = useState<any>(null);
+  const [motivos, setMotivos] = useState<any[]>([]);
+  const [tipo, setTipo] = useState<"ENTRADA" | "SAIDA" | "AJUSTE">("ENTRADA");
+  const [qtd, setQtd] = useState("");
+  const [custo, setCusto] = useState("");
+  const [motivoId, setMotivoId] = useState("");
+  const [obs, setObs] = useState("");
+  const [saving, setSaving] = useState(false);
+  const B = "#014D5E", T = "#009AAC", LINE = "#E8DFC8", MUT = "#5C6B70";
+  const load = async () => {
+    try {
+      const [d, m] = await Promise.all([
+        fetch(`/api/catalogo/itens/${item.id}/estoque`, { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+        fetch(`/api/catalogo/motivos-saida`, { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+      ]);
+      setDados(d); setMotivos(Array.isArray(m) ? m : []);
+    } catch {}
+  };
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [item.id]);
+  async function novoMotivo() { const nome = window.prompt("Novo motivo de saída:")?.trim(); if (!nome) return; try { const m = await fetch("/api/catalogo/motivos-saida", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome }) }).then((r) => r.json()); await load(); if (m?.id) setMotivoId(m.id); } catch {} }
+  async function registrar() {
+    const q = Number(String(qtd).replace(",", ".")); if (isNaN(q) || q < 0) { toast.error("Quantidade inválida"); return; }
+    setSaving(true);
+    try {
+      const body: any = { tipo, quantidade: q, obs: obs || undefined };
+      if (tipo === "ENTRADA" && custo) body.custoUnitario = Number(String(custo).replace(",", "."));
+      if (tipo === "SAIDA" && motivoId) body.motivoId = motivoId;
+      const r = await fetch(`/api/catalogo/itens/${item.id}/estoque/movimento`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) { const e = await r.json().catch(() => null); throw new Error(e?.message); }
+      toast.success("Estoque atualizado ✅"); setQtd(""); setCusto(""); setObs(""); await load(); onChanged();
+    } catch (e: any) { toast.error(e?.message || "Erro"); } finally { setSaving(false); }
+  }
+  const inp = { border: `1px solid ${LINE}`, borderRadius: 9, padding: "8px 10px", fontSize: 13, background: "#fff", color: "#1F2A2E" } as const;
+  const it = dados?.item;
+  const abaixoMin = it && it.estoqueMin != null && Number(it.estoqueAtual) < Number(it.estoqueMin);
+  const fmtMov = (m: any) => ({ ENTRADA: "⬆️ Entrada", SAIDA: "⬇️ Saída", AJUSTE: "✏️ Ajuste", INVENTARIO: "📋 Inventário" } as any)[m.tipo] || m.tipo;
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-lg my-6" style={{ border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: LINE }}><div className="font-semibold text-[15px]" style={{ color: B }}>📦 Estoque · {item.nome}</div><button onClick={onClose} className="text-[18px]" style={{ color: MUT }}>✕</button></div>
+        <div className="p-5 flex flex-col gap-4">
+          {/* saldo + previsão */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl border p-3 text-center" style={{ borderColor: abaixoMin ? "#C0392B" : LINE, background: abaixoMin ? "#FDF3F2" : "#FBFAF7" }}><div className="text-[22px] font-extrabold" style={{ color: abaixoMin ? "#C0392B" : B }}>{it ? Number(it.estoqueAtual) : "—"}</div><div className="text-[11px]" style={{ color: MUT }}>em estoque{abaixoMin ? " ⚠️" : ""}</div></div>
+            <div className="rounded-xl border p-3 text-center" style={{ borderColor: LINE }}><div className="text-[22px] font-extrabold" style={{ color: B }}>{dados?.mediaMensal ?? "—"}</div><div className="text-[11px]" style={{ color: MUT }}>saídas/mês</div></div>
+            <div className="rounded-xl border p-3 text-center" style={{ borderColor: LINE }}><div className="text-[22px] font-extrabold" style={{ color: B }}>{dados?.duracaoDias != null ? `${dados.duracaoDias}d` : "—"}</div><div className="text-[11px]" style={{ color: MUT }}>duração estimada</div></div>
+          </div>
+          {it && (it.estoqueMin != null || it.estoqueMax != null) && <div className="text-[11.5px]" style={{ color: MUT }}>Mínimo: <b>{it.estoqueMin ?? "—"}</b> · Máximo: <b>{it.estoqueMax ?? "—"}</b></div>}
+
+          {/* movimentar */}
+          <div className="rounded-xl border p-3" style={{ borderColor: LINE, background: "#FBFAF7" }}>
+            <div className="text-[12px] font-bold uppercase mb-2" style={{ color: MUT }}>Movimentar</div>
+            <div className="flex gap-1.5 mb-2">
+              {(["ENTRADA", "SAIDA", "AJUSTE"] as const).map((tp) => <button key={tp} onClick={() => setTipo(tp)} className="text-[12px] font-semibold px-3 py-1.5 rounded-full border" style={tipo === tp ? { background: T, color: "#fff", borderColor: T } : { background: "#fff", color: MUT, borderColor: LINE }}>{tp === "ENTRADA" ? "⬆️ Entrada" : tp === "SAIDA" ? "⬇️ Saída" : "✏️ Ajuste"}</button>)}
+            </div>
+            <div className="flex gap-2 flex-wrap items-end">
+              <div><label className="text-[10px] uppercase" style={{ color: MUT }}>{tipo === "AJUSTE" ? "Novo saldo" : "Quantidade"}</label><input value={qtd} onChange={(e) => setQtd(e.target.value)} inputMode="decimal" style={{ ...inp, width: 100 }} /></div>
+              {tipo === "ENTRADA" && <div><label className="text-[10px] uppercase" style={{ color: MUT }}>Custo un.</label><input value={custo} onChange={(e) => setCusto(e.target.value)} inputMode="decimal" style={{ ...inp, width: 100 }} /></div>}
+              {tipo === "SAIDA" && <div className="flex-1 min-w-[160px]"><label className="text-[10px] uppercase" style={{ color: MUT }}>Motivo</label><div className="flex gap-1"><select value={motivoId} onChange={(e) => setMotivoId(e.target.value)} style={{ ...inp, flex: 1 }}><option value="">—</option>{motivos.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}</select><button onClick={novoMotivo} className="text-[15px] px-2 rounded-lg border" style={{ borderColor: LINE, color: T }}>＋</button></div></div>}
+            </div>
+            <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observação (opcional)" style={{ ...inp, width: "100%", marginTop: 8 }} />
+            <div className="flex justify-end mt-2"><button onClick={registrar} disabled={saving} className="text-[13px] font-semibold px-4 py-2 rounded-lg text-white" style={{ background: B }}>{saving ? "…" : "Registrar"}</button></div>
+          </div>
+
+          {/* histórico */}
+          <div>
+            <div className="text-[12px] font-bold uppercase mb-1.5" style={{ color: MUT }}>Últimas movimentações</div>
+            {(dados?.movimentos || []).length === 0 ? <div className="text-[12.5px]" style={{ color: MUT }}>Nenhuma ainda.</div> : (
+              <div className="flex flex-col gap-1 max-h-52 overflow-y-auto">
+                {dados.movimentos.map((m: any) => (
+                  <div key={m.id} className="flex items-center gap-2 text-[12px] py-1 border-b" style={{ borderColor: "#F0EBE0", color: MUT }}>
+                    <span style={{ width: 90 }}>{fmtMov(m)}</span>
+                    <span className="font-semibold" style={{ color: B }}>{m.saldoAntes} → {m.saldoDepois}</span>
+                    {m.motivoNome && <span className="text-[11px]">· {m.motivoNome}</span>}
+                    <span className="ml-auto text-[10.5px]" style={{ color: "#9aa" }}>{new Date(m.createdAt).toLocaleDateString("pt-BR")}{m.userName ? ` · ${m.userName.split(" ")[0]}` : ""}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
