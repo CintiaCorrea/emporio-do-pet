@@ -199,7 +199,8 @@ export class CatalogoService {
       id: i.id,
       nome: i.nome,
       valorPadrao: i.preco,
-      custoPadrao: i.custo ?? undefined,
+      // EXAME: o CUSTO da linha é o custo do laboratório (alimenta o a-pagar do lab). Demais: custo normal.
+      custoPadrao: (i.tipo === 'EXAME' ? (i.exame?.custoLab ?? i.custo) : i.custo) ?? undefined,
       tipo: i.tipo,
       categoria: i.grupo?.nome ?? null,
       _novo: true,

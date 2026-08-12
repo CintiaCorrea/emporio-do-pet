@@ -7,7 +7,7 @@ import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from "@/lib/catalogoVendavel";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean };
+type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string };
 
 const ST: any = {
   RASCUNHO: { l: "Rascunho", c: "#64748b", b: "#eef2f4" },
@@ -56,7 +56,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
 
   // Gancho p/ outras partes da ficha lançarem itens: window.dispatchEvent(new CustomEvent('comanda:add', {detail:{descricao,valorUnitario,servicoId,quantidade}}))
   useEffect(() => {
-    function onAdd(e: any) { const d = e?.detail; if (!d?.descricao) return; addItem({ descricao: d.descricao, servicoId: d.servicoId, valorUnitario: Number(d.valorUnitario) || 0, custoUnitario: d.custoUnitario != null ? Number(d.custoUnitario) : undefined, fornecedorId: d.fornecedorId ?? undefined, fornecedorNome: d.fornecedorNome ?? undefined, catalogoExameId: d.catalogoExameId, _exame: d._exame, quantidade: Number(d.quantidade) || 1 }); setAberto(true); toast.success("Lançado na comanda"); }
+    function onAdd(e: any) { const d = e?.detail; if (!d?.descricao) return; addItem({ descricao: d.descricao, servicoId: d.servicoId, valorUnitario: Number(d.valorUnitario) || 0, custoUnitario: d.custoUnitario != null ? Number(d.custoUnitario) : undefined, fornecedorId: d.fornecedorId ?? undefined, fornecedorNome: d.fornecedorNome ?? undefined, catalogoExameId: d.catalogoExameId, _exame: d._exame, _novo: d._novo, catalogoItemId: d.catalogoItemId, quantidade: Number(d.quantidade) || 1 }); setAberto(true); toast.success("Lançado na comanda"); }
     window.addEventListener("comanda:add", onAdd as any);
     return () => window.removeEventListener("comanda:add", onAdd as any);
     // eslint-disable-next-line
@@ -69,7 +69,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   function limpar() { setItens([]); }
   const matches = useMemo(() => { const q = busca.trim().toLowerCase(); if (!q) return cat.slice(0, 20); return cat.filter((c) => c.nome.toLowerCase().includes(q)).slice(0, 20); }, [cat, busca]);
 
-  const linhasBody = () => itens.map((it) => ({ descricao: it.descricao, quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, ...(it.custoUnitario != null ? { custoUnitario: it.custoUnitario } : {}), ...(it.fornecedorId ? { fornecedorId: it.fornecedorId } : {}), ...(it._exame ? { tipoItem: "EXAME", catalogoExameId: it.catalogoExameId } : {}), ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}) }));
+  const linhasBody = () => itens.map((it) => ({ descricao: it.descricao, quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, ...(it.custoUnitario != null ? { custoUnitario: it.custoUnitario } : {}), ...(it.fornecedorId ? { fornecedorId: it.fornecedorId } : {}), ...(it.catalogoItemId ? { catalogoItemId: it.catalogoItemId } : {}), ...(it._exame ? { tipoItem: "EXAME", catalogoExameId: it.catalogoExameId } : {}), ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}) }));
 
   async function gerarOrcamento() {
     if (!itens.length) { toast.error("Comanda vazia."); return; }
@@ -143,7 +143,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                 <div className="border rounded-lg mt-1 max-h-44 overflow-auto" style={{ borderColor: "#F0EBE0" }}>
                   {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
                     matches.map((c) => (
-                      <button key={c.id} onClick={() => { const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome }); addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, quantidade: 1 }); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
+                      <button key={c.id} onClick={() => { const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome }); addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 }); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
                         <span className="text-[#1F2A2E] truncate pr-2 flex items-center gap-1.5 min-w-0"><span className="truncate">{c.nome}</span>{(() => { const lab = labDoItem(c); return lab ? <span className="shrink-0 text-[10px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}</span><span className="text-[#0F6E56] font-semibold shrink-0">{BRL(c.valor)}</span>
                       </button>
                     ))}
@@ -160,7 +160,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                 <div className="flex-1 min-w-0">
                   <div className="text-[12.5px] text-[#1F2A2E] truncate flex items-center gap-1.5">
                     <span className="truncate">{it.descricao}</span>
-                    {(() => { const lab = labDoItem({ _exame: it._exame, _fornecedorNome: it.fornecedorNome }); return lab ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}
+                    {(() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}
                   </div>
                   <div className="text-[11px] text-gray-400">{BRL(it.valorUnitario)} cada</div>
                 </div>

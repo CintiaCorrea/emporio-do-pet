@@ -40,9 +40,9 @@ export function ehVeter(fornecedorNome?: string | null): boolean {
   return /veter/i.test(String(fornecedorNome || ""));
 }
 
-export function labDoItem(item?: { _exame?: boolean; _fornecedorNome?: string | null } | null): { nome: string; veter: boolean } | null {
-  if (!item?._exame) return null;
-  const nome = String(item._fornecedorNome || "").trim();
+export function labDoItem(item?: { _exame?: boolean; tipo?: string; _fornecedorNome?: string | null } | null): { nome: string; veter: boolean } | null {
+  if (!item?._exame && item?.tipo !== "EXAME") return null; // só exame carrega laboratório
+  const nome = String(item?._fornecedorNome || "").trim();
   if (!nome) return null;
   return { nome, veter: ehVeter(nome) };
 }
@@ -51,9 +51,10 @@ export function linhaDoItem(item: ItemVendavel): LinhaVendavel {
   const descricao = nomeSemMarcador(item.nome);
   const base = { descricao, valorUnitario: Number(item.valorPadrao) || 0, custoUnitario: Number(item.custoPadrao) || 0 };
   if (item._novo) {
-    // Catálogo NOVO: vende por descrição+valor+custo, guardando o id novo (catalogoItemId) p/ ligação
-    // futura (comissão/estoque/exame-lab vêm nas próximas fatias). _exame/fornecedor só p/ o selo do lab.
-    return { ...base, _novo: true, catalogoItemId: item.id, _exame: item._exame, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null };
+    // Catálogo NOVO: vende por descrição+valor+custo + catalogoItemId. Carrega o LAB (fornecedorId) —
+    // é o que gera o a-pagar do laboratório (Fatia 5) — e o nome do lab p/ o selo. NÃO seta _exame na
+    // linha (senão entraria no fluxo de exame ANTIGO/petexa_, que é de outra base).
+    return { ...base, _novo: true, catalogoItemId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null };
   }
   if (item._exame) {
     return { ...base, _exame: true, catalogoExameId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null };
@@ -71,10 +72,10 @@ export function itemParaVenda(l: { descricao?: string; valorUnitario?: number; c
     valorUnitario: Number(l.valorUnitario) || 0,
     ...(l.custoUnitario != null ? { custoUnitario: Number(l.custoUnitario) } : {}),
   };
-  // Catálogo NOVO: vai como item avulso (descrição+valor+custo) + o id novo (o servidor guarda quando
-  // a venda passar a referenciar cat_itens — por ora ele ignora se não usar). NÃO entra no fluxo de
-  // exame antigo (catalogoExameId/petexa_), que é de outra base.
-  if (l._novo) return { ...base, ...(l.catalogoItemId ? { catalogoItemId: l.catalogoItemId } : {}) };
+  // Catálogo NOVO: descrição+valor+custo + o LAB (fornecedorId → gera o a-pagar do laboratório, Fatia 5)
+  // + o id novo (catalogoItemId, p/ ligar comissão/estoque nas próximas fatias). NÃO entra no fluxo de
+  // exame antigo (catalogoExameId/petexa_).
+  if (l._novo) return { ...base, ...(l.fornecedorId ? { fornecedorId: l.fornecedorId } : {}), ...(l.catalogoItemId ? { catalogoItemId: l.catalogoItemId } : {}) };
   if (l._exame) return { ...base, tipoItem: "EXAME", catalogoExameId: l.catalogoExameId, fornecedorId: l.fornecedorId ?? undefined };
   return { ...base, ...(l.servicoId ? { servicoId: l.servicoId, productId: l.productId ?? l.servicoId } : {}) };
 }

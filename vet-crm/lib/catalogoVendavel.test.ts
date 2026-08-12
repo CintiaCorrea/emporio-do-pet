@@ -23,6 +23,20 @@ describe("catalogoVendavel — catálogo NOVO (_novo)", () => {
     const lab = labDoItem({ _exame: true, _fornecedorNome: "Veter" });
     expect(lab).toEqual({ nome: "Veter", veter: true });
   });
+  it("EXAME novo: a linha carrega fornecedorId (gera o a-pagar do lab) + custo do lab — Fatia 5", () => {
+    const l = linhaDoItem({ id: "cat3", nome: "Hemograma", valorPadrao: 80, custoPadrao: 35, tipo: "EXAME", _novo: true, _fornecedorId: "labVeter", _fornecedorNome: "Veter" });
+    expect(l.fornecedorId).toBe("labVeter");
+    expect(l.custoUnitario).toBe(35);
+    const body = itemParaVenda(l);
+    expect(body.fornecedorId).toBe("labVeter"); // o motor de a-pagar do lab lê AppointmentItem.fornecedorId
+    expect(body.custoUnitario).toBe(35);
+    expect(body.catalogoItemId).toBe("cat3");
+    expect(body.tipoItem).toBeUndefined(); // NÃO é o fluxo de exame antigo (petexa_)
+  });
+  it("labDoItem: exame novo (tipo EXAME) mostra o lab mesmo sem _exame; produto não mostra", () => {
+    expect(labDoItem({ tipo: "EXAME", _fornecedorNome: "Veter" })).toEqual({ nome: "Veter", veter: true });
+    expect(labDoItem({ tipo: "PRODUTO", _fornecedorNome: "Fornecedor X" })).toBeNull();
+  });
 });
 
 describe("catalogoVendavel — ehVeter (lab padrão)", () => {

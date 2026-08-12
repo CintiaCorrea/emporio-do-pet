@@ -35,7 +35,7 @@ interface Pet { id: string; name: string }
 interface Tutor { id: string; name: string; pets?: Pet[] }
 interface Servico { id: string; nome: string; valorPadrao?: number | null; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null }
 interface Prof { id: string; name: string }
-interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null }
+interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null; _novo?: boolean; catalogoItemId?: string }
 interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string; tutorId?: string }
 
 const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
@@ -303,10 +303,12 @@ export default function PDVPage() {
   const addItem = (s: Servico) => {
     const l = linhaDoItem(s as any);   // núcleo único: exame × produto/serviço, id certo, tira "🔬"
     setCarrinho((c) => {
-      const i = l._exame ? c.findIndex((x) => x.catalogoExameId === l.catalogoExameId) : c.findIndex((x) => x.servicoId === l.servicoId);
+      const i = l._novo ? c.findIndex((x) => x.catalogoItemId === l.catalogoItemId) : l._exame ? c.findIndex((x) => x.catalogoExameId === l.catalogoExameId) : c.findIndex((x) => x.servicoId === l.servicoId);
       if (i >= 0) { const cp = [...c]; cp[i] = { ...cp[i], quantidade: cp[i].quantidade + qtd }; return cp; }
       const base = { descricao: l.descricao, quantidade: qtd, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined };
-      return [...c, l._exame
+      return [...c, l._novo
+        ? { ...base, _novo: true, catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome }
+        : l._exame
         ? { ...base, _exame: true, catalogoExameId: l.catalogoExameId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome }
         : { ...base, servicoId: l.servicoId }];
     });
@@ -343,7 +345,7 @@ export default function PDVPage() {
 
   const payload = (extra: any) => ({
     tutorId: cliente!.id, petId, userId: profId || undefined, date: new Date(data + 'T12:00:00').toISOString(),
-    itens: carrinho.map((it) => ({ servicoId: it._exame ? undefined : it.servicoId, productId: it._exame ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), executorUserId: it.executorUserId || profId || undefined, ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}) })),
+    itens: carrinho.map((it) => ({ servicoId: (it._exame || it._novo) ? undefined : it.servicoId, productId: (it._exame || it._novo) ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), executorUserId: it.executorUserId || profId || undefined, ...(it._novo ? { catalogoItemId: it.catalogoItemId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}), ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}) })),
     desconto: Number(descGlobalVal().toFixed(2)), observacao: obs || null, ...extra,
   });
 
@@ -369,7 +371,7 @@ export default function PDVPage() {
     try {
       const body = {
         petId, tutorId: cliente.id, observacao: obs || null,
-        itens: carrinho.map((it) => ({ servicoId: it._exame ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId } : {}) })),
+        itens: carrinho.map((it) => ({ servicoId: (it._exame || it._novo) ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), ...(it._novo ? { catalogoItemId: it.catalogoItemId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}), ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId } : {}) })),
       };
       const r = await fetch('/api/orcamentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
@@ -536,7 +538,7 @@ export default function PDVPage() {
                     {/* linha 1: descrição + total + excluir */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <input value={it.descricao} onChange={(e) => updItem(i, { descricao: e.target.value })} placeholder="Descrição do item" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
-                      {(() => { const lab = labDoItem({ _exame: it._exame, _fornecedorNome: it.fornecedorNome }); return lab ? <span title={`Laboratório: ${lab.nome}`} style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: lab.veter ? '#E1F5EE' : '#EEF2F6', color: lab.veter ? '#0F6E56' : '#4D6A8A' }}>{lab.veter ? '⭐ ' : '🏥 '}{lab.nome}</span> : null; })()}
+                      {(() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span title={`Laboratório: ${lab.nome}`} style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: lab.veter ? '#E1F5EE' : '#EEF2F6', color: lab.veter ? '#0F6E56' : '#4D6A8A' }}>{lab.veter ? '⭐ ' : '🏥 '}{lab.nome}</span> : null; })()}
                       <span style={{ fontSize: 13, fontWeight: 500, color: NAVY, minWidth: 78, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
                       <button onClick={() => rmItem(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                     </div>
