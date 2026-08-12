@@ -216,6 +216,10 @@ export class CreateAppointmentItemDto {
   @IsOptional() @IsUUID()
   fornecedorId?: string;
 
+  @ApiPropertyOptional({ description: 'ID do item no catálogo NOVO (cat_itens)' })
+  @IsOptional() @IsString()
+  catalogoItemId?: string;
+
   @ApiPropertyOptional({ default: 1 })
   @IsOptional() @IsNumber()
   quantidade?: number;

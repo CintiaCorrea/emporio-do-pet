@@ -2805,6 +2805,7 @@ model AppointmentItem {
   servico   Servico? @relation(fields: [servicoId], references: [id], onDelete: SetNull)
   productId String? // catálogo unificado (Fase 1 da unificação; dual-write com servicoId)
   product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  catalogoItemId String? // catálogo NOVO (cat_itens) — liga a linha ao item novo p/ estoque/comissão
   descricao String?
 
   // Executor: profissional interno OU fornecedor externo (lab)

@@ -297,6 +297,30 @@ export class CatalogoService {
     return this.prisma.catInventario.update({ where: { id: invId }, data: { status: 'FECHADO', fechadoAt: new Date(), totalItens: inv.itens.length, totalCorretos: corretos, totalCorrigidos: corrigidos } });
   }
 
+  // Baixa de estoque na VENDA (idempotente): itens do catálogo novo vendidos numa venda PAGA, que
+  // controlam estoque, geram UMA saída (origem VENDA) — dedup por refId=appointmentItemId. Roda no cron.
+  async processarEstoqueVendas() {
+    const itens = await this.prisma.appointmentItem.findMany({
+      where: { catalogoItemId: { not: null }, quantidade: { gt: 0 }, appointment: { is: { recebimentos: { some: {} } } } },
+      select: { id: true, catalogoItemId: true, quantidade: true },
+      take: 2000,
+    });
+    if (itens.length === 0) return { baixados: 0 };
+    const jaFeitos = await this.prisma.catEstoqueMovimento.findMany({ where: { origem: 'VENDA', refId: { in: itens.map((i) => i.id) } }, select: { refId: true } });
+    const feitos = new Set(jaFeitos.map((x) => x.refId));
+    const novos = itens.filter((i) => !feitos.has(i.id));
+    if (novos.length === 0) return { baixados: 0 };
+    const catIds = [...new Set(novos.map((i) => i.catalogoItemId as string))];
+    const cats = await this.prisma.itemCatalogo.findMany({ where: { id: { in: catIds }, controlaEstoque: true }, select: { id: true } });
+    const controla = new Set(cats.map((c) => c.id));
+    let baixados = 0;
+    for (const it of novos) {
+      if (!controla.has(it.catalogoItemId as string)) continue;
+      try { await this.movimentarEstoque(it.catalogoItemId as string, { tipo: 'SAIDA', quantidade: Number(it.quantidade) || 1, origem: 'VENDA', refId: it.id }, { name: 'Venda' }); baixados++; } catch { /* segue */ }
+    }
+    return { baixados };
+  }
+
   // ── IMPORTADOR (CSV) ──────────────────────────────────────────────
   private norm(s?: string) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
   private parseCsvLine(line: string, sep: string): string[] {
