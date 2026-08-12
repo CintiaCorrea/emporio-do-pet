@@ -270,6 +270,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   useEffect(() => { if (pets.length && !pets.some((p) => p.id === selectedPet?.id)) setSelectedPet(pets[0]); }, [pets]);
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
   const [pacotesInbox, setPacotesInbox] = useState<{ id: string; data: any }[]>([]);
+  const [verPacConcluidos, setVerPacConcluidos] = useState(false); // pacotes 12/12 ficam recolhidos no rodapé
   const [planosInbox, setPlanosInbox] = useState<{ id: string; nome: string; marca?: string; total: number; feitas: number; prox: string | null }[]>([]); // #4 Fatia 2 — medicamentos/planos periódicos (protocolos c/ doses)
   const [boletimOpen, setBoletimOpen] = useState(false); // popup de boletim de fisio (dentro do box)
   const [fisioSrvInbox, setFisioSrvInbox] = useState<any[]>([]);
@@ -2391,22 +2392,39 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                   <span style={{ marginLeft: "auto", color: "#A7ADA8", transition: "transform .15s", transform: secFechadas.has("fisio") ? "rotate(-90deg)" : "none" }}>▾</span>
                 </div>
                 <div className="space-y-2" style={{ display: secFechadas.has("fisio") ? "none" : undefined }}>
-                  {pacotesInbox.map(pk => {
-                    const used = pk.data.used || 0; const total = pk.data.total || 0; const done = total > 0 && used >= total;
+                  {(() => {
+                    const ehDone = (pk: any) => { const t = pk.data.total || 0; return t > 0 && (pk.data.used || 0) >= t; };
+                    const ativos = pacotesInbox.filter(pk => !ehDone(pk));
+                    const concluidos = pacotesInbox.filter(ehDone);
+                    const cardDe = (pk: any) => {
+                      const used = pk.data.used || 0; const total = pk.data.total || 0; const done = ehDone(pk);
+                      return (
+                        <div key={pk.id} className="border rounded-lg p-2.5" style={{ borderColor: done ? "#0F6E56" : "#E8DFC8", background: done ? "#F3FBF7" : "#fff" }}>
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <LuActivity size={14} style={{ color: "#0E5560" }} />
+                            <span className="text-[11.5px] font-medium truncate" style={{ color: "#014D5E" }}>{done ? "🏆 " : ""}{pk.data.nome || "Pacote de fisioterapia"}</span>
+                            <span className="ml-auto text-[12px] font-semibold flex-shrink-0" style={{ color: done ? "#0F6E56" : "#0E5560" }}>{used}/{total}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {Array.from({ length: Math.min(total, 20) }).map((_, i) => <span key={i} style={{ fontSize: "13px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
+                          </div>
+                          <div className="text-[9.5px] text-gray-400 mt-1.5">As sessões são lançadas pela Agenda e atualizam aqui.</div>
+                        </div>
+                      );
+                    };
                     return (
-                      <div key={pk.id} className="border rounded-lg p-2.5" style={{ borderColor: done ? "#0F6E56" : "#E8DFC8", background: done ? "#F3FBF7" : "#fff" }}>
-                        <div className="flex items-center gap-2 mb-1.5">
-                          <LuActivity size={14} style={{ color: "#0E5560" }} />
-                          <span className="text-[11.5px] font-medium truncate" style={{ color: "#014D5E" }}>{done ? "🏆 " : ""}{pk.data.nome || "Pacote de fisioterapia"}</span>
-                          <span className="ml-auto text-[12px] font-semibold flex-shrink-0" style={{ color: done ? "#0F6E56" : "#0E5560" }}>{used}/{total}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1">
-                          {Array.from({ length: Math.min(total, 20) }).map((_, i) => <span key={i} style={{ fontSize: "13px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
-                        </div>
-                        <div className="text-[9.5px] text-gray-400 mt-1.5">As sessões são lançadas pela Agenda e atualizam aqui.</div>
-                      </div>
+                      <>
+                        {ativos.length === 0 && concluidos.length > 0 && <div className="text-[10.5px] text-gray-400 py-1">Nenhum pacote em andamento.</div>}
+                        {ativos.map(cardDe)}
+                        {concluidos.length > 0 && (
+                          <button type="button" onClick={() => setVerPacConcluidos(v => !v)} className="w-full text-left text-[10.5px] font-semibold py-1" style={{ color: "#0F6E56" }}>
+                            🏆 {concluidos.length} concluído{concluidos.length > 1 ? "s" : ""} · {verPacConcluidos ? "ocultar" : "ver"}
+                          </button>
+                        )}
+                        {verPacConcluidos && concluidos.map(cardDe)}
+                      </>
                     );
-                  })}
+                  })()}
                 </div>
               </section>
             )}
