@@ -23,5 +23,11 @@ export class CatalogoScheduler {
     } catch (e) {
       this.logger.warn(`comissão vendas: ${String((e as any)?.message || e)}`);
     }
+    try {
+      const v = await this.service.processarVacinaVendas();
+      if (v.agendados) this.logger.log(`vacina→protocolo: ${v.agendados} agendado(s)`);
+    } catch (e) {
+      this.logger.warn(`vacina protocolo: ${String((e as any)?.message || e)}`);
+    }
   }
 }

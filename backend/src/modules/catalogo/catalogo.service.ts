@@ -353,6 +353,43 @@ export class CatalogoService {
     return { comissoes: n };
   }
 
+  // Vacina → PROTOCOLO (Fatia 7a): vender uma VACINA (do cat novo, com protocolo) numa venda com pet
+  // agenda o protocolo (doses/reforço) automaticamente. Idempotente por (appointmentId, templateId).
+  async processarVacinaVendas() {
+    const itens = await this.prisma.appointmentItem.findMany({
+      where: { catalogoItemId: { not: null }, appointment: { is: { recebimentos: { some: {} } } } },
+      select: { id: true, catalogoItemId: true, appointment: { select: { id: true, petId: true, tutorId: true, date: true } } },
+      take: 2000,
+    });
+    if (itens.length === 0) return { agendados: 0 };
+    const catIds = [...new Set(itens.map((i) => i.catalogoItemId as string))];
+    const cats = await this.prisma.itemCatalogo.findMany({ where: { id: { in: catIds }, tipo: 'VACINA', protocoloTemplateId: { not: null } }, select: { id: true, protocoloTemplateId: true } });
+    if (cats.length === 0) return { agendados: 0 };
+    const catMap = new Map(cats.map((c) => [c.id, c.protocoloTemplateId as string]));
+    const candidatos = itens.filter((i) => catMap.has(i.catalogoItemId as string));
+    if (candidatos.length === 0) return { agendados: 0 };
+    const apptIds = [...new Set(candidatos.map((c) => c.appointment!.id))];
+    const jaAplicados = await this.prisma.protocoloAplicado.findMany({ where: { appointmentId: { in: apptIds } }, select: { appointmentId: true, templateId: true } });
+    const feitos = new Set(jaAplicados.map((x) => x.appointmentId + '|' + x.templateId));
+    const templates = await this.prisma.protocoloTemplate.findMany({ where: { id: { in: [...new Set(cats.map((c) => c.protocoloTemplateId as string))] } } });
+    const tmplMap = new Map(templates.map((t) => [t.id, t]));
+    let agendados = 0;
+    for (const it of candidatos) {
+      const tmplId = catMap.get(it.catalogoItemId as string)!;
+      if (feitos.has(it.appointment!.id + '|' + tmplId)) continue;
+      const tmpl = tmplMap.get(tmplId); if (!tmpl) continue;
+      const nDoses = Math.max(1, Math.min(tmpl.doses ?? 1, 60));
+      const intervalo = tmpl.intervaloDias ?? 0;
+      const dataInicial = it.appointment!.date ? new Date(it.appointment!.date) : new Date();
+      const doses = Array.from({ length: nDoses }).map((_, k) => ({ numero: k + 1, dataPrevista: new Date(dataInicial.getTime() + k * intervalo * 86400000), status: 'PENDENTE' as const }));
+      try {
+        await this.prisma.protocoloAplicado.create({ data: { petId: it.appointment!.petId as string, tutorId: it.appointment!.tutorId ?? null, tipo: tmpl.tipo, templateId: tmplId, nomeProtocolo: [tmpl.nome, tmpl.variante].filter(Boolean).join(' - '), dataInicial, appointmentId: it.appointment!.id, doses: { create: doses } } });
+        feitos.add(it.appointment!.id + '|' + tmplId); agendados++;
+      } catch { /* segue */ }
+    }
+    return { agendados };
+  }
+
   // ── IMPORTADOR (CSV) ──────────────────────────────────────────────
   private norm(s?: string) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
   private parseCsvLine(line: string, sep: string): string[] {
