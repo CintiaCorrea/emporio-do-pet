@@ -181,4 +181,129 @@ export class CatalogoService {
   async historicoItem(id: string) {
     return this.prisma.itemHistorico.findMany({ where: { itemId: id }, orderBy: { createdAt: 'desc' }, take: 200 });
   }
+
+  // ── IMPORTADOR (CSV) ──────────────────────────────────────────────
+  private norm(s?: string) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+  private parseCsvLine(line: string, sep: string): string[] {
+    const out: string[] = []; let cur = ''; let q = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (q) { if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+      else { if (c === '"') q = true; else if (c === sep) { out.push(cur); cur = ''; } else cur += c; }
+    }
+    out.push(cur); return out.map((s) => s.trim());
+  }
+  private csvNum(s?: string): number | null {
+    if (s == null) return null; let v = String(s).trim(); if (!v) return null;
+    v = v.replace(/[R$\s]/g, '');
+    if (v.includes(',')) v = v.replace(/\./g, '').replace(',', '.'); // 1.234,56 -> 1234.56
+    const n = Number(v); return isNaN(n) ? null : n;
+  }
+  private tipoDe(s?: string): string {
+    const t = this.norm(s);
+    if (/servico/.test(t)) return 'SERVICO';
+    if (/exame/.test(t)) return 'EXAME';
+    if (/vacina/.test(t)) return 'VACINA';
+    if (/pacote/.test(t)) return 'PACOTE';
+    if (/kit/.test(t)) return 'KIT';
+    return 'PRODUTO';
+  }
+  private boolC(s?: string) { return /^(sim|s|1|true|x|v)/i.test(String(s || '').trim()); }
+  private propC(s?: string) { const t = this.norm(s); if (t.includes('ambos') || (t.includes('venda') && t.includes('consumo'))) return 'AMBOS'; if (t.includes('consumo')) return 'CONSUMO_INTERNO'; return 'VENDA'; }
+  private comTipoC(s?: string): 'PERCENTUAL' | 'VALOR_FIXO' | null { const t = String(s || ''); if (/r\$|valor|fixo/i.test(t)) return 'VALOR_FIXO'; if (/%|percent/i.test(t)) return 'PERCENTUAL'; return null; }
+
+  async importarItens(csv: string, opts: { dryRun?: boolean } = {}) {
+    const dryRun = !!opts.dryRun;
+    const linhas = String(csv || '').replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim());
+    if (!linhas.length) throw new BadRequestException('Planilha vazia');
+    const h0 = linhas[0];
+    const cont = (s: string, ch: string) => s.split(ch).length - 1;
+    const sep = cont(h0, '\t') ? '\t' : (cont(h0, ';') > 0 && cont(h0, ';') >= cont(h0, ',')) ? ';' : cont(h0, ',') > 0 ? ',' : ';';
+    const header = this.parseCsvLine(h0, sep).map((x) => this.norm(x));
+    const col = (nomes: string[]) => { for (const n of nomes) { const i = header.indexOf(this.norm(n)); if (i >= 0) return i; } return -1; };
+    const iTipo = col(['tipo']), iNome = col(['nome']), iGrupo = col(['grupo']), iPreco = col(['preco', 'preco_venda', 'preço']),
+      iCusto = col(['custo']), iUnid = col(['unidade', 'unidade_venda']), iMarca = col(['marca']), iBarras = col(['codigo_barras', 'cod_barras', 'ean']),
+      iCtrlEst = col(['controla_estoque']), iEstAtual = col(['estoque_atual', 'estoque']), iEstMin = col(['estoque_min']), iEstMax = col(['estoque_max']),
+      iProp = col(['proposito']), iComTipo = col(['comissao_tipo']), iComVal = col(['comissao_valor', 'comissao_%', 'comissao']),
+      iLab = col(['laboratorio', 'lab']), iCustoLab = col(['custo_lab']), iPrazo = col(['prazo_dias', 'prazo']), iCatEx = col(['categoria', 'categoria_exame']), iExterno = col(['externo', 'interno_externo']),
+      iProto = col(['protocolo']);
+    if (iNome < 0) throw new BadRequestException('Não achei a coluna "nome" no cabeçalho da planilha.');
+
+    const [grupos, marcas, forns, protos, existentes] = await Promise.all([
+      this.prisma.catGrupo.findMany(), this.prisma.catMarca.findMany(),
+      this.prisma.fornecedor.findMany({ select: { id: true, nome: true } }),
+      this.prisma.protocoloTemplate.findMany({ select: { id: true, nome: true } }),
+      this.prisma.itemCatalogo.findMany({ select: { id: true, nome: true, tipo: true } }),
+    ]);
+    const mapaGrupo = new Map(grupos.filter((g) => !g.agrupador).map((g) => [this.norm(g.nome), g.id]));
+    const mapaMarca = new Map(marcas.map((m) => [this.norm(m.nome), m.id]));
+    const mapaLab = new Map(forns.map((f) => [this.norm(f.nome), f.id]));
+    const mapaProto = new Map(protos.map((p) => [this.norm(p.nome), p.id]));
+    const mapaExist = new Map(existentes.map((e) => [e.tipo + '|' + this.norm(e.nome), e.id]));
+
+    const rows: any[] = [];
+    const vistos = new Set<string>();
+    let dup = 0; const suspeitos: string[] = [];
+    const gruposNovos = new Set<string>(), marcasNovas = new Set<string>(), labsNovos = new Set<string>();
+    for (let i = 1; i < linhas.length; i++) {
+      const c = this.parseCsvLine(linhas[i], sep);
+      const nome = (c[iNome] || '').trim(); if (!nome) continue;
+      const tipo = this.tipoDe(iTipo >= 0 ? c[iTipo] : 'PRODUTO');
+      const chave = tipo + '|' + this.norm(nome);
+      if (vistos.has(chave)) { dup++; continue; } vistos.add(chave);
+      const grupoNome = iGrupo >= 0 ? (c[iGrupo] || '').trim() : '';
+      const preco = this.csvNum(iPreco >= 0 ? c[iPreco] : '') ?? 0;
+      if (preco <= 0) suspeitos.push(`${nome} (preço 0)`);
+      if (!grupoNome) suspeitos.push(`${nome} (sem grupo)`);
+      if (grupoNome && !mapaGrupo.has(this.norm(grupoNome))) gruposNovos.add(grupoNome);
+      const marcaNome = iMarca >= 0 ? (c[iMarca] || '').trim() : '';
+      if (marcaNome && !mapaMarca.has(this.norm(marcaNome))) marcasNovas.add(marcaNome);
+      const labNome = iLab >= 0 ? (c[iLab] || '').trim() : '';
+      if (tipo === 'EXAME' && labNome && !mapaLab.has(this.norm(labNome))) labsNovos.add(labNome);
+      const comVal = this.csvNum(iComVal >= 0 ? c[iComVal] : '');
+      rows.push({
+        tipo, nome, grupoNome, preco, custo: this.csvNum(c[iCusto]), unidade: (c[iUnid] || '').trim(), marcaNome, barras: (c[iBarras] || '').trim(),
+        ctrlEst: this.boolC(c[iCtrlEst]), estAtual: this.csvNum(c[iEstAtual]), estMin: this.csvNum(c[iEstMin]), estMax: this.csvNum(c[iEstMax]),
+        proposito: this.propC(c[iProp]), comVal, comTipo: this.comTipoC(c[iComTipo]) || (comVal != null ? 'PERCENTUAL' : null),
+        labNome, custoLab: this.csvNum(c[iCustoLab]), prazo: this.csvNum(c[iPrazo]), catEx: (c[iCatEx] || '').trim(), externo: this.boolC(c[iExterno]),
+        protoNome: (c[iProto] || '').trim(), atualiza: mapaExist.has(chave),
+      });
+    }
+    const porTipo: Record<string, number> = {};
+    for (const r of rows) porTipo[r.tipo] = (porTipo[r.tipo] || 0) + 1;
+    const relatorio = {
+      total: rows.length, duplicadosRemovidos: dup, porTipo,
+      novos: rows.filter((r) => !r.atualiza).length, atualizados: rows.filter((r) => r.atualiza).length,
+      gruposNovos: [...gruposNovos], marcasNovas: [...marcasNovas], labsNovos: [...labsNovos],
+      totalSuspeitos: suspeitos.length, suspeitos: suspeitos.slice(0, 80),
+      amostra: rows.slice(0, 12).map((r) => ({ tipo: r.tipo, nome: r.nome, grupo: r.grupoNome, preco: r.preco })),
+    };
+    if (dryRun) return { dryRun: true, ...relatorio };
+
+    // cria grupos/marcas/labs que faltam
+    for (const g of gruposNovos) { const gg = await this.prisma.catGrupo.create({ data: { nome: g } }); mapaGrupo.set(this.norm(g), gg.id); }
+    for (const m of marcasNovas) { const mm = await this.prisma.catMarca.create({ data: { nome: m } }); mapaMarca.set(this.norm(m), mm.id); }
+    for (const l of labsNovos) { const ll = await this.prisma.fornecedor.create({ data: { nome: l } }); mapaLab.set(this.norm(l), ll.id); }
+    let codigo = await this.proximoCodigo();
+    let criados = 0, atualizados = 0;
+    for (const r of rows) {
+      const data: any = {
+        tipo: r.tipo, nome: r.nome, grupoId: r.grupoNome ? (mapaGrupo.get(this.norm(r.grupoNome)) || null) : null,
+        preco: r.preco, custo: r.custo ?? null, unidadeVenda: r.unidade || null, marcaId: r.marcaNome ? (mapaMarca.get(this.norm(r.marcaNome)) || null) : null,
+        codigoBarras: r.barras || null, controlaEstoque: !!r.ctrlEst, estoqueAtual: r.estAtual ?? 0, estoqueMin: r.estMin ?? null, estoqueMax: r.estMax ?? null,
+        proposito: r.proposito || 'VENDA', comissionado: r.comVal != null, comissaoTipo: r.comTipo || null, comissaoValor: r.comVal ?? null,
+        protocoloTemplateId: r.protoNome ? (mapaProto.get(this.norm(r.protoNome)) || null) : null,
+      };
+      const chave = r.tipo + '|' + this.norm(r.nome);
+      const existId = mapaExist.get(chave);
+      let itemId: string;
+      if (existId) { await this.prisma.itemCatalogo.update({ where: { id: existId }, data }); itemId = existId; atualizados++; }
+      else { const it = await this.prisma.itemCatalogo.create({ data: { ...data, codigo: codigo++ } }); itemId = it.id; mapaExist.set(chave, itemId); criados++; }
+      if (r.tipo === 'EXAME') {
+        const ex = { fornecedorId: r.labNome ? (mapaLab.get(this.norm(r.labNome)) || null) : null, custoLab: r.custoLab ?? null, prazoResultadoDias: r.prazo ?? null, categoria: r.catEx || null, externo: !!r.externo };
+        await this.prisma.itemExame.upsert({ where: { itemId }, create: { itemId, ...ex }, update: ex });
+      }
+    }
+    return { dryRun: false, ...relatorio, criados, atualizados };
+  }
 }

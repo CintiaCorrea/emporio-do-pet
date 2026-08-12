@@ -29,4 +29,7 @@ export class CatalogoController {
   @Patch('itens/:id') atualizarItem(@Param('id') id: string, @Body() b: any, @CurrentUser() user: any) { return this.service.atualizarItem(id, b, user); }
   @Post('itens/:id/arquivar') arquivar(@Param('id') id: string, @Body() b: any, @CurrentUser() user: any) { return this.service.arquivarItem(id, b?.arquivar !== false, user); }
   @Delete('itens/:id') excluir(@Param('id') id: string, @CurrentUser() user: any) { return this.service.excluirItem(id, user); }
+
+  // Importar catálogo por CSV. dryRun=true → só prévia (não grava).
+  @Post('importar') importar(@Body() b: { csv: string; dryRun?: boolean }) { return this.service.importarItens(b?.csv || '', { dryRun: !!b?.dryRun }); }
 }

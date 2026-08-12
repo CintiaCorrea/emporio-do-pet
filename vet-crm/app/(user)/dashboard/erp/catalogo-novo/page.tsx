@@ -42,6 +42,7 @@ export default function CatalogoNovoPage() {
   const [form, setForm] = useState<any>(null); // item em edição (null = fechado)
   const [salvando, setSalvando] = useState(false);
   const [grupoOpen, setGrupoOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
 
   const carregarItens = useCallback(async () => {
     const p = new URLSearchParams();
@@ -136,6 +137,7 @@ export default function CatalogoNovoPage() {
           <p className="text-[12.5px]" style={{ color: MUT }}>Cadastro único de tudo que se vende. Estrutura nova — o catálogo antigo fica à parte.</p>
         </div>
         <div className="flex-1" />
+        <button onClick={() => setImportOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>📥 Importar</button>
         <button onClick={() => setGrupoOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>🌳 Grupos</button>
         <button onClick={novo} className="text-[13px] font-semibold px-3.5 py-2 rounded-lg text-white" style={{ background: T }}>＋ Novo item</button>
       </div>
@@ -302,6 +304,91 @@ export default function CatalogoNovoPage() {
       )}
 
       {grupoOpen && <GruposModal grupos={grupos} onClose={() => setGrupoOpen(false)} onChanged={carregarApoio} />}
+      {importOpen && <ImportModal onClose={() => setImportOpen(false)} onDone={() => { carregarApoio(); carregarItens(); }} />}
+    </div>
+  );
+}
+
+// ── Importador de catálogo (CSV) ──
+function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  const [csv, setCsv] = useState("");
+  const [nomeArq, setNomeArq] = useState("");
+  const [prev, setPrev] = useState<any>(null);
+  const [feito, setFeito] = useState<any>(null);
+  const [carregando, setCarregando] = useState(false);
+  const B = "#014D5E", T = "#009AAC", LINE = "#E8DFC8", MUT = "#5C6B70";
+
+  const baixarModelo = () => {
+    const head = "tipo;nome;grupo;preco;custo;unidade;marca;codigo_barras;controla_estoque;estoque_atual;estoque_min;estoque_max;proposito;comissao_valor;laboratorio;custo_lab;prazo_dias;categoria;protocolo";
+    const ex = [
+      "PRODUTO;Ração Premium 15kg;Pet Shop;180,00;120,00;UN;Marca Exemplo;7891234567890;sim;10;3;20;VENDA;5;;;;;",
+      "SERVICO;Consulta Clínica;Consultas;120,00;;;;;;;;;;;;;;;",
+      "EXAME;Hemograma completo;Exames;80,00;;;;;;;;;;;Veter;35,00;2;Hematologia;",
+      "VACINA;V10;Vacinas;90,00;40,00;UN;Marca Vac;;sim;5;2;10;VENDA;;;;;;V10",
+      "PACOTE;Pacote Fisio 6 sessões;Fisioterapia;540,00;;;;;;;;;;;;;;;",
+    ];
+    const blob = new Blob(["﻿" + head + "\n" + ex.join("\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "modelo-catalogo.csv"; a.click();
+  };
+  const lerArquivo = (f: File | null) => { if (!f) return; setNomeArq(f.name); setPrev(null); setFeito(null); const r = new FileReader(); r.onload = () => setCsv(String(r.result || "")); r.readAsText(f, "utf-8"); };
+  const enviar = async (dryRun: boolean) => {
+    if (!csv.trim()) { toast.error("Escolha o arquivo primeiro"); return; }
+    setCarregando(true);
+    try {
+      const r = await fetch("/api/catalogo/importar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ csv, dryRun }) });
+      const d = await r.json(); if (!r.ok) throw new Error(d?.message || "Erro");
+      if (dryRun) { setPrev(d); toast.success("Prévia gerada — confira antes de gravar."); }
+      else { setFeito(d); setPrev(null); toast.success("Catálogo importado! ✅"); onDone(); }
+    } catch (e: any) { toast.error(String(e?.message || "Erro").slice(0, 140)); } finally { setCarregando(false); }
+  };
+  const rel = feito || prev;
+  const inp = { border: `1px solid ${LINE}`, borderRadius: 9, padding: "8px 10px", fontSize: 13 } as const;
+  const Card = ({ n, k, cor }: { n: any; k: string; cor?: string }) => (
+    <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 11, padding: "10px 13px" }}><div style={{ fontSize: 20, fontWeight: 800, color: cor || B }}>{n}</div><div style={{ fontSize: 11.5, color: MUT }}>{k}</div></div>
+  );
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-2xl my-6" style={{ border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: LINE }}><div className="font-semibold text-[15px]" style={{ color: B }}>📥 Importar catálogo</div><button onClick={onClose} className="text-[18px]" style={{ color: MUT }}>✕</button></div>
+        <div className="p-5 flex flex-col gap-3">
+          <div className="rounded-xl border p-3 flex items-center gap-2 flex-wrap" style={{ borderColor: LINE, background: "#FBFAF7" }}>
+            <button onClick={baixarModelo} className="text-[12.5px] font-semibold px-3 py-1.5 rounded-lg border" style={{ borderColor: T, color: T, background: "#fff" }}>⬇️ Baixar modelo</button>
+            <label className="text-[12.5px] font-semibold px-3 py-1.5 rounded-lg border cursor-pointer" style={{ borderColor: LINE, color: B, background: "#fff" }}>📄 Escolher arquivo<input type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => lerArquivo(e.target.files?.[0] || null)} /></label>
+            <span className="text-[12px]" style={{ color: nomeArq ? "#1F2A2E" : "#9aa" }}>{nomeArq || "nenhum arquivo"}</span>
+            {csv && <button onClick={() => enviar(true)} disabled={carregando} className="ml-auto text-[12.5px] font-semibold px-3 py-1.5 rounded-lg text-white" style={{ background: T }}>{carregando ? "Analisando…" : "🔎 Analisar"}</button>}
+          </div>
+          <div className="text-[11.5px]" style={{ color: "#8a6400" }}>Preencha o modelo (uma linha por item, coluna <b>tipo</b>). Grupos, marcas e laboratórios que não existirem são criados. Nada é gravado até você confirmar.</div>
+
+          {rel && (
+            <div className="rounded-xl border p-3" style={{ borderColor: LINE }}>
+              <div className="font-semibold text-[13px] mb-2" style={{ color: B }}>{feito ? "✅ Importado" : "Prévia — confira antes de gravar"}</div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                <Card n={rel.total} k="itens na planilha" />
+                <Card n={feito ? (rel.criados ?? rel.novos) : rel.novos} k="novos (a criar)" cor="#1c7a47" />
+                <Card n={rel.atualizados} k="atualizados" />
+                <Card n={rel.duplicadosRemovidos} k="duplicados removidos" cor="#b45309" />
+              </div>
+              <div className="text-[12px] flex flex-wrap gap-x-4 gap-y-1 mb-2" style={{ color: MUT }}>
+                {Object.entries(rel.porTipo || {}).map(([t, n]) => <span key={t}><b style={{ color: B }}>{String(n)}</b> {t.toLowerCase()}</span>)}
+              </div>
+              {(rel.gruposNovos?.length > 0 || rel.marcasNovas?.length > 0 || rel.labsNovos?.length > 0) && (
+                <div className="text-[11.5px] mb-2" style={{ color: MUT }}>Serão criados: {rel.gruposNovos?.length ? `${rel.gruposNovos.length} grupo(s)` : ""} {rel.marcasNovas?.length ? `· ${rel.marcasNovas.length} marca(s)` : ""} {rel.labsNovos?.length ? `· ${rel.labsNovos.length} laboratório(s)` : ""}</div>
+              )}
+              {rel.totalSuspeitos > 0 && (
+                <details><summary className="text-[12px] font-semibold cursor-pointer" style={{ color: "#b45309" }}>⚠️ {rel.totalSuspeitos} item(ns) pra revisar (preço 0 ou sem grupo)</summary>
+                  <div className="text-[11.5px] mt-1 max-h-40 overflow-y-auto" style={{ color: MUT }}>{rel.suspeitos?.map((s: string, i: number) => <div key={i}>• {s}</div>)}</div>
+                </details>
+              )}
+              {!feito && (
+                <div className="flex justify-end gap-2 mt-3 pt-2 border-t" style={{ borderColor: LINE }}>
+                  <button onClick={() => setPrev(null)} className="px-3 py-2 rounded-lg text-[13px] border" style={{ borderColor: LINE, color: MUT }}>Cancelar</button>
+                  <button onClick={() => enviar(false)} disabled={carregando} className="px-4 py-2 rounded-lg text-[13px] font-semibold text-white" style={{ background: B }}>{carregando ? "Importando…" : "💾 Confirmar importação"}</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
