@@ -9,11 +9,12 @@ export type ItemVendavel = {
   nome: string;
   valorPadrao: number;
   custoPadrao?: number;
-  tipo?: string;          // SERVICE | MEDICINE | ... (do Product.type)
+  tipo?: string;          // SERVICE | MEDICINE | ... (antigo) | PRODUTO/SERVICO/EXAME/... (novo)
   categoria?: string | null;
   _exame?: boolean;
   _fornecedorId?: string | null;
   _fornecedorNome?: string | null;
+  _novo?: boolean;        // veio do CATÁLOGO NOVO (cat_itens) — vende por descrição+valor
 };
 
 // LINHA de venda padronizada — o "centro operacional" de um item, IGUAL em toda tela.
@@ -21,6 +22,7 @@ export type LinhaVendavel = {
   descricao: string; valorUnitario: number; custoUnitario: number;
   servicoId?: string; productId?: string;
   _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null;
+  _novo?: boolean; catalogoItemId?: string; // catálogo novo
 };
 
 /** Transforma um item do catálogo numa LINHA de venda/comanda/orçamento PADRÃO — trata exame vs
@@ -48,6 +50,11 @@ export function labDoItem(item?: { _exame?: boolean; _fornecedorNome?: string | 
 export function linhaDoItem(item: ItemVendavel): LinhaVendavel {
   const descricao = nomeSemMarcador(item.nome);
   const base = { descricao, valorUnitario: Number(item.valorPadrao) || 0, custoUnitario: Number(item.custoPadrao) || 0 };
+  if (item._novo) {
+    // Catálogo NOVO: vende por descrição+valor+custo, guardando o id novo (catalogoItemId) p/ ligação
+    // futura (comissão/estoque/exame-lab vêm nas próximas fatias). _exame/fornecedor só p/ o selo do lab.
+    return { ...base, _novo: true, catalogoItemId: item.id, _exame: item._exame, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null };
+  }
   if (item._exame) {
     return { ...base, _exame: true, catalogoExameId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null };
   }
@@ -58,12 +65,16 @@ export function linhaDoItem(item: ItemVendavel): LinhaVendavel {
  *  uma linha. Garante que custo + fornecedor + identidade do exame SEMPRE viajam juntos — nenhuma
  *  tela "reembala" e perde campo. A tela só acrescenta o que é dela (quantidade, desconto, executor).
  *  Mudou aqui → muda em toda a cadeia (PDV, comanda, atendimento, internação, orçamento). */
-export function itemParaVenda(l: { descricao?: string; valorUnitario?: number; custoUnitario?: number; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; servicoId?: string; productId?: string }): Record<string, any> {
+export function itemParaVenda(l: { descricao?: string; valorUnitario?: number; custoUnitario?: number; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; servicoId?: string; productId?: string; _novo?: boolean; catalogoItemId?: string }): Record<string, any> {
   const base: Record<string, any> = {
     descricao: l.descricao,
     valorUnitario: Number(l.valorUnitario) || 0,
     ...(l.custoUnitario != null ? { custoUnitario: Number(l.custoUnitario) } : {}),
   };
+  // Catálogo NOVO: vai como item avulso (descrição+valor+custo) + o id novo (o servidor guarda quando
+  // a venda passar a referenciar cat_itens — por ora ele ignora se não usar). NÃO entra no fluxo de
+  // exame antigo (catalogoExameId/petexa_), que é de outra base.
+  if (l._novo) return { ...base, ...(l.catalogoItemId ? { catalogoItemId: l.catalogoItemId } : {}) };
   if (l._exame) return { ...base, tipoItem: "EXAME", catalogoExameId: l.catalogoExameId, fornecedorId: l.fornecedorId ?? undefined };
   return { ...base, ...(l.servicoId ? { servicoId: l.servicoId, productId: l.productId ?? l.servicoId } : {}) };
 }
@@ -71,7 +82,29 @@ export function itemParaVenda(l: { descricao?: string; valorUnitario?: number; c
 /** Carrega o catálogo vendável completo: serviços + produtos + medicamentos/vacinas + EXAMES.
  *  Exames vêm por PADRÃO (aparecem em toda venda/orçamento). Passe `{ exames: false }` só se a
  *  tela realmente não puder vender exame. */
+/** CHAVE DE VIRADA: quando ligada (Config do Catálogo novo), as telas de venda leem o cat_itens novo
+ *  em vez do catálogo antigo. Padrão DESLIGADO — nada muda até você virar. */
+export async function usarCatalogoNovo(): Promise<boolean> {
+  try {
+    const d = await fetch("/api/listas?lista=catalogo_config", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    const arr: any[] = Array.isArray(d) ? d : (d?.itens || d?.data || []);
+    const raw = arr[0]?.valor;
+    if (!raw) return false;
+    try { return !!JSON.parse(raw)?.usarNovo; } catch { return false; }
+  } catch { return false; }
+}
+
 export async function carregarCatalogoVendavel(opts?: { exames?: boolean }): Promise<ItemVendavel[]> {
+  // Catálogo NOVO ligado? Lê o cat_itens (fonte única). Se estiver ligado mas ainda VAZIO, cai no
+  // antigo pra nenhuma tela ficar sem catálogo (transição segura).
+  if (await usarCatalogoNovo()) {
+    try {
+      const d = await fetch("/api/catalogo/vendavel", { cache: "no-store" }).then((r) => r.json()).catch(() => []);
+      const arr: any[] = Array.isArray(d) ? d : (d?.data || d?.itens || []);
+      if (arr.length) return arr as ItemVendavel[];
+    } catch { /* rede — cai no antigo */ }
+  }
+
   const out: ItemVendavel[] = [];
 
   // Produtos + serviços + medicamentos/vacinas — TODOS de uma vez, sem excludeService, sem truncar.

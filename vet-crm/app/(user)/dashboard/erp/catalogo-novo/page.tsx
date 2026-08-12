@@ -43,6 +43,8 @@ export default function CatalogoNovoPage() {
   const [salvando, setSalvando] = useState(false);
   const [grupoOpen, setGrupoOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [usarNovo, setUsarNovo] = useState(false); // chave: telas de venda usam este catálogo
+  const [flagItemId, setFlagItemId] = useState<string | null>(null);
 
   const carregarItens = useCallback(async () => {
     const p = new URLSearchParams();
@@ -72,7 +74,26 @@ export default function CatalogoNovoPage() {
     } catch {}
   }, []);
 
-  useEffect(() => { (async () => { setLoading(true); await carregarApoio(); await carregarItens(); setLoading(false); })(); /* eslint-disable-next-line */ }, []);
+  const carregarFlag = useCallback(async () => {
+    try {
+      const cfg = await fetch("/api/listas?lista=catalogo_config", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+      const arr = Array.isArray(cfg) ? cfg : (cfg?.itens || cfg?.data || []);
+      if (arr[0]) { setFlagItemId(arr[0].id); try { setUsarNovo(!!JSON.parse(arr[0].valor)?.usarNovo); } catch {} }
+    } catch {}
+  }, []);
+  async function toggleUsarNovo() {
+    const novo = !usarNovo;
+    if (novo && itens.length === 0 && !confirm("O catálogo novo ainda parece vazio. Ligar assim vai deixar as telas de venda usando o antigo (segurança) até você importar. Quer ligar mesmo assim?")) return;
+    try {
+      const valor = JSON.stringify({ usarNovo: novo });
+      if (flagItemId) await fetch(`/api/listas/${flagItemId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor }) });
+      else { const r = await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "catalogo_config", valor }) }).then((r) => r.json()); setFlagItemId(r?.id || null); }
+      setUsarNovo(novo);
+      toast.success(novo ? "🛒 Vendas agora usam o catálogo NOVO" : "Vendas voltaram ao catálogo antigo");
+    } catch { toast.error("Erro ao salvar a chave"); }
+  }
+
+  useEffect(() => { (async () => { setLoading(true); await carregarApoio(); await carregarFlag(); await carregarItens(); setLoading(false); })(); /* eslint-disable-next-line */ }, []);
   useEffect(() => { const t = setTimeout(carregarItens, 250); return () => clearTimeout(t); }, [carregarItens]);
 
   const gruposFolha = useMemo(() => grupos.filter((g) => !g.agrupador), [grupos]);
@@ -140,6 +161,16 @@ export default function CatalogoNovoPage() {
         <button onClick={() => setImportOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>📥 Importar</button>
         <button onClick={() => setGrupoOpen(true)} className="text-[13px] font-semibold px-3 py-2 rounded-lg border" style={{ borderColor: LINE, color: B, background: "#fff" }}>🌳 Grupos</button>
         <button onClick={novo} className="text-[13px] font-semibold px-3.5 py-2 rounded-lg text-white" style={{ background: T }}>＋ Novo item</button>
+      </div>
+
+      {/* CHAVE DE VIRADA */}
+      <div className="rounded-xl border mb-3 flex items-center gap-3 flex-wrap px-4 py-3" style={{ borderColor: usarNovo ? "#0F6E56" : LINE, background: usarNovo ? "#F3FBF7" : "#FBFAF7" }}>
+        <span className="text-[20px]">{usarNovo ? "🛒" : "🔌"}</span>
+        <div className="flex-1 min-w-[220px]">
+          <div className="text-[13.5px] font-semibold" style={{ color: usarNovo ? "#0F6E56" : B }}>{usarNovo ? "As telas de venda usam ESTE catálogo" : "As telas de venda ainda usam o catálogo ANTIGO"}</div>
+          <div className="text-[12px]" style={{ color: MUT }}>{usarNovo ? "PDV, comanda, orçamento e atendimento leem daqui. Se algo faltar, desligue e volta ao antigo na hora." : "Ligue quando seus dados estiverem importados. Rollback é instantâneo."}</div>
+        </div>
+        <button onClick={toggleUsarNovo} className="text-[13px] font-semibold px-4 py-2 rounded-lg text-white shrink-0" style={{ background: usarNovo ? "#A32D2D" : "#0F6E56" }}>{usarNovo ? "Desligar (voltar ao antigo)" : "🛒 Usar este catálogo nas vendas"}</button>
       </div>
 
       {/* filtros */}

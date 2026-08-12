@@ -21,6 +21,9 @@ export class CatalogoController {
   @Get('marcas') listMarcas() { return this.service.listMarcas(); }
   @Post('marcas') criarMarca(@Body() b: any) { return this.service.criarMarca(b); }
 
+  // Fonte única de venda (catálogo novo, normalizado)
+  @Get('vendavel') vendavel() { return this.service.vendavel(); }
+
   // Itens
   @Get('itens') listItens(@Query() q: any) { return this.service.listItens(q); }
   @Get('itens/:id') getItem(@Param('id') id: string) { return this.service.getItem(id); }

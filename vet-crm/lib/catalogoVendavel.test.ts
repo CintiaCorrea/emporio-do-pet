@@ -1,5 +1,29 @@
 import { describe, it, expect } from "vitest";
-import { labDoItem, linhaDoItem, nomeSemMarcador, ehVeter } from "@/lib/catalogoVendavel";
+import { labDoItem, linhaDoItem, itemParaVenda, nomeSemMarcador, ehVeter } from "@/lib/catalogoVendavel";
+
+// BLINDAGEM do caminho do CATÁLOGO NOVO (_novo): vende por descrição+valor+custo, guarda catalogoItemId,
+// e NÃO entra no fluxo de exame antigo (catalogoExameId/petexa_).
+describe("catalogoVendavel — catálogo NOVO (_novo)", () => {
+  it("linhaDoItem: item novo vira linha por descrição+valor+custo + catalogoItemId (sem servicoId/productId)", () => {
+    const l = linhaDoItem({ id: "cat1", nome: "Consulta", valorPadrao: 120, custoPadrao: 30, tipo: "SERVICO", _novo: true });
+    expect(l).toMatchObject({ descricao: "Consulta", valorUnitario: 120, custoUnitario: 30, _novo: true, catalogoItemId: "cat1" });
+    expect((l as any).servicoId).toBeUndefined();
+    expect((l as any).productId).toBeUndefined();
+  });
+  it("itemParaVenda: item novo NÃO manda tipoItem EXAME (não usa a base de exame antiga)", () => {
+    const l = linhaDoItem({ id: "cat2", nome: "Hemograma", valorPadrao: 80, tipo: "EXAME", _novo: true, _exame: true, _fornecedorNome: "Veter" });
+    const body = itemParaVenda(l);
+    expect(body.tipoItem).toBeUndefined();       // não é o fluxo de exame antigo
+    expect(body.catalogoExameId).toBeUndefined();
+    expect(body.catalogoItemId).toBe("cat2");    // guarda o id novo
+    expect(body.descricao).toBe("Hemograma");
+    expect(body.valorUnitario).toBe(80);
+  });
+  it("exame do catálogo novo ainda mostra o selo do lab (labDoItem via _exame+fornecedor)", () => {
+    const lab = labDoItem({ _exame: true, _fornecedorNome: "Veter" });
+    expect(lab).toEqual({ nome: "Veter", veter: true });
+  });
+});
 
 describe("catalogoVendavel — ehVeter (lab padrão)", () => {
   it("reconhece Veter em qualquer forma; nega os outros/ vazio", () => {

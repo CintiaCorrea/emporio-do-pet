@@ -182,6 +182,33 @@ export class CatalogoService {
     return this.prisma.itemHistorico.findMany({ where: { itemId: id }, orderBy: { createdAt: 'desc' }, take: 200 });
   }
 
+  // FONTE ÚNICA de venda a partir do catálogo NOVO — normalizada no MESMO formato que a
+  // lib/catalogoVendavel do front espera (id, nome, valorPadrao, custoPadrao, tipo, categoria,
+  // + lab do exame). `_novo: true` marca que veio daqui (o front vende por descrição+valor).
+  async vendavel() {
+    const itens = await this.prisma.itemCatalogo.findMany({
+      where: { ativo: true, arquivado: false },
+      include: { grupo: { select: { nome: true } }, exame: true },
+      orderBy: { nome: 'asc' },
+      take: 8000,
+    });
+    const fornIds = [...new Set(itens.map((i) => i.exame?.fornecedorId).filter(Boolean) as string[])];
+    const forns = fornIds.length ? await this.prisma.fornecedor.findMany({ where: { id: { in: fornIds } }, select: { id: true, nome: true } }) : [];
+    const fornMap = new Map(forns.map((f) => [f.id, f.nome]));
+    return itens.map((i) => ({
+      id: i.id,
+      nome: i.nome,
+      valorPadrao: i.preco,
+      custoPadrao: i.custo ?? undefined,
+      tipo: i.tipo,
+      categoria: i.grupo?.nome ?? null,
+      _novo: true,
+      _exame: i.tipo === 'EXAME',
+      _fornecedorId: i.exame?.fornecedorId ?? null,
+      _fornecedorNome: i.exame?.fornecedorId ? (fornMap.get(i.exame.fornecedorId) ?? null) : null,
+    }));
+  }
+
   // ── IMPORTADOR (CSV) ──────────────────────────────────────────────
   private norm(s?: string) { return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
   private parseCsvLine(line: string, sep: string): string[] {
