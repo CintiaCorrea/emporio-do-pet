@@ -98,7 +98,7 @@ export default function FeedTimeline({ atendimentos = [], clinDocs = [], histori
                   </div>
                   <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition">
                     {onEditar && (it.src === "atd" || (it.src === "doc" && !it.temArquivo)) ? <button onClick={(e) => { e.stopPropagation(); onEditar(it); }} title="Editar" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#009AAC] hover:bg-white"><LuPencil size={13} /></button> : null}
-                    {onExcluir ? <button onClick={(e) => { e.stopPropagation(); onExcluir(it); }} title="Excluir" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#E24B4A] hover:bg-white"><LuTrash2 size={13} /></button> : null}
+                    {onExcluir && it.src !== "hist" ? <button onClick={(e) => { e.stopPropagation(); onExcluir(it); }} title="Excluir" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#E24B4A] hover:bg-white"><LuTrash2 size={13} /></button> : null}
                   </div>
                   <div className="w-7 h-7 rounded-full bg-white border text-[10px] font-bold flex items-center justify-center shrink-0" style={{ color: "#014D5E", borderColor: "#E8DFC8" }} title={it.prof || ""}>{INITIALS(it.prof)}</div>
                 </div>

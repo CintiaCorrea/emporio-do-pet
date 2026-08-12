@@ -86,6 +86,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       const r = await fetch(`/api/orcamentos/${id}/converter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       if (!r.ok) throw new Error();
       toast.success("Orçamento transformado em venda ✅"); await loadOrcs();
+      try { window.dispatchEvent(new Event("pet:venda")); } catch {} // avisa a ficha p/ recarregar Compras
     } catch { toast.error("Erro ao transformar em venda"); }
   }
   async function fecharVenda() {
@@ -99,6 +100,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       if (!r.ok) throw new Error();
       setUltVenda({ itens: itensVenda, valor: total, petNome, tutorNome, date: new Date().toISOString() });
       toast.success("Venda registrada ✅"); limpar();
+      try { window.dispatchEvent(new Event("pet:venda")); } catch {} // avisa a ficha p/ recarregar Compras/Total
     } catch { toast.error("Erro ao fechar venda"); } finally { setSaving(false); }
   }
 

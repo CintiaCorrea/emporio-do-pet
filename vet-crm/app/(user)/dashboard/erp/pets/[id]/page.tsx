@@ -30,6 +30,7 @@ import PetComandaRail from "@/components/pets/PetComandaRail";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import { preencherVariaveis, temVariaveis, formatarVacinas, documentoResumo, ehHtmlDoc } from "@/lib/documentos/variaveis";
+import { fmtDataBR } from "@/lib/datas";
 import EditorDocumento from "@/components/documentos/EditorDocumento";
 import DocConteudo from "@/components/documentos/DocConteudo";
 import { imprimirDocumento } from "@/lib/print";
@@ -58,14 +59,7 @@ const PET_EMOJI = (species: string) => {
   if (s.includes("CANIN") || s.includes("CACHORR") || s === "CANINE") return "🐶";
   return "🐾";
 };
-const fmtDataBR = (v?: string | null) => {
-  if (!v) return "—";
-  // "AAAA-MM-DD" puro: new Date() interpreta como UTC e mostra o DIA ANTERIOR
-  // (boletim do dia 23 saía como 22 — Cintia 23/07). O T00:00:00 força hora local.
-  const s = String(v);
-  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + "T00:00:00" : s);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
-};
+// fmtDataBR agora vem da fonte única lib/datas (trata data de calendário sem o bug de fuso).
 const diasTxt = (d: number | null | undefined) =>
   d == null ? "—" : d === 0 ? "hoje" : d < 30 ? `${d}d` : d < 365 ? `${Math.floor(d / 30)}m` : `${Math.floor(d / 365)}a`;
 const sterilLabel = (s?: string | null) =>
@@ -348,6 +342,14 @@ export default function PetDetailPage() {
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
   useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadHistorico(); loadAtdConfig(); loadProtocolos(); loadBoletins(); loadFisioRec(); } /* eslint-disable-next-line */ }, [petId]);
+  // A comanda (PetComandaRail) dispara "pet:venda" ao fechar venda/converter orçamento → recarrega
+  // Compras/Total e o crédito, sem precisar de F5.
+  useEffect(() => {
+    const onVenda = () => { if (petId) { loadAtendimentos(); load(); } };
+    window.addEventListener("pet:venda", onVenda);
+    return () => window.removeEventListener("pet:venda", onVenda);
+    /* eslint-disable-next-line */
+  }, [petId]);
   // ESC fecha o laudo aberto / o painel aberto (exame/receita/documento/atendimento…).
   useEffect(() => {
     if (!artefato && !atdOpen && !laudoView) return;
@@ -556,8 +558,15 @@ export default function PetDetailPage() {
     }
   }
   async function excluirEntrada(it: any) {
-    if (!(await confirmDelete({ entityLabel: "registro", itemName: it.title || "este registro" }))) return;
+    // Cada tipo de entrada vive num lugar diferente — a lixeira precisa apagar na fonte CERTA
+    // (antes chamava sempre /appointments, o que falhava em exame/histórico: id não é de agendamento).
+    if (it.src === "hist") { toast("Registro importado do SimplesVet é só leitura."); return; }
+    if (!(await confirmDelete({ entityLabel: it.src === "exame" ? "exame" : "registro", itemName: it.title || "este registro" }))) return;
     try {
+      if (it.src === "exame") {
+        await listasDel(it.rawId); // exame vive na lista petexa_ (id ≠ agendamento)
+        toast.success("Exame excluído"); await loadPetColecoes(); await loadAtendimentos(); return;
+      }
       const url = it.src === "doc" ? `/api/clinical-documents/${it.rawId}` : `/api/appointments/${it.rawId}`;
       const r = await fetch(url, { method: "DELETE" });
       if (!r.ok) throw new Error();
@@ -2285,7 +2294,7 @@ export default function PetDetailPage() {
                             />
                           </label>
                           <button onClick={() => anexarResultado(x.id, x.data)} title="Colar um link (Drive, etc.) em vez de subir arquivo" className="text-[11px] px-2.5 py-1 rounded-full border border-[#E8E2D6] text-[#009AAC] hover:border-[#009AAC]">🔗 Link</button>
-                          <button onClick={() => delExame(x.id)} className="text-[11px] text-[#b23b39]">Excluir</button>
+                          <button onClick={async () => { if (!(await confirmDelete({ entityLabel: "exame", itemName: x.data?.nome || "exame" }))) return; await delExame(x.id); }} className="text-[11px] text-[#b23b39]">Excluir</button>
                         </div>
                       </div>
                       {x.data.resultadoUrl && (

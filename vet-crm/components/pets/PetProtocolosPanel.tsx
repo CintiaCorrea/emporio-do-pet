@@ -4,6 +4,7 @@ import { LuPlus, LuPill, LuTrash, LuX, LuPencil } from "react-icons/lu";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 import toast from "react-hot-toast";
 import { carregarCatalogoVendavel, nomeSemMarcador } from "@/lib/catalogoVendavel";
+import { diaCalendario, hojeLocalISO } from "@/lib/datas";
 
 type Tipo = "VACINA" | "VERMIFUGO" | "ECTOPARASITA" | "OUTRO";
 const TIPO_LABEL: Record<string, string> = { VACINA: "Vacinas", VERMIFUGO: "Vermífugo", ECTOPARASITA: "Antipulgas", OUTRO: "Outros" };
@@ -23,8 +24,9 @@ function nomeExibicao(a: Aplicado): string {
   return fab && NOME_GENERICO.test(nome) ? `${nome} — ${fab}` : (nome || "Protocolo");
 }
 
-function fmt(d?: string | null) { if (!d) return "—"; try { return new Date(d).toLocaleDateString("pt-BR"); } catch { return "—"; } }
-function fmtMesAno(d?: string | null) { if (!d) return ""; try { return new Date(d).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }); } catch { return ""; } }
+// Datas de dose são de CALENDÁRIO (dia previsto/aplicado) — tratadas pela fonte única lib/datas (sem fuso).
+function fmt(d?: string | null) { const x = diaCalendario(d); return x ? x.toLocaleDateString("pt-BR") : "—"; }
+function fmtMesAno(d?: string | null) { const x = diaCalendario(d); return x ? x.toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }) : ""; }
 function hint(t: Template) {
   const p: string[] = [];
   if (t.doses > 1) p.push(`${t.doses} doses` + (t.intervaloDias ? ` (${t.intervaloDias}d)` : ""));
@@ -151,7 +153,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
   }
   function openDose(d: Dose, nomeProto?: string) {
     const pv = precoDe(nomeProto || "");
-    setDoseModal({ dose: d, nomeProto: nomeProto || "", lote: d.lote || "", fabricante: d.fabricante || "", dataAplicada: (d.dataAplicada || new Date().toISOString()).slice(0, 10), observacao: "", lancarComanda: pv > 0, comandaValor: pv ? String(pv) : "" });
+    setDoseModal({ dose: d, nomeProto: nomeProto || "", lote: d.lote || "", fabricante: d.fabricante || "", dataAplicada: d.dataAplicada ? String(d.dataAplicada).slice(0, 10) : hojeLocalISO(), observacao: "", lancarComanda: pv > 0, comandaValor: pv ? String(pv) : "" });
   }
   async function registrarDose() {
     const m = doseModal;
