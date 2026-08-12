@@ -6,7 +6,7 @@ import { useState } from "react";
 // O conteúdo (guia + maquete) vive em /public/academia/*.html e entra por iframe,
 // então não depende de link externo — qualquer pessoa logada acessa por aqui.
 
-type Tema = "whatsapp" | "agenda" | "fisio" | "gravacao" | "veterinario" | "financeiro" | "vendas" | "exames" | "docs" | "regras";
+type Tema = "whatsapp" | "agenda" | "ficha" | "fisio" | "gravacao" | "veterinario" | "financeiro" | "vendas" | "exames" | "docs" | "regras";
 type ConteudoWa = "guia" | "maquete" | "api";
 type ConteudoAg = "guia" | "maquete";
 
@@ -18,6 +18,7 @@ export default function AcademiaPage() {
   const temas: { key: Tema; label: string; emoji: string }[] = [
     { key: "whatsapp", label: "WhatsApp", emoji: "📲" },
     { key: "agenda", label: "Agenda", emoji: "📅" },
+    { key: "ficha", label: "Ficha do Pet", emoji: "🐾" },
     { key: "fisio", label: "Boletim de Fisio", emoji: "🌿" },
     { key: "gravacao", label: "Gravação de consulta", emoji: "🎤" },
     { key: "veterinario", label: "Veterinário", emoji: "🩺" },
@@ -115,6 +116,23 @@ export default function AcademiaPage() {
             key={ag}
             src={ag === "guia" ? "/academia/guia-agenda.html" : "/academia/maquete-agenda.html"}
             title={ag === "guia" ? "Guia da Agenda" : "Maquete interativa da Agenda"}
+            className="w-full block"
+            style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}
+          />
+        </div>
+      )}
+
+      {/* TEMA: Ficha do Pet (guia interativo — as 7 abas, cabeçalho, prontuário, vacinas, fisio, compras) */}
+      {tema === "ficha" && (
+        <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
+          <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
+            <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Ficha do Pet</span>
+            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>🐾 Guia interativo</span>
+            <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Passe o mouse nos termos. Clique nos passos da jornada.</span>
+          </div>
+          <iframe
+            src="/academia/guia-ficha-pet.html"
+            title="Guia da Ficha do Pet"
             className="w-full block"
             style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}
           />

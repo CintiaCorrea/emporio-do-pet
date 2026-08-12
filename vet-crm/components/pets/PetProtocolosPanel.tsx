@@ -101,7 +101,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
     try {
       const r = await fetch(`/api/protocolos?petId=${petId}`, { cache: "no-store" });
       const d = await r.json();
-      const arr = Array.isArray(d) ? d : [];
+      const arr = Array.isArray(d) ? d : (d?.protocolos || d?.data || []); // aceita array puro OU envelopado
       setList(arr);
       setSelId((cur) => (cur && arr.some((a: Aplicado) => a.id === cur)) ? cur : (arr[0]?.id || ""));
     } catch (e) { console.error(e); } finally { setLoading(false); }

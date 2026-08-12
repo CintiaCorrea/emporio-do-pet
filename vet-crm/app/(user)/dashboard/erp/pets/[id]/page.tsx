@@ -24,7 +24,6 @@ import WeightChart from "@/components/pets/WeightChart";
 import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
 import PetProtocolosPanel from "@/components/pets/PetProtocolosPanel";
 import PetAtendimentoPanel from "@/components/pets/PetAtendimentoPanel";
-import PetFichaHeaderCard from "@/components/pets/PetFichaHeaderCard";
 import { LuPrinter } from "react-icons/lu";
 import PetComandaRail from "@/components/pets/PetComandaRail";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
@@ -134,7 +133,7 @@ export default function PetDetailPage() {
 
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"HISTORICO" | "PROTOCOLOS" | "TIMELINE" | "AGENDA" | "VENDAS" | "CLINICA" | "PACOTES" | "EXAMES" | "RELACIONAMENTO">("HISTORICO");
+  const [tab, setTab] = useState<"HISTORICO" | "TIMELINE" | "EXAMES">("HISTORICO"); // sub-abas do Prontuário
   const [protoAuto, setProtoAuto] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -325,9 +324,11 @@ export default function PetDetailPage() {
     const texto = montarTextoBoletim(b.data);
     const marcarEnviado = async () => { try { await fetch(`/api/listas/${b.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...b.data, enviadoAt: new Date().toISOString() }) }) }); await loadBoletins(); } catch {} };
     try {
-      const r = await fetch(`/api/survey-avaliacao/mensagem-tutor`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: (pet as any).tutorId || pet?.tutor?.id, texto }) });
-      const d = await r.json().catch(() => ({ success: false }));
-      if (d?.success) { toast.success("Boletim enviado pelo WhatsApp ✅"); await marcarEnviado(); return; }
+      // MESMO caminho do modal (/api/whatsapp/boletim): trata conversa aberta (envia) x fechada (fila).
+      const r = await fetch(`/api/whatsapp/boletim`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: (pet as any).tutorId || pet?.tutor?.id, texto, petNome: pet?.name }) });
+      const d = await r.json().catch(() => ({ status: "erro" }));
+      if (d?.status === "enviado") { toast.success("Boletim enviado pelo WhatsApp ✅"); await marcarEnviado(); return; }
+      if (d?.status === "na_fila") { toast("Conversa fechada — enviei a mensagem que abre a conversa. O boletim vai automático quando o cliente responder. 🕐", { duration: 6500 }); await marcarEnviado(); return; }
       toast.error("Envio automático não deu certo" + (d?.error ? `: ${d.error}` : "") + ". Abrindo o WhatsApp.");
     } catch { toast.error("Envio automático falhou. Abrindo o WhatsApp."); }
     try { await navigator.clipboard.writeText(texto); } catch {}
@@ -1143,7 +1144,7 @@ export default function PetDetailPage() {
       const fisioItem = itensValidos.find((it: any) => it.servicoId && fisioSrv.some((sv: any) => String(sv.id) === String(it.servicoId)));
       if (fisioItem) {
         const sv = fisioSrv.find((x: any) => String(x.id) === String(fisioItem.servicoId));
-        setTab("PACOTES");
+        setMainTab("GERAL"); // o form do pacote de fisio fica na aba Geral — leva a recepção até ele
         setPacForm({ open: true, serviceId: String(fisioItem.servicoId), nome: "", total: String(Number(fisioItem.quantidade) || 4), jaFeitas: "0" });
         toast(`Fisioterapia vendida (${sv?.nome || sv?.titulo || "sessão"}) — defina o total de sessões do pacote`, { icon: "🩺", duration: 6000 });
       }
