@@ -13,6 +13,7 @@ import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
 import { usePodeEditar } from '@/lib/permissions/context';
 import { useCanSeeCost } from '@/lib/permissions/useCanSeeCost';
+import { ehVeter } from '@/lib/catalogoVendavel';
 
 // Tipo SERVICE
 type ServiceType = 'SERVICE';
@@ -459,7 +460,11 @@ export default function ServicesPage() {
                             </span>
                           ) : <span className="text-gray-300">—</span>}
                         </td>
-                        <td className="px-4 py-2.5 text-gray-700">{service.fornecedor?.nome || <span className="text-gray-300">—</span>}</td>
+                        <td className="px-4 py-2.5 text-gray-700">{service.fornecedor?.nome ? (
+                          ehVeter(service.fornecedor.nome)
+                            ? <span className="inline-flex items-center gap-1 text-[12px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#E1F5EE", color: "#0F6E56" }} title="Laboratório padrão (Veter)">⭐ {service.fornecedor.nome}</span>
+                            : <span className="inline-flex items-center gap-1"><span aria-hidden>🏥</span>{service.fornecedor.nome}</span>
+                        ) : <span className="text-gray-300">—</span>}</td>
                         {canSeeCost && <td className="px-4 py-2.5 text-right tabular-nums text-gray-700">{service.custoPadrao != null ? formatCurrency(service.custoPadrao) : <span className="text-gray-300">—</span>}</td>}
                         <td className="px-4 py-2.5 text-right tabular-nums">
                           {semPreco ? (

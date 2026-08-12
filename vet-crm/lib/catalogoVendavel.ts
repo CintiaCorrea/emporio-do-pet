@@ -33,11 +33,16 @@ export const nomeSemMarcador = (nome?: string) => (nome || "").replace(/^🔬\s*
 /** Rótulo do LABORATÓRIO de um item do catálogo — só faz sentido pra EXAME. Fonte ÚNICA da regra
  *  "mostrar o lab na frente do exame + estrela no Veter (padrão)": devolve o nome do lab e se é o
  *  Veter (`/veter/i`, mesma convenção do resto do sistema). Todas as telas de venda usam isto. */
+/** Veter é o laboratório PADRÃO — identificado pelo NOME (convenção única do sistema, /veter/i). */
+export function ehVeter(fornecedorNome?: string | null): boolean {
+  return /veter/i.test(String(fornecedorNome || ""));
+}
+
 export function labDoItem(item?: { _exame?: boolean; _fornecedorNome?: string | null } | null): { nome: string; veter: boolean } | null {
   if (!item?._exame) return null;
   const nome = String(item._fornecedorNome || "").trim();
   if (!nome) return null;
-  return { nome, veter: /veter/i.test(nome) };
+  return { nome, veter: ehVeter(nome) };
 }
 
 export function linhaDoItem(item: ItemVendavel): LinhaVendavel {

@@ -1,5 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { labDoItem, linhaDoItem, nomeSemMarcador } from "@/lib/catalogoVendavel";
+import { labDoItem, linhaDoItem, nomeSemMarcador, ehVeter } from "@/lib/catalogoVendavel";
+
+describe("catalogoVendavel — ehVeter (lab padrão)", () => {
+  it("reconhece Veter em qualquer forma; nega os outros/ vazio", () => {
+    expect(ehVeter("Veter")).toBe(true);
+    expect(ehVeter("laboratório VETER diagnóstico")).toBe(true);
+    expect(ehVeter("Alvaro")).toBe(false);
+    expect(ehVeter("")).toBe(false);
+    expect(ehVeter(null)).toBe(false);
+  });
+});
 
 // BLINDAGEM da diferenciação de laboratório na venda: exame mostra o lab + estrela no Veter.
 describe("catalogoVendavel — labDoItem (lab + estrela na venda)", () => {
