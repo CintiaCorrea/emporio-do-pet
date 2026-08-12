@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { LuTrash, LuPlus, LuMessageSquare } from "react-icons/lu";
-import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, ItemVendavel } from "@/lib/catalogoVendavel";
+import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem, ItemVendavel } from "@/lib/catalogoVendavel";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ddmm = (iso: string) => { const [, m, d] = String(iso).split("-"); return d && m ? `${d}/${m}` : iso; };
@@ -154,7 +154,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
           {itens.map((it, i) => (
             <div key={i} className="grid grid-cols-[1fr_44px_84px_24px] gap-1.5 items-center">
               <input list={`cat-${i}`} value={it.descricao} onChange={(e) => { setItem(i, { descricao: e.target.value }); preencherDoCatalogo(i, e.target.value); }} placeholder="Descrição ou catálogo…" style={inp} />
-              <datalist id={`cat-${i}`}>{cat.map((c) => <option key={c.nome} value={c.nome} />)}</datalist>
+              <datalist id={`cat-${i}`}>{cat.map((c) => { const lab = labDoItem(c); return <option key={c.nome} value={c.nome} label={lab ? `${lab.veter ? "⭐ " : ""}${lab.nome}` : undefined} />; })}</datalist>
               <input value={it.qtd} onChange={(e) => setItem(i, { qtd: e.target.value })} inputMode="numeric" style={{ ...inp, textAlign: "center" }} />
               <input value={it.valor} onChange={(e) => setItem(i, { valor: e.target.value })} onBlur={(e) => setItem(i, { valor: fmtVal(e.target.value) })} inputMode="decimal" placeholder="0,00" style={{ ...inp, textAlign: "right" }} />
               <button onClick={() => delItem(i)} title="Remover" className="text-[#b23b39] flex items-center justify-center"><LuTrash size={13} /></button>

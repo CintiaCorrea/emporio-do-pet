@@ -4,7 +4,7 @@ import { LuShoppingCart, LuPlus, LuTrash, LuX, LuPrinter, LuArrowRight } from "r
 import toast from "react-hot-toast";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
-import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
+import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from "@/lib/catalogoVendavel";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; catalogoExameId?: string; _exame?: boolean };
@@ -142,7 +142,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                   {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
                     matches.map((c) => (
                       <button key={c.id} onClick={() => { const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome }); addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, catalogoExameId: l.catalogoExameId, _exame: l._exame, quantidade: 1 }); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
-                        <span className="text-[#1F2A2E] truncate pr-2">{c.nome}</span><span className="text-[#0F6E56] font-semibold shrink-0">{BRL(c.valor)}</span>
+                        <span className="text-[#1F2A2E] truncate pr-2 flex items-center gap-1.5 min-w-0"><span className="truncate">{c.nome}</span>{(() => { const lab = labDoItem(c); return lab ? <span className="shrink-0 text-[10px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}</span><span className="text-[#0F6E56] font-semibold shrink-0">{BRL(c.valor)}</span>
                       </button>
                     ))}
                 </div>

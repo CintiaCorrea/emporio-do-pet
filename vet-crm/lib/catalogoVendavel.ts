@@ -30,6 +30,16 @@ export type LinhaVendavel = {
 /** Tira o marcador visual "🔬 " do nome do exame — a convenção do marcador mora só aqui. */
 export const nomeSemMarcador = (nome?: string) => (nome || "").replace(/^🔬\s*/, "");
 
+/** Rótulo do LABORATÓRIO de um item do catálogo — só faz sentido pra EXAME. Fonte ÚNICA da regra
+ *  "mostrar o lab na frente do exame + estrela no Veter (padrão)": devolve o nome do lab e se é o
+ *  Veter (`/veter/i`, mesma convenção do resto do sistema). Todas as telas de venda usam isto. */
+export function labDoItem(item?: { _exame?: boolean; _fornecedorNome?: string | null } | null): { nome: string; veter: boolean } | null {
+  if (!item?._exame) return null;
+  const nome = String(item._fornecedorNome || "").trim();
+  if (!nome) return null;
+  return { nome, veter: /veter/i.test(nome) };
+}
+
 export function linhaDoItem(item: ItemVendavel): LinhaVendavel {
   const descricao = nomeSemMarcador(item.nome);
   const base = { descricao, valorUnitario: Number(item.valorPadrao) || 0, custoUnitario: Number(item.custoPadrao) || 0 };

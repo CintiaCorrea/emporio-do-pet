@@ -239,8 +239,10 @@ export class ProductsService {
     return out.map((s) => s.trim());
   }
 
-  async importarCatalogo(csv: string, opts?: { dryRun?: boolean }) {
+  async importarCatalogo(csv: string, opts?: { dryRun?: boolean; inativarForaDaLista?: boolean; confirmarInativacaoEmMassa?: boolean }) {
     const dryRun = !!opts?.dryRun;
+    const inativarForaDaLista = !!opts?.inativarForaDaLista; // TRAVA: por padrão NÃO inativa (só adiciona/atualiza)
+    const LIMITE_MASSA = 0.2; // recusa desligar mais que 20% do catálogo sem 2ª confirmação
     const linhas = String(csv || '').replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim().length);
     if (!linhas.length) throw new BadRequestException('CSV vazio');
     // Detecta o separador: TAB > ";" > ",". A vírgula agora é aceita porque o parser
@@ -293,6 +295,12 @@ export class ProductsService {
     let novos = 0, atualizados = 0;
     for (const it of itens) (mapaExist.has(this.normNome(it.nome)) ? atualizados++ : novos++);
     const foraDaLista = existentes.filter((e) => e.ativo && !chavesLista.has(this.normNome(e.name)));
+    const ativosHoje = existentes.filter((e) => e.ativo).length;
+    // Só inativa se a pessoa PEDIU (inativarForaDaLista). Cap de segurança: se for desligar
+    // mais que LIMITE_MASSA do catálogo, bloqueia até uma 2ª confirmação consciente.
+    const vaiInativar = inativarForaDaLista ? foraDaLista.length : 0;
+    const pctInativar = ativosHoje ? vaiInativar / ativosHoje : 0;
+    const bloqueioMassa = vaiInativar > 0 && pctInativar > LIMITE_MASSA && !opts?.confirmarInativacaoEmMassa;
 
     const relatorio = {
       totalItens: itens.length,
@@ -300,12 +308,25 @@ export class ProductsService {
       servicos: itens.filter((i) => !i.isProduto).length,
       novos, atualizados, duplicadosRemovidos,
       precoZeroInativados: itens.filter((i) => !i.ativo).length,
-      foraDaListaInativados: foraDaLista.length,
+      inativarForaDaLista,                                   // eco do modo escolhido
+      foraDaListaCandidatos: foraDaLista.length,             // quantos ficariam de fora (informativo)
+      foraDaListaInativados: vaiInativar,                    // quantos SERÃO inativados de fato (0 se opt-out)
       foraDaLista: foraDaLista.map((e) => e.name).sort((a, b) => a.localeCompare(b)).slice(0, 300),
+      ativosHoje,
+      pctInativar: Math.round(pctInativar * 100),
+      bloqueioMassa,                                         // true = precisa confirmar em massa
       totalSuspeitos: suspeitos.length,
       suspeitos: suspeitos.slice(0, 60),
     };
     if (dryRun) return { dryRun: true, ...relatorio };
+
+    // TRAVA DURA no import real: não deixa uma planilha parcial zerar o catálogo por acidente.
+    if (bloqueioMassa) {
+      throw new BadRequestException(
+        `Essa importação desligaria ${vaiInativar} de ${ativosHoje} itens ativos (${Math.round(pctInativar * 100)}%). ` +
+        `Isso parece uma planilha parcial. Se for mesmo intencional, marque a confirmação de inativação em massa e importe de novo.`,
+      );
+    }
 
     // ---------- IMPORT REAL (com backup) ----------
     // Backup do que existe hoje (pra desfazer se preciso) — UM registro por item.
@@ -357,12 +378,12 @@ export class ProductsService {
       if (ex) { await this.prisma.product.update({ where: { id: ex.id }, data: dadosDe(it) }); atualizadosN++; }
       else { await this.prisma.product.create({ data: { name: it.nome, ...dadosDe(it) } }); criados++; }
     }
-    // Itens atuais fora da lista → inativos (não apaga).
-    if (foraDaLista.length) {
+    // Itens atuais fora da lista → inativos (não apaga). SÓ se a pessoa pediu de propósito.
+    if (inativarForaDaLista && foraDaLista.length) {
       await this.prisma.product.updateMany({ where: { id: { in: foraDaLista.map((f) => f.id) } }, data: { ativo: false } });
     }
 
-    return { dryRun: false, ...relatorio, criados, atualizados: atualizadosN, inativados: foraDaLista.length };
+    return { dryRun: false, ...relatorio, criados, atualizados: atualizadosN, inativados: vaiInativar };
   }
 
   // ── Ficha técnica (ProdutoComposicao): insumos que um procedimento/kit consome ──

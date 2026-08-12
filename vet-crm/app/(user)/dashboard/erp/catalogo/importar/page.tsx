@@ -10,7 +10,8 @@ import toast from "react-hot-toast";
 type Prev = {
   dryRun: boolean; totalItens: number; produtos: number; servicos: number;
   novos: number; atualizados: number; duplicadosRemovidos: number;
-  precoZeroInativados: number; foraDaListaInativados: number;
+  precoZeroInativados: number; foraDaListaInativados: number; foraDaListaCandidatos?: number;
+  inativarForaDaLista?: boolean; ativosHoje?: number; pctInativar?: number; bloqueioMassa?: boolean;
   totalSuspeitos: number; suspeitos: string[];
   foraDaLista?: string[];
   criados?: number; inativados?: number;
@@ -26,10 +27,12 @@ export default function ImportarCatalogoPage() {
   const [prev, setPrev] = useState<Prev | null>(null);
   const [feito, setFeito] = useState<Prev | null>(null);
   const [carregando, setCarregando] = useState(false);
+  const [inativarFora, setInativarFora] = useState(false); // TRAVA: padrão seguro = só adiciona/atualiza
+  const [confirmarMassa, setConfirmarMassa] = useState(false); // 2ª confirmação p/ inativação grande
 
   const lerArquivo = (f: File | null) => {
     if (!f) return;
-    setNomeArq(f.name); setPrev(null); setFeito(null);
+    setNomeArq(f.name); setPrev(null); setFeito(null); setConfirmarMassa(false);
     const r = new FileReader();
     r.onload = () => setCsv(String(r.result || ""));
     r.readAsText(f, "utf-8");
@@ -41,11 +44,11 @@ export default function ImportarCatalogoPage() {
     try {
       const r = await fetch("/api/products/importar-catalogo", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ csv, dryRun }),
+        body: JSON.stringify({ csv, dryRun, inativarForaDaLista: inativarFora, confirmarInativacaoEmMassa: confirmarMassa }),
       });
       const d = await r.json();
       if (!r.ok) throw new Error(d?.message || "Erro ao importar");
-      if (dryRun) { setPrev(d); toast.success("Prévia gerada — confira antes de confirmar."); }
+      if (dryRun) { setPrev(d); setConfirmarMassa(false); toast.success("Prévia gerada — confira antes de confirmar."); }
       else { setFeito(d); setPrev(null); toast.success("Catálogo importado! ✅"); }
     } catch (e: any) { toast.error(e.message || "Erro"); }
     finally { setCarregando(false); }
@@ -82,8 +85,16 @@ export default function ImportarCatalogoPage() {
             </button>
           )}
         </div>
+        {/* TRAVA: inativar fora da lista é OPT-IN (padrão desligado = só adiciona/atualiza) */}
+        <label style={{ display: "flex", alignItems: "flex-start", gap: 8, marginTop: 12, padding: "10px 12px", border: `1px solid ${inativarFora ? "#E0B44A" : LINE}`, borderRadius: 9, background: inativarFora ? "#FFFBF0" : "#FBFAF7", cursor: "pointer" }}>
+          <input type="checkbox" checked={inativarFora} onChange={(e) => { setInativarFora(e.target.checked); setPrev(null); setConfirmarMassa(false); }} style={{ marginTop: 2 }} />
+          <span style={{ fontSize: 12.5, color: "#5C6B70", lineHeight: 1.5 }}>
+            <b style={{ color: inativarFora ? "#8a6400" : B }}>Inativar itens que NÃO estão na planilha</b> (desligar o que ficou de fora).
+            <span style={{ display: "block", marginTop: 2, color: "#8a857a" }}>Deixe <b>desmarcado</b> se a planilha é só um pedaço do catálogo — assim ela só <b>adiciona/atualiza</b> e não desliga nada. Foi o que zerou o catálogo antes.</span>
+          </span>
+        </label>
         <div style={{ fontSize: 11.5, color: "#8a6400", marginTop: 8 }}>
-          Regras: importa tudo · remove duplicados · preço 0 fica inativo · o que não está na lista fica inativo (reversível). Nada é gravado até você confirmar.
+          Regras: importa tudo · remove duplicados · preço 0 fica inativo{inativarFora ? " · o que não está na lista fica inativo (reversível)" : " · NÃO desliga o que ficou de fora (opção acima desmarcada)"}. Nada é gravado até você confirmar.
         </div>
       </div>
 
@@ -101,8 +112,20 @@ export default function ImportarCatalogoPage() {
             <Card n={rel.atualizados} k="atualizados" />
             <Card n={rel.duplicadosRemovidos} k="duplicados removidos" cor="#b45309" />
             <Card n={rel.precoZeroInativados} k="preço 0 → inativo" cor="#b45309" />
-            <Card n={feito ? (rel.inativados ?? rel.foraDaListaInativados) : rel.foraDaListaInativados} k="fora da lista → inativo" cor="#b45309" />
+            <Card n={feito ? (rel.inativados ?? rel.foraDaListaInativados) : rel.foraDaListaInativados} k={rel.foraDaListaInativados > 0 ? "fora da lista → inativo" : "nada será desligado ✅"} cor={rel.foraDaListaInativados > 0 ? "#b45309" : "#1c7a47"} />
           </div>
+
+          {/* AVISO DE MASSA: import real bloqueado até confirmar (planilha parcial não zera o catálogo) */}
+          {!feito && rel.bloqueioMassa && (
+            <div style={{ border: "1px solid #E0A0A0", background: "#FCEBEB", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#A32D2D" }}>🛑 Essa importação desligaria {rel.foraDaListaInativados} de {rel.ativosHoje} itens ativos ({rel.pctInativar}%)</div>
+              <div style={{ fontSize: 12, color: "#8a3d3d", marginTop: 4, lineHeight: 1.5 }}>Isso parece uma planilha <b>parcial</b>. Se for engano, <b>desmarque</b> "inativar itens fora da planilha" lá em cima. Se é mesmo intencional, confirme abaixo.</div>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, fontSize: 12.5, color: "#A32D2D", fontWeight: 600, cursor: "pointer" }}>
+                <input type="checkbox" checked={confirmarMassa} onChange={(e) => setConfirmarMassa(e.target.checked)} />
+                Sim, quero mesmo desligar esses {rel.foraDaListaInativados} itens.
+              </label>
+            </div>
+          )}
 
           {rel.totalSuspeitos > 0 && (
             <details style={{ marginBottom: 12 }}>
@@ -128,7 +151,7 @@ export default function ImportarCatalogoPage() {
           {!feito ? (
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, borderTop: `1px solid ${LINE}`, paddingTop: 12 }}>
               <button onClick={() => { setPrev(null); }} style={{ border: `1px solid ${LINE}`, background: "#fff", color: "#5C6B70", borderRadius: 9, padding: "9px 16px", fontSize: 13, cursor: "pointer" }}>Cancelar</button>
-              <button onClick={() => enviar(false)} disabled={carregando} style={{ border: "none", background: B, color: "#fff", borderRadius: 9, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: carregando ? 0.6 : 1 }}>
+              <button onClick={() => enviar(false)} disabled={carregando || (!!rel.bloqueioMassa && !confirmarMassa)} style={{ border: "none", background: B, color: "#fff", borderRadius: 9, padding: "9px 18px", fontSize: 13, fontWeight: 600, cursor: (carregando || (!!rel.bloqueioMassa && !confirmarMassa)) ? "not-allowed" : "pointer", opacity: (carregando || (!!rel.bloqueioMassa && !confirmarMassa)) ? 0.5 : 1 }}>
                 {carregando ? "Importando…" : "💾 Confirmar importação"}
               </button>
             </div>
