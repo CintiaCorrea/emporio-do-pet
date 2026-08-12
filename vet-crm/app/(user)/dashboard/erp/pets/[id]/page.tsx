@@ -1348,8 +1348,13 @@ export default function PetDetailPage() {
   const money = (v?: number | null) =>
     v == null ? "—" : !showValues ? "R$ ••••" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const diasDesdeUltima = ultimaVisita ? Math.floor((Date.now() - new Date(ultimaVisita).getTime()) / 86400000) : null;
-  // Vacinas em dia: existe pelo menos um protocolo/atendimento de vacinação
-  const temVacina = (atendimentos || []).some((a: any) => /vacin/i.test(a.type || "") || /vacin/i.test(a.description || ""));
+  // Vacinas em dia: usa os PROTOCOLOS (mesma fonte da "próxima vacina") — tem vacina cadastrada e
+  // nenhuma dose vencida. Sem protocolo (pet legado), cai no sinal antigo (atendimento com "vacina").
+  const protosVacina = (protocolos || []).filter((p: any) => p.tipo === "VACINA");
+  const vacinaVencida = protosVacina.some((p: any) => (p.doses || []).some((d: any) => d.status === "PENDENTE" && d.dataPrevista && new Date(d.dataPrevista).getTime() < Date.now()));
+  const temVacina = protosVacina.length > 0
+    ? !vacinaVencida
+    : (atendimentos || []).some((a: any) => /vacin/i.test(a.type || "") || /vacin/i.test(a.description || ""));
   const castrado = pet.sterilization === "STERILIZED";
   const pesoOk = pet.weight != null && pet.weight > 0;
   const emTratamento = /trat|manut|exame|avali/i.test(saude.label + " " + pipelineClinico + " " + pipelineFisio);
@@ -1622,9 +1627,9 @@ export default function PetDetailPage() {
         {/* 2. Sinais vitais (KPIs) */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
           {[
-            { emoji: "⚖️", label: "Peso", value: pet.weight ? `${pet.weight} kg` : "—" },
+            { emoji: "⚖️", label: "Peso", value: pesoRecente ? `${pesoRecente.w} kg` : "—" },
             { emoji: "🎂", label: "Idade", value: pet.birthDate ? ageFromBirth(pet.birthDate) : "—" },
-            { emoji: "📏", label: "Porte", value: pet.weight ? (pet.weight < 10 ? "Pequeno" : pet.weight < 25 ? "Médio" : "Grande") : "—" },
+            { emoji: "📏", label: "Porte", value: pesoRecente ? (pesoRecente.w < 10 ? "Pequeno" : pesoRecente.w < 25 ? "Médio" : "Grande") : "—" },
             { emoji: "🩺", label: "Última visita", value: diasTxt(diasDesdeUltima) },
             { emoji: "💳", label: "Crédito", value: credito == null ? "—" : money(credito) },
           ].map((k) => (
@@ -2479,38 +2484,30 @@ export default function PetDetailPage() {
 
       {/* ═══════════ ABA 🧾 COMPRAS — HISTÓRICO (somente leitura) ═══════════ */}
       {mainTab === "COMPRAS" && (() => {
-        const MARCA: Record<string, { emoji: string; label: string; bg: string; fg: string }> = {
-          EMPORIO: { emoji: "🏥", label: "Empório", bg: "#D9F0F3", fg: "#014D5E" },
-          MUNDO_A_PARTE: { emoji: "🌿", label: "Mundo à Parte", bg: "#EAF3DE", fg: "#3B6D11" },
-          DRA_VIVIAN: { emoji: "✨", label: "Dra. Vivian", bg: "#EDE9FA", fg: "#3C3489" },
-        };
-        const marcaDe = (a: any) => MARCA[(a.marca || a.brand || "EMPORIO") as string] || MARCA.EMPORIO;
-        const comMarca: Record<string, number> = {};
-        for (const a of atendimentos) { const m = marcaDe(a); comMarca[m.label] = (comMarca[m.label] || 0) + Number(a.value || 0); }
+        // "Por marca" saiu: o atendimento não guarda marca no banco (dava sempre 100% Empório — número falso).
+        // No lugar, métricas REAIS: total gasto + ticket médio.
         const totalGasto = atendimentos.reduce((s: number, a: any) => s + Number(a.value || 0), 0);
+        const compras = atendimentos.filter((a: any) => Number(a.value || 0) > 0);
+        const ticket = compras.length ? totalGasto / compras.length : 0;
         const resumoItens = (a: any) => {
           if (Array.isArray(a.items) && a.items.length) return a.items.map((it: any) => `${it.descricao || "Serviço"}${it.quantidade > 1 ? ` x${it.quantidade}` : ""}`).join(", ");
           return a.description || a.chiefComplaint || ATD_TIPO_LABEL(a.type);
         };
         return (
           <div className="mb-3 flex flex-col gap-3">
-            {/* Total gasto (com olhinho) + resumo por marca */}
-            <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 items-start">
-              <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "13px 16px" }}>
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px] flex flex-wrap gap-x-10 gap-y-3" style={{ padding: "13px 16px" }}>
+              <div>
                 <div className="text-[11px] text-[#374151]">🧾 Total gasto no pet</div>
                 <div className="text-[22px] text-[#014D5E] font-medium mt-0.5">{money(totalGasto)}</div>
                 <div className="text-[11px] text-[#374151] mt-0.5">{atendimentos.length} atendimento(s)</div>
               </div>
-              <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "13px 16px" }}>
-                <div className="text-[11px] text-[#374151] mb-1.5">Por marca</div>
-                {Object.keys(comMarca).length === 0 ? <p className="text-[12px] text-[#374151]">Sem compras ainda.</p> : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {Object.entries(comMarca).map(([label, v]) => { const mi = Object.values(MARCA).find((m) => m.label === label) || MARCA.EMPORIO; return (
-                      <span key={label} className="text-[11.5px] px-2.5 py-1 rounded-full" style={{ background: mi.bg, color: mi.fg }}>{mi.emoji} {label}: {money(v)}</span>
-                    ); })}
-                  </div>
-                )}
-              </div>
+              {compras.length > 0 && (
+                <div>
+                  <div className="text-[11px] text-[#374151]">💳 Ticket médio</div>
+                  <div className="text-[22px] text-[#014D5E] font-medium mt-0.5">{money(ticket)}</div>
+                  <div className="text-[11px] text-[#374151] mt-0.5">{compras.length} compra(s)</div>
+                </div>
+              )}
             </div>
 
             {/* Histórico de vendas/atendimentos (somente leitura) */}
@@ -2521,14 +2518,13 @@ export default function PetDetailPage() {
               </div>
               <div style={{ padding: "6px 15px" }}>
                 {atendimentos.length === 0 && <p className="text-[12.5px] text-[#374151] py-4 text-center">Nenhuma compra registrada ainda.</p>}
-                {atendimentos.map((a: any, i: number) => { const mi = marcaDe(a); return (
+                {atendimentos.map((a: any, i: number) => (
                   <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left" style={{ borderBottom: i < atendimentos.length - 1 ? "1px solid #F0EBE0" : "none" }}>
                     <span className="text-[11.5px] text-[#374151] w-[42px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full shrink-0" style={{ background: mi.bg, color: mi.fg }}>{mi.emoji} {mi.label}</span>
                     <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{resumoItens(a)}</span>
                     <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
                   </button>
-                ); })}
+                ))}
               </div>
             </div>
             <p className="text-[11px] text-[#374151] px-1">Somente leitura. Novas vendas, crédito e pacotes são lançados na tela de <b>Novo atendimento</b>.</p>
