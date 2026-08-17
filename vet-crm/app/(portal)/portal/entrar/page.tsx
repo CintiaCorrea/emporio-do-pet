@@ -186,7 +186,7 @@ export default function EntrarNoPortal() {
       <main className="ptl-app">
         <div className="ptl-brand">
           <div className="ptl-mark" aria-hidden="true">
-            🐾
+            <img src="/images/logo.png" alt="" />
           </div>
           <div className="ptl-bname">Empório do Pet</div>
           <div className="ptl-btag">Portal do Tutor</div>

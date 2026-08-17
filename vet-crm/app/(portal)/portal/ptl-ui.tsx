@@ -35,6 +35,7 @@ export const PTL_CSS = `
   width:56px; height:56px; border-radius:50%; background:var(--turquesa); color:#fff;
   display:flex; align-items:center; justify-content:center; font-size:29px;
 }
+.ptl-mark img { width:74%; height:74%; object-fit:contain; }
 .ptl-bname { font-size:17px; font-weight:700; letter-spacing:.2px; }
 .ptl-btag { font-size:12px; color:var(--cinza); margin-top:-4px; }
 
@@ -111,6 +112,12 @@ export const PTL_CSS = `
 .ptl-pet-row .av img { width:100%; height:100%; object-fit:cover; }
 .ptl-pet-row b { font-size:17px; font-weight:800; display:block; line-height:1.2; }
 .ptl-pet-row small { font-size:11.5px; color:#0F6E56; display:block; }
+/* Muitos pets: dois por linha (card menor). Um pet sozinho ocupa a linha toda. */
+.ptl-pets-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ptl-pets-grid > .ptl-pet-row:only-child { grid-column:1 / -1; }
+.ptl-pets-grid .ptl-pet-row { padding:11px 12px; gap:9px; }
+.ptl-pet-row > span:not(.ptl-avatar-wrap) { min-width:0; }
+.ptl-pet-row b, .ptl-pet-row small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 .ptl-card { background:#fff; border:1px solid var(--camurca); border-radius:13px; padding:15px; }
 .ptl-vazio { text-align:center; color:var(--cinza-claro); font-size:13px; padding:22px 10px; line-height:1.6; }
@@ -154,7 +161,7 @@ export const PTL_CSS = `
 .ptl-menu-item em { font-size:22px; font-style:normal; margin-bottom:2px; line-height:1; }
 .ptl-menu-item span { font-size:13px; font-weight:700; }
 .ptl-menu-item small { font-size:10px; color:var(--cinza-claro); }
-.ptl-menu-item.contato { background:var(--turquesa); border-color:var(--turquesa); }
+.ptl-menu-item.contato { background:var(--turquesa); border-color:var(--turquesa); grid-column:1 / -1; flex-direction:row; gap:8px; }
 .ptl-menu-item.contato span { color:#fff; }
 .ptl-menu-item.embreve { opacity:.62; cursor:default; }
 .ptl-menu-item.embreve:active { transform:none; }
@@ -360,7 +367,7 @@ export function dataCurta(valor?: string | Date | null) {
 
 /** Numero da clinica para os botoes de "falar com a gente". */
 export const WHATSAPP_CLINICA =
-  process.env.NEXT_PUBLIC_WHATSAPP_CLINICA || '5585999999999';
+  process.env.NEXT_PUBLIC_WHATSAPP_CLINICA || '5585989353072';
 
 export function linkWhatsApp(texto: string) {
   return `https://wa.me/${WHATSAPP_CLINICA}?text=${encodeURIComponent(texto)}`;

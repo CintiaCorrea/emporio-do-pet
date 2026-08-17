@@ -93,7 +93,7 @@ export default function PortalInicio() {
       <main className="ptl-app">
         <div className="ptl-brand">
           <div className="ptl-mark" aria-hidden="true">
-            🐾
+            <img src="/images/logo.png" alt="" />
           </div>
           <div className="ptl-bname">Empório do Pet</div>
           {dados?.tutor?.primeiroNome && (
@@ -104,7 +104,8 @@ export default function PortalInicio() {
         <div className="ptl-stack" style={{ marginTop: 14 }}>
           {carregando && <div className="ptl-vazio">Carregando…</div>}
 
-          {/* --------------------------------------------- linha de cada pet */}
+          {/* --------------------------------------------- linha de cada pet (2 colunas) */}
+          {pets.length > 0 && <div className="ptl-pets-grid">
           {pets.map((p) => (
             <div key={p.id} className="ptl-pet-row">
               <span className="ptl-avatar-wrap">
@@ -128,6 +129,7 @@ export default function PortalInicio() {
               </span>
             </div>
           ))}
+          </div>}
 
           <Link
             href="/portal/pets/novo"
