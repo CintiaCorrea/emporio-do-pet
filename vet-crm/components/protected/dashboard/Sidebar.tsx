@@ -53,8 +53,7 @@ const isGroup = (e: Entry): e is Group => (e as Group).group === true;
 
 const NAV: Entry[] = [
   // ───────── DIA A DIA ─────────
-  { href: "/dashboard/hoje", label: "Hoje", emoji: "✨", roles: ALL, section: "DIA" },
-  { href: "/dashboard", label: "Painel", emoji: "📊", roles: ALL, exact: true, section: "DIA" },
+  { href: "/dashboard/hoje", label: "Meu painel", emoji: "🏠", roles: ALL, section: "DIA" },
   { href: "/dashboard/inbox", label: "Inbox BC", emoji: "💬", roles: ALL, section: "DIA" },
   { href: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲", roles: ALL, section: "DIA" },
   { href: "/dashboard/comercial", label: "Comercial", emoji: "🎯", roles: ["ADMIN", "RECEPTIONIST"], section: "DIA" },
@@ -68,41 +67,52 @@ const NAV: Entry[] = [
   },
   // LIXEIRA-PETS-MENU (Cintia 22/06): aba "Pets" removida do menu. Edicao do pet centralizada na ficha de Cliente; ficha clinica acessivel pelo nome do pet na lista de Clientes. Restaurar = descomentar a linha abaixo.
   // { href: "/dashboard/erp/pets", label: "Pets", emoji: "🐾", roles: ALL },
-  { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅", roles: ALL, section: "DIA" },
   {
-    group: true, key: "clinico", label: "Atendimento clínico", emoji: "🩺", roles: ALL, section: "DIA",
+    group: true, key: "agenda", label: "Agenda", emoji: "📅", roles: ALL, section: "DIA",
     children: [
-      { href: "/dashboard/erp/consultas", label: "Consultas", emoji: "🩺", roles: ALL },
-      { href: "/dashboard/erp/tratamentos", label: "Tratamentos", emoji: "💉", roles: ALL },
+      { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅", roles: ALL },
+      { href: "/dashboard/erp/agendamentos/escala", label: "Escala", emoji: "🗓️", roles: ALL },
+      { href: "/dashboard/erp/agendamentos/configuracoes", label: "Configuração", emoji: "⚙️", roles: ["ADMIN"] },
     ],
   },
   { href: "/dashboard/erp/internacoes", label: "Internação", emoji: "🏥", roles: ALL, section: "DIA" },
+  { href: "/dashboard/erp/exames-kanban", label: "Exames", emoji: "🔬", roles: ALL, section: "DIA" },
 
   // ───────── GESTÃO ─────────
   {
     group: true, key: "vendas", label: "Vendas", emoji: "💰", roles: ALL, section: "GESTAO",
     children: [
-      { href: "/dashboard/erp/comandas", label: "Em atendimento", emoji: "🛎️", roles: ALL },
       { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒", roles: ALL },
       { href: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵", roles: ALL },
-      { href: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦", roles: ALL },
-      { href: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾", roles: ALL },
       { href: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", emoji: "🔄", roles: ALL },
+      { href: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾", roles: ALL },
+      { href: "/dashboard/erp/pacotes", label: "Pacotes vendidos", emoji: "📦", roles: ALL },
       { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ALL },
-      // Config de vendas e Formas de recebimento → agora só em Configurações › Vendas & Financeiro.
+      { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/modelos-orcamento", label: "Modelo de orçamento", emoji: "📄", roles: ALL },
       { href: "/dashboard/erp/modelo-demonstrativo", label: "Modelo de demonstrativo", emoji: "🧾", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/formas-recebimento", label: "Formas de recebimento", emoji: "💳", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/configuracoes-vendas", label: "Configuração de vendas", emoji: "⚙️", roles: ["ADMIN"] },
       { href: "/dashboard/erp/importar-vendas", label: "Importar vendas", emoji: "📥", roles: ["ADMIN"] },
     ],
   },
-  { href: "/dashboard/erp/comissoes", label: "Comissionamento", emoji: "🧾", roles: ["ADMIN"], section: "GESTAO" },
+  {
+    group: true, key: "comissionamento", label: "Comissionamento", emoji: "🧾", roles: ALL, section: "GESTAO",
+    children: [
+      { href: "/dashboard/erp/comissoes", label: "Comissões em aberto", emoji: "📂", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/comissoes/extratos", label: "Extratos", emoji: "📁", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/comissoes/minhas", label: "Minhas comissões", emoji: "👤", roles: ALL },
+    ],
+  },
   {
     group: true, key: "inteligencia", label: "Inteligência", emoji: "💡", roles: ALL, section: "GESTAO",
     children: [
       { href: "/dashboard/erp/minhas-vendas", label: "Produtividade", emoji: "📈", roles: ALL },
-      { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🧾", roles: ["ADMIN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🔎", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆", roles: ["ADMIN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/retencao", label: "Retenção e Churn", emoji: "🔄", roles: ["ADMIN", "RECEPTIONIST"] },
+      { href: "/dashboard/erp/relacionamento", label: "Relacionamento (RFM)", emoji: "💎", roles: ["ADMIN", "RECEPTIONIST"] },
+      { href: "/dashboard/configuracoes/metas", label: "Metas", emoji: "🎯", roles: ["ADMIN"] },
       { href: "/dashboard/agente-sombra", label: "Agente Sombra", emoji: "👻", roles: ["ADMIN"] },
       { href: "/dashboard/copiloto-clinico", label: "Copiloto Clínico", emoji: "🩺", roles: ["ADMIN"] },
     ],
@@ -111,17 +121,23 @@ const NAV: Entry[] = [
     group: true, key: "estoque", label: "Estoque e serviços", emoji: "📦", roles: ALL, section: "GESTAO",
     children: [
       { href: "/dashboard/erp/catalogo", label: "Produtos e Serviços", emoji: "🗂️", roles: ALL },
-      { href: "/dashboard/erp/produtos", label: "Produtos", emoji: "📦", roles: ALL },
-      { href: "/dashboard/erp/servicos", label: "Serviços", emoji: "🏷️", roles: ALL },
+      { href: "/dashboard/erp/catalogo-novo", label: "Catálogo (novo) 🆕", emoji: "🗂️", roles: ALL },
       { href: "/dashboard/erp/estoque", label: "Estoque", emoji: "📊", roles: ALL },
-      { href: "/dashboard/erp/lista-precos", label: "Lista de preços", emoji: "💲", roles: ALL },
+      { href: "/dashboard/erp/estoque/compras", label: "Compras", emoji: "🛒", roles: ALL },
+      { href: "/dashboard/erp/estoque/saidas", label: "Outras saídas de estoque", emoji: "📤", roles: ALL },
+      { href: "/dashboard/erp/estoque/analise", label: "Análise de estoque", emoji: "📈", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/estoque/inventario", label: "Inventário", emoji: "📋", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/estoque/pedido-compra", label: "Pedido de compra", emoji: "📝", roles: ["ADMIN"] },
+      { href: "/dashboard/configuracoes/grupos", label: "Grupos de Produtos", emoji: "📁", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/estoque/marcas", label: "Marcas", emoji: "🏷️", roles: ["ADMIN"] },
     ],
   },
   {
     group: true, key: "financeiro", label: "Financeiro", emoji: "💵", roles: ["ADMIN"], section: "GESTAO",
     children: [
       { href: "/dashboard/financeiro", label: "Financeiro", emoji: "💵", roles: ["ADMIN"] },
-      { href: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", emoji: "💸", roles: ["ADMIN"] },
+      // "Fin. Terceiros" (/erp/financeiro-terceiros) REMOVIDO do menu 08/08 — o Financeiro novo
+      // (Fornecedores › contas a pagar) cobre pagamento a laboratórios/parceiros. Código mantido.
       // "Financeiro (antigo)" (/dashboard/erp/financeiro) REMOVIDO do menu 05/08 — código/tabela mantidos
       // por baixo como rota de volta até a Cintia validar o novo em uso; religar = re-adicionar esta linha.
     ],

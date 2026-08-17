@@ -20,17 +20,17 @@ import {
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import FeedTimeline from "@/components/pets/FeedTimeline";
+import WeightChart from "@/components/pets/WeightChart";
 import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
 import PetProtocolosPanel from "@/components/pets/PetProtocolosPanel";
 import PetAtendimentoPanel from "@/components/pets/PetAtendimentoPanel";
-import PetFichaHeaderCard from "@/components/pets/PetFichaHeaderCard";
 import { LuPrinter } from "react-icons/lu";
-import PetVendaPanel from "@/components/pets/PetVendaPanel";
 import PetComandaRail from "@/components/pets/PetComandaRail";
 import PetClinicaTabela from "@/components/pets/PetClinicaTabela";
 import DietaAba from "@/components/pets/DietaAba";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import { preencherVariaveis, temVariaveis, formatarVacinas, documentoResumo, ehHtmlDoc } from "@/lib/documentos/variaveis";
+import { fmtDataBR } from "@/lib/datas";
 import EditorDocumento from "@/components/documentos/EditorDocumento";
 import DocConteudo from "@/components/documentos/DocConteudo";
 import { imprimirDocumento } from "@/lib/print";
@@ -47,9 +47,10 @@ const COAT_VALID = new Set(COAT_OPTS.map(([v]) => v));
 const CORES_DEFAULT = ["Preto", "Branco", "Marrom", "Caramelo", "Cinza", "Dourado", "Rajado", "Tricolor", "Malhado", "Creme", "Amarelo", "Frajola"];
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { montarTextoBoletim } from "@/lib/pets/boletim";
-import { loadExameFases, EXAME_FASES_PADRAO } from "@/lib/exameFases";
+import { loadExameFases, EXAME_FASES_PADRAO, podeAvisarLab } from "@/lib/exameFases";
 import { montarPetExame, acharExameNoCatalogo, registrarHistoricoFase } from "@/lib/petExame";
 import BoletimModal from "@/components/pets/BoletimModal";
+import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
 
 // Emoji da espécie (avatar do cabeçalho — padrão Base44)
 const PET_EMOJI = (species: string) => {
@@ -58,14 +59,7 @@ const PET_EMOJI = (species: string) => {
   if (s.includes("CANIN") || s.includes("CACHORR") || s === "CANINE") return "🐶";
   return "🐾";
 };
-const fmtDataBR = (v?: string | null) => {
-  if (!v) return "—";
-  // "AAAA-MM-DD" puro: new Date() interpreta como UTC e mostra o DIA ANTERIOR
-  // (boletim do dia 23 saía como 22 — Cintia 23/07). O T00:00:00 força hora local.
-  const s = String(v);
-  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(s) ? s + "T00:00:00" : s);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
-};
+// fmtDataBR agora vem da fonte única lib/datas (trata data de calendário sem o bug de fuso).
 const diasTxt = (d: number | null | undefined) =>
   d == null ? "—" : d === 0 ? "hoje" : d < 30 ? `${d}d` : d < 365 ? `${Math.floor(d / 30)}m` : `${Math.floor(d / 365)}a`;
 const sterilLabel = (s?: string | null) =>
@@ -140,7 +134,7 @@ export default function PetDetailPage() {
 
   const [pet, setPet] = useState<Pet | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"HISTORICO" | "PROTOCOLOS" | "TIMELINE" | "AGENDA" | "VENDAS" | "CLINICA" | "PACOTES" | "EXAMES" | "RELACIONAMENTO">("HISTORICO");
+  const [tab, setTab] = useState<"HISTORICO" | "TIMELINE" | "EXAMES">("HISTORICO"); // sub-abas do Prontuário
   const [protoAuto, setProtoAuto] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -149,6 +143,7 @@ export default function PetDetailPage() {
   const [savingClin, setSavingClin] = useState(false);
   const [editObs, setEditObs] = useState(false);
   const [obsVal, setObsVal] = useState("");
+  const [obsFile, setObsFile] = useState<File | null>(null); // Parte 6 — anexo na observação
   const [savingObs, setSavingObs] = useState(false);
   const [editName, setEditName] = useState(false);
   const [nameVal, setNameVal] = useState("");
@@ -179,11 +174,12 @@ export default function PetDetailPage() {
   const [atdOpen, setAtdOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [savingAtd, setSavingAtd] = useState(false);
-  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA" | "DOCUMENTO" | "VIDEO" | "FOTO" | "EXAME">(null);
+  const [artefato, setArtefato] = useState<null | "PESO" | "OBS" | "RECEITA" | "DOCUMENTO" | "VIDEO" | "FOTO" | "EXAME" | "PATOLOGIA">(null);
   // Exame pelo histórico: nome + arquivo de uma vez. Antes o card "Exame" só trocava de
   // aba (e por isso não tinha como fechar/voltar), e anexar exigia "Solicitar" antes.
   const [exNome, setExNome] = useState("");
   const [exFile, setExFile] = useState<File | null>(null);
+  const [laudoView, setLaudoView] = useState<{ url: string; nome?: string } | null>(null); // pop-up do laudo
   const [fotoUrl, setFotoUrl] = useState("");
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoLegenda, setFotoLegenda] = useState("");
@@ -202,6 +198,11 @@ export default function PetDetailPage() {
   const [docModeloNome, setDocModeloNome] = useState("");
   const [docCorpo, setDocCorpo] = useState("");
   const [docVetId, setDocVetId] = useState("");
+  // 🦠 Patologia — lista/estado PRÓPRIOS (não puxa modelos de documento)
+  const [patModelos, setPatModelos] = useState<{ nome: string; corpo: string }[]>([]);
+  const [patModeloNome, setPatModeloNome] = useState("");
+  const [patCorpo, setPatCorpo] = useState("");
+  const [patVetId, setPatVetId] = useState("");
   const [clinica, setClinica] = useState<any>({}); // dadosclinica — pra preencher variáveis dos modelos
   const [vacinasFmt, setVacinasFmt] = useState<{ aplicadas: string; aplicadasResumo: string; programadas: string }>({ aplicadas: "", aplicadasResumo: "", programadas: "" });
   const [vidUrl, setVidUrl] = useState("");
@@ -288,7 +289,7 @@ export default function PetDetailPage() {
     // Fases de exame: fonte \u00daNICA em Configura\u00e7\u00f5es \u203a Listas (exame_fases)
     setExamFases(await loadExameFases());
   }
-  async function loadProtocolos() { try { const r = await fetch(`/api/protocolos?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); setProtocolos(Array.isArray(d) ? d : (d.data || [])); } catch {} }
+  async function loadProtocolos() { try { const r = await fetch(`/api/protocolos?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.protocolos || d.data || []); setProtocolos(arr); setVacinasFmt(formatarVacinas(arr)); /* mantém o resumo {vacinas} em dia após aplicar dose */ } catch {} }
   async function loadBoletins() {
     try {
       const r = await fetch(`/api/listas?lista=petboletim_${petId}`, { cache: "no-store" });
@@ -324,9 +325,11 @@ export default function PetDetailPage() {
     const texto = montarTextoBoletim(b.data);
     const marcarEnviado = async () => { try { await fetch(`/api/listas/${b.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...b.data, enviadoAt: new Date().toISOString() }) }) }); await loadBoletins(); } catch {} };
     try {
-      const r = await fetch(`/api/survey-avaliacao/mensagem-tutor`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: (pet as any).tutorId || pet?.tutor?.id, texto }) });
-      const d = await r.json().catch(() => ({ success: false }));
-      if (d?.success) { toast.success("Boletim enviado pelo WhatsApp ✅"); await marcarEnviado(); return; }
+      // MESMO caminho do modal (/api/whatsapp/boletim): trata conversa aberta (envia) x fechada (fila).
+      const r = await fetch(`/api/whatsapp/boletim`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: (pet as any).tutorId || pet?.tutor?.id, texto, petNome: pet?.name }) });
+      const d = await r.json().catch(() => ({ status: "erro" }));
+      if (d?.status === "enviado") { toast.success("Boletim enviado pelo WhatsApp ✅"); await marcarEnviado(); return; }
+      if (d?.status === "na_fila") { toast("Conversa fechada — enviei a mensagem que abre a conversa. O boletim vai automático quando o cliente responder. 🕐", { duration: 6500 }); await marcarEnviado(); return; }
       toast.error("Envio automático não deu certo" + (d?.error ? `: ${d.error}` : "") + ". Abrindo o WhatsApp.");
     } catch { toast.error("Envio automático falhou. Abrindo o WhatsApp."); }
     try { await navigator.clipboard.writeText(texto); } catch {}
@@ -341,6 +344,21 @@ export default function PetDetailPage() {
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
   useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadHistorico(); loadAtdConfig(); loadProtocolos(); loadBoletins(); loadFisioRec(); } /* eslint-disable-next-line */ }, [petId]);
+  // A comanda (PetComandaRail) dispara "pet:venda" ao fechar venda/converter orçamento → recarrega
+  // Compras/Total e o crédito, sem precisar de F5.
+  useEffect(() => {
+    const onVenda = () => { if (petId) { loadAtendimentos(); load(); } };
+    window.addEventListener("pet:venda", onVenda);
+    return () => window.removeEventListener("pet:venda", onVenda);
+    /* eslint-disable-next-line */
+  }, [petId]);
+  // ESC fecha o laudo aberto / o painel aberto (exame/receita/documento/atendimento…).
+  useEffect(() => {
+    if (!artefato && !atdOpen && !laudoView) return;
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") { if (laudoView) { setLaudoView(null); } else { setArtefato(null); setAtdOpen(false); } } };
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [artefato, atdOpen, laudoView]);
   useEffect(() => { const t = searchParams?.get("tab"); if (t === "fisio") setMainTab("FISIO"); /* eslint-disable-next-line */ }, [searchParams]);
   // 💳 Crédito do tutor (Fig 3a) — saldo mostrado na Visão geral
   useEffect(() => {
@@ -408,11 +426,14 @@ export default function PetDetailPage() {
   }
 
   // === 2º responsável (co-tutor) — info LEVE (nome + telefone), guardada em listaItem `pet_resp2` ===
-  const [resp2, setResp2] = useState<{ nome: string; telefone: string } | null>(null);
+  const [resp2, setResp2] = useState<{ nome: string; telefone: string; tutorId?: string | null } | null>(null);
   const [resp2ItemId, setResp2ItemId] = useState<string | null>(null);
   const [resp2Open, setResp2Open] = useState(false);
   const [resp2Form, setResp2Form] = useState<{ nome: string; telefone: string }>({ nome: "", telefone: "" });
   const [resp2Saving, setResp2Saving] = useState(false);
+  const [resp2TutorId, setResp2TutorId] = useState<string | null>(null); // cliente cadastrado vinculado (→ pet aparece nos dois)
+  const [resp2Busca, setResp2Busca] = useState("");
+  const [resp2Results, setResp2Results] = useState<any[]>([]);
   async function carregarResp2() {
     try {
       const r = await fetch(`/api/listas?lista=pet_resp2`, { cache: "no-store" });
@@ -420,26 +441,39 @@ export default function PetDetailPage() {
       const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
       let found: any = null;
       for (const it of arr) { try { const v = JSON.parse(it.valor); if (v.petId === petId) { found = { id: it.id, ...v }; break; } } catch { /* ignora */ } }
-      if (found) { setResp2({ nome: found.nome || "", telefone: found.telefone || "" }); setResp2ItemId(found.id); }
-      else { setResp2(null); setResp2ItemId(null); }
-    } catch { setResp2(null); setResp2ItemId(null); }
+      if (found) { setResp2({ nome: found.nome || "", telefone: found.telefone || "", tutorId: found.tutorId || null }); setResp2ItemId(found.id); setResp2TutorId(found.tutorId || null); }
+      else { setResp2(null); setResp2ItemId(null); setResp2TutorId(null); }
+    } catch { setResp2(null); setResp2ItemId(null); setResp2TutorId(null); }
+  }
+  async function buscarResp2Clientes(q: string) {
+    setResp2Busca(q); setResp2TutorId(null); // digitar de novo desfaz o vínculo até escolher
+    if (q.trim().length < 2) { setResp2Results([]); return; }
+    try { const r = await fetch(`/api/tutors?search=${encodeURIComponent(q.trim())}&limit=8`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.tutors || d.data || []); setResp2Results(a.slice(0, 8)); } catch { setResp2Results([]); }
+  }
+  function escolherResp2Cliente(t: any) {
+    setResp2TutorId(t.id);
+    const tel = (t.contacts || []).find((c: any) => c.isPrimary)?.number || (t.contacts || [])[0]?.number || t.phone || "";
+    setResp2Form({ nome: t.name || "", telefone: tel });
+    setResp2Busca(t.name || ""); setResp2Results([]);
   }
   async function salvarResp2() {
     const nome = resp2Form.nome.trim();
-    if (!nome) { toast.error("Informe ao menos o nome."); return; }
+    if (!nome) { toast.error("Escolha um cliente ou informe o nome."); return; }
     setResp2Saving(true);
     try {
       if (resp2ItemId) await fetch(`/api/listas/${resp2ItemId}`, { method: "DELETE" }).catch(() => null);
-      await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "pet_resp2", valor: JSON.stringify({ petId, nome, telefone: resp2Form.telefone.trim() }) }) });
-      toast.success("2º responsável salvo");
-      setResp2Open(false); await carregarResp2();
+      await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "pet_resp2", valor: JSON.stringify({ petId, nome, telefone: resp2Form.telefone.trim(), ...(resp2TutorId ? { tutorId: resp2TutorId } : {}) }) }) });
+      // Vínculo REAL: grava o 2º responsável no pet → ele passa a aparecer na ficha e no inbox do cliente escolhido.
+      await patchPet({ secondaryTutorId: resp2TutorId || null });
+      toast.success(resp2TutorId ? "Vinculado — o pet passa a aparecer na ficha dele também ✓" : "2º responsável salvo");
+      setResp2Open(false); setResp2Busca(""); setResp2Results([]); await carregarResp2();
     } catch { toast.error("Não consegui salvar."); } finally { setResp2Saving(false); }
   }
   async function removerResp2() {
     if (!resp2ItemId) return;
     if (!window.confirm("Remover o 2º responsável?")) return;
     setResp2Saving(true);
-    try { await fetch(`/api/listas/${resp2ItemId}`, { method: "DELETE" }).catch(() => null); toast.success("Removido"); await carregarResp2(); }
+    try { await fetch(`/api/listas/${resp2ItemId}`, { method: "DELETE" }).catch(() => null); await patchPet({ secondaryTutorId: null }); setResp2TutorId(null); toast.success("Removido"); await carregarResp2(); }
     catch { toast.error("Não consegui remover."); } finally { setResp2Saving(false); }
   }
   // Convênio Petlife: reaproveita o campo insurancePlan (texto "Petlife" = conveniado).
@@ -453,6 +487,13 @@ export default function PetDetailPage() {
     const obito = pet?.status === "DECEASED";
     if (!window.confirm(obito ? "Marcar este pet como VIVO novamente?" : "Confirmar o ÓBITO deste pet? (pode reverter depois)")) return;
     try { await patchPet({ status: obito ? "ACTIVE" : "DECEASED" }); toast.success(obito ? "Pet marcado como vivo" : "Óbito registrado 🕊️"); await load(); }
+    catch { toast.error("Erro ao atualizar"); }
+  }
+  // 🕊️ Cuidados paliativos: silencia cobranças (vacina/pacote) + dispara toques de carinho.
+  async function togglePaliativo() {
+    const on = !!(pet as any)?.cuidadoPaliativo;
+    if (!window.confirm(on ? "Tirar o(a) pet dos cuidados paliativos?" : "Marcar o(a) pet em CUIDADOS PALIATIVOS?\n\nOs lembretes de vacina e renovação de pacote param, e (se a cadência estiver ligada) a família recebe uma mensagem de apoio.")) return;
+    try { await patchPet({ cuidadoPaliativo: !on } as any); toast.success(on ? "Removido dos cuidados paliativos" : "Marcado em cuidados paliativos 🕊️"); await load(); }
     catch { toast.error("Erro ao atualizar"); }
   }
   function iniciarConsulta() { router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`); }
@@ -476,11 +517,52 @@ export default function PetDetailPage() {
     try { await patchPet({ weight: w }); toast.success("Peso atualizado"); setArtefato(null); await load(); await loadAtendimentos(); } catch { toast.error("Erro ao salvar peso"); } finally { setSavingArt(false); }
   }
   async function salvarObsArt() {
+    if (!pet) return;
     setSavingArt(true);
-    try { await patchPet({ observations: obsVal }); toast.success("Observação salva"); setArtefato(null); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingArt(false); }
+    try {
+      await patchPet({ observations: obsVal });
+      if (obsFile) {
+        // Com anexo: sobe o arquivo e cria uma entrada clicável na linha do tempo.
+        const url = await subirArquivo(obsFile, "documentos");
+        const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: meId || vets[0]?.id, date: new Date().toISOString(), type: "Observação", status: "Realizado", anamnesis: obsVal || null, prescription: `[Arquivo anexado: ${obsFile.name}]` };
+        const r = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const dc = await r.json().catch(() => null);
+        const apptId = dc?.id || dc?.appointment?.id;
+        if (apptId) { try { await fetch("/api/clinical-documents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "GENERAL", title: "Observação", content: obsVal || obsFile.name, pdfUrl: url }) }); } catch {} }
+        toast.success("Observação salva com anexo ✅ — o arquivo entra na linha do tempo");
+      } else {
+        toast.success("Observação salva");
+      }
+      setArtefato(null); setObsFile(null); await load(); await loadAtendimentos(); await loadClinDocs();
+    } catch (e: any) { toast.error("Erro ao salvar: " + String(e?.message || e).slice(0, 80)); } finally { setSavingArt(false); }
   }
   function fmtLocal(d: any) { const x = new Date(d); const p = (n: number) => String(n).padStart(2, "0"); return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}T${p(x.getHours())}:${p(x.getMinutes())}`; }
   async function editarEntrada(it: any) {
+    // 📄 Documento/receita feito no sistema (clinical-document): abre na CAIXA DE EDIÇÃO pra modificar/reimprimir.
+    if (it.src === "doc") {
+      const d = it.raw || {};
+      if (d.pdfUrl || d.fileUrl) { setLaudoView({ url: d.pdfUrl || d.fileUrl, nome: d.title }); return; } // importado (PDF) = só visualiza
+      const conteudo = d.htmlContent || d.content || "";
+      const vetId = d.user?.id || meId || "";
+      setEditId(d.appointment?.id || null); setTab("HISTORICO"); setAtdOpen(false);
+      // 🦠 Patologia (clinDoc GENERAL com título "Patologia — …"): edita no editor de PATOLOGIA,
+      // pra não virar "Documento" nem perder o título (senão sai da lista de patologias).
+      if (/^patologia/i.test(d.title || "")) {
+        setPatModeloNome((d.title || "").replace(/^patologia\s*—?\s*/i, "").trim()); setPatCorpo(conteudo); setPatVetId(vetId);
+        try { const ms = await listasGet("patologia_modelo"); setPatModelos(parseModelos(ms)); } catch { setPatModelos([]); }
+        setArtefato("PATOLOGIA"); return;
+      }
+      if (d.type === "PRESCRIPTION") {
+        setRecModeloNome(d.title || ""); setRecCorpo(conteudo); setRecVetId(vetId);
+        try { const ms = await listasGet("receita_modelo"); setRecModelos(ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; })); } catch {}
+        setArtefato("RECEITA");
+      } else {
+        setDocModeloNome(d.title || ""); setDocCorpo(conteudo); setDocVetId(vetId);
+        try { const ms = await listasGet("documento_modelo"); setDocModelos(ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; })); } catch {}
+        setArtefato("DOCUMENTO");
+      }
+      return;
+    }
     if (it.src !== "atd") { toast("Edite pelo atendimento de origem"); return; }
     const ap = it.raw; setEditId(ap.id); setTab("HISTORICO"); setAtdOpen(false);
     const t = ap.type;
@@ -501,17 +583,58 @@ export default function PetDetailPage() {
     }
   }
   async function excluirEntrada(it: any) {
-    if (!(await confirmDelete({ entityLabel: "registro", itemName: it.title || "este registro" }))) return;
+    // Cada tipo de entrada vive num lugar diferente — a lixeira precisa apagar na fonte CERTA
+    // (antes chamava sempre /appointments, o que falhava em exame/histórico: id não é de agendamento).
+    if (it.src === "hist") { toast("Registro importado do SimplesVet é só leitura."); return; }
+    if (!(await confirmDelete({ entityLabel: it.src === "exame" ? "exame" : "registro", itemName: it.title || "este registro" }))) return;
     try {
+      if (it.src === "exame") {
+        await listasDel(it.rawId); // exame vive na lista petexa_ (id ≠ agendamento)
+        toast.success("Exame excluído"); await loadPetColecoes(); await loadAtendimentos(); return;
+      }
       const url = it.src === "doc" ? `/api/clinical-documents/${it.rawId}` : `/api/appointments/${it.rawId}`;
       const r = await fetch(url, { method: "DELETE" });
       if (!r.ok) throw new Error();
+      // receita/documento vive em appointment + clinical-document — apaga o OUTRO LADO também (senão sobra fantasma)
+      if (it.src === "atd") { const doc = (clinDocs || []).find((d: any) => d?.appointment?.id === it.rawId); if (doc) { try { await fetch(`/api/clinical-documents/${doc.id}`, { method: "DELETE" }); } catch {} } }
+      if (it.src === "doc") { const apId = it.raw?.appointment?.id || it.raw?.appointmentId; if (apId) { try { await fetch(`/api/appointments/${apId}`, { method: "DELETE" }); } catch {} } }
       toast.success("Registro excluído"); await loadAtendimentos(); await loadClinDocs();
     } catch { toast.error("Erro ao excluir"); }
   }
   async function abrirDocumento() {
     setEditId(null); setAtdOpen(false); setArtefato("DOCUMENTO"); setDocModeloNome(""); setDocCorpo(""); setDocVetId(vetPadrao());
     try { const ms = await listasGet("documento_modelo"); const parsed = ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; }); setDocModelos(parsed); } catch {}
+  }
+  // 🦠 Box Patologia — lista/estado próprios (modelos em Configurações › "patologia_modelo", vazia por ora)
+  async function abrirPatologia() {
+    setEditId(null); setAtdOpen(false); setPatModeloNome(""); setPatCorpo(""); setPatVetId(vetPadrao());
+    try { const ms = await listasGet("patologia_modelo"); setPatModelos(parseModelos(ms)); } catch { setPatModelos([]); }
+    setArtefato("PATOLOGIA");
+  }
+  async function salvarPatologia() {
+    if (!pet) return;
+    if (!patCorpo.trim()) { toast.error("Escreva ou escolha uma patologia"); return; }
+    if (!patVetId) { toast.error("Selecione o profissional"); return; }
+    setSavingArt(true);
+    try {
+      // título marcado com "Patologia — …" pra cair na lista de PATOLOGIAS (e sair da de documentos)
+      const titulo = patModeloNome ? `Patologia — ${patModeloNome}` : "Patologia";
+      const body: any = { tutorId: pet.tutorId, petId: pet.id, userId: patVetId, date: new Date().toISOString(), type: "Patologia", status: "Realizado", prescription: patCorpo, chiefComplaint: patModeloNome || "Patologia" };
+      const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error(await r.text());
+      const dc = await r.json().catch(() => null);
+      const apptId = editId || dc?.id || dc?.appointment?.id;
+      if (apptId) {
+        const vetNome = vets.find((u: any) => u.id === patVetId)?.name || meNome || "";
+        // CRIA no novo, ATUALIZA no editar — mantém o título "Patologia — …" e a cópia sincronizada.
+        const docExistente = editId ? (clinDocs || []).find((d: any) => d?.appointment?.id === editId && d?.type === "GENERAL") : null;
+        try {
+          if (docExistente) await fetch(`/api/clinical-documents/${docExistente.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: titulo, content: patCorpo, htmlContent: patCorpo, signedBy: vetNome || undefined }) });
+          else await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "GENERAL", title: titulo, content: patCorpo, htmlContent: patCorpo, signedBy: vetNome || undefined }) });
+        } catch {}
+      }
+      toast.success(editId ? "Patologia atualizada ✅" : "Patologia salva"); setArtefato(null); setEditId(null); await loadAtendimentos(); await loadClinDocs();
+    } catch { toast.error("Erro ao salvar patologia"); } finally { setSavingArt(false); }
   }
   async function salvarDocumento() {
     if (!pet) return;
@@ -525,12 +648,17 @@ export default function PetDetailPage() {
       if (!r.ok) throw new Error(await r.text());
       const dc = await r.json().catch(() => null);
       const apptId = editId || dc?.id || dc?.appointment?.id;
-      // 📄 Também registra na ABA DE DOCUMENTOS (clinical-document).
-      if (apptId && !editId) {
+      // 📄 Sincroniza na ABA DE DOCUMENTOS (clinical-document): CRIA no novo, ATUALIZA no editar
+      // (antes só criava no novo → editar deixava a cópia da timeline/impressão desatualizada).
+      if (apptId) {
         const vetNome = vets.find((u: any) => u.id === docVetId)?.name || meNome || "";
-        try { await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "GENERAL", title: docModeloNome || "Documento", content: docCorpo, htmlContent: docCorpo, signedBy: vetNome || undefined }) }); } catch {}
+        const docExistente = editId ? (clinDocs || []).find((d: any) => d?.appointment?.id === editId && d?.type === "GENERAL") : null;
+        try {
+          if (docExistente) await fetch(`/api/clinical-documents/${docExistente.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: docModeloNome || docExistente.title || "Documento", content: docCorpo, htmlContent: docCorpo, signedBy: vetNome || undefined }) });
+          else await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "GENERAL", title: docModeloNome || "Documento", content: docCorpo, htmlContent: docCorpo, signedBy: vetNome || undefined }) });
+        } catch {}
       }
-      toast.success("Documento salvo e anexado aos documentos"); setArtefato(null); await loadAtendimentos(); await loadClinDocs();
+      toast.success(editId ? "Documento atualizado ✅" : "Documento salvo e anexado aos documentos"); setArtefato(null); setEditId(null); await loadAtendimentos(); await loadClinDocs();
     } catch { toast.error("Erro ao salvar documento"); } finally { setSavingArt(false); }
   }
   function abrirVideo() { setEditId(null); setAtdOpen(false); setArtefato("VIDEO"); setVidUrl(""); setVidVetId(vets[0]?.id || ""); setVidFile(null); }
@@ -566,26 +694,31 @@ export default function PetDetailPage() {
     if (!nome) { toast.error("Informe o nome do exame"); return; }
     setSavingArt(true);
     try {
-      const url = exFile ? await subirArquivo(exFile, "exames") : "";
       const _cat = acharExameNoCatalogo(exCat as any, nome);
-      // Com laudo já anexado, o exame nasce na fase de resultado; sem laudo, como solicitado.
-      const statusInicial = url
-        ? (examFases.find((f) => /resultado/i.test(f)) || examFases[0] || "Solicitado")
-        : (examFases[0] || "Solicitado");
-      const _payload = montarPetExame({ nome, catalogo: _cat, fases: examFases, externo: false, por: meNome, status: statusInicial });
-      if (url) { _payload.resultadoUrl = url; _payload.resultadoArquivo = exFile?.name; }
-      await listasAdd(`petexa_${petId}`, JSON.stringify(_payload));
-      if (url) {
+      // 1) SALVA O EXAME PRIMEIRO (nunca se perde) — nasce como solicitado.
+      const _payload = montarPetExame({ nome, catalogo: _cat, fases: examFases, externo: false, por: meNome, status: examFases[0] || "Solicitado" });
+      const criado = await listasAdd(`petexa_${petId}`, JSON.stringify(_payload));
+      const exId = criado?.id;
+      // 2) Se tem laudo, sobe e anexa POR CIMA. Se o upload falhar, o exame JÁ está salvo (solicitado).
+      if (exFile && exId) {
         try {
-          await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: url, chiefComplaint: nome }) });
-        } catch {}
+          const url = await subirArquivo(exFile, "exames");
+          const statusRes = examFases.find((f) => /resultado/i.test(f)) || examFases[0] || "Solicitado";
+          // cria o "Resultado de exames" e GUARDA o id no exame → excluir o exame remove o registro ligado (sem fantasma)
+          let resAptId: string | undefined;
+          try { const rr = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: meId || vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: url, chiefComplaint: nome }) }); const aj = await rr.json().catch(() => null); resAptId = aj?.id || aj?.appointment?.id; } catch {}
+          await fetch(`/api/listas/${exId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ..._payload, resultadoUrl: url, resultadoArquivo: exFile.name, status: statusRes, ...(resAptId ? { resultadoAppointmentId: resAptId } : {}) }) }) });
+          toast.success("Exame anexado ✅ — aparece no histórico e na aba 🔬 Exames");
+        } catch (upErr: any) {
+          toast.error("Exame salvo, mas o arquivo NÃO subiu (" + String(upErr?.message || upErr).slice(0, 55) + "). Anexe o laudo de novo na aba Exames.");
+        }
+      } else {
+        toast.success("Exame solicitado ✅");
       }
-      toast.success(url ? "Exame anexado" : "Exame solicitado");
       setArtefato(null); setExNome(""); setExFile(null);
       await loadPetColecoes(); await loadAtendimentos();
     } catch (e: any) {
-      toast.error(String(e?.message || e).slice(0, 130));
+      toast.error("Não salvou o exame: " + String(e?.message || e).slice(0, 100));
     } finally { setSavingArt(false); }
   }
   function abrirFoto() { setEditId(null); setAtdOpen(false); setArtefato("FOTO"); setFotoUrl(""); setFotoLegenda(""); setFotoFile(null); }
@@ -607,17 +740,44 @@ export default function PetDetailPage() {
     return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
   }
   // Imprime o documento/receita com o timbrado (cabeçalho + quadro de dados) montado dos dados reais
-  function imprimirComTimbrado(titulo: string, corpo: string, vetId?: string) {
+  function imprimirComTimbrado(titulo: string, corpo: string, vetId?: string, assinar?: boolean) {
     const cab = montarTimbradoHtml({ titulo, clinica, pet, tutor: (pet as any)?.tutor });
     let corpoFinal = corpoParaImpressao(corpo);
-    // 🖋️ Assinatura do veterinário (logado/selecionado) no rodapé — sempre que houver profissional
-    const vet: any = vetId ? vets.find((u: any) => u.id === vetId) : null;
-    if (vet) {
+    // Receituário de CONTROLE ESPECIAL: já é um formulário A4 completo (assinaturas do emitente e
+    // do farmacêutico + 1ª/2ª via). NÃO anexamos assinatura extra e imprimimos COMPACTO pra caber.
+    const especial = /especial/i.test(titulo);
+    // 🖋️ Assinatura ÚNICA do veterinário — do lado DIREITO (padrão de receita).
+    // O próprio modelo já escreve "Cidade, UF, data … Nome CRMV" no rodapé; pra NÃO
+    // duplicar, removemos esse rodapé do corpo e montamos UMA assinatura só aqui.
+    // 🖊️ Assinatura do vet SÓ na RECEITA (pedido Cintia 17/08). Documento/Patologia/Solicitação
+    // não saem assinados. `assinar` vem true só do botão Imprimir da RECEITA.
+    const vet: any = (vetId && assinar) ? vets.find((u: any) => u.id === vetId) : null;
+    if (vet && !especial) {
       const vnome = vet.nomeExibicao || vet.name || "";
       const vcrmv = vet.crmv || (vet.profissional && vet.profissional.crmv) || "";
-      corpoFinal += `<div style="margin-top:64px;text-align:center"><div style="display:inline-block;min-width:260px;border-top:1px solid #14253a;padding-top:6px;font-size:13px"><b>${vnome}</b>${vcrmv ? `<div style="font-size:12px;color:#475569;margin-top:2px">${vcrmv}</div>` : ""}</div></div>`;
+      const vsig = vet.signatureUrl || "";
+      const cidade = (clinica as any)?.cidade || "";
+      const estado = (clinica as any)?.uf || "";
+      // remove o rodapé de assinatura que o modelo já imprimiu ("Cidade, UF, data … Nome CRMV")
+      if (cidade && estado) {
+        const marca = `${cidade}, ${estado},`;
+        const idx = corpoFinal.lastIndexOf(marca);
+        if (idx >= 0) corpoFinal = corpoFinal.slice(0, idx).replace(/(?:\s|&nbsp;|<br\s*\/?>|<div>\s*<\/div>)+$/gi, "");
+      }
+      const h = new Date();
+      const dataStr = `${String(h.getDate()).padStart(2, "0")}/${String(h.getMonth() + 1).padStart(2, "0")}/${h.getFullYear()}`;
+      const local = [cidade && estado ? `${cidade}, ${estado}` : (cidade || estado || ""), dataStr].filter(Boolean).join(", ");
+      // 🖋️ assinatura-imagem (perfil do vet) por cima da linha, quando houver.
+      // O storage é PRIVADO (URL direta dá 403) → servir pelo proxy autenticado /api/media/ver.
+      const sigSrc = vsig ? `/api/media/ver?u=${encodeURIComponent(vsig)}` : "";
+      const sigImg = sigSrc ? `<div style="margin-bottom:-6px"><img src="${sigSrc}" alt="assinatura" style="max-height:72px;max-width:260px;object-fit:contain;mix-blend-mode:multiply" /></div>` : "";
+      corpoFinal += `<div style="margin-top:${vsig ? 40 : 56}px;text-align:right;page-break-inside:avoid">`
+        + `<div style="font-size:13px;color:#334155;margin-bottom:${vsig ? 4 : 34}px">${local}</div>`
+        + sigImg
+        + `<div style="display:inline-block;min-width:260px;border-top:1px solid #14253a;padding-top:6px;font-size:13px;text-align:center"><b>${vnome}</b>${vcrmv ? `<div style="font-size:12px;color:#475569;margin-top:2px">${vcrmv}</div>` : ""}</div>`
+        + `</div>`;
     }
-    imprimirDocumento(titulo, corpoFinal, cab);
+    imprimirDocumento(titulo, corpoFinal, cab, undefined, { compacto: especial });
   }
   // Preenche as variáveis @VAR@ do modelo com os dados reais (pet, tutor, profissional, clínica, data)
   function preencherModelo(corpo: string, vetId: string): string {
@@ -643,7 +803,8 @@ export default function PetDetailPage() {
   // Vet padrão = o profissional LOGADO (se estiver na lista), senão o 1º da lista
   function vetPadrao(): string {
     const me = vets.find((u: any) => (meId && u.id === meId) || (meNome && String(u.name || "").trim().toLowerCase() === meNome.trim().toLowerCase()));
-    return me?.id || (vets[0]?.id || "");
+    // sempre cai no usuário LOGADO (meId) se ele não estiver na lista — evita a trava "Selecione o profissional".
+    return me?.id || meId || (vets[0]?.id || "");
   }
   const parseModelos = (ms: any[]) => ms.map((i: any) => { let o: any = {}; try { o = JSON.parse(i.valor); } catch { o = { nome: i.valor, corpo: "" }; } return { nome: o.nome || i.valor, corpo: o.corpo || "" }; });
   async function abrirReceita() {
@@ -687,13 +848,17 @@ export default function PetDetailPage() {
       if (!r.ok) throw new Error(await r.text());
       const dc = await r.json().catch(() => null);
       const apptId = editId || dc?.id || dc?.appointment?.id;
-      // 📄 Também registra a receita na ABA DE DOCUMENTOS (clinical-document), com anexo/PDF.
-      if (apptId && !editId) {
+      // 📄 Sincroniza a receita na ABA DE DOCUMENTOS (clinical-document): CRIA no novo, ATUALIZA no editar.
+      if (apptId) {
         const vetNome = vets.find((u: any) => u.id === recVetId)?.name || meNome || "";
-        try { await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "PRESCRIPTION", title: recModeloNome || "Receita", content: recCorpo, htmlContent: recCorpo, signedBy: vetNome || undefined }) }); } catch {}
+        const docExistente = editId ? (clinDocs || []).find((d: any) => d?.appointment?.id === editId && d?.type === "PRESCRIPTION") : null;
+        const rd = docExistente
+          ? await fetch(`/api/clinical-documents/${docExistente.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: recModeloNome || "Receita", content: recCorpo, htmlContent: recCorpo, signedBy: vetNome || undefined }) })
+          : await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: apptId, type: "PRESCRIPTION", title: recModeloNome || "Receita", content: recCorpo, htmlContent: recCorpo, signedBy: vetNome || undefined }) });
+        if (!rd.ok) throw new Error("Não foi possível salvar o documento da receita");
       }
-      toast.success("Receita registrada e anexada aos documentos"); setArtefato(null); setRecModeloNome(""); setRecCorpo(""); await loadAtendimentos(); await loadClinDocs();
-    } catch { toast.error("Erro ao salvar receita"); } finally { setSavingArt(false); }
+      toast.success(editId ? "Receita atualizada ✅" : "Receita registrada e anexada aos documentos ✅"); setArtefato(null); setRecModeloNome(""); setRecCorpo(""); setEditId(null); await loadAtendimentos(); await loadClinDocs();
+    } catch (e: any) { toast.error(String(e?.message || "Erro ao salvar receita").slice(0, 140)); } finally { setSavingArt(false); }
   }
   async function saveName() {
     const novo = nameVal.trim();
@@ -708,7 +873,12 @@ export default function PetDetailPage() {
   async function saveFu() {
     if (!fuDate) { toast.error("Escolha uma data"); return; }
     setSavingFu(true);
-    try { await patchPet({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() }); toast.success("Follow-up agendado"); setFuDate(""); await load(); } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); }
+    try {
+      await patchPet({ proximoFollowupAt: new Date(fuDate + "T12:00:00").toISOString() });
+      // 👤 responsável padrão = quem agendou (se ninguém foi definido) → cai no "Hoje" dessa pessoa
+      if (!fuResp && meId) { await upsertFuResp(meId, meNome || ""); await loadInteracoesPet(); }
+      toast.success("Follow-up agendado"); setFuDate(""); await load();
+    } catch { toast.error("Erro ao agendar"); } finally { setSavingFu(false); }
   }
   async function clearFu() {
     try {
@@ -737,19 +907,27 @@ export default function PetDetailPage() {
   }
 
   async function listasGet(lista: string) { try { const r = await fetch(`/api/listas?lista=${encodeURIComponent(lista)}`, { cache: "no-store" }); const d = await r.json(); return Array.isArray(d) ? d : (d.itens || d.data || []); } catch { return []; } }
-  async function listasAdd(lista: string, valor: string) { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista, valor }) }); if (!r.ok) throw new Error(String(r.status)); return r.json(); }
+  async function listasAdd(lista: string, valor: string) { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista, valor }) }); if (!r.ok) { const e = await r.json().catch(() => null); throw new Error(e?.message || e?.error || `HTTP ${r.status}`); } return r.json(); }
   async function listasDel(id: string) { const r = await fetch(`/api/listas/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(String(r.status)); }
   async function loadPetColecoes() {
-    const [tags, cads, pacs, exs] = await Promise.all([listasGet(`petetq_${petId}`), listasGet(`petcad_${petId}`), listasGet(`petpac_${petId}`), listasGet(`petexa_${petId}`)]);
-    setPetTags(tags.map((i: any) => ({ id: i.id, texto: i.valor })));
-    setCadAtivas(cads.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d }; }));
+    // getSafe devolve null se a LEITURA falhar (≠ lista vazia []). Assim, uma falha de rede
+    // NÃO apaga os exames/pacotes já mostrados (bug do "sumiu da aba") — só avisa.
+    const getSafe = async (lista: string): Promise<any[] | null> => {
+      try { const r = await fetch(`/api/listas?lista=${encodeURIComponent(lista)}`, { cache: "no-store" }); if (!r.ok) return null; const d = await r.json(); return Array.isArray(d) ? d : (d.itens || d.data || []); } catch { return null; }
+    };
+    const [tags, cads, pacs, exs] = await Promise.all([getSafe(`petetq_${petId}`), getSafe(`petcad_${petId}`), getSafe(`petpac_${petId}`), getSafe(`petexa_${petId}`)]);
     const parse = (arr: any[]) => arr.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d }; });
-    setPacotes(parse(pacs)); setExames(parse(exs));
+    if (tags) setPetTags(tags.map((i: any) => ({ id: i.id, texto: i.valor })));
+    if (cads) setCadAtivas(parse(cads));
+    if (pacs) setPacotes(parse(pacs));
+    if (exs) setExames(exs.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d, createdAt: i.createdAt }; })); else toast.error("Não consegui carregar os exames agora — recarregue a página.");
   }
   async function loadCatalogos() {
     try { const r = await fetch(`/api/etiquetas/templates`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.templates || d.data || []); setTagTpls(arr.filter((t: any) => t.ativo !== false && (t.aplicaEm || []).includes("Pet"))); } catch {}
-    try { const r = await fetch(`/api/cadencias`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.cadencias || d.data || []); setCadOpts(arr); } catch {}
-    try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setServicosCat(arr); setFisioSrv(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {}
+    // #2 — inclui as sequências DESLIGADAS pra elas aparecerem no "+iniciar" da ficha (escolher por diagnóstico).
+    // Iniciar aqui só MARCA a sequência no pet (não dispara mensagem sozinho) — o envio automático é separado (ativo do template).
+    try { const r = await fetch(`/api/cadencias?includeInactive=true`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.cadencias || d.data || []); setCadOpts(arr); } catch {}
+    try { const arr = await carregarCatalogoVendavel(); setServicosCat(arr); setFisioSrv(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {}
     try { const r = await fetch(`/api/fornecedores/exames/lista`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.exames || d.data || d.itens || []); setExCat(arr); } catch {}
     try { const r = await fetch(`/api/users`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.users || d.data || []); setVets(arr.filter((u: any) => !u.isBlocked)); } catch {}
     try { const r = await fetch(`/api/listas?lista=dadosclinica`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); const raw = arr[0]?.valor; if (raw) { try { setClinica(JSON.parse(raw)); } catch { setClinica({}); } } } catch {}
@@ -762,8 +940,33 @@ export default function PetDetailPage() {
   }
   async function addTag(texto: string) { setSavingTag(true); try { await listasAdd(`petetq_${petId}`, texto); toast.success("Etiqueta adicionada"); await loadPetColecoes(); } catch { toast.error("Erro (talvez já exista)"); } finally { setSavingTag(false); } }
   async function delTag(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro ao remover"); } }
-  async function addCad(c: any) { setSavingCad(true); try { await listasAdd(`petcad_${petId}`, JSON.stringify({ cadenciaId: c.id, nome: c.nome || c.titulo, startedAt: new Date().toISOString() })); toast.success("Cadência iniciada"); setCadPick(false); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingCad(false); } }
-  async function delCad(id: string) { try { await listasDel(id); toast.success("Cadência encerrada"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
+  // #2 — inicia a sequência: MARCA no pet e DISPARA o acompanhamento (inscreve no motor de cadências;
+  // o cron manda os passos). Sem telefone do tutor → só marca (não envia).
+  async function addCad(c: any) {
+    setSavingCad(true);
+    try {
+      const phone = (tutorWhats || "").replace(/\D/g, "");
+      let inscId: string | null = null;
+      if (phone) {
+        try {
+          const r = await fetch(`/api/cadencias/${c.id}/inscrever`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: (pet as any)?.tutorId || pet?.tutor?.id, petId, phone }) });
+          if (r.ok) { const d = await r.json().catch(() => null); inscId = d?.id || null; }
+        } catch { /* segue e marca mesmo assim */ }
+      }
+      await listasAdd(`petcad_${petId}`, JSON.stringify({ cadenciaId: c.id, nome: c.nome || c.titulo, startedAt: new Date().toISOString(), inscId }));
+      toast.success(inscId ? "Sequência iniciada — acompanhamento agendado 📲" : (phone ? "Sequência marcada (não consegui agendar o envio)" : "Sequência marcada — tutor sem telefone, não envia"));
+      setCadPick(false); await loadPetColecoes();
+    } catch { toast.error("Erro"); } finally { setSavingCad(false); }
+  }
+  async function delCad(c: any) {
+    try {
+      const inscId = c?.data?.inscId;
+      if (inscId) await fetch(`/api/cadencias/inscricoes/${inscId}/cancelar`, { method: "PATCH" }).catch(() => undefined);
+      await listasDel(c.id);
+      toast.success("Sequência encerrada");
+      await loadPetColecoes();
+    } catch { toast.error("Erro"); }
+  }
   async function addPacote() {
     // EDIÇÃO: corrige nome/total/feitas de um pacote já lançado (fase de migração).
     if (pacForm.id) {
@@ -815,27 +1018,84 @@ export default function PetDetailPage() {
     await load(); await loadInteracoesPet();
   }
   async function delPacote(id: string) { try { await listasDel(id); toast.success("Pacote removido"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
-  async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { const _cat = acharExameNoCatalogo(exCat as any, exPick); await listasAdd(`petexa_${petId}`, JSON.stringify(montarPetExame({ nome: exPick, catalogo: _cat, fases: examFases, externo: false, por: meNome }))); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch { toast.error("Erro"); } finally { setSavingEx(false); } }
+  async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { const _cat = acharExameNoCatalogo(exCat as any, exPick); await listasAdd(`petexa_${petId}`, JSON.stringify(montarPetExame({ nome: exPick, catalogo: _cat, fases: examFases, externo: false, por: meNome }))); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch (e: any) { toast.error("Não salvou o exame: " + String(e?.message || e).slice(0, 90)); } finally { setSavingEx(false); } }
   async function updExameStatus(id: string, data: any, novoStatus: string) { try { const historico = registrarHistoricoFase(data.historico, novoStatus, meNome); const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novoStatus, historico }) }) }); if (!r.ok) throw new Error(); await loadPetColecoes(); } catch { toast.error("Erro ao atualizar fase"); } }
-  async function delExame(id: string) { try { await listasDel(id); await loadPetColecoes(); } catch { toast.error("Erro"); } }
+  async function delExame(id: string) {
+    try {
+      const ex = (exames || []).find((e: any) => e.id === id);
+      const aptId = ex?.data?.resultadoAppointmentId; // vínculo guardado ao anexar o laudo
+      await listasDel(id);
+      if (aptId) { try { await fetch(`/api/appointments/${aptId}`, { method: "DELETE" }); } catch {} } // remove o "Resultado de exames" ligado (sem fantasma)
+      await loadPetColecoes(); await loadAtendimentos();
+    } catch { toast.error("Erro"); }
+  }
+  // Solicitação de exame (clínica/externo) — nasce como SOLICITADO e dispara o fluxo (Hoje/lab/financeiro).
+  async function solicitarExame(externo: boolean) {
+    const nome = exNome.trim();
+    if (!nome) { toast.error("Escolha ou digite o exame primeiro"); return; }
+    setSavingEx(true);
+    try {
+      const _cat = acharExameNoCatalogo(exCat as any, nome);
+      const _exObj: any = montarPetExame({ nome, catalogo: _cat, fases: examFases, externo, por: meNome });
+      const _valor = Number(_exObj.valor) || 0;
+      // 💰 Cobrança AUTOMÁTICA ao solicitar (mockup 9cf0a95b): lança na comanda do cliente
+      // pelo preço do catálogo e marca `cobrado` pra não cobrar de novo no botão.
+      if (_valor > 0) { _exObj.cobrado = true; _exObj.cobradoAt = new Date().toISOString(); }
+      await listasAdd(`petexa_${petId}`, JSON.stringify(_exObj));
+      if (_valor > 0) {
+        try { window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: nome, valorUnitario: _valor, quantidade: 1 } })); } catch {}
+        toast.success(`Exame solicitado e lançado na comanda (${_valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}) 🧾`);
+      } else {
+        toast.success((externo ? "Exame solicitado (externo) ✅" : "Exame solicitado na clínica ✅") + " — sem preço no catálogo, não lançou na comanda");
+      }
+      setExNome(""); await loadPetColecoes(); await loadAtendimentos();
+    } catch (e: any) { toast.error("Não solicitou: " + String(e?.message || e).slice(0, 80)); } finally { setSavingEx(false); }
+  }
+  // Lista compacta dentro do box (receitas/documentos/patologias) — abrir laudo/PDF + excluir.
+  function boxDocList(filtro: (d: any) => boolean, label: string, entity: string) {
+    const arr = (clinDocs || []).filter(filtro);
+    if (arr.length === 0) return <div className="mt-4 pt-3 border-t text-[12px] text-[#374151]" style={{ borderColor: "#F0EBE0" }}>Nenhum(a) {entity} deste pet ainda.</div>;
+    return (
+      <div className="mt-4 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+        <div className="text-[11px] uppercase tracking-wide text-[#374151] mb-2 font-semibold">{label} ({arr.length})</div>
+        <div className="flex flex-col gap-1.5" style={{ maxHeight: "35vh", overflowY: "auto" }}>
+          {arr.map((d: any) => (
+            <div key={d.id} className="flex items-center justify-between gap-2 border rounded-lg px-2.5 py-1.5" style={{ borderColor: "#E8DFC8", background: "#FBF9F4" }}>
+              <div className="min-w-0">
+                <div className="text-[12.5px] font-medium truncate" style={{ color: "#014D5E" }}>{d.title || label}</div>
+                <div className="text-[10.5px] text-[#5C6B70]">{d.createdAt ? fmtDataBR(d.createdAt) : ""}{d.signedBy ? " · " + d.signedBy : ""}</div>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                {d.pdfUrl ? <button type="button" onClick={() => setLaudoView({ url: d.pdfUrl, nome: d.title })} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir</button> : (d.htmlContent || d.content) ? <button type="button" title="Abrir na caixa de edição (modificar / imprimir)" onClick={() => editarEntrada({ src: "doc", raw: d })} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>✏️ abrir</button> : <span className="text-[10.5px] text-[#94a3a0]">sem arquivo</span>}
+                <button type="button" title="Excluir" onClick={async () => { if (!(await confirmDelete({ entityLabel: entity, itemName: d.title || entity }))) return; try { const r = await fetch(`/api/clinical-documents/${d.id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); if (d?.appointment?.id) { try { await fetch(`/api/appointments/${d.appointment.id}`, { method: "DELETE" }); } catch {} } await loadClinDocs(); await loadAtendimentos(); toast.success("Excluído"); } catch { toast.error("Erro ao excluir"); } }} className="text-[13px] px-2 py-1 rounded-lg border hover:bg-[#FBEEEC]" style={{ borderColor: "#E8DFC8", color: "#b23b39" }}>🗑️</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   // Fatia 4C — "Cobrar" o exame: lança na COMANDA da ficha (PetComandaRail já escuta 'comanda:add').
   // Explícito por card (decisão da Cintia 04/08) — não cobra automático ao solicitar.
-  function cobrarExame(x: { id: string; data: any }) {
+  async function cobrarExame(x: { id: string; data: any }) {
     const valor = Number(x.data?.valor) || 0;
     if (!valor) { toast.error("Este exame está sem preço de venda no catálogo (Catálogo › Exames)."); return; }
     try {
       window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: x.data?.nome || "Exame", valorUnitario: valor, quantidade: 1 } }));
+      // marca cobrado (não duplica no automático) — persiste no item
+      try { await fetch(`/api/listas/${x.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...x.data, cobrado: true, cobradoAt: new Date().toISOString() }) }) }); await loadPetColecoes(); } catch {}
       toast.success("Exame lançado na comanda 🧾");
     } catch { toast.error("Não consegui lançar na comanda"); }
   }
-  // Fatia 3: avisar o laboratório da coleta AGORA (fora das janelas automáticas 11:30/17:00)
-  async function avisarLab(itemId: string) {
+  // Solicitar coleta ao laboratório AGORA (urgência — fora do lote automático 11:30/17:00).
+  async function avisarLab(itemId: string, resumo?: string) {
+    if (!window.confirm(`📲 Solicitar coleta ao laboratório?\n\n${resumo || ""}`.trim())) return;
     try {
       const r = await fetch(`/api/exames/avisar-lab/${itemId}`, { method: "POST", credentials: "include" });
       const d = await r.json().catch(() => ({}));
-      if (r.ok && d?.ok) { toast.success("Laboratório avisado no WhatsApp"); await loadPetColecoes(); }
-      else toast.error(d?.erro || "Não consegui avisar o laboratório");
-    } catch { toast.error("Erro ao avisar o laboratório"); }
+      if (r.ok && d?.ok) { toast.success("Solicitação enviada ao laboratório"); await loadPetColecoes(); }
+      else toast.error(d?.erro || "Não consegui solicitar ao laboratório");
+    } catch { toast.error("Erro ao solicitar ao laboratório"); }
   }
   // 📎 Anexa o resultado (link) ao exame e avança o status para "Resultado"
   // Anexo de arquivo DE VERDADE (o antigo só aceitava link colado num window.prompt).
@@ -867,15 +1127,7 @@ export default function PetDetailPage() {
       body: JSON.stringify({ valor: JSON.stringify({ ...data, resultadoUrl: limpa || null, resultadoArquivo: nomeArquivo || data.resultadoArquivo || null, status: limpa ? novoStatus : data.status }) }),
     });
     if (!r.ok) throw new Error("não consegui salvar o resultado no exame");
-    // Registra tambem como documento na timeline
-    if (limpa && pet) {
-      try {
-        await fetch("/api/appointments", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tutorId: pet.tutorId, petId: pet.id, userId: vets[0]?.id, date: new Date().toISOString(), type: "Resultado de exames", status: "Realizado", prescription: limpa, chiefComplaint: data.nome }),
-        });
-      } catch {}
-    }
+    // O resultado fica SÓ na aba Exames — não cria mais registro na anamnese/prontuário (Cintia 06/08).
     await loadPetColecoes(); await loadAtendimentos();
   }
   async function anexarResultado(id: string, data: any) {
@@ -900,7 +1152,7 @@ export default function PetDetailPage() {
       if (atd.nextReturnDate) body.nextReturnDate = new Date(atd.nextReturnDate + "T12:00:00").toISOString();
       const itensValidos = items.filter((it: any) => it.descricao || it.servicoId);
       if (itensValidos.length) {
-        body.items = itensValidos.map((it: any) => ({ ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}), ...(it.descricao ? { descricao: it.descricao } : {}), ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}), quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}) }));
+        body.items = itensValidos.map((it: any) => ({ ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}), ...(it.descricao ? { descricao: it.descricao } : {}), ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}), quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, ...(it.fornecedorId ? { fornecedorId: it.fornecedorId } : {}), ...(it._exame ? { tipoItem: "EXAME", catalogoExameId: it.catalogoExameId } : {}), valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}) }));
         body.value = body.items.reduce((sm: number, it: any) => sm + (it.valorTotal || 0), 0);
       }
       const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -911,7 +1163,7 @@ export default function PetDetailPage() {
       const fisioItem = itensValidos.find((it: any) => it.servicoId && fisioSrv.some((sv: any) => String(sv.id) === String(it.servicoId)));
       if (fisioItem) {
         const sv = fisioSrv.find((x: any) => String(x.id) === String(fisioItem.servicoId));
-        setTab("PACOTES");
+        setMainTab("GERAL"); // o form do pacote de fisio fica na aba Geral — leva a recepção até ele
         setPacForm({ open: true, serviceId: String(fisioItem.servicoId), nome: "", total: String(Number(fisioItem.quantidade) || 4), jaFeitas: "0" });
         toast(`Fisioterapia vendida (${sv?.nome || sv?.titulo || "sessão"}) — defina o total de sessões do pacote`, { icon: "🩺", duration: 6000 });
       }
@@ -920,7 +1172,7 @@ export default function PetDetailPage() {
   function addItem() { setItems(prev => [...prev, { servicoId: "", descricao: "", quantidade: 1, valorUnitario: 0, custoUnitario: 0, executorUserId: "", comissaoValor: 0 }]); }
   function updItem(i: number, patch: any) { setItems(prev => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it)); }
   function rmItem(i: number) { setItems(prev => prev.filter((_, idx) => idx !== i)); }
-  function pickServico(i: number, servicoId: string) { const sv = servicosCat.find((x: any) => x.id === servicoId); updItem(i, { servicoId, descricao: sv?.nome || "", valorUnitario: sv?.valorPadrao ?? 0, custoUnitario: sv?.custoPadrao ?? 0 }); }
+  function pickServico(i: number, servicoId: string) { const sv = servicosCat.find((x: any) => x.id === servicoId); if (!sv) return; const l = linhaDoItem(sv); updItem(i, { servicoId: l.servicoId || "", descricao: l.descricao, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId ?? null, catalogoExameId: l.catalogoExameId, _exame: l._exame }); }
   async function loadInteracoesPet() {
     try { const r = await fetch(`/api/interacoes?petId=${petId}&limit=100`, { cache: "no-store" }); const d = await r.json(); setPetInteracoes(Array.isArray(d) ? d : (d.interacoes || d.data || [])); } catch {}
     // Responsável pelo follow-up (KV fu_responsavel, uma entrada por pet)
@@ -1085,6 +1337,13 @@ export default function PetDetailPage() {
     const wa = pet.tutor.contacts.find(c => c.isWhatsApp) || pet.tutor.contacts.find(c => c.isPrimary) || pet.tutor.contacts[0];
     return wa?.number || null;
   }, [pet]);
+  // Peso mais recente + data (dos atendimentos com petWeight; senão o peso atual do cadastro)
+  const pesoRecente = useMemo(() => {
+    const pts = (atendimentos || []).filter((a: any) => a.petWeight != null && a.date).sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (pts.length) return { w: Number(pts[0].petWeight), date: pts[0].date as string };
+    if (pet?.weight != null) return { w: Number(pet.weight), date: null as string | null };
+    return null;
+  }, [atendimentos, pet?.weight]);
 
   if (loading) {
     return <div className="p-10 text-center text-gray-400">Carregando ficha...</div>;
@@ -1109,8 +1368,13 @@ export default function PetDetailPage() {
   const money = (v?: number | null) =>
     v == null ? "—" : !showValues ? "R$ ••••" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const diasDesdeUltima = ultimaVisita ? Math.floor((Date.now() - new Date(ultimaVisita).getTime()) / 86400000) : null;
-  // Vacinas em dia: existe pelo menos um protocolo/atendimento de vacinação
-  const temVacina = (atendimentos || []).some((a: any) => /vacin/i.test(a.type || "") || /vacin/i.test(a.description || ""));
+  // Vacinas em dia: usa os PROTOCOLOS (mesma fonte da "próxima vacina") — tem vacina cadastrada e
+  // nenhuma dose vencida. Sem protocolo (pet legado), cai no sinal antigo (atendimento com "vacina").
+  const protosVacina = (protocolos || []).filter((p: any) => p.tipo === "VACINA");
+  const vacinaVencida = protosVacina.some((p: any) => (p.doses || []).some((d: any) => d.status === "PENDENTE" && d.dataPrevista && new Date(d.dataPrevista).getTime() < Date.now()));
+  const temVacina = protosVacina.length > 0
+    ? !vacinaVencida
+    : (atendimentos || []).some((a: any) => /vacin/i.test(a.type || "") || /vacin/i.test(a.description || ""));
   const castrado = pet.sterilization === "STERILIZED";
   const pesoOk = pet.weight != null && pet.weight > 0;
   const emTratamento = /trat|manut|exame|avali/i.test(saude.label + " " + pipelineClinico + " " + pipelineFisio);
@@ -1167,12 +1431,12 @@ export default function PetDetailPage() {
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
       {/* 🛒 Comanda lateral fixa (Fatia 2) — lança venda/orçamento sem sair da ficha */}
       <PetComandaRail petId={petId} tutorId={pet.tutorId} petNome={pet.name} tutorNome={(pet as any)?.tutor?.name} />
-      {/* Breadcrumb */}
+      {/* ── Cabeçalho FIXO (sticky): migalha + card juntos, colam abaixo da barra global (64px) ── */}
+      <div className="sticky top-16 z-30 -mx-4 px-4 pt-2" style={{ background: "#F6F2EA" }}>
+      {/* Breadcrumb (dentro do fixo, como na 2ª figura) */}
       <div className="text-[12px] text-[#374151] mb-2 px-1">
         <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <b className="text-[#009AAC] font-medium">{pet.name}</b>
       </div>
-
-      {/* ── Cabeçalho em card branco (padrão ficha do cliente) ── */}
       <div className="bg-white border border-[#E8E2D6] rounded-[14px] mb-3" style={{ padding: "14px 16px" }}>
         <div className="flex justify-between items-start flex-wrap gap-3">
           <div className="flex items-start gap-3 flex-1" style={{ minWidth: "220px" }}>
@@ -1194,15 +1458,19 @@ export default function PetDetailPage() {
                 {pet.codigo ? <span className="text-[13px] text-[#374151] font-medium" title="Código do pet">#{pet.codigo}</span> : null}
                 <button onClick={() => setStatusOpen(true)} title="Status de saúde — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: saude.bg, color: saude.color }}>{saude.label} ▾</button>
                 {pet.status === "DECEASED" && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#EEF0F2", color: "#5b6470" }}>🕊️ Óbito</span>}
+                {(pet as any).cuidadoPaliativo && pet.status !== "DECEASED" && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#F3EEFA", color: "#6B4E9E" }}>🕊️ Cuidados paliativos</span>}
                 {/petlife/i.test(pet.insurancePlan || "") && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E6F0FF", color: "#0C447C" }}>🩺 Petlife</span>}
                 <button onClick={() => { setNotaVal(pet.medicalNotes || ""); setNotaOpen(true); }} title={pet.medicalNotes ? `Nota médica: ${pet.medicalNotes}` : "Adicionar nota médica"} className="text-[15px] leading-none">{(pet.medicalNotes || pet.observations) ? "❤️" : "🤍"}</button>
               </div>
               <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
                 {[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null, sterilLabel(pet.sterilization)].filter((x) => x && x !== "—").join(" · ")}
+                {pesoRecente && <> · <b className="text-[#0E2244]">⚖️ {pesoRecente.w} kg</b>{pesoRecente.date ? <span className="text-[#8A938F]"> ({fmtDataBR(pesoRecente.date).slice(0, 10)})</span> : null}</>}
               </p>
               {pet.tutor && (
-                <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
-                  🧑 Tutor(a): <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="text-[#009AAC] hover:underline">{pet.tutor.name} →</Link>
+                <p className="text-[12.5px] text-[#5C6B70] mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                  <span>🧑 Tutor(a): <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="text-[#009AAC] hover:underline">{pet.tutor.name} →</Link></span>
+                  {tutorWhats && <span>📞 {tutorWhats}</span>}
+                  {(pet as any)?.tutor?.email && <span>✉️ {(pet as any).tutor.email}</span>}
                 </p>
               )}
               {/* Etiquetas (chips + tag) */}
@@ -1237,6 +1505,7 @@ export default function PetDetailPage() {
           </div>
           <div className="flex gap-1.5 flex-wrap items-center">
             <button onClick={iniciarConsulta} className="bg-[#014D5E] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:opacity-90 flex items-center gap-1.5">🩺 Iniciar consulta</button>
+            {pet.status !== "DECEASED" && <button onClick={togglePaliativo} title="Cuidados paliativos (silencia cobranças + apoio à família)" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={(pet as any).cuidadoPaliativo ? { borderColor: "#6B4E9E", color: "#6B4E9E", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>{(pet as any).cuidadoPaliativo ? "↩️ Sair de paliativos" : "🕊️ Cuidados paliativos"}</button>}
             <button onClick={toggleObito} title="Registrar óbito / marcar vivo" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={pet.status === "DECEASED" ? { borderColor: "#0F6E56", color: "#0F6E56", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>{pet.status === "DECEASED" ? "↩️ Marcar vivo" : "🕊️ Óbito"}</button>
             <button onClick={togglePetlife} title="Convênio Petlife" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={/petlife/i.test(pet.insurancePlan || "") ? { borderColor: "#0C447C", color: "#0C447C", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>🩺 {/petlife/i.test(pet.insurancePlan || "") ? "Petlife ✓" : "Marcar Petlife"}</button>
             <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
@@ -1255,6 +1524,7 @@ export default function PetDetailPage() {
           </div>
         </div>
       </div>
+      </div>
 
       {/* ── Barra de abas (no celular rola de lado; no desktop cabe tudo) ── */}
       <div className="flex border-b border-[#E8E2D6] mb-3 overflow-x-auto [&>button]:shrink-0 [&>button]:whitespace-nowrap">
@@ -1271,6 +1541,22 @@ export default function PetDetailPage() {
           <button key={t.k} onClick={() => setMainTab(t.k)} className="px-4 py-2 text-sm font-medium border-b-2 transition -mb-px" style={{ borderColor: mainTab === t.k ? "#009AAC" : "transparent", color: mainTab === t.k ? "#009AAC" : "#374151" }}>{t.label}</button>
         ))}
       </div>
+
+      {/* Pop-up do LAUDO do exame (imagem/PDF) — fecha no X, ESC ou clique fora */}
+      {laudoView && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 no-print" style={{ background: "rgba(20,35,40,.55)" }} onClick={() => setLaudoView(null)}>
+          <div className="bg-white rounded-2xl w-full flex flex-col" style={{ maxWidth: 900, height: "88vh", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-2.5 border-b flex items-center justify-between gap-2" style={{ borderColor: "#F0EBE0" }}>
+              <div className="text-[13.5px] font-semibold truncate" style={{ color: "#014D5E" }}>🔬 {laudoView.nome || "Laudo do exame"}</div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a href={`/api/media/ver?u=${encodeURIComponent(laudoView.url)}`} target="_blank" rel="noreferrer" className="text-[12px] px-2.5 py-1 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#5C6B70" }}>nova aba ↗</a>
+                <button onClick={() => setLaudoView(null)} title="Fechar (ESC)" className="w-8 h-8 rounded-lg border flex items-center justify-center text-[#5C6B70]" style={{ borderColor: "#E8E2D6" }}>✕</button>
+              </div>
+            </div>
+            <iframe src={`/api/media/ver?u=${encodeURIComponent(laudoView.url)}`} title="Laudo do exame" className="flex-1 w-full" style={{ border: "none", borderBottomLeftRadius: 16, borderBottomRightRadius: 16 }} />
+          </div>
+        </div>
+      )}
 
       {/* ═══════════ ABA 👤 VISÃO GERAL ═══════════ */}
       {mainTab === "GERAL" && (
@@ -1362,9 +1648,9 @@ export default function PetDetailPage() {
         {/* 2. Sinais vitais (KPIs) */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2.5">
           {[
-            { emoji: "⚖️", label: "Peso", value: pet.weight ? `${pet.weight} kg` : "—" },
+            { emoji: "⚖️", label: "Peso", value: pesoRecente ? `${pesoRecente.w} kg` : "—" },
             { emoji: "🎂", label: "Idade", value: pet.birthDate ? ageFromBirth(pet.birthDate) : "—" },
-            { emoji: "📏", label: "Porte", value: pet.weight ? (pet.weight < 10 ? "Pequeno" : pet.weight < 25 ? "Médio" : "Grande") : "—" },
+            { emoji: "📏", label: "Porte", value: pesoRecente ? (pesoRecente.w < 10 ? "Pequeno" : pesoRecente.w < 25 ? "Médio" : "Grande") : "—" },
             { emoji: "🩺", label: "Última visita", value: diasTxt(diasDesdeUltima) },
             { emoji: "💳", label: "Crédito", value: credito == null ? "—" : money(credito) },
           ].map((k) => (
@@ -1419,7 +1705,7 @@ export default function PetDetailPage() {
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
                       {resp2?.nome && <button onClick={removerResp2} disabled={resp2Saving} className="text-[10.5px] text-[#A32D2D] hover:underline disabled:opacity-50">remover</button>}
-                      <button onClick={() => { setResp2Form({ nome: resp2?.nome || "", telefone: resp2?.telefone || "" }); setResp2Open(true); }} className="text-[10.5px] text-[#00798A] font-medium hover:underline">{resp2?.nome ? "editar" : "+ adicionar"}</button>
+                      <button onClick={() => { setResp2Form({ nome: resp2?.nome || "", telefone: resp2?.telefone || "" }); setResp2Busca(resp2?.tutorId ? (resp2?.nome || "") : ""); setResp2TutorId(resp2?.tutorId || null); setResp2Results([]); setResp2Open(true); }} className="text-[10.5px] text-[#00798A] font-medium hover:underline">{resp2?.nome ? "editar" : "+ adicionar"}</button>
                     </span>
                   </div>
                 </div>
@@ -1506,28 +1792,7 @@ export default function PetDetailPage() {
               </div>
             </div>
 
-            {/* Sequências (o Follow-up foi unificado no box de Acompanhamento abaixo) */}
-            <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
-              <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">⚡ Sequências</h3>
-                <button onClick={() => setCadPick((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">+ iniciar</button>
-              </div>
-              <div style={{ padding: "10px 14px" }} className="flex flex-col gap-1.5">
-                {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#374151]">Nenhuma cadência ativa.</p>}
-                {cadAtivas.map((c) => (
-                  <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]">
-                    <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
-                    <button onClick={() => delCad(c.id)} className="text-[#b23b39] text-[10px]">encerrar</button>
-                  </div>
-                ))}
-                {cadPick && (
-                  <div className="pt-1.5 border-t border-[#F0EBE0] flex flex-wrap gap-1.5">
-                    {cadOpts.length === 0 ? <p className="text-[11px] text-[#374151]">Nenhuma cadência cadastrada em Configurações.</p> :
-                      cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
-                  </div>
-                )}
-              </div>
-            </div>
+            {/* ⚡ Sequências foram movidas para BAIXO do Follow-up (a pedido da Cintia) */}
 
           </div>
         </div>
@@ -1579,6 +1844,29 @@ export default function PetDetailPage() {
                     {it.autor?.name && <p className="text-[10px] text-[#374151] mt-0.5">por {it.autor.name}</p>}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ⚡ Sequências — abaixo do Follow-up (a pedido da Cintia) */}
+        <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
+          <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">⚡ Sequências de cuidado</h3>
+            <button onClick={() => setCadPick((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">+ iniciar</button>
+          </div>
+          <div style={{ padding: "10px 14px" }} className="flex flex-col gap-1.5">
+            {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#374151]">Nenhuma cadência ativa.</p>}
+            {cadAtivas.map((c) => (
+              <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[11.5px]">
+                <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
+                <button onClick={() => delCad(c)} className="text-[#b23b39] text-[10px]">encerrar</button>
+              </div>
+            ))}
+            {cadPick && (
+              <div className="pt-1.5 border-t border-[#F0EBE0] flex flex-wrap gap-1.5">
+                {cadOpts.length === 0 ? <p className="text-[11px] text-[#374151]">Nenhuma cadência cadastrada em Configurações.</p> :
+                  cadOpts.map((c: any) => (<button key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
               </div>
             )}
           </div>
@@ -1719,7 +2007,9 @@ export default function PetDetailPage() {
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
               <div className="lg:order-1">
-                <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
+                <div style={{ maxHeight: "72vh", overflowY: "auto" }} className="pr-1">
+                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
+                </div>
                 {detalheHist && (
                   <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.3)" }} onClick={() => setDetalheHist(null)}>
                     <div className="bg-white rounded-2xl w-full flex flex-col" style={{ maxWidth: 680, maxHeight: "85vh", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
@@ -1746,12 +2036,13 @@ export default function PetDetailPage() {
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Peso</h3>
                       <div className="flex gap-2">
                         <button onClick={salvarPeso} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <label className="text-xs text-gray-500">Peso atual (kg)</label>
                     <input type="number" step="0.01" value={pesoVal} onChange={(e) => setPesoVal(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Ex.: 6.25" />
                     <p className="text-[11px] text-gray-400 mt-2">Atualiza o peso atual do pet e entra no gráfico de peso.</p>
+                    <div className="mt-3"><WeightChart atendimentos={atendimentos} current={pet.weight} /></div>
                   </div>
                 ) : artefato === "OBS" ? (
                   <div className="bg-white">
@@ -1759,35 +2050,34 @@ export default function PetDetailPage() {
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Observação</h3>
                       <div className="flex gap-2">
                         <button onClick={salvarObsArt} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <textarea value={obsVal} onChange={(e) => setObsVal(e.target.value)} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", minHeight: "120px" }} placeholder="Anote algo sobre o pet…" />
+                    <label className="text-[11.5px] font-medium cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-lg border mt-2" style={{ borderColor: "#009AAC", color: "#00798A", background: "#F0FBFC" }}>
+                      📎 Anexar arquivo (exame, laudo, foto)
+                      <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx" className="hidden" onChange={(e) => setObsFile(e.target.files?.[0] || null)} />
+                    </label>
+                    {obsFile && <p className="text-[11px] text-[#0F6E56] mt-1.5">📄 {obsFile.name} · {(obsFile.size / 1024 / 1024).toFixed(1)}MB</p>}
+                    <p className="text-[10.5px] text-gray-400 mt-2">Com anexo, a observação entra na linha do tempo com o arquivo <b>clicável</b>.</p>
                   </div>
                 ) : artefato === "RECEITA" ? (
                   <div className="bg-white">
                     <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Receita</h3>
                       <div className="flex gap-2">
-                        <button onClick={() => imprimirComTimbrado(recModeloNome || "Receita", recCorpo, recVetId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
+                        <button onClick={() => imprimirComTimbrado(recModeloNome || "Receita", recCorpo, recVetId, true)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
                         <label className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1 cursor-pointer" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 Anexar arquivo<input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) anexarArquivoDoc(f, "RECEITA"); (e.target as HTMLInputElement).value = ""; }} /></label>
                         <button onClick={salvarReceita} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <div>
                         <label className="text-xs text-gray-500">Modelo</label>
-                        <select value={recModeloNome} onChange={(e) => { const nm = e.target.value; setRecModeloNome(nm); const m = recModelos.find((x) => x.nome === nm) || recDocModelos.find((x) => x.nome === nm); if (m && m.corpo) setRecCorpo(preencherModelo(m.corpo, recVetId)); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                        <select value={recModeloNome} onChange={(e) => { const nm = e.target.value; setRecModeloNome(nm); const m = recModelos.find((x) => x.nome === nm); if (m && m.corpo) setRecCorpo(preencherModelo(m.corpo, recVetId)); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
                           <option value="">Selecione o modelo…</option>
-                          <optgroup label="Receitas">
-                            {recModelos.map((m) => <option key={"r-" + m.nome} value={m.nome}>{m.nome}</option>)}
-                          </optgroup>
-                          {recDocModelos.length > 0 && (
-                            <optgroup label="Documentos">
-                              {recDocModelos.map((m) => <option key={"d-" + m.nome} value={m.nome}>{m.nome}</option>)}
-                            </optgroup>
-                          )}
+                          {recModelos.map((m) => <option key={"r-" + m.nome} value={m.nome}>{m.nome}</option>)}
                         </select>
                       </div>
                       <div>
@@ -1800,6 +2090,7 @@ export default function PetDetailPage() {
                     </div>
                     <EditorDocumento value={recCorpo} onChange={setRecCorpo} minHeight={160} />
                     <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como atendimento "Receitas". Modelos editáveis em Configurações › Modelos de Receita.</p>
+                    {boxDocList((d: any) => d.type === "PRESCRIPTION", "💊 Receitas deste pet", "receita")}
                   </div>
                 ) : artefato === "DOCUMENTO" ? (
                   <div className="bg-white">
@@ -1809,7 +2100,7 @@ export default function PetDetailPage() {
                         <button onClick={() => imprimirComTimbrado(docModeloNome || "Documento", docCorpo, docVetId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
                         <label className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1 cursor-pointer" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 Anexar arquivo<input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) anexarArquivoDoc(f, "DOCUMENTO"); (e.target as HTMLInputElement).value = ""; }} /></label>
                         <button onClick={salvarDocumento} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-2 mb-2">
@@ -1830,6 +2121,37 @@ export default function PetDetailPage() {
                     </div>
                     <EditorDocumento value={docCorpo} onChange={setDocCorpo} minHeight={160} />
                     <p className="text-[11px] text-gray-400 mt-2">Ao salvar, entra na timeline como "Documento". Modelos editáveis em Configurações › Modelos de Documento.</p>
+                    {boxDocList((d: any) => d.type === "GENERAL" && !/patolog/i.test(d.title || ""), "📄 Documentos deste pet", "documento")}
+                  </div>
+                ) : artefato === "PATOLOGIA" ? (
+                  <div className="bg-white">
+                    <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
+                      <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>🦠 Patologia</h3>
+                      <div className="flex gap-2">
+                        <button onClick={() => imprimirComTimbrado(patModeloNome || "Patologia", patCorpo, patVetId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
+                        <button onClick={salvarPatologia} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div>
+                        <label className="text-xs text-gray-500">Modelo de patologia</label>
+                        <select value={patModeloNome} onChange={(e) => { const nm = e.target.value; setPatModeloNome(nm); const m = patModelos.find((x) => x.nome === nm); if (m && m.corpo) setPatCorpo(preencherModelo(m.corpo, patVetId)); }} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                          <option value="">{patModelos.length ? "Selecione a patologia…" : "Ainda sem modelos — escreva abaixo"}</option>
+                          {patModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500">Profissional</label>
+                        <select value={patVetId} onChange={(e) => setPatVetId(e.target.value)} className="w-full mt-0.5 px-2 py-1.5 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
+                          <option value="">Selecionar...</option>
+                          {vets.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <EditorDocumento value={patCorpo} onChange={setPatCorpo} minHeight={160} />
+                    <p className="text-[11px] text-gray-400 mt-2">🦠 Box de patologias — cadastre a patologia do pet. Vamos ampliar com o catálogo de patologias e protocolos (modelos em Configurações › "patologia_modelo").</p>
+                    {boxDocList((d: any) => /patolog/i.test(d.title || ""), "🦠 Patologias deste pet", "patologia")}
                   </div>
                 ) : artefato === "VIDEO" ? (
                   <div className="bg-white">
@@ -1837,7 +2159,7 @@ export default function PetDetailPage() {
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Vídeo (link)</h3>
                       <div className="flex gap-2">
                         <button onClick={salvarVideo} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <label className="text-xs text-gray-500">Arquivo do vídeo (até 20MB)</label>
@@ -1856,24 +2178,64 @@ export default function PetDetailPage() {
                     <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>🔬 Exame</h3>
                       <div className="flex gap-2">
+                        <button onClick={() => imprimirComTimbrado("Solicitação de exames", exames.map((e) => "• " + (e.data?.nome || "Exame") + (e.data?.status ? " — " + e.data.status : "")).join("<br>") || exNome || "—", meId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
                         <button onClick={salvarExameComArquivo} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <label className="text-xs text-gray-500">Exame *</label>
                     <input list="exames-catalogo-hist" value={exNome} onChange={(e) => setExNome(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Busque no catálogo ou digite…" />
                     <datalist id="exames-catalogo-hist">{exCat.slice(0, 1000).map((e: any, i: number) => <option key={i} value={e.nome || e.titulo || e.descricao} />)}</datalist>
-                    <label className="text-xs text-gray-500 mt-2 block">Laudo / resultado (opcional)</label>
-                    <input
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx"
-                      onChange={(e) => setExFile(e.target.files?.[0] || null)}
-                      className="w-full mt-1 text-sm file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[#E0F4F6] file:text-[#00798A] file:cursor-pointer"
-                    />
-                    {exFile && <p className="text-[11px] text-[#0F6E56] mt-1.5">📄 {exFile.name} · {(exFile.size / 1024 / 1024).toFixed(1)}MB</p>}
-                    <p className="text-[11px] text-gray-400 mt-2">
-                      Com laudo anexado, o exame já entra como resultado. Sem laudo, entra como solicitado — dá pra anexar depois na aba Exames.
-                    </p>
+
+                    {/* SOLICITAÇÃO — dispara o fluxo (Hoje / lab / financeiro) */}
+                    <div className="mt-3 rounded-lg border p-3" style={{ borderColor: "#BEE7EC", background: "#F4FCFD" }}>
+                      <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#014D5E" }}>🧪 Solicitar exame <span className="font-normal" style={{ color: "#8a6400" }}>— dispara o fluxo (Hoje / lab / financeiro)</span></div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button type="button" onClick={() => solicitarExame(false)} disabled={savingEx} className="rounded-lg border px-3 py-2 text-left disabled:opacity-50 hover:border-[#009AAC]" style={{ borderColor: "#E8DFC8", background: "#fff" }}>
+                          <div className="text-[12.5px] font-semibold" style={{ color: "#014D5E" }}>🏥 Fazemos na clínica</div>
+                          <div className="text-[10.5px] text-[#5C6B70]">Acompanhamos o resultado (entra no "Exames a entregar").</div>
+                        </button>
+                        <button type="button" onClick={() => solicitarExame(true)} disabled={savingEx} className="rounded-lg border px-3 py-2 text-left disabled:opacity-50 hover:border-[#009AAC]" style={{ borderColor: "#E8DFC8", background: "#fff" }}>
+                          <div className="text-[12.5px] font-semibold" style={{ color: "#014D5E" }}>📤 Solicitar (externo)</div>
+                          <div className="text-[10.5px] text-[#5C6B70]">Só a solicitação, sem acompanhar.</div>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* RESULTADO / LAUDO */}
+                    <div className="mt-3 rounded-lg border p-3" style={{ borderColor: "#E8DFC8" }}>
+                      <div className="text-[11px] font-bold uppercase tracking-wide mb-2" style={{ color: "#014D5E" }}>📎 Anexar resultado / laudo</div>
+                      <label className="text-[11.5px] font-medium cursor-pointer inline-flex items-center gap-2 px-3 py-2 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A", background: "#F0FBFC" }}>
+                        📎 Escolher laudo (PDF/imagem)
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx" className="hidden" onChange={(e) => setExFile(e.target.files?.[0] || null)} />
+                      </label>
+                      {exFile && <p className="text-[11px] text-[#0F6E56] mt-1.5">📄 {exFile.name} · {(exFile.size / 1024 / 1024).toFixed(1)}MB</p>}
+                      <p className="text-[10.5px] text-gray-400 mt-2">Digite o exame acima, anexe o laudo e clique <b>Salvar</b> — entra como resultado.</p>
+                    </div>
+                    {exames.length > 0 && (
+                      <div className="mt-4 pt-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+                        <div className="text-[11px] uppercase tracking-wide text-[#374151] mb-2 font-semibold">🔬 Exames deste pet ({exames.length})</div>
+                        <div className="flex flex-col gap-1.5" style={{ maxHeight: "40vh", overflowY: "auto" }}>
+                          {exames.map((x) => {
+                            const url = x.data?.resultadoUrl;
+                            return (
+                              <div key={x.id} className="flex items-center justify-between gap-2 border rounded-lg px-2.5 py-1.5" style={{ borderColor: "#E8DFC8", background: "#FBF9F4" }}>
+                                <div className="min-w-0">
+                                  <div className="text-[12.5px] font-medium truncate" style={{ color: "#014D5E" }}>{x.data?.nome || "Exame"}</div>
+                                  <div className="text-[10.5px] text-[#5C6B70]">{x.data?.status || "Solicitado"}{x.data?.date ? " · " + fmtDataBR(x.data.date) : ""}{x.data?.externo ? " · externo" : ""}</div>
+                                </div>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {url ? (
+                                    <button type="button" onClick={() => setLaudoView({ url, nome: x.data?.nome })} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir laudo</button>
+                                  ) : <span className="text-[10.5px] text-[#94a3a0]">sem laudo</span>}
+                                  <button type="button" title="Excluir exame" onClick={async () => { if (!(await confirmDelete({ entityLabel: "exame", itemName: x.data?.nome || "exame" }))) return; await delExame(x.id); }} className="text-[13px] px-2 py-1 rounded-lg border hover:bg-[#FBEEEC]" style={{ borderColor: "#E8DFC8", color: "#b23b39" }}>🗑️</button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : artefato === "FOTO" ? (
                   <div className="bg-white">
@@ -1881,7 +2243,7 @@ export default function PetDetailPage() {
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>📷 Foto</h3>
                       <div className="flex gap-2">
                         <button onClick={salvarFoto} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
-                        <button onClick={() => setArtefato(null)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
+                        <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
                       </div>
                     </div>
                     <label className="text-xs text-gray-500">Arquivo da foto</label>
@@ -1900,42 +2262,27 @@ export default function PetDetailPage() {
                   </div>
                 ) : (
                   <div className="bg-white">
-                    <div className="text-[11px] text-[#374151] mb-2 font-semibold uppercase tracking-wide">Adicionar ao histórico</div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="text-[14px] text-[#5C6B70] mb-3 font-semibold">Adicionar</div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {([
-                        { label: "Atendimento", ic: "🩺", bg: "#E1F3F5", fg: "#017E8C", act: () => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`) },
+                        { label: "Atendimento", ic: "🩺", bg: "#E1F3F5", fg: "#017E8C", act: () => { setArtefato(null); setEditId(null); setItems([]); setAtd({ ...ATD0, date: fmtLocal(new Date()), userId: meId || vets[0]?.id || "" }); setAtdOpen(true); } },
                         { label: "Peso", ic: "⚖️", bg: "#F3ECDD", fg: "#8A6D3B", act: () => { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); } },
                         { label: "Receita", ic: "💊", bg: "#EFE9FB", fg: "#6A4FB0", act: () => abrirReceita() },
                         { label: "Documento", ic: "📄", bg: "#E4F3EA", fg: "#2E7D53", act: () => abrirDocumento() },
                         { label: "Exame", ic: "🔬", bg: "#FCE9EE", fg: "#B0416B", act: () => abrirExame() },
                         { label: "Fotos", ic: "📷", bg: "#E8F0FA", fg: "#3E6DA6", act: () => abrirFoto() },
                         { label: "Vídeo", ic: "🎥", bg: "#E3F3EF", fg: "#2E8B72", act: () => abrirVideo() },
-                        { label: "Observação", ic: "📝", bg: "#EFEEE9", fg: "#6B6A63", act: () => { setObsVal(pet?.observations || ""); setAtdOpen(false); setArtefato("OBS"); } },
-                        { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: async () => { await abrirDocumento(); setDocModeloNome("Laudo de patologia"); } },
+                        { label: "Observação", ic: "📝", bg: "#EFEEE9", fg: "#6B6A63", act: () => { setObsVal(pet?.observations || ""); setObsFile(null); setAtdOpen(false); setArtefato("OBS"); } },
+                        { label: "Patologia", ic: "🦠", bg: "#F3E8F5", fg: "#8E4585", act: () => abrirPatologia() },
+                        { label: "Vacina", ic: "💉", bg: "#FBF3D9", fg: "#C2952E", act: () => setMainTab("VACINAS") },
+                        { label: "Internação", ic: "🏥", bg: "#F7E9EB", fg: "#9b2c3a", act: () => router.push(`/dashboard/erp/internacoes?pet=${encodeURIComponent(pet?.name || "")}&petId=${petId}`) },
+                        { label: "Gravar consulta", ic: "🎤", bg: "#FCE9E7", fg: "#B0403A", act: () => router.push(`/dashboard/erp/pets/${petId}/atendimentos/novo`) },
                       ] as const).map((c) => (
-                        <button key={c.label} onClick={c.act} className="flex flex-col items-start gap-1 rounded-[13px] px-3 py-2.5 transition hover:brightness-95" style={{ background: c.bg, color: c.fg }}>
-                          <span className="text-[18px] leading-none">{c.ic}</span>
-                          <span className="text-[12px] font-bold">{c.label}</span>
+                        <button key={c.label} onClick={c.act} className="flex flex-col items-center justify-center gap-1.5 rounded-[12px] px-3 py-4 text-white transition hover:-translate-y-0.5" style={{ background: c.fg, boxShadow: "0 3px 8px rgba(1,30,36,.10)" }}>
+                          <span className="text-[21px] leading-none">{c.ic}</span>
+                          <span className="text-[12.5px] font-semibold">{c.label}</span>
                         </button>
                       ))}
-                    </div>
-                    {/* Timeline dos atendimentos (data · tipo em pill · vet · resumo com rótulo em negrito) */}
-                    <div className="mt-4 pt-3 border-t border-[#F0EBE0] flex flex-col gap-1.5">
-                      {(atendimentos || []).length === 0 && <p className="text-[12px] text-[#374151] py-2 text-center">Nenhum atendimento registrado ainda.</p>}
-                      {(atendimentos || []).map((a: any) => {
-                        const resumo = a.conduct ? { l: "Conduta", v: a.conduct } : a.chiefComplaint ? { l: "Queixa", v: a.chiefComplaint } : a.diagnosis ? { l: "Diag.", v: a.diagnosis } : a.prescription ? { l: "Prescrição", v: documentoResumo(a.prescription) } : null;
-                        return (
-                          <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full text-left bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-3 py-2 hover:border-[#009AAC] transition">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[11px] text-[#374151]">{fmtDataBR(a.date)}</span>
-                              <span className="text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#E0F4F6", color: "#014D5E" }}>{ATD_TIPO_LABEL(a.type)}</span>
-                              {a.user?.name && <span className="text-[11px] text-[#5C6B70]">🩺 {a.user.name}</span>}
-                              <span className="ml-auto text-[12px] text-[#014D5E] font-medium">{money(a.value)}</span>
-                            </div>
-                            {resumo && <div className="text-[12px] text-[#5C6B70] mt-1 truncate"><b className="text-[#1F2A2E]">{resumo.l}:</b> {resumo.v}</div>}
-                          </button>
-                        );
-                      })}
                     </div>
                   </div>
                 )}
@@ -1943,7 +2290,7 @@ export default function PetDetailPage() {
             </div>
           </div>
         )}
-        {tab === "TIMELINE" && <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} onDetalhe={abrirDetalheHist} /></div>}
+        {tab === "TIMELINE" && <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} onDetalhe={abrirDetalheHist} /></div>}
         {tab === "EXAMES" && (
           <div className="p-5">
             {/* Adicionar exame do catálogo */}
@@ -1983,8 +2330,10 @@ export default function PetDetailPage() {
                           {x.data.valor != null && x.data.valor !== "" && <span className="text-[11.5px] font-semibold ml-2" style={{ color: "#0F6E56" }}>{Number(x.data.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* Cobrar: joga o exame na comanda da ficha pelo preço de venda */}
-                          <button onClick={() => cobrarExame(x)} title="Lançar este exame na comanda (caixa)" className="text-[11px] px-2.5 py-1 rounded-full font-semibold text-white hover:opacity-90" style={{ background: "#0F7B5A" }}>💲 Cobrar</button>
+                          {/* Cobrar: joga o exame na comanda da ficha pelo preço de venda (automático ao solicitar; manual aqui p/ sem preço/antigos) */}
+                          {x.data.cobrado
+                            ? <span title={`Já lançado na comanda${x.data.cobradoAt ? " em " + fmtDataBR(x.data.cobradoAt) : ""}`} className="text-[11px] px-2.5 py-1 rounded-full font-semibold" style={{ background: "#E1F5EE", color: "#0F6E56" }}>🧾 Cobrado</span>
+                            : <button onClick={() => cobrarExame(x)} title="Lançar este exame na comanda (caixa)" className="text-[11px] px-2.5 py-1 rounded-full font-semibold text-white hover:opacity-90" style={{ background: "#0F7B5A" }}>💲 Cobrar</button>}
                           {/* Anexar ARQUIVO — o label é um file picker disfarçado de botão */}
                           <label
                             title="Subir o PDF/foto do laudo (até 20MB)"
@@ -2004,12 +2353,12 @@ export default function PetDetailPage() {
                             />
                           </label>
                           <button onClick={() => anexarResultado(x.id, x.data)} title="Colar um link (Drive, etc.) em vez de subir arquivo" className="text-[11px] px-2.5 py-1 rounded-full border border-[#E8E2D6] text-[#009AAC] hover:border-[#009AAC]">🔗 Link</button>
-                          <button onClick={() => delExame(x.id)} className="text-[11px] text-[#b23b39]">Excluir</button>
+                          <button onClick={async () => { if (!(await confirmDelete({ entityLabel: "exame", itemName: x.data?.nome || "exame" }))) return; await delExame(x.id); }} className="text-[11px] text-[#b23b39]">Excluir</button>
                         </div>
                       </div>
                       {x.data.resultadoUrl && (
                         // Mostra o NOME do arquivo quando temos; a URL crua do bucket é ilegível.
-                        <a href={x.data.resultadoUrl} target="_blank" rel="noopener" className="text-[11.5px] text-[#009AAC] underline break-all block mb-2">
+                        <a href={`/api/media/ver?u=${encodeURIComponent(x.data.resultadoUrl)}`} target="_blank" rel="noopener" className="text-[11.5px] text-[#009AAC] underline break-all block mb-2">
                           📄 {x.data.resultadoArquivo || x.data.resultadoUrl}
                         </a>
                       )}
@@ -2033,15 +2382,15 @@ export default function PetDetailPage() {
                           );
                         })}
                       </div>
-                      {/* Fatia 3 — aviso ao laboratório quando o exame está em "Coleta solicitada" */}
-                      {String(x.data.status || "").toLowerCase().includes("coleta") && x.data.fornecedorId && (
+                      {/* Aviso ao laboratório — regra única podeAvisarLab (tem lab + não avisado + não concluído). */}
+                      {(x.data.labAvisadoAt || podeAvisarLab(x.data)) && (
                         <div className="mt-2 rounded-[9px] px-3 py-2 text-[11.5px] flex items-center gap-2 flex-wrap" style={{ background: "#EDE7FA", color: "#6A4FB0" }}>
                           {x.data.labAvisadoAt ? (
                             <span>✅ Laboratório avisado ({fmtDataBR(x.data.labAvisadoAt)}).</span>
                           ) : (
                             <>
-                              <span>📲 O aviso ao laboratório sai sozinho às 11:30 e 17:00.</span>
-                              <button onClick={() => avisarLab(x.id)} className="rounded-md px-2.5 py-1 text-[11px] font-semibold" style={{ background: "#fff", border: "1px solid #d9cef2", color: "#6A4FB0" }}>Enviar agora</button>
+                              <span>📲 Pronto para solicitar ao laboratório.</span>
+                              <button onClick={() => avisarLab(x.id, `${x.data.fornecedorNome || "Laboratório"}: ${x.data.nome}`)} className="rounded-md px-2.5 py-1 text-[11px] font-semibold" style={{ background: "#fff", border: "1px solid #d9cef2", color: "#6A4FB0" }}>Solicitar ao laboratório</button>
                             </>
                           )}
                         </div>
@@ -2161,38 +2510,30 @@ export default function PetDetailPage() {
 
       {/* ═══════════ ABA 🧾 COMPRAS — HISTÓRICO (somente leitura) ═══════════ */}
       {mainTab === "COMPRAS" && (() => {
-        const MARCA: Record<string, { emoji: string; label: string; bg: string; fg: string }> = {
-          EMPORIO: { emoji: "🏥", label: "Empório", bg: "#D9F0F3", fg: "#014D5E" },
-          MUNDO_A_PARTE: { emoji: "🌿", label: "Mundo à Parte", bg: "#EAF3DE", fg: "#3B6D11" },
-          DRA_VIVIAN: { emoji: "✨", label: "Dra. Vivian", bg: "#EDE9FA", fg: "#3C3489" },
-        };
-        const marcaDe = (a: any) => MARCA[(a.marca || a.brand || "EMPORIO") as string] || MARCA.EMPORIO;
-        const comMarca: Record<string, number> = {};
-        for (const a of atendimentos) { const m = marcaDe(a); comMarca[m.label] = (comMarca[m.label] || 0) + Number(a.value || 0); }
+        // "Por marca" saiu: o atendimento não guarda marca no banco (dava sempre 100% Empório — número falso).
+        // No lugar, métricas REAIS: total gasto + ticket médio.
         const totalGasto = atendimentos.reduce((s: number, a: any) => s + Number(a.value || 0), 0);
+        const compras = atendimentos.filter((a: any) => Number(a.value || 0) > 0);
+        const ticket = compras.length ? totalGasto / compras.length : 0;
         const resumoItens = (a: any) => {
           if (Array.isArray(a.items) && a.items.length) return a.items.map((it: any) => `${it.descricao || "Serviço"}${it.quantidade > 1 ? ` x${it.quantidade}` : ""}`).join(", ");
           return a.description || a.chiefComplaint || ATD_TIPO_LABEL(a.type);
         };
         return (
           <div className="mb-3 flex flex-col gap-3">
-            {/* Total gasto (com olhinho) + resumo por marca */}
-            <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-3 items-start">
-              <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "13px 16px" }}>
+            <div className="bg-white border border-[#E8E2D6] rounded-[13px] flex flex-wrap gap-x-10 gap-y-3" style={{ padding: "13px 16px" }}>
+              <div>
                 <div className="text-[11px] text-[#374151]">🧾 Total gasto no pet</div>
                 <div className="text-[22px] text-[#014D5E] font-medium mt-0.5">{money(totalGasto)}</div>
                 <div className="text-[11px] text-[#374151] mt-0.5">{atendimentos.length} atendimento(s)</div>
               </div>
-              <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "13px 16px" }}>
-                <div className="text-[11px] text-[#374151] mb-1.5">Por marca</div>
-                {Object.keys(comMarca).length === 0 ? <p className="text-[12px] text-[#374151]">Sem compras ainda.</p> : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {Object.entries(comMarca).map(([label, v]) => { const mi = Object.values(MARCA).find((m) => m.label === label) || MARCA.EMPORIO; return (
-                      <span key={label} className="text-[11.5px] px-2.5 py-1 rounded-full" style={{ background: mi.bg, color: mi.fg }}>{mi.emoji} {label}: {money(v)}</span>
-                    ); })}
-                  </div>
-                )}
-              </div>
+              {compras.length > 0 && (
+                <div>
+                  <div className="text-[11px] text-[#374151]">💳 Ticket médio</div>
+                  <div className="text-[22px] text-[#014D5E] font-medium mt-0.5">{money(ticket)}</div>
+                  <div className="text-[11px] text-[#374151] mt-0.5">{compras.length} compra(s)</div>
+                </div>
+              )}
             </div>
 
             {/* Histórico de vendas/atendimentos (somente leitura) */}
@@ -2203,14 +2544,13 @@ export default function PetDetailPage() {
               </div>
               <div style={{ padding: "6px 15px" }}>
                 {atendimentos.length === 0 && <p className="text-[12.5px] text-[#374151] py-4 text-center">Nenhuma compra registrada ainda.</p>}
-                {atendimentos.map((a: any, i: number) => { const mi = marcaDe(a); return (
+                {atendimentos.map((a: any, i: number) => (
                   <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left" style={{ borderBottom: i < atendimentos.length - 1 ? "1px solid #F0EBE0" : "none" }}>
                     <span className="text-[11.5px] text-[#374151] w-[42px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full shrink-0" style={{ background: mi.bg, color: mi.fg }}>{mi.emoji} {mi.label}</span>
                     <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{resumoItens(a)}</span>
                     <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
                   </button>
-                ); })}
+                ))}
               </div>
             </div>
             <p className="text-[11px] text-[#374151] px-1">Somente leitura. Novas vendas, crédito e pacotes são lançados na tela de <b>Novo atendimento</b>.</p>
@@ -2282,9 +2622,21 @@ export default function PetDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => !resp2Saving && setResp2Open(false)}>
           <div className="bg-white rounded-[16px] w-full max-w-[380px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">👥 2º responsável pelo pet</h3>
-            <p className="text-[12px] text-[#5C6B70] mb-3">O outro tutor/responsável por {pet.name}. Não precisa cadastrar cliente inteiro — só o nome (e o telefone, se quiser).</p>
+            <p className="text-[12px] text-[#5C6B70] mb-3">Outra pessoa que também cuida de {pet.name}. Se ela <b>tiver cadastro</b>, escolha abaixo — o pet passa a aparecer na ficha e no WhatsApp dela também.</p>
+            <label className="text-[11px] text-[#5C6B70]">Cliente cadastrado</label>
+            <input autoFocus value={resp2Busca} onChange={(e) => buscarResp2Clientes(e.target.value)} placeholder="🔍 Buscar cliente pelo nome…"
+              className="w-full mt-0.5 px-3 py-2 border rounded-[9px] text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+            {resp2Results.length > 0 && (
+              <div className="border rounded-[9px] mt-1 max-h-40 overflow-auto" style={{ borderColor: "#E8E2D6" }}>
+                {resp2Results.map((t) => (
+                  <button key={t.id} onClick={() => escolherResp2Cliente(t)} className="w-full text-left px-3 py-1.5 text-[12.5px] hover:bg-[#F0FBFC] border-b last:border-b-0" style={{ borderColor: "#F5F1E8" }}>{t.name}</button>
+                ))}
+              </div>
+            )}
+            {resp2TutorId && <div className="mt-1.5 text-[11.5px] font-medium px-2.5 py-1.5 rounded-[8px]" style={{ background: "#E7F6EF", color: "#0F6E56" }}>✓ Vinculado ao cadastro — o pet vai aparecer na ficha e no inbox dele.</div>}
+            <div className="text-[10.5px] text-[#9aa0a8] text-center my-2.5">— ou, se não tiver cadastro, preencha só nome + telefone —</div>
             <label className="text-[11px] text-[#5C6B70]">Nome *</label>
-            <input autoFocus value={resp2Form.nome} onChange={(e) => setResp2Form({ ...resp2Form, nome: e.target.value })} placeholder="Ex.: Sergio (esposo)"
+            <input value={resp2Form.nome} onChange={(e) => { setResp2Form({ ...resp2Form, nome: e.target.value }); setResp2TutorId(null); }} placeholder="Ex.: Sergio (esposo)"
               className="w-full mt-0.5 mb-2 px-3 py-2 border rounded-[9px] text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
             <label className="text-[11px] text-[#5C6B70]">Telefone (opcional)</label>
             <input value={resp2Form.telefone} onChange={(e) => setResp2Form({ ...resp2Form, telefone: e.target.value })} placeholder="(85) 9....."

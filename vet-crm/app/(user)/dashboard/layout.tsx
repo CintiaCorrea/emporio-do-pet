@@ -12,6 +12,10 @@ import PermGuard from '@/components/protected/dashboard/PermGuard';
 import SessaoGuard from '@/components/protected/dashboard/SessaoGuard';
 import LembreteFimTurno from '@/components/protected/dashboard/LembreteFimTurno';
 import AlertasInternacao from '@/components/internacao/AlertasInternacao';
+// RecadoPopup RELIGADO (06/08) — reescrito com "seen-set": nunca mostra backlog,
+// só popa avisos que chegam DEPOIS da tela aberta, e tem "×" de escape (nunca trava).
+import RecadoPopup from '@/components/protected/dashboard/RecadoPopup';
+import PushSetup from '@/components/protected/dashboard/PushSetup';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true); // desktop: menu expandido/recolhido
@@ -48,6 +52,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <SessaoGuard />
           <LembreteFimTurno />
           <AlertasInternacao />
+          <RecadoPopup />
+          <PushSetup />
           <Sidebar
             isOpen={sidebarOpen}
             toggleSidebar={toggleSidebar}

@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { STATUS_NAO_CONFIRMAVEL } from './appointment-confirmacao.regras';
 
 /**
  * Atualiza o agendamento automaticamente quando o cliente responde à confirmação
@@ -102,7 +103,9 @@ export class AppointmentConfirmationListener {
       // Agendamento (de hoje pra frente) desse tutor com confirmação ENVIADA — o mais
       // recentemente enviado (é ao qual o cliente está respondendo).
       const appt = await this.prisma.appointment.findFirst({
-        where: { tutorId: contato.tutorId, confirmacaoStatus: 'ENVIADA', date: { gte: inicioHoje } },
+        // Trava defensiva: nunca confirmar um agendamento já MORTO (remarcado/cancelado) — senão ele
+        // ressuscita como duplicado. (Complementa o filtro do scheduler.)
+        where: { tutorId: contato.tutorId, confirmacaoStatus: 'ENVIADA', date: { gte: inicioHoje }, status: { notIn: STATUS_NAO_CONFIRMAVEL } },
         orderBy: { confirmacaoEnviadaAt: 'desc' },
         select: { id: true, date: true, pet: { select: { name: true } }, tutor: { select: { name: true } } },
       });

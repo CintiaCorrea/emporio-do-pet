@@ -73,7 +73,18 @@ export default function CadastroPublicoPage() {
     try {
       // Monta a indicação composta e tira os campos auxiliares antes de enviar.
       const { indicTipo, indicNome, ...base } = f;
-      const payload = { ...base, howFoundUs: composeHowFound(f.howFoundUs, indicTipo, indicNome) };
+      // Lê as etiquetas de campanha (utm_*) do link + referência — pra saber qual anúncio trouxe.
+      const utm: any = {};
+      try {
+        const q = new URLSearchParams(window.location.search);
+        utm.utmSource = q.get("utm_source") || undefined;
+        utm.utmMedium = q.get("utm_medium") || undefined;
+        utm.utmCampaign = q.get("utm_campaign") || undefined;
+        utm.utmContent = q.get("utm_content") || undefined;
+        utm.referrer = document.referrer || undefined;
+        utm.landingPage = window.location.href;
+      } catch {}
+      const payload = { ...base, howFoundUs: composeHowFound(f.howFoundUs, indicTipo, indicNome), ...utm };
       const r = await fetch("/api/public/cadastro", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d?.ok === false) { setErro(d?.message || "Não foi possível enviar. Tente de novo."); setSending(false); return; }

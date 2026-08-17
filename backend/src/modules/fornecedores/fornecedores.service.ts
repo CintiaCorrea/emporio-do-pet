@@ -67,12 +67,21 @@ export class FornecedoresService {
    * Por padrão (sobrescrever=false) só mexe nos exames que AINDA NÃO têm preço — assim não
    * apaga ajustes manuais. Com sobrescrever=true, reaplica em todos.
    */
-  async precificarEmLote(percent: number, sobrescrever = false) {
+  async precificarEmLote(percent: number, sobrescrever = false, fornecedorId?: string) {
     const fator = 1 + Number(percent) / 100;
     if (!Number.isFinite(fator)) throw new BadRequestException('Percentual inválido');
-    const afetados = sobrescrever
-      ? await this.prisma.$executeRaw`UPDATE catalogo_exames SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0`
-      : await this.prisma.$executeRaw`UPDATE catalogo_exames SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND ("valorClienteSugerido" IS NULL OR "valorClienteSugerido" = 0)`;
+    // Por bloco: se vier fornecedorId, precifica só os exames DAQUELE laboratório.
+    const forn = fornecedorId && fornecedorId.trim() ? fornecedorId.trim() : null;
+    let afetados: number;
+    if (sobrescrever) {
+      afetados = forn
+        ? await this.prisma.$executeRaw`UPDATE exa_catalogo SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND "fornecedorId" = ${forn}`
+        : await this.prisma.$executeRaw`UPDATE exa_catalogo SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0`;
+    } else {
+      afetados = forn
+        ? await this.prisma.$executeRaw`UPDATE exa_catalogo SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND "fornecedorId" = ${forn} AND ("valorClienteSugerido" IS NULL OR "valorClienteSugerido" = 0)`
+        : await this.prisma.$executeRaw`UPDATE exa_catalogo SET "valorClienteSugerido" = round(("valorFornecedor" * ${fator})::numeric, 2), "updatedAt" = now() WHERE "valorFornecedor" > 0 AND ("valorClienteSugerido" IS NULL OR "valorClienteSugerido" = 0)`;
+    }
     return { atualizados: Number(afetados) };
   }
 

@@ -16,6 +16,12 @@ export class PacotesController {
     return this.service.findAll(query);
   }
 
+  // Painel "Pacotes vendidos" — lê a fonte viva (petpac_). Antes do :id pra não colidir.
+  @Get('vendidos')
+  vendidos() {
+    return this.service.listVendidos();
+  }
+
   @Get('pet/:petId')
   byPet(@Param('petId') petId: string) {
     return this.service.findByPet(petId);

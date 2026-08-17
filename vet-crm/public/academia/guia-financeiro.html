@@ -1,0 +1,220 @@
+<!doctype html><html lang="pt-BR" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Guia — Financeiro</title></head><body>
+<style>
+  :root{--turq:#009AAC;--marinho:#014D5E;--verde:#0F6E56;--vermelho:#A32D2D;--azul:#185FA5;--amber:#B45309;--roxo:#7C3AED;--ink:#14253a;--muted:#5F5E5A;--faint:#8A8778;--bg:#F6F2EA;--card:#fff;--line:#e8e1d2;--soft:#FBF9F4;--shadow:0 1px 3px rgba(1,77,94,.07),0 6px 20px rgba(1,77,94,.05);}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bg:#0e1516;--card:#16201f;--line:#26332f;--soft:#131c1b;--shadow:0 1px 3px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);}}
+  :root[data-theme="dark"]{--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bg:#0e1516;--card:#16201f;--line:#26332f;--soft:#131c1b;--shadow:0 1px 3px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);}
+  *{box-sizing:border-box;} body{margin:0;}
+  .wrap{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;padding:0 20px 80px;}
+  .container{max-width:880px;margin:0 auto;}
+  header.hero{background:linear-gradient(135deg,var(--marinho),var(--turq));color:#fff;border-radius:20px;padding:34px 30px 30px;margin:28px auto 26px;max-width:880px;box-shadow:var(--shadow);}
+  header.hero .eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:700;opacity:.85;margin:0 0 8px;}
+  header.hero h1{margin:0 0 8px;font-size:30px;line-height:1.15;font-weight:800;text-wrap:balance;}
+  header.hero p{margin:0;font-size:15px;opacity:.92;max-width:62ch;}
+  header.hero .meta{margin-top:16px;font-size:12px;opacity:.85;display:flex;gap:14px;flex-wrap:wrap;}
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin:0 0 18px;box-shadow:var(--shadow);}
+  section>h2{margin:0 0 4px;font-size:20px;color:var(--marinho);font-weight:800;display:flex;align-items:center;gap:9px;}
+  :root:not([data-theme="light"]) section>h2{color:var(--turq);} :root[data-theme="dark"] section>h2{color:var(--turq);}
+  section>.lead{margin:0 0 18px;color:var(--muted);font-size:14px;}
+  h3{font-size:15px;margin:20px 0 8px;color:var(--ink);font-weight:700;}
+  p.tx{color:var(--muted);font-size:14px;margin:0 0 10px;} p.tx b{color:var(--ink);}
+  .cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .cols2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .colbox{border:1.5px solid var(--line);border-radius:12px;padding:14px;background:var(--soft);}
+  .colbox .ic{font-size:20px;margin-bottom:6px;}
+  .colbox b{display:block;font-size:13.5px;color:var(--ink);margin-bottom:3px;} .colbox span{font-size:12.5px;color:var(--muted);}
+  @media (max-width:620px){.cols3,.cols2{grid-template-columns:1fr;}}
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;}
+  .st{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:11px;font-weight:700;font-size:13px;background:var(--soft);border:1px solid var(--line);color:var(--ink);}
+  .arrow{color:var(--turq);font-weight:800;font-size:16px;}
+  ul.clean{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:9px;}
+  ul.clean li{display:flex;gap:10px;align-items:baseline;font-size:13.5px;color:var(--muted);}
+  ul.clean li b{color:var(--ink);} ul.clean li .ic{font-size:15px;width:22px;text-align:center;flex-shrink:0;}
+  .rules{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media (max-width:620px){.rules{grid-template-columns:1fr;}}
+  .rule{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:11px;font-size:13.5px;}
+  .rule.do{background:color-mix(in srgb,var(--verde) 10%,var(--card));border:1px solid color-mix(in srgb,var(--verde) 25%,var(--line));}
+  .rule.dont{background:color-mix(in srgb,var(--vermelho) 9%,var(--card));border:1px solid color-mix(in srgb,var(--vermelho) 22%,var(--line));}
+  .rule .mk{font-size:15px;flex-shrink:0;} .rule b{color:var(--ink);} .rule span{color:var(--muted);display:block;margin-top:1px;font-size:12.5px;}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--soft);border:1px solid var(--line);color:var(--ink);}
+  .callout{display:flex;gap:12px;align-items:flex-start;background:color-mix(in srgb,var(--turq) 8%,var(--card));border:1px solid color-mix(in srgb,var(--turq) 25%,var(--line));border-radius:12px;padding:14px 16px;margin-top:14px;}
+  .callout .mk{font-size:20px;flex-shrink:0;} .callout p{margin:0;font-size:13.5px;color:var(--muted);} .callout p b{color:var(--ink);}
+  /* toggle Caixa/Competência */
+  .demo{border:1.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--soft);}
+  .demo .seg{display:flex;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;align-items:center;}
+  .demo .seg .lbl{font-size:12px;font-weight:700;color:var(--faint);text-transform:uppercase;letter-spacing:.05em;margin-right:4px;}
+  .demo button.sw{font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted);cursor:pointer;transition:.12s;}
+  .demo button.sw.on{background:var(--turq);color:#fff;border-color:var(--turq);}
+  .demo .body{padding:16px 18px;}
+  .demo .cenario{font-size:13px;color:var(--muted);margin:0 0 12px;} .demo .cenario b{color:var(--ink);}
+  .demo table{width:100%;border-collapse:collapse;font-size:13px;}
+  .demo td{padding:8px 6px;border-top:1px solid var(--line);color:var(--ink);vertical-align:top;}
+  .demo tr:first-child td{border-top:none;}
+  .demo td.mes{color:var(--faint);white-space:nowrap;width:64px;font-weight:600;}
+  .demo td.val{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .demo .zero{color:var(--faint);} .demo .pos{color:var(--verde);}
+  .demo .nota{font-size:12.5px;color:var(--muted);margin:12px 0 0;padding-top:12px;border-top:1px dashed var(--line);}
+  .demo .nota b{color:var(--ink);}
+  /* tooltips */
+  [data-tip]{cursor:help;border-bottom:1.5px dotted var(--turq);}
+  #tip{position:fixed;z-index:99;max-width:280px;background:var(--marinho);color:#fff;font-size:12.5px;line-height:1.45;padding:9px 12px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.22);opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;pointer-events:none;}
+  #tip.on{opacity:1;transform:translateY(0);} #tip b{color:#8fe3ee;}
+  .foot{text-align:center;color:var(--faint);font-size:12px;margin:26px 0 0;}
+  .kbd{font-size:12px;font-weight:700;color:var(--marinho);background:var(--soft);border:1px solid var(--line);border-radius:7px;padding:2px 7px;}
+  :root:not([data-theme="light"]) .kbd{color:var(--turq);}
+</style>
+<div class="wrap"><div class="container">
+
+  <header class="hero">
+    <div class="eyebrow">Academia · Empório do Pet</div>
+    <h1>💰 Financeiro — o dinheiro da clínica, organizado</h1>
+    <p>Toda venda vira dinheiro numa conta e uma linha no relatório. Aqui você entende de onde o dinheiro vem, pra onde vai, e como ler os dois "óculos" do resultado: <b>Caixa</b> e <b>Competência</b>.</p>
+    <div class="meta"><span>🕐 leitura ~8 min</span><span>👀 passe o mouse nos termos <span data-tip="Isso mesmo! Os termos sublinhados mostram uma explicação.">sublinhados</span></span><span>🖨️ dá pra imprimir</span></div>
+  </header>
+
+  <section>
+    <h2>🧭 A ideia em 1 minuto</h2>
+    <p class="lead">O Financeiro é a <b>fonte única</b>: você configura uma vez (contas, formas, categorias) e a Venda apenas <b>consome</b>. Nada é digitado duas vezes.</p>
+    <div class="flow">
+      <span class="st">🛒 Venda / PDV</span><span class="arrow">→</span>
+      <span class="st">💳 <span data-tip="Como o cliente pagou: dinheiro, PIX, cartão (com bandeira e parcelas).">Recebimento</span></span><span class="arrow">→</span>
+      <span class="st">🏦 <span data-tip="Cada forma de pagamento cai numa conta de verdade: dinheiro→Espécie, cartão→maquininha, PIX→banco.">Conta</span></span><span class="arrow">→</span>
+      <span class="st">📊 <span data-tip="O DRE é o relatório de resultado: receitas, custos, despesas e o lucro do mês.">DRE</span></span>
+    </div>
+    <div class="callout"><span class="mk">💡</span><p><b>Por que isso importa:</b> quando tudo entra pelo caminho certo, o <b>saldo de cada conta</b> e o <b>resultado do mês</b> ficam corretos sozinhos — sem planilha paralela.</p></div>
+  </section>
+
+  <section>
+    <h2>🏦 As contas</h2>
+    <p class="lead">Onde o dinheiro fica de verdade. Cada conta tem um <b>saldo</b> = saldo inicial + tudo que entrou − tudo que saiu.</p>
+    <div class="cols3">
+      <div class="colbox"><div class="ic">💵</div><b>Espécie (Dinheiro)</b><span>O caixa físico da recepção. Sangria/suprimento mexem aqui.</span></div>
+      <div class="colbox"><div class="ic">🏦</div><b>Banco</b><span>Conta do banco (ex.: Nubank). PIX e transferências caem aqui.</span></div>
+      <div class="colbox"><div class="ic">💳</div><b>Maquininha</b><span>Ex.: InfinityPay. O dinheiro do cartão entra aqui (com prazo).</span></div>
+    </div>
+    <p class="tx" style="margin-top:14px">Você vê o saldo de cada conta em <span class="tag">Financeiro › Cadastros › Contas</span> — coluna <b>Saldo atual</b> (verde = tem dinheiro, vermelho = negativo).</p>
+  </section>
+
+  <section>
+    <h2>💳 Formas de recebimento &amp; a maquininha</h2>
+    <p class="lead">Cada forma de pagamento é cadastrada uma vez e já sabe: pra <b>qual conta</b> vai, qual a <b>taxa</b> e em <b>quantos dias</b> o dinheiro cai.</p>
+    <ul class="clean">
+      <li><span class="ic">🔗</span><div><b>Forma → conta.</b> Dinheiro→Espécie, PIX→Banco, Cartão→Maquininha. A venda credita a conta certa automaticamente.</div></li>
+      <li><span class="ic">🏷️</span><div><b>Taxa por bandeira.</b> A taxa exata (Visa 2x, Elo à vista…) vem da tabela da maquininha e vira uma <span data-tip="A taxa do cartão entra como 'Dedução de vendas' no DRE — a receita fica cheia e a taxa aparece separada.">dedução</span> no relatório.</div></li>
+      <li><span class="ic">📅</span><div><b>Prazo de crédito (D+N).</b> No cadastro da maquininha você põe em quantos dias o dinheiro cai (ex.: <b>InfinityPay = D+1</b>). PIX e dinheiro = na hora.</div></li>
+      <li><span class="ic">🔮</span><div><b>Previsão de crédito.</b> No <b>Caixa › aba Recebimentos</b> aparece o card <b>"A receber das maquininhas"</b> — quanto (líquido) ainda vai cair e quando.</div></li>
+    </ul>
+    <div class="callout"><span class="mk">⚙️</span><p><b>Onde configurar:</b> <span class="tag">Vendas › Formas de recebimento</span> — ligue cada maquininha à conta de destino, à adquirente (tabela de taxa) e ao prazo de crédito.</p></div>
+  </section>
+
+  <section>
+    <h2>🥽 As duas lentes: Caixa vs Competência</h2>
+    <p class="lead">É o <b>mesmo dinheiro</b>, visto de dois jeitos. Clique nos botões e veja a <b>mesma venda</b> mudar de lugar no relatório.</p>
+
+    <div class="demo" id="demo">
+      <div class="seg">
+        <span class="lbl">Lente do DRE</span>
+        <button class="sw on" data-r="caixa">💵 Caixa</button>
+        <button class="sw" data-r="comp">📅 Competência</button>
+        <span style="margin-left:auto;font-size:12px;color:var(--faint)" id="demoHint">como você administra hoje</span>
+      </div>
+      <div class="body">
+        <p class="cenario" id="cenario"></p>
+        <table><tbody id="linhas"></tbody></table>
+        <p class="nota" id="nota"></p>
+      </div>
+    </div>
+
+    <div class="cols2" style="margin-top:14px">
+      <div class="colbox"><div class="ic">💵</div><b>Caixa</b><span>Conta pela data que o <b>dinheiro moveu</b>. É como a Cintia administra (sem capital de giro, o que importa é o que entrou no bolso).</span></div>
+      <div class="colbox"><div class="ic">📅</div><b>Competência</b><span>Conta quando o serviço foi <b>entregue/ganho</b>, mesmo que o dinheiro venha depois. É o "correto" contábil.</span></div>
+    </div>
+    <div class="callout"><span class="mk">🔘</span><p>No <span class="tag">Financeiro › DRE</span> tem esse mesmo botão <b>💵 Caixa / 📅 Competência</b>. As duas visões usam os mesmos lançamentos — só mudam os óculos.</p></div>
+  </section>
+
+  <section>
+    <h2>📦 Pacotes &amp; adiantamentos</h2>
+    <p class="lead">Quando o cliente <b>paga antes</b> (pacote de 6 sessões, ou recarga de crédito), o dinheiro entra — mas a <b>receita</b> só é reconhecida conforme é usada.</p>
+    <ul class="clean">
+      <li><span class="ic">📦</span><div><b>Pacote pré-pago.</b> Vendeu 6 sessões? No <b>Caixa</b> conta tudo na venda. Na <b>Competência</b>, reconhece <b>1/6 a cada sessão</b> feita (o resto fica "guardado").</div></li>
+      <li><span class="ic">🎟️</span><div><b>Crédito de loja (recarga).</b> Entra como <span data-tip="Adiantamento é uma obrigação: você recebeu, mas ainda 'deve' o serviço. Por isso não conta como faturamento até ser usado.">adiantamento</span> (não é faturamento). Quando o cliente usa, aí sim vira receita da venda.</div></li>
+      <li><span class="ic">⌛</span><div><b>Pacote vencido com sessão sobrando (quebra).</b> Se o pacote expira e ficou sessão sem usar, o valor que sobrou vira receita no mês do vencimento.</div></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>🔁 Movimentos do caixa</h2>
+    <p class="lead">Tudo que mexe no dinheiro da recepção — e reflete no Financeiro na hora.</p>
+    <div class="cols2">
+      <div class="colbox"><b>💸 Despesa paga pela gaveta</b><span>Você escolhe a categoria → vira despesa no DRE e reduz o saldo do dinheiro.</span></div>
+      <div class="colbox"><b>↔️ Sangria / Suprimento / Transferência</b><span>Dinheiro mudando de conta. Neutro no resultado, mas ajusta os saldos.</span></div>
+    </div>
+    <p class="tx" style="margin-top:12px">Feito em <span class="tag">Caixa › Movimentos</span>. A tabela de recebimentos do dia fica pra conferência no fechamento.</p>
+  </section>
+
+  <section>
+    <h2>🧾 Conciliação &amp; comissões</h2>
+    <ul class="clean">
+      <li><span class="ic">🔗</span><div><b>Conciliação bancária.</b> Você importa o extrato e o sistema <b>casa</b> cada linha com as vendas do caixa (marca como conciliado). Sem duplicar taxa.</div></li>
+      <li><span class="ic">🧑‍⚕️</span><div><b>Comissões viram contas a pagar.</b> Ao fechar o período de comissão, cada extrato vira uma <b>despesa a pagar</b> no Financeiro — entra no resultado e na lista de "a pagar".</div></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>✅ Regras de ouro</h2>
+    <div class="rules">
+      <div class="rule do"><span class="mk">✔️</span><div><b>Configure a maquininha certinha</b><span>Conta de destino + adquirente (taxa) + prazo de crédito. É o que faz a previsão e o saldo baterem.</span></div></div>
+      <div class="rule do"><span class="mk">✔️</span><div><b>Receba sempre pelo PDV</b><span>É o único lugar de receber. O Caixa é só controle e conferência.</span></div></div>
+      <div class="rule dont"><span class="mk">✖️</span><div><b>Não anote dinheiro em planilha à parte</b><span>Se não passar pelo sistema, o saldo e o DRE ficam errados.</span></div></div>
+      <div class="rule dont"><span class="mk">✖️</span><div><b>Não misture as duas lentes</b><span>Pra gerir o dia a dia use Caixa. Pra ver o "correto" contábil use Competência. Combine o regime oficial com o contador.</span></div></div>
+    </div>
+    <div class="callout"><span class="mk">🆘</span><p>Ficou com dúvida ou algo na sua tela está diferente daqui? <b>Fale com a Cintia</b> — o material é atualizado conforme o sistema evolui.</p></div>
+  </section>
+
+  <footer class="foot">Empório do Pet · Guia interno do Financeiro · feito pra toda a equipe.</footer>
+</div></div>
+
+<div id="tip"></div>
+<script>
+(function(){
+  // ---- tooltips ----
+  var tip=document.getElementById('tip');
+  function show(el){ tip.innerHTML=el.getAttribute('data-tip'); tip.classList.add('on'); var r=el.getBoundingClientRect(); var x=Math.min(Math.max(10,r.left),window.innerWidth-290); var y=r.bottom+8; if(y>window.innerHeight-70){y=r.top-tip.offsetHeight-8;} tip.style.left=x+'px'; tip.style.top=y+'px'; }
+  function hide(){ tip.classList.remove('on'); }
+  document.querySelectorAll('[data-tip]').forEach(function(el){
+    el.addEventListener('mouseenter',function(){show(el);});
+    el.addEventListener('mouseleave',hide);
+    el.setAttribute('tabindex','0');
+    el.addEventListener('focus',function(){show(el);});
+    el.addEventListener('blur',hide);
+  });
+  // ---- demo Caixa/Competência ----
+  var dados={
+    caixa:{
+      hint:'como você administra hoje',
+      cenario:'Cenário: em <b>agosto</b> você vende um <b>pacote de 6 sessões de fisio por R$600</b> (o cliente paga tudo agora). As sessões acontecem ao longo de set/out/nov.',
+      linhas:[['ago','R$ 600,00','pos'],['set','—','zero'],['out','—','zero'],['nov','—','zero']],
+      nota:'Na lente <b>Caixa</b>, o que importa é <b>quando o dinheiro entrou</b>: os R$600 aparecem inteiros em agosto (foi quando o cliente pagou).'
+    },
+    comp:{
+      hint:'o "correto" contábil',
+      cenario:'Mesma venda: <b>pacote de 6 sessões por R$600</b> pago em agosto, com as sessões acontecendo em set/out/nov.',
+      linhas:[['ago','—','zero'],['set','R$ 200,00','pos'],['out','R$ 200,00','pos'],['nov','R$ 200,00','pos']],
+      nota:'Na lente <b>Competência</b>, a receita é reconhecida <b>conforme as sessões são feitas</b> (1/6 por sessão). Em agosto o dinheiro entrou, mas o serviço ainda não foi entregue — então ali a receita é zero.'
+    }
+  };
+  var linhasEl=document.getElementById('linhas'), cenEl=document.getElementById('cenario'), notaEl=document.getElementById('nota'), hintEl=document.getElementById('demoHint');
+  function render(r){
+    var d=dados[r]; cenEl.innerHTML=d.cenario; hintEl.textContent=d.hint;
+    linhasEl.innerHTML=d.linhas.map(function(l){ return '<tr><td class="mes">'+l[0]+'</td><td>Receita de serviços</td><td class="val '+l[2]+'">'+l[1]+'</td></tr>'; }).join('');
+    notaEl.innerHTML='💡 '+d.nota;
+  }
+  document.querySelectorAll('#demo .sw').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('#demo .sw').forEach(function(x){x.classList.remove('on');});
+      b.classList.add('on'); render(b.getAttribute('data-r'));
+    });
+  });
+  render('caixa');
+})();
+</script>
+</body></html>

@@ -2,8 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { StatusAvaliacaoGoogle } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from './whatsapp.service';
+import { AvaliacoesService } from '../avaliacoes/avaliacoes.service';
 
 const GOOGLE_REVIEW_LINK = 'https://g.page/r/CctbNjVipnY8EAI/review';
+// Pesquisa WhatsApp é 1–5; o NPS canônico é 0–10. Mapa: 1→0, 2→3, 3→5, 4→8, 5→10.
+const NOTA_1A5_PARA_NPS: Record<number, number> = { 1: 0, 2: 3, 3: 5, 4: 8, 5: 10 };
 
 /**
  * Pesquisa de satisfação por WhatsApp (2 etapas) ligada ao card "Avaliação Google".
@@ -17,6 +20,7 @@ export class SurveyAvaliacaoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
+    private readonly avaliacoes: AvaliacoesService,
   ) {}
 
   /** Envia um texto livre para o WhatsApp do cliente (ex.: confirmacao de agendamento). */
@@ -129,6 +133,18 @@ export class SurveyAvaliacaoService {
         `Vamos usar o seu retorno para melhorar. Se quiser, conte pra gente o que podemos fazer melhor.`;
 
     await this.whatsapp.enviarTextoRegistrando(phone, reply);
+    // UNIFICAÇÃO: a pesquisa WhatsApp também vira NPS canônico (AvaliacaoNPS). Se cair detrator,
+    // o próprio createNPS dispara o alerta pra equipe + tarefa no "Hoje" (ponto único).
+    await this.avaliacoes
+      .createNPS({
+        tutorId: tid,
+        categoriaAlvo: 'CLINICA_GERAL' as any,
+        score: NOTA_1A5_PARA_NPS[nota] ?? 5,
+        canalColeta: 'WHATSAPP' as any,
+        dataColeta: new Date().toISOString(),
+        observacoes: `Pesquisa de satisfação WhatsApp (nota ${nota}/5)`,
+      } as any)
+      .catch((e: any) => this.logger.warn(`createNPS (WhatsApp): ${e?.message || e}`));
     this.logger.log(`Resposta de pesquisa tratada: tutor ${tid}, nota ${nota}, gostou=${gostou}`);
     return true;
   }

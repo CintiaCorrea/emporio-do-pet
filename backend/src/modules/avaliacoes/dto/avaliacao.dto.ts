@@ -15,6 +15,10 @@ export class CreateAvaliacaoNPSDto {
   @ApiPropertyOptional() @IsOptional() @IsDateString() dataColeta?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() coletadoPor?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() observacoes?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() tutorNome?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() petNome?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() profissionalNome?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() categoriaLivre?: string;
 }
 export class UpdateAvaliacaoNPSDto extends PartialType(CreateAvaliacaoNPSDto) {}
 

@@ -9,7 +9,7 @@ import {
   LuSearch, LuPhone, LuPlus, LuExternalLink, LuShare2, LuCheckCheck,
   LuMessageSquare, LuSparkles, LuCalendar, LuFileText, LuFlaskConical, LuStickyNote,
   LuX, LuArrowUpRight, LuInbox, LuMessageCircle, LuTrash, LuArrowLeft,
-  LuStethoscope, LuClock, LuDollarSign, LuRepeat, LuMail, LuActivity,
+  LuStethoscope, LuDollarSign, LuRepeat, LuMail, LuActivity,
   LuPencil, LuStore,
 } from "react-icons/lu";
 import { FaWhatsapp } from "react-icons/fa";
@@ -21,7 +21,8 @@ import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
 import ClienteEditModal from "@/components/inbox/ClienteEditModal";
 import PetEditModal from "@/components/inbox/PetEditModal";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
-import { loadExameFases } from "@/lib/exameFases";
+import { loadExameFases, podeAvisarLab } from "@/lib/exameFases";
+import { loadFuResp, assignFollowUp } from "@/lib/followup";
 
 function scorePie(score: number, max: number, color: string) {
   const f = Math.max(0, Math.min(1, max ? score / max : 0));
@@ -43,6 +44,12 @@ function scorePie(score: number, max: number, color: string) {
 
 
 interface Contact { id: string; number: string; isPrimary?: boolean; isWhatsApp?: boolean; }
+const NIVEL_UI: Record<string, { emoji: string; bg: string; fg: string }> = {
+  Diamante: { emoji: "💎", bg: "#EDE9FA", fg: "#3C3489" },
+  Ouro: { emoji: "🥇", bg: "#FBEFD6", fg: "#8A5A0B" },
+  Prata: { emoji: "🥈", bg: "#EEF1F3", fg: "#49555C" },
+  Bronze: { emoji: "🥉", bg: "#F6E7D8", fg: "#7A4A1E" },
+};
 interface Tutor {
   id: string; name: string; email?: string | null;
   classificacao?: string | null;
@@ -74,6 +81,7 @@ interface Pet {
   pipelineClinicoEtapa?: string | null;
   pipelineFisioEtapa?: string | null;
   proximoFollowupAt?: string | null;
+  followUpNotes?: string | null;
 }
 interface HistoricoItem {
   id: string;
@@ -262,6 +270,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   useEffect(() => { if (pets.length && !pets.some((p) => p.id === selectedPet?.id)) setSelectedPet(pets[0]); }, [pets]);
   const [breedOptions, setBreedOptions] = useState<string[]>([]);
   const [pacotesInbox, setPacotesInbox] = useState<{ id: string; data: any }[]>([]);
+  const [verPacConcluidos, setVerPacConcluidos] = useState(false); // pacotes 12/12 ficam recolhidos no rodapé
+  const [planosInbox, setPlanosInbox] = useState<{ id: string; nome: string; marca?: string; total: number; feitas: number; prox: string | null }[]>([]); // #4 Fatia 2 — medicamentos/planos periódicos (protocolos c/ doses)
   const [boletimOpen, setBoletimOpen] = useState(false); // popup de boletim de fisio (dentro do box)
   const [fisioSrvInbox, setFisioSrvInbox] = useState<any[]>([]);
   const [pacFormInbox, setPacFormInbox] = useState<{ open: boolean; serviceId: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", total: "4", jaFeitas: "0" });
@@ -289,7 +299,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   const [staff, setStaff] = useState<Staff[]>([]);
   const [forwardOpen, setForwardOpen] = useState(false);
   const [petActForward, setPetActForward] = useState(false);
-  const [tutorScore, setTutorScore] = useState<{ total: number; label: string; dimensions: any } | null>(null);
+  const [tutorScore, setTutorScore] = useState<{ total: number; label: string; nivel?: string; dimensions: any } | null>(null);
   const [inscricoes, setInscricoes] = useState<any[]>([]);
   // Seletor de sequência (cadência) pro pet — item 6
   const [seqPickerOpen, setSeqPickerOpen] = useState(false);
@@ -319,7 +329,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     }
     const arr = Array.from(map.values());
     for (const g of arr) {
-      g.pendentesColeta = g.exames.filter((e) => /coleta/i.test(String(e.data?.status || "")) && !e.data?.labAvisadoAt && e.data?.fornecedorId);
+      g.pendentesColeta = g.exames.filter((e) => podeAvisarLab(e.data)); // regra única (tem lab + não avisado + não concluído)
       const avisados = g.exames.map((e) => e.data?.labAvisadoAt).filter(Boolean).sort();
       g.avisadoEm = avisados.length ? avisados[avisados.length - 1] : null;
     }
@@ -345,7 +355,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
       })
       .catch(() => {});
   }, []);
-  const [interacaoForm, setInteracaoForm] = useState({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "" });
+  const [interacaoForm, setInteracaoForm] = useState({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "", responsavelUserId: "" });
 
   // Inline edit
   const [editingResumo, setEditingResumo] = useState(false);
@@ -501,8 +511,10 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
 
   // UM botão por laboratório: avisa a coleta de TODOS os exames daquele lab que estão
   // em coleta e ainda não avisados (mesmo endpoint do "Enviar agora" da ficha e do cron 11:30/17:00).
-  async function avisarLabBloco(g: { key: string; pendentesColeta: { id: string; data: any }[] }) {
+  async function avisarLabBloco(g: { key: string; nome?: string; pendentesColeta: { id: string; data: any }[] }) {
     if (!g.pendentesColeta.length) return;
+    const nomes = g.pendentesColeta.map((e) => e.data?.nome).filter(Boolean).join(", ");
+    if (!window.confirm(`📲 Solicitar coleta ao ${g.nome || "laboratório"}?\n\n${nomes}`)) return;
     setAvisandoLab(g.key);
     let ok = 0, erros = 0;
     for (const e of g.pendentesColeta) {
@@ -1162,6 +1174,22 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
       setPacotesInbox(arr.map((i: any) => { let dd: any = {}; try { dd = JSON.parse(i.valor); } catch {} return { id: i.id, data: dd }; }));
     } catch { setPacotesInbox([]); }
   }
+  // #4 Fatia 2 — planos de medicamento periódico (protocolos com doses) ativos do pet, pra controle no inbox
+  async function loadPlanosInbox(pid: string) {
+    try {
+      const r = await fetch(`/api/protocolos?petId=${pid}`, { cache: "no-store" });
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.protocolos || d.data || []);
+      const planos = arr.map((p: any) => {
+        const validas = (p.doses || []).filter((x: any) => x.status !== "CANCELADA");
+        const feitas = validas.filter((x: any) => x.status === "APLICADA").length;
+        const pend = validas.filter((x: any) => x.status === "PENDENTE" && x.dataPrevista)
+          .sort((a: any, b: any) => new Date(a.dataPrevista).getTime() - new Date(b.dataPrevista).getTime());
+        return { id: p.id, nome: p.nomeProtocolo || "Medicamento", marca: p.marca || undefined, total: validas.length, feitas, prox: pend[0]?.dataPrevista || null, _ativo: pend.length > 0 && validas.length > 1 };
+      }).filter((p: any) => p._ativo);
+      setPlanosInbox(planos);
+    } catch { setPlanosInbox([]); }
+  }
   async function addPacoteInbox() {
     if (!selectedPet) return;
     const srv = fisioSrvInbox.find((x: any) => String(x.id) === pacFormInbox.serviceId);
@@ -1201,8 +1229,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     (async () => { try { const r = await fetch(`/api/servicos/itens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || d.servicos || []); setFisioSrvInbox(arr.filter((srv: any) => JSON.stringify(srv).toLowerCase().includes("fisio"))); } catch {} })();
   }, []);
   useEffect(() => {
-    if (selectedPet?.id) loadPacotesInbox(selectedPet.id);
-    else { setPacotesInbox([]); setPacFormInbox({ open: false, serviceId: "", total: "4", jaFeitas: "0" }); }
+    if (selectedPet?.id) { loadPacotesInbox(selectedPet.id); loadPlanosInbox(selectedPet.id); }
+    else { setPacotesInbox([]); setPlanosInbox([]); setPacFormInbox({ open: false, serviceId: "", total: "4", jaFeitas: "0" }); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedPet?.id]);
   const [proximasConsultas, setProximasConsultas] = useState<any[]>([]);
@@ -1500,10 +1528,24 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     };
     const res = await fetch("/api/interacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!res.ok) { toast.error("Erro"); return; }
+    // 🔗 FU UNIFICADO: grava o follow-up TAMBÉM no pet (mesma fonte que a ficha/Visão geral lê),
+    // pra inbox e ficha mostrarem sempre a mesma data.
+    if (interacaoForm.proximoFollowupAt && selectedPet) {
+      const fuISO = new Date(interacaoForm.proximoFollowupAt).toISOString();
+      try { await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: fuISO }) }); } catch {}
+      setSelectedPet((sp) => sp ? ({ ...sp, proximoFollowupAt: fuISO } as Pet) : sp);
+      setPets((ps) => ps.map((pp) => pp.id === selectedPet.id ? ({ ...pp, proximoFollowupAt: fuISO } as Pet) : pp));
+    }
+    // 👤 quem ACOMPANHA (padrão único da ficha): avisa a pessoa + rastro + KV → cai no painel dela.
+    if (interacaoForm.responsavelUserId && selectedPet) {
+      const resp = staff.find((s) => s.id === interacaoForm.responsavelUserId);
+      const fuLabel = interacaoForm.proximoFollowupAt ? fmtDate(interacaoForm.proximoFollowupAt) : "";
+      await assignFollowUp({ petId: selectedPet.id, userId: interacaoForm.responsavelUserId, nome: resp?.name || "", petNome: selectedPet.name, fuLabel });
+    }
     toast.success("Interação registrada");
     setAcaoFeita(true);
     setInteracaoOpen(false);
-    setInteracaoForm({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "" });
+    setInteracaoForm({ texto: "", tipo: "NOTA", proximaAcao: "", proximoFollowupAt: "", responsavelUserId: "" });
     const hist = await carregarHistorico(tutor?.id, leadIdReal, leadHistorico?.id);
     setHistorico(hist);
   }
@@ -1886,7 +1928,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                         <button onClick={() => setEditingName(false)} className="px-1.5 text-[10px] border rounded" style={{ borderColor: "#E8DFC8" }}>✕</button>
                       </div>
                     ) : (
-                      <div onClick={() => setClienteEditOpen(true)} className="text-[15px] font-semibold truncate cursor-pointer hover:underline" style={{ color: "#014D5E" }} title="Editar dados do cliente">{tutor.name} <LuPencil className="inline -mt-0.5 text-gray-300" size={12} /></div>
+                      <div className="text-[15px] font-semibold flex items-center gap-1 min-w-0" style={{ color: "#014D5E" }}>
+                        <Link href={`/dashboard/erp/tutores/${tutor.id}`} className="truncate hover:underline" title="Abrir ficha do cliente">{tutor.name}</Link>
+                        <button type="button" onClick={() => setClienteEditOpen(true)} title="Editar dados do cliente" className="flex-shrink-0 leading-none"><LuPencil className="text-gray-300 hover:text-[#009AAC]" size={12} /></button>
+                      </div>
+                    )}
+                    {tutorScore?.nivel && NIVEL_UI[tutorScore.nivel] && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full mt-0.5" style={{ background: NIVEL_UI[tutorScore.nivel].bg, color: NIVEL_UI[tutorScore.nivel].fg }} title="Nível de relacionamento (RFM)">{NIVEL_UI[tutorScore.nivel].emoji} {tutorScore.nivel}</span>
                     )}
                     <div className="text-[10.5px] text-gray-500 leading-snug">
                       {editingPhone ? (
@@ -2161,16 +2209,16 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                       const active = selectedPet?.id === p.id;
                       return (
                         <div key={p.id} className={`border ${active ? "w-full order-last rounded-lg mt-1" : "rounded-full hover:brightness-[0.97]"}`} style={active ? { background: "#cdebef", borderColor: "#009AAC" } : { background: "#e0f4f6", borderColor: "#9fd0d7" }}>
-                          <button onClick={() => setSelectedPet(active ? null : p)} className="w-full flex items-center gap-2 px-2 py-1.5 text-left">
+                          <div onClick={() => setSelectedPet(active ? null : p)} className="w-full flex items-center gap-2 px-2 py-1.5 text-left cursor-pointer">
                             <span className="text-[18px] leading-none flex-shrink-0" aria-hidden>{speciesEmoji(p.species)}</span>
                             <div className="min-w-0 flex-1">
-                              <div className="text-[11.5px] font-semibold truncate" style={{ color: "#014D5E" }}>{p.name}</div>
+                              <Link href={`/dashboard/erp/pets/${p.id}`} onClick={(e) => e.stopPropagation()} title="Abrir ficha do pet" className="block text-[11.5px] font-semibold truncate hover:underline" style={{ color: "#014D5E" }}>{p.name}</Link>
                               {(p.breed || p.birthDate) && (
                                 <div className="text-[10px] text-gray-500 truncate">{[p.breed, p.birthDate ? ageFromBirth(p.birthDate) : null].filter(Boolean).join(" · ")}</div>
                               )}
                             </div>
                             <span onClick={(e) => { e.stopPropagation(); setPetEdit(p); }} title="Editar pet" className="text-gray-300 hover:text-[#009AAC] flex-shrink-0 cursor-pointer"><LuPencil size={13} /></span>
-                          </button>
+                          </div>
                           {active && (
                             <div className="px-2 pt-1.5 pb-2 border-t space-y-1.5" style={{ borderColor: "#cfe8eb" }}>
                               <div className="flex items-center gap-1.5">
@@ -2344,22 +2392,74 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                   <span style={{ marginLeft: "auto", color: "#A7ADA8", transition: "transform .15s", transform: secFechadas.has("fisio") ? "rotate(-90deg)" : "none" }}>▾</span>
                 </div>
                 <div className="space-y-2" style={{ display: secFechadas.has("fisio") ? "none" : undefined }}>
-                  {pacotesInbox.map(pk => {
-                    const used = pk.data.used || 0; const total = pk.data.total || 0; const done = total > 0 && used >= total;
+                  {(() => {
+                    const ehDone = (pk: any) => { const t = pk.data.total || 0; return t > 0 && (pk.data.used || 0) >= t; };
+                    const ativos = pacotesInbox.filter(pk => !ehDone(pk));
+                    const concluidos = pacotesInbox.filter(ehDone);
+                    const cardDe = (pk: any) => {
+                      const used = pk.data.used || 0; const total = pk.data.total || 0; const done = ehDone(pk);
+                      return (
+                        <div key={pk.id} className="border rounded-lg p-2.5" style={{ borderColor: done ? "#0F6E56" : "#E8DFC8", background: done ? "#F3FBF7" : "#fff" }}>
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <LuActivity size={14} style={{ color: "#0E5560" }} />
+                            <span className="text-[11.5px] font-medium truncate" style={{ color: "#014D5E" }}>{done ? "🏆 " : ""}{pk.data.nome || "Pacote de fisioterapia"}</span>
+                            <span className="ml-auto text-[12px] font-semibold flex-shrink-0" style={{ color: done ? "#0F6E56" : "#0E5560" }}>{used}/{total}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {Array.from({ length: Math.min(total, 20) }).map((_, i) => <span key={i} style={{ fontSize: "13px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
+                          </div>
+                          <div className="text-[9.5px] text-gray-400 mt-1.5">As sessões são lançadas pela Agenda e atualizam aqui.</div>
+                        </div>
+                      );
+                    };
                     return (
-                      <div key={pk.id} className="border rounded-lg p-2.5" style={{ borderColor: done ? "#0F6E56" : "#E8DFC8", background: done ? "#F3FBF7" : "#fff" }}>
+                      <>
+                        {ativos.length === 0 && concluidos.length > 0 && <div className="text-[10.5px] text-gray-400 py-1">Nenhum pacote em andamento.</div>}
+                        {ativos.map(cardDe)}
+                        {concluidos.length > 0 && (
+                          <button type="button" onClick={() => setVerPacConcluidos(v => !v)} className="w-full text-left text-[10.5px] font-semibold py-1" style={{ color: "#0F6E56" }}>
+                            🏆 {concluidos.length} concluído{concluidos.length > 1 ? "s" : ""} · {verPacConcluidos ? "ocultar" : "ver"}
+                          </button>
+                        )}
+                        {verPacConcluidos && concluidos.map(cardDe)}
+                      </>
+                    );
+                  })()}
+                </div>
+              </section>
+            )}
+
+            {/* BLOCO 3.46: MEDICAMENTOS / PLANOS PERIÓDICOS (#4 Fatia 2) */}
+            {tutor && selectedPet && planosInbox.length > 0 && (
+              <section className={SECTION} style={SECTION_STYLE}>
+                <div className={LBL} style={{ ...LBL_STYLE, cursor: "pointer" }} onClick={() => toggleSec("planos")}>
+                  <span>💊 Medicamentos e planos</span>
+                  <span style={{ marginLeft: "auto", color: "#A7ADA8", transition: "transform .15s", transform: secFechadas.has("planos") ? "rotate(-90deg)" : "none" }}>▾</span>
+                </div>
+                <div className="space-y-2" style={{ display: secFechadas.has("planos") ? "none" : undefined }}>
+                  {planosInbox.map(pl => {
+                    const restam = Math.max(0, pl.total - pl.feitas);
+                    let proxLbl = "—";
+                    if (pl.prox) { const dt = new Date(pl.prox); proxLbl = dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); }
+                    const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
+                    const atrasada = pl.prox ? new Date(pl.prox) < hoje : false;
+                    return (
+                      <div key={pl.id} className="border rounded-lg p-2.5" style={{ borderColor: atrasada ? "#C0392B" : "#E8DFC8", background: atrasada ? "#FDF3F2" : "#fff" }}>
                         <div className="flex items-center gap-2 mb-1.5">
-                          <LuActivity size={14} style={{ color: "#0E5560" }} />
-                          <span className="text-[11.5px] font-medium truncate" style={{ color: "#014D5E" }}>{done ? "🏆 " : ""}{pk.data.nome || "Pacote de fisioterapia"}</span>
-                          <span className="ml-auto text-[12px] font-semibold flex-shrink-0" style={{ color: done ? "#0F6E56" : "#0E5560" }}>{used}/{total}</span>
+                          <span style={{ fontSize: "13px" }}>💊</span>
+                          <span className="text-[11.5px] font-medium truncate" style={{ color: "#014D5E" }}>{pl.nome}{pl.marca ? ` · ${pl.marca}` : ""}</span>
+                          <span className="ml-auto text-[12px] font-semibold flex-shrink-0" style={{ color: "#0E5560" }}>{pl.feitas}/{pl.total}</span>
                         </div>
-                        <div className="flex flex-wrap gap-1">
-                          {Array.from({ length: Math.min(total, 20) }).map((_, i) => <span key={i} style={{ fontSize: "13px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>)}
+                        <div className="flex flex-wrap gap-1 mb-1">
+                          {Array.from({ length: Math.min(pl.total, 20) }).map((_, i) => <span key={i} style={{ fontSize: "13px" }} title={`Dose ${i + 1}`}>{i < pl.feitas ? "💠" : "⚪"}</span>)}
                         </div>
-                        <div className="text-[9.5px] text-gray-400 mt-1.5">As sessões são lançadas pela Agenda e atualizam aqui.</div>
+                        <div className="text-[10.5px]" style={{ color: atrasada ? "#C0392B" : "#6B7280" }}>
+                          {restam > 0 ? <>Faltam <b>{restam}</b> · próxima <b>{proxLbl}</b>{atrasada ? " ⚠ atrasada" : ""}</> : "Plano concluído 🏆"}
+                        </div>
                       </div>
                     );
                   })}
+                  <div className="text-[9.5px] text-gray-400">As doses são aplicadas pela ficha do pet (aba Vacinas) e atualizam aqui.</div>
                 </div>
               </section>
             )}
@@ -2499,15 +2599,20 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
               </div>
             )}
 
-            {/* BLOCO 3.46: PROXIMAS CONSULTAS DO PET */}
+            {/* BLOCO 3.46: PROXIMAS CONSULTAS DO PET (recolocado 12/08 a pedido da Cintia) */}
             {tutor && selectedPet && (
               <section className={SECTION} style={SECTION_STYLE}>
                 <div className={LBL} style={LBL_STYLE}><span>📅 Próximo agendamento · {selectedPet.name}</span></div>
                 {/* Follow-up agendado (mesmo campo da ficha; setado pela interação "próxima ação") */}
                 {selectedPet.proximoFollowupAt && new Date(selectedPet.proximoFollowupAt).getTime() > Date.now() && (
-                  <div className="flex items-center gap-2 border rounded-lg px-2.5 py-1.5 mb-1.5" style={{ borderColor: "#F0D8A8", background: "#FFFDF5" }}>
-                    <span>📌</span>
-                    <div className="text-[11.5px]" style={{ color: "#8a6400" }}>Follow-up agendado: <b>{fmtDate(selectedPet.proximoFollowupAt)}</b></div>
+                  <div className="border rounded-lg px-2.5 py-1.5 mb-1.5" style={{ borderColor: "#F0D8A8", background: "#FFFDF5" }}>
+                    <div className="flex items-center gap-2">
+                      <span>📌</span>
+                      <div className="text-[11.5px]" style={{ color: "#8a6400" }}>Follow-up agendado: <b>{fmtDate(selectedPet.proximoFollowupAt)}</b></div>
+                    </div>
+                    {selectedPet.followUpNotes && (
+                      <div className="text-[11px] mt-1 pl-6 leading-snug" style={{ color: "#9a7400" }}>📝 {selectedPet.followUpNotes}</div>
+                    )}
                   </div>
                 )}
                 {proximasConsultas.length === 0 ? (
@@ -2543,12 +2648,11 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                 <button type="button" onClick={() => window.open(`/dashboard/erp/pets/${selectedPet.id}/atendimentos/novo`, "_self")} title="Iniciar atendimento" className="w-full flex items-center justify-center gap-2 rounded-lg py-2.5 mb-2 text-white font-semibold text-[12px]" style={{ background: "#0E5560" }}>
                   <LuStethoscope size={16} /> Atendimento
                 </button>
-                <div className="grid grid-cols-4 gap-1.5">
-                  {/* Botão de agenda removido daqui (03/08): a agenda já fica no box de conversação. */}
-                  <button type="button" disabled title="Follow-up · em breve" className="flex items-center justify-center h-11 rounded-lg border cursor-not-allowed opacity-50" style={{ borderColor: "#E8DFC8", background: "#fafafa" }}><LuClock size={18} style={{ color: "#9aa0a8" }} /></button>
-                  <button type="button" onClick={() => { setPetActForward(false); setInteracaoOpen(true); }} title="Registrar interação" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMessageSquare size={18} style={{ color: "#009AAC" }} /></button>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {/* Botão de agenda removido daqui (03/08): a agenda já fica no box de conversação.
+                      Botão 🕐 "Follow-up em breve" (desabilitado) removido 11/08 — estava sem uso. */}
+                  <button type="button" onClick={() => { setPetActForward(false); const pid = selectedPet?.id; setInteracaoForm((f) => ({ ...f, proximoFollowupAt: selectedPet?.proximoFollowupAt ? String(selectedPet.proximoFollowupAt).slice(0, 10) : "", responsavelUserId: "" })); if (pid) loadFuResp(pid).then((fr) => setInteracaoForm((f) => ({ ...f, responsavelUserId: fr?.userId || "" }))); setInteracaoOpen(true); }} title="Registrar interação" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMessageSquare size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={() => setOrcRapidoOpen(true)} title="Venda / Orçamento rápido — enviar pelo WhatsApp (sem sair da tela)" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuDollarSign size={18} style={{ color: "#009AAC" }} /></button>
-                  <button type="button" onClick={() => setOrcRapidoOpen(true)} title="Orçamento rápido — enviar pelo WhatsApp" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuFileText size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={abrirSeletorSequencia} title="Iniciar sequência de cuidado do pet" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuRepeat size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={() => setEmailOpen(true)} title="Enviar e-mail para o cliente" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuMail size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={() => setPetActForward(o => !o)} title="Encaminhar" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuShare2 size={18} style={{ color: "#009AAC" }} /></button>
@@ -2634,7 +2738,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                     </select>
                     <textarea value={interacaoForm.texto} onChange={e => setInteracaoForm({ ...interacaoForm, texto: e.target.value })} placeholder="Resumo da conversa..." rows={3} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
                     <input value={interacaoForm.proximaAcao} onChange={e => setInteracaoForm({ ...interacaoForm, proximaAcao: e.target.value })} placeholder="Próxima ação (opcional)" className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
-                    <input type="date" value={interacaoForm.proximoFollowupAt} onChange={e => setInteracaoForm({ ...interacaoForm, proximoFollowupAt: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} />
+                    <div><label className="text-[10px]" style={{ color: "#8a6400" }}>📅 Follow-up (mesmo da ficha)</label><input type="date" value={interacaoForm.proximoFollowupAt} onChange={e => setInteracaoForm({ ...interacaoForm, proximoFollowupAt: e.target.value })} className="w-full px-2 py-1 text-xs border rounded" style={BORDER_STYLE} /></div>
+                    <div className="flex items-center gap-1.5"><span className="text-[10px] whitespace-nowrap" style={{ color: "#00798A" }}>👤 Acompanha:</span>
+                      <select value={interacaoForm.responsavelUserId} onChange={e => setInteracaoForm({ ...interacaoForm, responsavelUserId: e.target.value })} className="flex-1 px-2 py-1 text-xs border rounded" style={BORDER_STYLE}>
+                        <option value="">Ninguém específico</option>
+                        {staff.map(s => <option key={s.id} value={s.id}>{s.name || "Sem nome"}</option>)}
+                      </select>
+                    </div>
                     <div className="flex gap-2">
                       <button onClick={() => setInteracaoOpen(false)} className="flex-1 px-2 py-1 text-xs border rounded" style={BORDER_STYLE}>Cancelar</button>
                       <button onClick={handleInteracao} className="flex-1 px-2 py-1 text-xs text-white rounded font-semibold" style={{ background: "#009AAC" }}>Salvar na ficha</button>

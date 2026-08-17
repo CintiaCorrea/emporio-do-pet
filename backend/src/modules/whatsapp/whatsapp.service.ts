@@ -640,7 +640,8 @@ export class WhatsAppService {
    */
   async getMessageMedia(
     messageId: string,
-  ): Promise<{ buffer: Buffer; contentType: string } | null> {
+    range?: string,
+  ): Promise<{ buffer: Buffer; contentType: string; status: number; contentRange?: string } | null> {
     const msg = await this.prisma.whatsAppMessage.findUnique({
       where: { id: messageId },
       select: { mediaCloudUrl: true, mediaCloudId: true, mediaType: true },
@@ -677,11 +678,252 @@ export class WhatsAppService {
     const signingKey = crypto.createHmac('sha256', kService).update('aws4_request').digest();
     const signature = crypto.createHmac('sha256', signingKey).update(stringToSign).digest('hex');
     const authorization = `AWS4-HMAC-SHA256 Credential=${ak}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
-    const res = await fetch(`${endpoint}/${bucket}/${key}`, { headers: { 'x-amz-content-sha256': emptyHash, 'x-amz-date': date, Authorization: authorization } });
-    if (!res.ok) return null;
+    // Range: propaga pro bucket (não precisa assinar — headers não-assinados são aceitos).
+    // Vídeo no <video> exige 206/Content-Range pra tocar e avançar no navegador.
+    const fetchHeaders: Record<string, string> = { 'x-amz-content-sha256': emptyHash, 'x-amz-date': date, Authorization: authorization };
+    if (range) fetchHeaders['Range'] = range;
+    const res = await fetch(`${endpoint}/${bucket}/${key}`, { headers: fetchHeaders });
+    if (!(res.ok || res.status === 206)) return null;
     const buffer = Buffer.from(await res.arrayBuffer());
     const contentType = res.headers.get('content-type') || msg.mediaType || 'application/octet-stream';
-    return { buffer, contentType };
+    return { buffer, contentType, status: res.status, contentRange: res.headers.get('content-range') || undefined };
+  }
+
+  // Encaminha a mídia de uma mensagem para OUTRA conversa (reusa o envio outbound por URL).
+  async encaminharMidia(msgId: string, conversationIdDestino: string): Promise<{ success: boolean; error?: string }> {
+    const msg = await this.prisma.whatsAppMessage.findUnique({
+      where: { id: msgId },
+      select: { type: true, content: true, mediaCloudUrl: true, mediaUrl: true },
+    });
+    if (!msg) return { success: false, error: 'Mensagem não encontrada' };
+    const url = msg.mediaCloudUrl || msg.mediaUrl;
+    if (!url) return { success: false, error: 'Esta mensagem não tem mídia salva para encaminhar' };
+    const destino = await this.prisma.whatsAppConversation.findUnique({
+      where: { id: conversationIdDestino },
+      select: { id: true, contactPhone: true },
+    });
+    if (!destino?.contactPhone) return { success: false, error: 'Conversa de destino inválida' };
+    const tipo: 'image' | 'video' | 'document' = msg.type === 'IMAGE' ? 'image' : msg.type === 'VIDEO' ? 'video' : 'document';
+    const legenda = msg.content && !msg.content.startsWith('[') ? msg.content : undefined;
+    const r = await this.enviarMidiaDeUrl(destino.contactPhone, url, tipo, legenda);
+    if (!r.success) return { success: false, error: r.error || 'Falha ao encaminhar' };
+    const outType = (tipo === 'image' ? 'IMAGE' : tipo === 'video' ? 'VIDEO' : 'DOCUMENT') as WhatsAppMessageType;
+    await this.saveOutboundMessage(destino.id, legenda || '[Encaminhado]', outType, r.messageId, { mediaUrl: url, encaminhado: true }, { senderType: 'HUMAN', senderName: 'Encaminhado' }).catch(() => undefined);
+    return { success: true };
+  }
+
+  // Encaminha VÁRIAS mensagens (mídia ou texto) para outra conversa, na ordem.
+  async encaminharMensagens(msgIds: string[], conversationIdDestino: string): Promise<{ enviados: number; falhas: number; erro?: string }> {
+    const destino = await this.prisma.whatsAppConversation.findUnique({
+      where: { id: conversationIdDestino },
+      select: { id: true, userId: true, contactPhone: true },
+    });
+    if (!destino?.contactPhone) return { enviados: 0, falhas: msgIds.length, erro: 'Conversa de destino inválida' };
+    let enviados = 0, falhas = 0, ultimoErro = '';
+    for (const id of msgIds) {
+      const msg = await this.prisma.whatsAppMessage.findUnique({ where: { id }, select: { type: true, content: true, mediaCloudUrl: true, mediaUrl: true } });
+      if (!msg) { falhas++; continue; }
+      const url = msg.mediaCloudUrl || msg.mediaUrl;
+      const ehMidia = !!url && ['IMAGE', 'VIDEO', 'DOCUMENT', 'AUDIO', 'STICKER'].includes(msg.type as string);
+      if (ehMidia) {
+        const r = await this.encaminharMidia(id, conversationIdDestino);
+        if (r.success) enviados++; else { falhas++; ultimoErro = r.error || ultimoErro; }
+      } else if (msg.content && !msg.content.startsWith('[')) {
+        const r: any = await this.sendAndSaveMessage(destino.userId, destino.id, msg.content, 'TEXT' as any, { senderType: 'HUMAN', senderName: 'Encaminhado' });
+        if (r?.success !== false) enviados++; else { falhas++; ultimoErro = r?.error || ultimoErro; }
+      } else { falhas++; }
+    }
+    return { enviados, falhas, erro: falhas && !enviados ? (ultimoErro || 'Não consegui encaminhar') : undefined };
+  }
+
+  /**
+   * A EQUIPE reage a uma mensagem com um emoji (👍❤️😂…), igual ao WhatsApp Business.
+   * Envia a reação pela API da Meta (type: reaction) e guarda em `myReaction`.
+   * emoji vazio = REMOVE a reação (a Meta trata assim, e limpamos o campo).
+   */
+  async reagirMensagem(messageId: string, emoji: string): Promise<{ success: boolean; error?: string }> {
+    const msg = await this.prisma.whatsAppMessage.findUnique({ where: { id: messageId } });
+    if (!msg) return { success: false, error: 'Mensagem não encontrada' };
+    if (!msg.waMessageId) return { success: false, error: 'Mensagem sem ID do WhatsApp — não dá pra reagir' };
+    const conv = await this.prisma.whatsAppConversation.findUnique({ where: { id: msg.conversationId }, select: { contactPhone: true, userId: true } });
+    if (!conv?.contactPhone) return { success: false, error: 'Conversa não encontrada' };
+    const config = await this.getUserWhatsAppConfig(conv.userId);
+    const token = this.accessToken || config?.accessToken;
+    const phoneId = this.phoneNumberId || config?.phoneNumberId;
+    if (!token || !phoneId) return { success: false, error: 'WhatsApp não configurado' };
+    try {
+      const phone = this.formatPhoneNumber(conv.contactPhone);
+      const resp = await fetch(`${this.baseUrl}/${phoneId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: phone,
+          type: 'reaction',
+          reaction: { message_id: msg.waMessageId, emoji: emoji || '' },
+        }),
+      });
+      const data: any = await resp.json().catch(() => ({}));
+      if (!resp.ok) return { success: false, error: data?.error?.message || `HTTP ${resp.status}` };
+      await this.prisma.whatsAppMessage.update({ where: { id: messageId }, data: { myReaction: emoji || null } });
+      return { success: true };
+    } catch (e: any) {
+      this.logger.error(`Erro ao reagir à mensagem ${messageId}: ${e?.message || e}`);
+      return { success: false, error: e?.message || 'Erro ao reagir' };
+    }
+  }
+
+  /**
+   * O CLIENTE reagiu a uma das NOSSAS mensagens (chega pelo webhook `reaction`).
+   * Anexa o emoji embaixo da mensagem-alvo (campo `reaction`) em vez de criar um balão solto.
+   * emoji vazio = reação removida → limpa o campo.
+   */
+  async registrarReacaoCliente(waMessageId: string, emoji: string): Promise<void> {
+    try {
+      await this.prisma.whatsAppMessage.updateMany({ where: { waMessageId }, data: { reaction: emoji || null } });
+    } catch (e: any) {
+      this.logger.warn(`Falha ao registrar reação do cliente (${waMessageId}): ${e?.message || e}`);
+    }
+  }
+
+  /** Marca uma conversa como "não lida" à mão (lembrete pra responder depois). Abrir a conversa limpa. */
+  async marcarNaoLida(conversationId: string): Promise<{ success: boolean }> {
+    await this.prisma.whatsAppConversation.update({
+      where: { id: conversationId },
+      data: { manualUnread: true },
+    }).catch(() => undefined);
+    return { success: true };
+  }
+
+  // ===== Biblioteca de FIGURINHAS da clínica =====
+  async listarStickers() {
+    return this.prisma.whatsAppSticker.findMany({
+      where: { ativo: true },
+      orderBy: [{ ordem: 'asc' }, { createdAt: 'desc' }],
+      select: { id: true, nome: true, url: true, mime: true, createdAt: true },
+    });
+  }
+
+  /** Guarda uma figurinha na biblioteca. Aceita só .webp (a conversão é feita no navegador). */
+  async salvarSticker(buffer: Buffer, mime: string, nome?: string): Promise<{ id: string; url: string } | { error: string }> {
+    if (mime !== 'image/webp') return { error: 'A figurinha precisa ser .webp (512x512).' };
+    const base = (nome || 'figurinha').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/\.webp$/i, '');
+    const filename = `${Date.now()}-${base}.webp`;
+    const up = await this.cloudStorageService.upload(buffer, filename, 'image/webp', 'whatsapp/stickers');
+    if (!up.success || !up.url) return { error: up.error || 'Falha ao guardar a figurinha' };
+    const row = await this.prisma.whatsAppSticker.create({
+      data: { nome: nome || null, url: up.url, cloudId: up.publicId || null, storageType: up.provider || null, mime: 'image/webp' },
+    });
+    return { id: row.id, url: row.url };
+  }
+
+  /** Serve o arquivo de uma figurinha da biblioteca (o bucket é privado → baixa assinado). */
+  async getStickerMedia(id: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+    const s = await this.prisma.whatsAppSticker.findUnique({ where: { id }, select: { url: true, mime: true } });
+    if (!s?.url) return null;
+    const r = await fetch(s.url).catch(() => null);
+    if (r && r.ok) return { buffer: Buffer.from(await r.arrayBuffer()), contentType: r.headers.get('content-type') || s.mime || 'image/webp' };
+    const assinado = await this.cloudStorageService.baixarPorUrl(s.url);
+    if (!assinado) return null;
+    return { buffer: assinado.buffer, contentType: assinado.contentType || s.mime || 'image/webp' };
+  }
+
+  async removerSticker(id: string): Promise<{ success: boolean }> {
+    const s = await this.prisma.whatsAppSticker.findUnique({ where: { id } });
+    if (!s) return { success: true };
+    if (s.url) await this.cloudStorageService.deleteByUrl(s.url).catch(() => undefined);
+    await this.prisma.whatsAppSticker.delete({ where: { id } }).catch(() => undefined);
+    return { success: true };
+  }
+
+  /** Envia uma figurinha DA BIBLIOTECA para uma conversa (baixa nosso webp → sobe p/ Meta → envia). */
+  async enviarStickerBiblioteca(conversationId: string, stickerId: string): Promise<{ success: boolean; error?: string; message?: { id: string } }> {
+    const sticker = await this.prisma.whatsAppSticker.findUnique({ where: { id: stickerId } });
+    if (!sticker) return { success: false, error: 'Figurinha não encontrada' };
+    const conv = await this.prisma.whatsAppConversation.findUnique({ where: { id: conversationId }, select: { id: true, userId: true, contactPhone: true } });
+    if (!conv?.contactPhone) return { success: false, error: 'Conversa não encontrada' };
+    const config = await this.getUserWhatsAppConfig(conv.userId);
+    // Baixa o webp guardado (bucket privado → assinado).
+    let buf: Buffer;
+    const r = await fetch(sticker.url).catch(() => null);
+    if (r && r.ok) {
+      buf = Buffer.from(await r.arrayBuffer());
+    } else {
+      const assinado = await this.cloudStorageService.baixarPorUrl(sticker.url);
+      if (!assinado) return { success: false, error: 'Não consegui ler a figurinha guardada' };
+      buf = assinado.buffer;
+    }
+    const up = await this.uploadMedia(buf, 'image/webp', (sticker.nome || 'figurinha') + '.webp', config || undefined);
+    if (!up.mediaId) return { success: false, error: up.error || 'A Meta não aceitou a figurinha' };
+    const res = await this.sendMediaMessage(conv.contactPhone, up.mediaId, 'sticker', undefined, undefined, config || undefined);
+    if (!res.success) return { success: false, error: res.error || 'Falha ao enviar a figurinha' };
+    const msg = await this.prisma.whatsAppMessage.create({
+      data: {
+        conversationId,
+        waMessageId: res.messageId,
+        direction: 'OUTBOUND',
+        type: 'STICKER',
+        status: 'SENT',
+        content: '[figurinha]',
+        mediaType: 'image/webp',
+        mediaCloudUrl: sticker.url,
+        mediaCloudId: sticker.cloudId,
+        mediaStorageType: sticker.storageType,
+        mediaDownloadedAt: new Date(),
+        sentAt: new Date(),
+        metadata: { senderType: 'HUMAN' },
+      },
+    });
+    await this.prisma.whatsAppConversation.update({ where: { id: conversationId }, data: { lastMessageAt: new Date(), lastMessagePreview: 'Figurinha' } }).catch(() => undefined);
+    this.eventEmitter.emit('whatsapp.message.sent', { userId: conv.userId, conversationId, messageId: msg.id });
+    return { success: true, message: { id: msg.id } };
+  }
+
+  /** Lista as figurinhas que já apareceram nas conversas (recebidas/enviadas) pra importar. */
+  async listarStickersDasConversas() {
+    const msgs = await this.prisma.whatsAppMessage.findMany({
+      where: { type: 'STICKER', mediaCloudUrl: { not: null } },
+      select: { id: true, mediaCloudUrl: true, createdAt: true, conversation: { select: { contactName: true, contactPhone: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    });
+    const jaImport = new Set(
+      (await this.prisma.whatsAppSticker.findMany({ where: { origem: { not: null } }, select: { origem: true } })).map((s) => s.origem),
+    );
+    const vistas = new Set<string>();
+    const out: Array<{ id: string; conversa: string; jaImportada: boolean }> = [];
+    for (const m of msgs) {
+      const url = m.mediaCloudUrl as string;
+      if (vistas.has(url)) continue;
+      vistas.add(url);
+      out.push({
+        id: m.id, // usa o messageId pra exibir via /messages/:id/media (bucket é privado)
+        conversa: m.conversation?.contactName || m.conversation?.contactPhone || '—',
+        jaImportada: jaImport.has(url),
+      });
+    }
+    return out;
+  }
+
+  /** Importa figurinhas das conversas (por messageId) pra biblioteca — copia o webp já guardado. */
+  async importarStickersDasConversas(messageIds: string[]): Promise<{ importadas: number }> {
+    let ok = 0;
+    for (const id of messageIds.slice(0, 200)) {
+      const m = await this.prisma.whatsAppMessage.findUnique({ where: { id }, select: { mediaCloudUrl: true } });
+      if (!m?.mediaCloudUrl) continue;
+      const jaTem = await this.prisma.whatsAppSticker.findFirst({ where: { origem: m.mediaCloudUrl } });
+      if (jaTem) { ok++; continue; }
+      const baix = await this.cloudStorageService.baixarPorUrl(m.mediaCloudUrl);
+      if (!baix) continue;
+      const up = await this.cloudStorageService.upload(baix.buffer, `${Date.now()}-import.webp`, 'image/webp', 'whatsapp/stickers');
+      if (!up.success || !up.url) continue;
+      await this.prisma.whatsAppSticker.create({
+        data: { nome: null, url: up.url, cloudId: up.publicId || null, storageType: up.provider || null, mime: 'image/webp', origem: m.mediaCloudUrl },
+      });
+      ok++;
+    }
+    return { importadas: ok };
   }
 
   // Normaliza nome pra comparação: minúsculas, sem acento, só tokens ≥3 letras (ignora "da/de/dos").
@@ -1174,10 +1416,10 @@ export class WhatsAppService {
       this.prisma.whatsAppMessage.count({ where: { conversationId } }),
     ]);
 
-    // Mark as read after fetching
+    // Mark as read after fetching (limpa também a marca manual de "não lida")
     await this.prisma.whatsAppConversation.update({
       where: { id: conversationId },
-      data: { unreadCount: 0 },
+      data: { unreadCount: 0, manualUnread: false },
     });
 
     return {

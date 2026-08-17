@@ -67,10 +67,16 @@ export class ProductsController {
   }
 
   // Importa catálogo por CSV. dryRun=true → só prévia (não grava).
+  // inativarForaDaLista (default FALSE): só desliga itens fora da planilha se pedido de propósito.
+  // confirmarInativacaoEmMassa: 2ª confirmação consciente pra passar da trava (>20% do catálogo).
   @Post('importar-catalogo')
   @ApiOperation({ summary: 'Importar catálogo (CSV) — serviços e produtos' })
-  importarCatalogo(@Body() body: { csv: string; dryRun?: boolean }) {
-    return this.productsService.importarCatalogo(body?.csv || '', { dryRun: !!body?.dryRun });
+  importarCatalogo(@Body() body: { csv: string; dryRun?: boolean; inativarForaDaLista?: boolean; confirmarInativacaoEmMassa?: boolean }) {
+    return this.productsService.importarCatalogo(body?.csv || '', {
+      dryRun: !!body?.dryRun,
+      inativarForaDaLista: !!body?.inativarForaDaLista,
+      confirmarInativacaoEmMassa: !!body?.confirmarInativacaoEmMassa,
+    });
   }
 
   @Get(':id')

@@ -27,12 +27,17 @@ export default function NpsPage() {
     if (!jaCarregou.current) setLoading(true);
     try {
       const [l, t, u] = await Promise.all([
-        fetch("/api/listas", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+        fetch("/api/avaliacoes/nps", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/tutors?limit=1000", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/users", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
-      const la = Array.isArray(l) ? l : (l.itens || l.data || []);
-      setRows(la.filter((x: any) => (x.lista || "").startsWith("npsava_")).map((x: any) => { let d: any = {}; try { d = JSON.parse(x.valor); } catch {} return { id: x.id, ...d }; }).sort((a: any, b: any) => (b.data || "").localeCompare(a.data || "")));
+      // Fonte única = AvaliacaoNPS (backend). Mapeia p/ o formato que a tela renderiza.
+      const la = Array.isArray(l) ? l : (l.data || []);
+      setRows(la.map((x: any) => ({
+        id: x.id, score: x.score, comentario: x.comentario,
+        data: x.dataColeta, categoria: x.categoriaLivre || "—",
+        profissional: x.profissionalNome || "—", tutorNome: x.tutorNome || "", petNome: x.petNome || "", tutorId: x.tutorId,
+      })));
       setTutors(Array.isArray(t) ? t : (t.tutors || t.data || []));
       setUsers(Array.isArray(u) ? u : (u.users || u.data || []));
     } catch {}
@@ -55,12 +60,24 @@ export default function NpsPage() {
     setSaving(true);
     try {
       const tutor = tutors.find((t) => t.id === form.tutorId);
-      const payload = { tutorId: form.tutorId, tutorNome: tutor?.name || form.tutorNome, petNome: form.petNome, categoria: form.categoria, profissional: form.profissional, score: Number(form.score), canal: form.canal, data: form.data, comentario: form.comentario };
-      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `npsava_${Date.now()}`, valor: JSON.stringify(payload) }) });
+      const CANAL_ENUM: Record<string, string> = { WhatsApp: "WHATSAPP", Presencial: "PRESENCIAL", Telefone: "TELEFONE", Email: "EMAIL" };
+      const payload = {
+        tutorId: form.tutorId,
+        categoriaAlvo: "CLINICA_GERAL",
+        score: Number(form.score),
+        canalColeta: CANAL_ENUM[form.canal] || "PRESENCIAL",
+        dataColeta: new Date(form.data + "T12:00:00").toISOString(),
+        comentario: form.comentario || undefined,
+        tutorNome: tutor?.name || form.tutorNome || undefined,
+        petNome: form.petNome || undefined,
+        profissionalNome: form.profissional || undefined,
+        categoriaLivre: form.categoria || undefined,
+      };
+      await fetch("/api/avaliacoes/nps", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
       setOpen(false); setForm({ tutorId: "", tutorNome: "", petNome: "", categoria: "Consulta", profissional: "", score: "", canal: "WhatsApp", data: new Date().toISOString().slice(0, 10), comentario: "" }); load();
     } catch { alert("Erro ao salvar."); } finally { setSaving(false); }
   };
-  const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "avaliação", itemName: "esta avaliação" }))) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+  const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "avaliação", itemName: "esta avaliação" }))) return; try { await fetch(`/api/avaliacoes/nps/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
   const FILTROS: { k: any; l: string }[] = [{ k: "todas", l: "Todas" }, { k: "Promotor", l: "Promotores" }, { k: "Neutro", l: "Neutros" }, { k: "Detrator", l: "Detratores" }];
 

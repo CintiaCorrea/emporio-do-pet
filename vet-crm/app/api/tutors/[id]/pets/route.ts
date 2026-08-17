@@ -57,6 +57,7 @@ export async function GET(
     upstreamUrl.searchParams.set('tutorId', tutorId);
     upstreamUrl.searchParams.set('skip', '0');
     upstreamUrl.searchParams.set('take', take);
+    upstreamUrl.searchParams.set('incluirResp2', '1'); // inclui pets em que o cliente é 2º responsável (aparece no inbox dos dois)
 
     const authHeader = await buildAuthHeader(request);
 

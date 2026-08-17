@@ -7,7 +7,7 @@ const dataBR = (d: any) => { try { return new Date(d).toLocaleDateString("pt-BR"
 const ST_LABEL: Record<string, string> = { RASCUNHO: "Rascunho", APROVADO: "Aprovado", RECUSADO: "Recusado", EXPIRADO: "Expirado" };
 
 /**
- * Imprime um orçamento com o timbrado padrão da clínica.
+ * Imprime um orçamento com o TIMBRADO OFICIAL da clínica (o MESMO das receitas/documentos/vendas).
  * O `orc` deve trazer itens + pet + tutor (o backend já inclui via ORC_INCLUDE).
  */
 export async function imprimirOrcamento(orc: any) {
@@ -29,14 +29,10 @@ export async function imprimirOrcamento(orc: any) {
 
   const total = Number(orc?.valorTotal ?? itens.reduce((s, it) => s + Number(it.valorTotal ?? 0), 0));
   const statusLbl = ST_LABEL[String(orc?.status || "")] || orc?.status || "";
+  const meta = [`Emitido em ${dataBR(orc?.createdAt || new Date())}`, orc?.validade ? `Válido até ${dataBR(orc.validade)}` : "", statusLbl ? esc(statusLbl) : ""].filter(Boolean).join(" · ");
 
   const body = `
-    <h2 style="color:#014D5E;margin:0 0 4px">Orçamento</h2>
-    <div style="font-size:12px;color:#6B7280;margin-bottom:14px">
-      Emitido em ${dataBR(orc?.createdAt || new Date())}
-      ${orc?.validade ? ` · Válido até ${dataBR(orc.validade)}` : ""}
-      ${statusLbl ? ` · ${esc(statusLbl)}` : ""}
-    </div>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:12px">${meta}</div>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead>
         <tr style="background:#F3F0E8">

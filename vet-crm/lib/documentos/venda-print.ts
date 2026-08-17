@@ -5,11 +5,13 @@ const esc = (t: any) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&l
 const dataBR = (d: any) => { try { return new Date(d).toLocaleDateString("pt-BR"); } catch { return ""; } };
 
 /**
- * Imprime o COMPROVANTE de uma venda com o timbrado padrão da clínica.
- * `v` aceita o formato da Consulta de vendas (itens, valor, cliente, pet, numeroVenda)
- * ou um objeto montado na comanda ({ itens, valor, petNome, tutorNome }).
+ * Imprime o comprovante de uma venda com o TIMBRADO OFICIAL da clínica (o MESMO das receitas
+ * e documentos — logo + endereço + título + quadro do animal). Padrão único pedido pela Cintia (16/08).
+ * `v` aceita o formato da Consulta de vendas (itens, valor, cliente, pet, numeroVenda) ou um objeto
+ * montado na comanda/PDV ({ itens, valor, petNome/pet, tutorNome/tutor, observacao }).
  */
-export async function imprimirVenda(v: any) {
+export async function imprimirVenda(v: any, opts?: { rotulo?: string }) {
+  const rotulo = opts?.rotulo || "Comprovante de venda";
   const itens: any[] = Array.isArray(v?.itens) ? v.itens : [];
   const linhas = itens.map((it) => {
     const nome = it.descricao || it.nome || it.product?.name || "Item";
@@ -26,14 +28,13 @@ export async function imprimirVenda(v: any) {
 
   const total = Number(v?.valor ?? v?.value ?? v?.valorTotal ?? itens.reduce((s, it) => s + Number(it.valorTotal ?? 0), 0));
   const num = v?.numeroVenda != null ? `#${v.numeroVenda}` : (v?.codigoExterno ? `SV ${v.codigoExterno}` : "");
-  const petNome = v?.petNome || v?.pet?.name || v?.pet || "";
-  const tutorNome = v?.tutorNome || v?.tutor?.name || v?.cliente || "";
+  // pet/tutor: aceita objeto completo (quadro rico) ou só o nome (fallback).
+  const petObj = v?.pet && typeof v.pet === "object" ? v.pet : (v?.petNome || (typeof v?.pet === "string" ? v.pet : "") ? { name: v.petNome || v.pet } : undefined);
+  const tutorObj = v?.tutor && typeof v.tutor === "object" ? v.tutor : (v?.tutorNome || v?.cliente ? { name: v.tutorNome || v.cliente } : undefined);
 
+  const meta = [dataBR(v?.date || v?.createdAt || new Date()), v?.paymentMethod ? esc(v.paymentMethod) : ""].filter(Boolean).join(" · ");
   const body = `
-    <h2 style="color:#014D5E;margin:0 0 4px">Comprovante de venda ${esc(num)}</h2>
-    <div style="font-size:12px;color:#6B7280;margin-bottom:14px">
-      ${dataBR(v?.date || v?.createdAt || new Date())}${v?.paymentMethod ? ` · ${esc(v.paymentMethod)}` : ""}
-    </div>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:12px">${meta}</div>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
       <thead>
         <tr style="background:#F3F0E8">
@@ -46,8 +47,9 @@ export async function imprimirVenda(v: any) {
       <tbody>${linhas || `<tr><td colspan="4" style="padding:10px;text-align:center;color:#9aa0a8">Sem itens</td></tr>`}</tbody>
     </table>
     <div style="text-align:right;margin-top:12px;font-size:15px;font-weight:700;color:#014D5E">Total: ${BRL(total)}</div>
+    ${v?.observacao ? `<div style="margin-top:16px;font-size:12.5px;color:#374151"><b>Observação:</b> ${esc(v.observacao)}</div>` : ""}
     <div style="margin-top:22px;font-size:12px;color:#6B7280">Obrigado pela preferência! 🐾</div>
   `;
 
-  await imprimirDocumento(`Comprovante de venda ${num}`, body, undefined, { pet: petNome ? { name: petNome } : undefined, tutor: tutorNome ? { name: tutorNome } : undefined });
+  await imprimirDocumento(`${rotulo} ${num}`.trim(), body, undefined, { pet: petObj, tutor: tutorObj });
 }

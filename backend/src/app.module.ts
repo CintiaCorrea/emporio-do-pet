@@ -29,6 +29,8 @@ import { ProductsModule } from './modules/products/products.module';
 import { TreatmentsModule } from './modules/treatments/treatments.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { StockModule } from './modules/stock/stock.module';
+import { PedidosCompraModule } from './modules/pedidos-compra/pedidos-compra.module';
+import { PushModule } from './modules/push/push.module';
 import { CommissionsModule } from './modules/commissions/commissions.module';
 import { HospitalizationsModule } from './modules/hospitalizations/hospitalizations.module';
 import { BoxesModule } from './modules/boxes/boxes.module';
@@ -46,6 +48,7 @@ import { ServicosModule } from './modules/servicos/servicos.module';
 import { OrcamentosModule } from './modules/orcamentos/orcamentos.module';
 import { CaixaModule } from './modules/caixa/caixa.module';
 import { PacotesModule } from './modules/pacotes/pacotes.module';
+import { CatalogoModule } from './modules/catalogo/catalogo.module';
 import { CreditoModule } from './modules/credito/credito.module';
 import { ProtocolosModule } from './modules/protocolos/protocolos.module';
 import { RacasModule } from './modules/racas/racas.module';
@@ -56,6 +59,7 @@ import { CadenciasModule } from './modules/cadencias/cadencias.module';
 import { EmailTemplatesModule } from './modules/email-templates/email-templates.module';
 import { PipelinesModule } from './modules/pipelines/pipelines.module';
 import { AvaliacoesModule } from './modules/avaliacoes/avaliacoes.module';
+import { DigestModule } from './modules/digest/digest.module';
 import { MetasModule } from './modules/metas/metas.module';
 import { CampanhasModule } from './modules/campanhas/campanhas.module';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module';
@@ -67,6 +71,7 @@ import { TemplatesModule } from './modules/templates/templates.module';
 import { AutomationsModule } from './modules/automations/automations.module';
 import { WhatsAppModule } from './modules/whatsapp/whatsapp.module';
 import { RemindersModule } from './modules/reminders/reminders.module';
+import { CronHealthModule } from './common/cron-health.module';
 import { InternacaoBoletimModule } from './modules/internacao-boletim/internacao-boletim.module';
 import { WhatsAppCampaignsModule } from './modules/whatsapp-campaigns/whatsapp-campaigns.module';
 import { WhatsAppTemplatesModule } from './modules/whatsapp-templates/whatsapp-templates.module';
@@ -106,6 +111,7 @@ import configuration from './config/configuration';
 
     // Schedule para tarefas agendadas (cron jobs)
     ScheduleModule.forRoot(),
+    CronHealthModule, // saúde das automações (batida-mestre + status no painel)
 
     // BullMQ para filas de processamento assíncrono
     BullModule.forRootAsync({
@@ -172,6 +178,8 @@ import configuration from './config/configuration';
     TreatmentsModule,
     ContactsModule,
     StockModule,
+    PedidosCompraModule,
+    PushModule,
     CommissionsModule,
     AuditModule, // Log de auditoria (interceptor global + consulta)
     AniversariosModule, // Aniversários de pets/tutores
@@ -198,6 +206,7 @@ import configuration from './config/configuration';
     OrcamentosModule,
     CaixaModule,
     PacotesModule,
+    CatalogoModule,
     CreditoModule,
     ProtocolosModule,
     RacasModule,
@@ -205,6 +214,7 @@ import configuration from './config/configuration';
     FornecedoresModule,
     ScriptsModule,
     CadenciasModule,
+    DigestModule,
     EmailTemplatesModule,
     PipelinesModule,
     AvaliacoesModule,

@@ -3,12 +3,14 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   Query,
   UseGuards,
   Logger,
   Res,
+  Req,
   UploadedFile,
   UseInterceptors,
   BadRequestException,
@@ -19,7 +21,7 @@ import { spawn } from 'child_process';
 import { writeFile, readFile, unlink } from 'fs/promises';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { WhatsAppService } from './whatsapp.service';
@@ -197,6 +199,12 @@ export class WhatsAppConversationsController {
     return this.whatsAppService.updateConversation(id, { status: 'CLOSED' });
   }
 
+  // Marca a conversa como "não lida" (lembrete). Abrir a conversa limpa a marca.
+  @Post('conversations/:id/mark-unread')
+  async markUnread(@Param('id') id: string) {
+    return this.whatsAppService.marcarNaoLida(id);
+  }
+
   @Post('conversations/:id/reopen')
   async reopenConversation(
     @CurrentUser() user: JwtUser,
@@ -232,21 +240,121 @@ export class WhatsAppConversationsController {
     });
   }
 
-  // Serve a mídia (imagem/áudio) de uma mensagem, baixada do storage privado.
+  // Serve a mídia (imagem/vídeo/áudio) de uma mensagem, do storage privado.
+  // Suporta Range (206) — vídeo precisa disso pra tocar/avançar no navegador.
+  // ?download=1 força o download (attachment) em vez de abrir inline.
   @Get('messages/:msgId/media')
   async getMessageMedia(
     @Param('msgId') msgId: string,
+    @Req() req: Request,
     @Res() res: Response,
+    @Query('download') download?: string,
   ) {
-    const media = await this.whatsAppService.getMessageMedia(msgId);
+    const range = (req.headers['range'] as string) || undefined;
+    const media = await this.whatsAppService.getMessageMedia(msgId, range);
     if (!media) {
       res.status(404).json({ error: 'Mídia não encontrada' });
       return;
     }
     res.setHeader('Content-Type', media.contentType);
-    res.setHeader('Content-Disposition', 'inline');
+    res.setHeader('Accept-Ranges', 'bytes');
     res.setHeader('Cache-Control', 'private, max-age=300');
+    if (download) {
+      const ext = (media.contentType.split('/')[1] || 'bin').split(';')[0];
+      res.setHeader('Content-Disposition', `attachment; filename="anexo-${msgId.slice(0, 8)}.${ext}"`);
+    } else {
+      res.setHeader('Content-Disposition', 'inline');
+    }
+    if (media.status === 206 && media.contentRange) {
+      res.status(206);
+      res.setHeader('Content-Range', media.contentRange);
+    }
+    res.setHeader('Content-Length', String(media.buffer.length));
     res.send(media.buffer);
+  }
+
+  // Encaminha a mídia desta mensagem para OUTRA conversa.
+  @Post('messages/:msgId/forward')
+  async forwardMedia(@Param('msgId') msgId: string, @Body() body: { conversationId?: string }) {
+    if (!body?.conversationId) throw new BadRequestException('conversationId obrigatório.');
+    const r = await this.whatsAppService.encaminharMidia(msgId, body.conversationId);
+    if (!r.success) throw new BadRequestException(r.error || 'Não consegui encaminhar.');
+    return { success: true };
+  }
+
+  // ===== Biblioteca de figurinhas da clínica =====
+  @Get('stickers')
+  async listStickers() {
+    return this.whatsAppService.listarStickers();
+  }
+
+  @Post('stickers')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 1 * 1024 * 1024 } }))
+  async uploadSticker(@UploadedFile() file: Express.Multer.File, @Body('nome') nome?: string) {
+    if (!file) throw new BadRequestException('Nenhum arquivo enviado.');
+    const r = await this.whatsAppService.salvarSticker(file.buffer, file.mimetype || '', nome);
+    if ('error' in r) throw new BadRequestException(r.error);
+    return r;
+  }
+
+  // Lista as figurinhas que já passaram pelas conversas (pra importar pra biblioteca).
+  @Get('stickers/das-conversas')
+  async listStickersFromChats() {
+    return this.whatsAppService.listarStickersDasConversas();
+  }
+
+  // Importa figurinhas das conversas (por messageId) pra biblioteca.
+  @Post('stickers/importar')
+  async importStickers(@Body() body: { messageIds?: string[] }) {
+    if (!Array.isArray(body?.messageIds) || !body.messageIds.length) {
+      throw new BadRequestException('messageIds obrigatório.');
+    }
+    return this.whatsAppService.importarStickersDasConversas(body.messageIds);
+  }
+
+  // Serve o arquivo de uma figurinha da biblioteca (bucket privado → assinado no backend).
+  @Get('stickers/:id/media')
+  async getStickerMedia(@Param('id') id: string, @Res() res: Response) {
+    const media = await this.whatsAppService.getStickerMedia(id);
+    if (!media) {
+      res.status(404).json({ error: 'Figurinha não encontrada' });
+      return;
+    }
+    res.setHeader('Content-Type', media.contentType);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.setHeader('Content-Length', String(media.buffer.length));
+    res.send(media.buffer);
+  }
+
+  @Delete('stickers/:id')
+  async deleteSticker(@Param('id') id: string) {
+    return this.whatsAppService.removerSticker(id);
+  }
+
+  // Envia uma figurinha DA BIBLIOTECA para a conversa.
+  @Post('conversations/:id/send-sticker')
+  async sendSticker(@Param('id') conversationId: string, @Body() body: { stickerId?: string }) {
+    if (!body?.stickerId) throw new BadRequestException('stickerId obrigatório.');
+    const r = await this.whatsAppService.enviarStickerBiblioteca(conversationId, body.stickerId);
+    if (!r.success) throw new BadRequestException(r.error || 'Não consegui enviar a figurinha.');
+    return { success: true, messageId: r.message?.id };
+  }
+
+  // A equipe reage a uma mensagem com um emoji (envia pela Meta). emoji vazio = remove.
+  @Post('messages/:msgId/react')
+  async reactMessage(@Param('msgId') msgId: string, @Body() body: { emoji?: string }) {
+    const r = await this.whatsAppService.reagirMensagem(msgId, body?.emoji ?? '');
+    if (!r.success) throw new BadRequestException(r.error || 'Não consegui reagir.');
+    return { success: true };
+  }
+
+  // Encaminha VÁRIAS mensagens (selecionadas) para outra conversa.
+  @Post('messages/forward-batch')
+  async forwardBatch(@Body() body: { msgIds?: string[]; conversationId?: string }) {
+    if (!body?.conversationId || !Array.isArray(body?.msgIds) || !body.msgIds.length) {
+      throw new BadRequestException('msgIds e conversationId obrigatórios.');
+    }
+    return this.whatsAppService.encaminharMensagens(body.msgIds.slice(0, 30), body.conversationId);
   }
 
   /**

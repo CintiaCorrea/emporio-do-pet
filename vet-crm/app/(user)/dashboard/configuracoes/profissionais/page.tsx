@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState , useRef} from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
-import EscalaEditor, { parseEsc } from "@/components/agendamentos/EscalaEditor";
 
 type Tipo = "VETERINARIO" | "RECEPCIONISTA" | "ESTAGIARIO" | "GERENTE" | "OUTRO";
 
@@ -241,8 +240,9 @@ export default function ProfissionaisPage() {
               </div>
 
               <div className="md:col-span-2 mt-2 pt-3 border-t" style={{ borderColor: "#E8DFC8" }}>
-                <p className="text-sm font-medium mb-2 flex items-center gap-1.5" style={{ color: "#0E2244" }}>📅 Escala / Jornada</p>
-                <EscalaEditor value={parseEsc(form.escala)} onChange={(e) => setForm({ ...form, escala: e })} allowSobDemanda />
+                <p className="text-sm font-medium mb-1 flex items-center gap-1.5" style={{ color: "#0E2244" }}>📅 Escala / Jornada</p>
+                <p className="text-[12.5px] mb-2" style={{ color: "#6B7A80" }}>A escala de trabalho agora fica num lugar só: em <b>Agenda › Escala</b> (junto com acesso por horário e plantão).</p>
+                <a href="/dashboard/erp/agendamentos/escala" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#009AAC", textDecoration: "none" }}>✏️ Editar escala da equipe →</a>
               </div>
             </div>
             <div className="flex justify-end gap-2 mt-5">

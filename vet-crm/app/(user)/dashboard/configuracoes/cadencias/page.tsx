@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 
-type Gatilho = "AGENDAMENTO_CRIADO" | "AGENDAMENTO_CONFIRMADO" | "ATENDIMENTO_FINALIZADO" | "EXAME_SOLICITADO" | "EXAME_PRONTO" | "LEAD_NOVO" | "LEAD_INATIVO_7D" | "PACOTE_ATIVADO" | "PACOTE_PROXIMO_DO_FIM" | "NIVER_PET" | "NIVER_TUTOR" | "MANUAL";
+type Gatilho = "AGENDAMENTO_CRIADO" | "AGENDAMENTO_CONFIRMADO" | "ATENDIMENTO_FINALIZADO" | "EXAME_SOLICITADO" | "EXAME_PRONTO" | "LEAD_NOVO" | "LEAD_INATIVO_7D" | "PACOTE_ATIVADO" | "PACOTE_PROXIMO_DO_FIM" | "CLIENTE_INATIVO_90D" | "POS_CIRURGICO" | "CLIENTE_NOVO" | "PET_PALIATIVO" | "PET_FALECEU" | "NIVER_PET" | "NIVER_TUTOR" | "MANUAL";
 type TipoPasso = "WHATSAPP" | "EMAIL" | "TAREFA_INTERNA" | "AGUARDAR";
 type Unidade = "MINUTOS" | "HORAS" | "DIAS";
 
@@ -17,6 +17,7 @@ const GATILHO_LABEL: Record<Gatilho, string> = {
   ATENDIMENTO_FINALIZADO: "Atendimento finalizado", EXAME_SOLICITADO: "Exame solicitado",
   EXAME_PRONTO: "Exame pronto", LEAD_NOVO: "Lead novo", LEAD_INATIVO_7D: "Lead inativo 7d",
   PACOTE_ATIVADO: "Pacote ativado", PACOTE_PROXIMO_DO_FIM: "Pacote acabando",
+  CLIENTE_INATIVO_90D: "Cliente inativo 90 dias", POS_CIRURGICO: "Pós-cirúrgico", CLIENTE_NOVO: "Cliente novo (boas-vindas)", PET_PALIATIVO: "Pet em cuidados paliativos", PET_FALECEU: "Pet faleceu (condolências)",
   NIVER_PET: "Aniversário pet", NIVER_TUTOR: "Aniversário tutor", MANUAL: "Manual",
 };
 const TIPO_LABEL: Record<TipoPasso, string> = { WHATSAPP: "WhatsApp", EMAIL: "E-mail", TAREFA_INTERNA: "Tarefa", AGUARDAR: "Aguardar" };
@@ -26,7 +27,7 @@ const EMPTY_P: any = { ordem: 1, tipo: "WHATSAPP", titulo: "", conteudo: "", atr
 export default function CadenciasPage() {
   const [list, setList] = useState<Cadencia[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showInactive, setShowInactive] = useState(false);
+  const [showInactive, setShowInactive] = useState(true);
   const [search, setSearch] = useState("");
   const [filterGat, setFilterGat] = useState<"ALL" | Gatilho>("ALL");
   const [expanded, setExpanded] = useState<string | null>(null);

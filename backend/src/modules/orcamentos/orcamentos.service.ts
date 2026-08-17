@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrcamentoDto } from './dto/create-orcamento.dto';
 import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
 import { AppointmentsService } from '../appointments/appointments.service';
+import { ExamesService } from '../exames/exames.service';
 
 function calcItemTotal(it: any): number {
   const q = Number(it.quantidade ?? 1);
@@ -28,6 +29,7 @@ export class OrcamentosService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly appointmentsService: AppointmentsService,
+    private readonly examesService: ExamesService,
   ) {}
 
   // include padrão — traz itens + autor + pet/tutor (necessários p/ impressão com timbrado)
@@ -85,7 +87,7 @@ export class OrcamentosService {
     const itens = await this.resolverItens(mapItens(dto.itens));
     const valorTotal = itens.reduce((s, it) => s + it.valorTotal, 0);
 
-    return this.prisma.orcamento.create({
+    const orcamento = await this.prisma.orcamento.create({
       data: {
         petId: dto.petId,
         tutorId: dto.tutorId ?? pet.tutorId ?? null,
@@ -97,6 +99,19 @@ export class OrcamentosService {
       },
       include: { itens: true },
     });
+
+    // Registro-companheiro (orcexa_) guarda a IDENTIDADE dos exames — na conversão inicia o ciclo
+    // SEM depender de casar por nome (robusto p/ vários usuários).
+    const examItens = (dto.itens ?? []).filter((it: any) => String(it.tipoItem || '').toUpperCase() === 'EXAME' || it.catalogoExameId);
+    for (const it of examItens) {
+      try {
+        await this.prisma.listaItem.create({ data: {
+          lista: `orcexa_${orcamento.id}`,
+          valor: JSON.stringify({ descricao: it.descricao ?? null, catalogoExameId: it.catalogoExameId ?? null, fornecedorId: it.fornecedorId ?? null, valorUnitario: Number(it.valorUnitario) || null, custoUnitario: (it as any).custoUnitario != null ? Number((it as any).custoUnitario) : null }),
+        } });
+      } catch { /* não quebra o orçamento */ }
+    }
+    return orcamento;
   }
 
   // Resolve os FKs dos itens: um id só vira servicoId se existir em Servico; se for produto vai
@@ -163,27 +178,48 @@ export class OrcamentosService {
     const userId = dto.userId ?? currentUserId;
     if (!userId) throw new BadRequestException('Profissional (userId) é obrigatório');
 
+    // Identidade dos exames do orçamento (orcexa_) carregada ANTES — pra injetar fornecedor + custo do
+    // lab no AppointmentItem (alimenta o a-pagar) e depois iniciar o ciclo do exame.
+    let examItemsRaw: any[] = [];
+    const examPorNome: Record<string, any> = {};
+    try {
+      const orcExa = await this.prisma.listaItem.findMany({ where: { lista: `orcexa_${id}` }, select: { valor: true } });
+      examItemsRaw = orcExa.map((r) => { try { return JSON.parse(r.valor); } catch { return null; } }).filter(Boolean);
+      for (const e of examItemsRaw) { if (e?.descricao) examPorNome[String(e.descricao).toLowerCase().trim()] = e; }
+    } catch { /* sem companheiro */ }
+
     const appointment = await this.appointmentsService.create({
       tutorId,
       petId: orc.petId,
       userId,
       date: dto.date ?? new Date().toISOString(),
       value: orc.valorTotal,
-      items: orc.itens.map((it) => ({
-        servicoId: it.servicoId ?? undefined,
-        productId: (it as any).productId ?? undefined,
-        descricao: it.descricao ?? undefined,
-        quantidade: it.quantidade,
-        valorUnitario: it.valorUnitario,
-        desconto: it.desconto,
-        valorTotal: it.valorTotal,
-      })),
+      items: orc.itens.map((it) => {
+        const ex = examPorNome[String(it.descricao || '').toLowerCase().trim()];
+        return {
+          servicoId: it.servicoId ?? undefined,
+          productId: (it as any).productId ?? undefined,
+          descricao: it.descricao ?? undefined,
+          quantidade: it.quantidade,
+          valorUnitario: it.valorUnitario,
+          desconto: it.desconto,
+          valorTotal: it.valorTotal,
+          ...(ex ? { fornecedorId: ex.fornecedorId ?? undefined, custoUnitario: ex.custoUnitario != null ? Number(ex.custoUnitario) : undefined } : {}),
+        };
+      }),
     } as any);
 
     await this.prisma.orcamento.update({
       where: { id },
       data: { appointmentId: (appointment as any).id, status: 'APROVADO' },
     });
+
+    // 🔬 Converteu o orçamento → inicia o ciclo dos exames dele no Kanban (usa o companheiro orcexa_).
+    try {
+      const examItems = examItemsRaw.map((e) => ({ ...e, origem: 'ORCAMENTO' }));
+      if (examItems.length) await this.examesService.iniciarExamesDaVenda(orc.petId, examItems as any[]);
+    } catch { /* não quebra a conversão */ }
+
     return appointment;
   }
 }

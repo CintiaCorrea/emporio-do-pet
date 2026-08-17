@@ -1,5 +1,6 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
+import { setInternasAberta } from "@/lib/ui/inboxPresence";
 
 import { useEffect, useMemo, useState, useRef, Fragment, type ReactNode } from "react";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -33,9 +34,11 @@ type ListFilter = "todos" | "leads" | "clientes";
 interface Conversation {
   id: string;
   contactName: string | null;
+  contactPushName?: string | null; // nome que a pessoa usa NO WhatsApp (perfil) — quem está digitando
   contactNumber: string;
   lastMessageAt: string;
   unreadCount: number;
+  manualUnread?: boolean; // marcada como "não lida" à mão
   status: string;
   tutor?: { id: string; name: string } | null;
   leadMotivoPerda?: string | null; // motivo da perda (lead sem cliente marcado como Perdido)
@@ -61,6 +64,14 @@ interface Message {
   replyToWaMessageId?: string | null;
   /** metadados (ex.: latitude/longitude de uma localização) */
   metadata?: any;
+  /** status de entrega: SENT/DELIVERED/READ/FAILED (mostra os ✓✓) */
+  status?: string | null;
+  /** true quando esta mensagem foi encaminhada */
+  encaminhado?: boolean;
+  /** emoji com que o CLIENTE reagiu a esta mensagem */
+  reaction?: string | null;
+  /** emoji com que a EQUIPE reagiu a esta mensagem */
+  myReaction?: string | null;
 }
 
 interface Pet {
@@ -137,6 +148,25 @@ function renderWa(texto: string): ReactNode {
     <span key={i}>{i > 0 && <br />}{inlineWa(linha)}</span>
   ));
 }
+// Igual ao renderWa, mas realça (grifo amarelo) as ocorrências do termo buscado.
+function renderWaHL(texto: string, termo: string): ReactNode {
+  const t = (termo || "").trim().toLowerCase();
+  if (!t) return renderWa(texto);
+  return (texto || "").split("\n").map((linha, i) => {
+    const parts: ReactNode[] = [];
+    let rest = linha;
+    let guard = 0;
+    while (guard++ < 300) {
+      const idx = rest.toLowerCase().indexOf(t);
+      if (idx < 0) { if (rest) parts.push(<Fragment key={parts.length}>{inlineWa(rest)}</Fragment>); break; }
+      if (idx > 0) parts.push(<Fragment key={parts.length}>{inlineWa(rest.slice(0, idx))}</Fragment>);
+      parts.push(<mark key={parts.length} style={{ background: "#FFD84D", color: "inherit", borderRadius: "3px", padding: "0 1px" }}>{rest.slice(idx, idx + t.length)}</mark>);
+      rest = rest.slice(idx + t.length);
+      if (!rest) break;
+    }
+    return <span key={i}>{i > 0 && <br />}{parts}</span>;
+  });
+}
 
 export default function InboxUnificadoPage() {
   usePageTitle("Inbox Meta", "Conversas WhatsApp Business via API Meta");
@@ -165,6 +195,10 @@ export default function InboxUnificadoPage() {
   const [convError, setConvError] = useState<string | null>(null);
   const [sessaoExpirada, setSessaoExpirada] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null); // âncora p/ rolar até a última mensagem
+  const msgScrollRef = useRef<HTMLDivElement>(null); // container rolável das mensagens (p/ saber se está no fim)
+  const stickBottomRef = useRef(true); // true = usuário está no fim → pode rolar; false = subiu pra ler → NÃO puxa
+  const prevSelRef = useRef<string | null>(null); // detecta TROCA de conversa (aí sim rola pro fim ao abrir)
+  const internasEndRef = useRef<HTMLDivElement>(null); // idem, nas mensagens internas
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [phoneParam, setPhoneParam] = useState(""); // ?phone= vindo dos botões "💬 WhatsApp"
@@ -172,6 +206,13 @@ export default function InboxUnificadoPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageInput, setMessageInput] = useState("");
   const [respondendo, setRespondendo] = useState<Message | null>(null); // mensagem sendo citada
+  // Buscar DENTRO da conversa aberta (como o WhatsApp): 🔍 no topo → barrinha com contador + setas.
+  const [buscaChatOpen, setBuscaChatOpen] = useState(false);
+  const [buscaChat, setBuscaChat] = useState("");
+  const [buscaIdx, setBuscaIdx] = useState(0);
+  const msgRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  // Reagir a uma mensagem com emoji (como o WhatsApp): paleta que abre ao passar o mouse.
+  const [reagindoId, setReagindoId] = useState<string | null>(null);
   const [anexando, setAnexando] = useState(false);
   const [agendarOpen, setAgendarOpen] = useState(false); // pop-up de agendar consulta
   // Boletim de fisioterapia (abre a ficha de boletim do pet como popup)
@@ -210,6 +251,7 @@ export default function InboxUnificadoPage() {
       setMessageInput("");
       setRespondendo(null);
       setRefreshTick((t) => t + 1);
+      setMsgTick((t) => t + 1); // recarrega o thread aberto → o anexo enviado aparece na hora
       toast.success("Anexo enviado");
     } catch (e: any) {
       // Erro do Meta (janela de 24h, formato, tamanho) chega inteiro aqui — melhor
@@ -217,6 +259,42 @@ export default function InboxUnificadoPage() {
       toast.error(String(e?.message || e).slice(0, 140));
     } finally {
       setAnexando(false);
+    }
+  }
+
+  // === Figurinhas: biblioteca da clínica (Configurações › Figurinhas) enviadas com 1 clique ===
+  const [stickersOpen, setStickersOpen] = useState(false);
+  const [stickersList, setStickersList] = useState<{ id: string; nome?: string | null; url: string }[]>([]);
+  const [stickersCarregados, setStickersCarregados] = useState(false);
+  const [enviandoSticker, setEnviandoSticker] = useState(false);
+  async function abrirStickers() {
+    setStickersOpen((v) => !v);
+    if (stickersCarregados) return;
+    try {
+      const r = await fetch("/api/whatsapp/stickers", { cache: "no-store" });
+      const d = await r.json().catch(() => []);
+      setStickersList(Array.isArray(d) ? d : []);
+      setStickersCarregados(true);
+    } catch { /* deixa vazio; a tela mostra o aviso */ }
+  }
+  async function enviarSticker(stickerId: string) {
+    if (!selectedId || enviandoSticker) return;
+    setEnviandoSticker(true);
+    try {
+      const r = await fetch(`/api/whatsapp/conversations/${selectedId}/send-sticker`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stickerId }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j?.message || j?.error || "falha ao enviar");
+      setStickersOpen(false);
+      setRefreshTick((t) => t + 1);
+      setMsgTick((t) => t + 1);
+    } catch (e: any) {
+      toast.error(String(e?.message || e).slice(0, 140));
+    } finally {
+      setEnviandoSticker(false);
     }
   }
   // === Gravar áudio (microfone) e enviar como mensagem de voz ===
@@ -337,6 +415,47 @@ export default function InboxUnificadoPage() {
   const MSG_ENDERECO = "📍 *Empório do Pet*\nAv. Eng. Leal Lima Verde, 205\nEdson Queiroz — Fortaleza/CE · CEP 60833-175\n\n🗺️ Como chegar:\nhttps://maps.google.com/?q=-3.7899632,-38.4759969";
   const [encaminharOpen, setEncaminharOpen] = useState(false);
   const [resolvendo, setResolvendo] = useState(false);
+  // Encaminhar mídia/texto (uma ou VÁRIAS selecionadas) para outra conversa
+  const [fwdMsgId, setFwdMsgId] = useState<string | null>(null);
+  const [fwdBatch, setFwdBatch] = useState(false);
+  const [fwdBusca, setFwdBusca] = useState("");
+  const [fwdEnviando, setFwdEnviando] = useState(false);
+  const [selMode, setSelMode] = useState(false);
+  const [selIds, setSelIds] = useState<Set<string>>(new Set());
+  const toggleSel = (id: string) => setSelIds((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const entrarSelecao = (id: string) => { setSelMode(true); setSelIds(new Set([id])); };
+  const sairSelecao = () => { setSelMode(false); setSelIds(new Set()); };
+  // Encaminhar UMA mensagem: também passa pelo lote (assim texto e mídia funcionam igual).
+  const abrirEncaminhar = (msgId: string) => { setSelIds(new Set([msgId])); setFwdMsgId(null); setFwdBatch(true); setFwdBusca(""); };
+  const abrirEncaminharLote = () => { if (!selIds.size) return; setFwdMsgId(null); setFwdBatch(true); setFwdBusca(""); };
+  const encaminharPara = async (conversationId: string, nome: string) => {
+    setFwdEnviando(true);
+    const t = toast.loading("Encaminhando…");
+    try {
+      let ok = false, msg = "";
+      if (fwdBatch) {
+        const r = await fetch(`/api/whatsapp/messages/forward-batch`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ msgIds: [...selIds], conversationId }) });
+        const d = await r.json().catch(() => null);
+        ok = r.ok && (d?.enviados ?? 0) > 0;
+        msg = ok ? `${d.enviados} mensagem(ns) encaminhada(s) para ${nome} ✓${d.falhas ? ` (${d.falhas} falhou/falharam)` : ""}` : (d?.erro || d?.message || "Não consegui encaminhar (janela de 24h?).");
+      } else if (fwdMsgId) {
+        const r = await fetch(`/api/whatsapp/messages/${fwdMsgId}/forward`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ conversationId }) });
+        const d = await r.json().catch(() => null);
+        ok = r.ok && d?.success; msg = ok ? `Encaminhado para ${nome} ✓` : (d?.message || "Não consegui encaminhar (janela de 24h?).");
+      }
+      if (ok) { toast.success(msg, { id: t }); setFwdMsgId(null); setFwdBatch(false); sairSelecao(); }
+      else toast.error(msg, { id: t });
+    } catch { toast.error("Erro ao encaminhar.", { id: t }); } finally { setFwdEnviando(false); }
+  };
+  // ✓ enviado · ✓✓ entregue · ✓✓ azul lido · ⚠️ falhou (dados já vêm do backend)
+  const statusTick = (m: any) => {
+    if (m.direction !== "OUTBOUND") return null;
+    if (m.status === "READ") return <span title="Lida" style={{ color: "#8DE0FF" }}>✓✓</span>;
+    if (m.status === "DELIVERED") return <span title="Entregue">✓✓</span>;
+    if (m.status === "FAILED") return <span title="Falhou" style={{ color: "#ffd0d0" }}>⚠️</span>;
+    if (m.status === "SENT") return <span title="Enviada">✓</span>;
+    return null;
+  };
 
   // Controles IA / Agentes
   const [agentes, setAgentes] = useState<Array<{id: string; name: string}>>([]);
@@ -372,6 +491,35 @@ export default function InboxUnificadoPage() {
   const [internasConvSel, setInternasConvSel] = useState<string | null>(null);
   const [internasReply, setInternasReply] = useState("");
   const [internasCompose, setInternasCompose] = useState(false);
+
+  // Aba Internas aberta? → o RecadoPopup não popa recado interno enquanto a pessoa está aqui.
+  useEffect(() => { setInternasAberta(tab === "internas"); return () => setInternasAberta(false); }, [tab]);
+
+  // Colar PRINT (imagem do clipboard) direto na conversa interna → vira anexo pra enviar.
+  function colarNasInternas(e: any) {
+    const items = e?.clipboardData?.items; if (!items) return;
+    for (const it of Array.from(items) as any[]) {
+      if (it.type && it.type.startsWith("image/")) {
+        const blob = it.getAsFile();
+        if (blob) {
+          e.preventDefault();
+          const nome = (blob.name && blob.name !== "image.png") ? blob.name : `captura-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.png`;
+          uploadDocInterno(new File([blob], nome, { type: blob.type || "image/png" }));
+        }
+        return;
+      }
+    }
+  }
+
+  // Divisórias de data (estilo WhatsApp) nas mensagens internas.
+  const mesmoDia = (a: string, b: string) => { const x = new Date(a), y = new Date(b); return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate(); };
+  const rotuloDia = (s: string) => {
+    const d = new Date(s); const hoje = new Date(); const ont = new Date(); ont.setDate(hoje.getDate() - 1);
+    const eq = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    if (eq(d, hoje)) return "Hoje";
+    if (eq(d, ont)) return "Ontem";
+    return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  };
 
   // Adicionar atendimento
   const [atendModalOpen, setAtendModalOpen] = useState(false);
@@ -465,9 +613,11 @@ export default function InboxUnificadoPage() {
         const safe = raw.map((c: any) => ({
           id: c?.id || Math.random().toString(),
           contactName: c?.contactName || null,
+          contactPushName: c?.contactPushName || null,
           contactNumber: c?.contactPhone || c?.contactNumber || "",
           lastMessageAt: c?.lastMessageAt || c?.createdAt || new Date().toISOString(),
           unreadCount: typeof c?.unreadCount === "number" ? c.unreadCount : 0,
+          manualUnread: !!c?.manualUnread,
           status: c?.status || "OPEN",
           tutor: c?.tutor ? { id: c.tutor.id, name: c.tutor.name } : null,
           assignedUser: c?.assignedUser ? { id: c.assignedUser.id, name: c.assignedUser.name } : null,
@@ -525,20 +675,25 @@ export default function InboxUnificadoPage() {
         const list = Array.isArray(data?.data) ? data.data
                     : Array.isArray(data?.messages) ? data.messages
                     : Array.isArray(data) ? data : [];
-        if (!cancel) setMessages(list.map((m: any) => ({
+        const next = list.map((m: any) => ({
           id: m?.id || Math.random().toString(),
           direction: m?.direction === "OUTBOUND" ? "OUTBOUND" : "INBOUND",
           content: typeof m?.content === "string" ? m.content : null,
           type: m?.type || "TEXT",
           createdAt: m?.createdAt || new Date().toISOString(),
-          fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent, mediaType: m?.mediaType || null, hasMedia: !!(m?.mediaCloudUrl || m?.mediaUrl),
+          fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent, mediaType: m?.mediaType || null, hasMedia: !!(m?.mediaCloudUrl || m?.mediaUrl), status: m?.status || null, encaminhado: !!m?.metadata?.encaminhado,
           waMessageId: m?.waMessageId || null,
-          replyToWaMessageId: m?.metadata?.replyToWaMessageId || null, metadata: m?.metadata || null})));
+          reaction: m?.reaction ?? null, myReaction: m?.myReaction ?? null,
+          replyToWaMessageId: m?.metadata?.replyToWaMessageId || null, metadata: m?.metadata || null }));
+        // Só troca o array se ALGO mudou (id/status/reação) — senão mantém a MESMA referência.
+        // Sem isso, o poll de 8s recriava tudo e o efeito de scroll te jogava pro fim toda vez ("pulo").
+        const sig = (arr: any[]) => arr.map((m) => `${m.id}:${m.status || ""}:${m.myReaction || ""}:${m.reaction || ""}:${m.hasMedia ? 1 : 0}`).join("|");
+        if (!cancel) setMessages((prev) => (sig(prev) === sig(next) ? prev : next));
       } catch { /* tropeço: mantém as mensagens que já estão na tela */ }
     };
     // Abrir a conversa já zera o unreadCount no servidor (getMessages) — avisa o menu p/ sumir o badge na hora.
     carregar().then(() => { if (!cancel) window.dispatchEvent(new Event("whatsapp:read")); });
-    const id = setInterval(carregar, 30000);
+    const id = setInterval(carregar, 8000);
     return () => { cancel = true; clearInterval(id); };
   }, [selectedId, msgTick]);
 
@@ -557,8 +712,13 @@ export default function InboxUnificadoPage() {
     return () => { cancel = true; };
   }, [selTutorId]);
 
-  // Ao abrir uma conversa ou chegar mensagem nova, rola até a última mensagem.
+  // Rola até a última mensagem SÓ quando faz sentido: (a) você abriu/trocou de conversa, ou
+  // (b) você já está no fim (acompanhando). Se subiu pra ler o histórico, NÃO puxa mais → fim do "pulo".
   useEffect(() => {
+    const trocouConversa = prevSelRef.current !== selectedId;
+    prevSelRef.current = selectedId;
+    if (trocouConversa) stickBottomRef.current = true; // abrir conversa sempre começa no fim
+    if (!stickBottomRef.current) return; // usuário subiu pra ler → preserva a posição
     const t = setTimeout(() => msgEndRef.current?.scrollIntoView({ block: "end" }), 60);
     return () => clearTimeout(t);
   }, [messages, selectedId]);
@@ -608,6 +768,13 @@ export default function InboxUnificadoPage() {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId }),
       });
       if (!r.ok) throw new Error();
+      // #7 — garante o AVISO pra quem recebeu pelo mesmo caminho do recado (que já popa):
+      // manda um recado interno com o link da conversa. Best-effort.
+      const cliente = selectedConv?.tutor?.name || selectedConv?.contactName || selectedConv?.contactNumber || "um cliente";
+      fetch(`/api/internal-notes`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toUserId: userId, content: `📨 Te passei a conversa de ${cliente} — abra o inbox pra atender.`, conversationId: selectedId }),
+      }).catch(() => undefined);
       toast.success(`Conversa transferida para ${nome}`);
       setEncaminharOpen(false);
       setRefreshTick((t) => t + 1);
@@ -618,6 +785,70 @@ export default function InboxUnificadoPage() {
   const [exportOpen, setExportOpen] = useState(false);
   const [exportAuto, setExportAuto] = useState(true);
   const [exportando, setExportando] = useState(false);
+
+  // === Galeria de mídia da conversa (fotos/vídeos/áudios/docs juntos, como o WhatsApp) ===
+  type GalItem = { id: string; type: string; createdAt: string; content?: string | null };
+  const [galeriaOpen, setGaleriaOpen] = useState(false);
+  const [galeriaLoading, setGaleriaLoading] = useState(false);
+  const [galeriaItens, setGaleriaItens] = useState<GalItem[]>([]);
+  const [galeriaFiltro, setGaleriaFiltro] = useState<"todos" | "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT">("todos");
+  async function abrirGaleria() {
+    if (!selectedId) return;
+    setGaleriaOpen(true);
+    setGaleriaFiltro("todos");
+    setGaleriaLoading(true);
+    setGaleriaItens([]);
+    try {
+      const r = await fetch(`/api/whatsapp/conversations/${selectedId}/messages?limit=3000`);
+      const d = await r.json().catch(() => ({}));
+      const lista: any[] = Array.isArray(d?.data) ? d.data : Array.isArray(d?.messages) ? d.messages : Array.isArray(d) ? d : [];
+      const midias = lista
+        .filter((m) => m?.hasMedia && ["IMAGE", "VIDEO", "AUDIO", "DOCUMENT", "STICKER"].includes(m?.type))
+        .map((m) => ({ id: m.id, type: m.type === "STICKER" ? "IMAGE" : m.type, createdAt: m.createdAt || m.sentAt, content: m.content }))
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      setGaleriaItens(midias);
+    } catch {
+      toast.error("Não foi possível carregar a galeria.");
+    } finally {
+      setGaleriaLoading(false);
+    }
+  }
+
+  // A equipe reage a uma mensagem. Clicar no MESMO emoji remove a reação.
+  const EMOJIS_REACAO = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+  async function reagir(msgId: string, emoji: string) {
+    const atual = messages.find((m) => m.id === msgId)?.myReaction ?? null;
+    const novo = atual === emoji ? "" : emoji;
+    setReagindoId(null);
+    setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, myReaction: novo || null } : m)));
+    try {
+      const r = await fetch(`/api/whatsapp/messages/${msgId}/react`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emoji: novo }),
+      });
+      if (!r.ok) throw new Error();
+    } catch {
+      setMessages((prev) => prev.map((m) => (m.id === msgId ? { ...m, myReaction: atual } : m)));
+      toast.error("Não consegui enviar a reação.");
+    }
+  }
+
+  // Marca a conversa aberta como "não lida" (lembrete) e volta pra lista (senão o poll reabre e limpa).
+  async function marcarConversaNaoLida() {
+    if (!selectedId) return;
+    const id = selectedId;
+    setHeaderMenuOpen(false);
+    setConversations((prev) => prev.map((c) => (c.id === id ? { ...c, manualUnread: true, unreadCount: c.unreadCount || 0 } : c)));
+    setSelectedId(null);
+    try {
+      await fetch(`/api/whatsapp/conversations/${id}/mark-unread`, { method: "POST" });
+      setRefreshTick((t) => t + 1);
+      toast.success("Marcada como não lida");
+    } catch {
+      toast.error("Não consegui marcar como não lida.");
+    }
+  }
 
   function ehMsgAutomatica(m: any): boolean {
     const meta = m?.metadata || {};
@@ -793,7 +1024,35 @@ export default function InboxUnificadoPage() {
 
   const selectedConv = conversations.find((c) => c.id === selectedId);
   const selectedPet = tutor?.pets?.find((p) => p.id === selectedPetId);
+
+  // Busca na conversa: ids das mensagens (em ordem) que contêm o termo.
+  const buscaMatches = useMemo(() => {
+    const t = buscaChat.trim().toLowerCase();
+    if (!t) return [] as string[];
+    return messages.filter((m) => (m.content || "").toLowerCase().includes(t)).map((m) => m.id);
+  }, [messages, buscaChat]);
+  // Ao mudar o termo (ou abrir), começa pelo resultado mais RECENTE (último), como o WhatsApp.
+  useEffect(() => {
+    if (buscaChatOpen && buscaMatches.length) setBuscaIdx(buscaMatches.length - 1);
+  }, [buscaChat, buscaChatOpen, buscaMatches.length]);
+  // Rola até o resultado atual e o realça.
+  useEffect(() => {
+    if (!buscaChatOpen || !buscaMatches.length) return;
+    const el = msgRefs.current[buscaMatches[buscaIdx]];
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [buscaIdx, buscaMatches, buscaChatOpen]);
+  // Trocar de conversa fecha a busca.
+  useEffect(() => { setBuscaChatOpen(false); setBuscaChat(""); }, [selectedId]);
   const primaryPhone = tutor?.contacts?.find((c) => c.isPrimary)?.number || tutor?.contacts?.[0]?.number || selectedConv?.contactNumber;
+
+  // ⏱️ Janela de 24h do WhatsApp: só dá pra mandar TEXTO LIVRE se o cliente respondeu nas últimas 24h.
+  // Fora disso o Meta EXIGE um MODELO (template) aprovado. Avisamos ANTES de a pessoa tentar (e recebe erro).
+  const janelaAberta = useMemo(() => {
+    const ins = messages.filter((m) => m.direction === "INBOUND" && m.createdAt);
+    if (!ins.length) return false; // cliente nunca respondeu → precisa de modelo
+    const ult = Math.max(...ins.map((m) => new Date(m.createdAt).getTime()));
+    return Date.now() - ult < 24 * 60 * 60 * 1000;
+  }, [messages]);
 
   const sendMessage = async (textOverride?: string) => {
     const raw = (textOverride ?? messageInput).trim();
@@ -846,6 +1105,7 @@ export default function InboxUnificadoPage() {
         createdAt: m?.createdAt || new Date().toISOString(),
         fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent, mediaType: m?.mediaType || null, hasMedia: !!(m?.mediaCloudUrl || m?.mediaUrl),
           waMessageId: m?.waMessageId || null,
+          reaction: m?.reaction ?? null, myReaction: m?.myReaction ?? null,
           replyToWaMessageId: m?.metadata?.replyToWaMessageId || null, metadata: m?.metadata || null})));
     } catch (e) { console.error(e); }
   };
@@ -1098,6 +1358,14 @@ export default function InboxUnificadoPage() {
     arr.sort((a, b) => new Date(b.msgs[b.msgs.length - 1]?.createdAt || 0).getTime() - new Date(a.msgs[a.msgs.length - 1]?.createdAt || 0).getTime());
     return arr;
   }, [internasRecebidas, meId]);
+
+  // Abre a conversa interna já na ÚLTIMA mensagem (rola pro fim ao abrir e quando chega msg nova).
+  const nMsgsInternaAtiva = useMemo(() => internasConversas.find((x) => x.userId === internasConvSel)?.msgs.length || 0, [internasConversas, internasConvSel]);
+  useEffect(() => {
+    if (tab !== "internas" || !internasConvSel) return;
+    const t = setTimeout(() => internasEndRef.current?.scrollIntoView({ block: "end" }), 60);
+    return () => clearTimeout(t);
+  }, [tab, internasConvSel, nMsgsInternaAtiva]);
 
   const abrirConversaInterna = async (c: any) => {
     setInternasConvSel(c.userId);
@@ -1386,8 +1654,9 @@ export default function InboxUnificadoPage() {
                 const isLead = !c.tutor?.id;
                 const isSel = c.id === selectedId;
                 const isBC = c.source === "BOTCONVERSA" || c.metadata?.source === "BOTCONVERSA";
-                const naoLida = (c.unreadCount || 0) > 0;
-                const nome = c.tutor?.name || c.contactName || c.contactNumber;
+                const naoLida = (c.unreadCount || 0) > 0 || !!c.manualUnread;
+                // Mostra o nome da PESSOA do número (perfil do WhatsApp) — não o do cliente cadastrado.
+                const nome = c.contactPushName || c.contactName || c.tutor?.name || c.contactNumber;
                 // Prévia: "Você: ..." quando a última foi nossa; mídia vira rótulo amigável.
                 const lm = c.lastMessage;
                 const previa = (() => {
@@ -1415,7 +1684,7 @@ export default function InboxUnificadoPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className={`text-[12.5px] truncate ${naoLida ? "font-bold text-[#0E2244]" : "font-medium text-[#0E2244]"}`}
-                          title={c.tutor?.name && c.contactName && c.contactName !== c.tutor.name ? `No WhatsApp: ${c.contactName}` : undefined}>{nome}</span>
+                          title={c.tutor?.name && c.tutor.name !== nome ? `Cliente cadastrado: ${c.tutor.name}` : undefined}>{nome}</span>
                         {atrasada
                           ? <span title={`Cliente esperando resposta há ${esperaLbl}`} className="ml-auto text-[10px] font-bold text-white bg-[#CC3366] rounded-full px-1.5 py-0.5 animate-pulse whitespace-nowrap flex-shrink-0">⏰ {esperaLbl}</span>
                           : <span className="ml-auto text-[10px] text-[#A7ADA8] whitespace-nowrap flex-shrink-0">{c.lastMessageAt ? timeAgo(c.lastMessageAt) : ""}</span>}
@@ -1437,7 +1706,11 @@ export default function InboxUnificadoPage() {
                             👤 {c.assignedUser.id === meId ? "Você" : (c.assignedUser.name || "").split(" ")[0]}
                           </span>
                         )}
-                        {naoLida && <span className="ml-auto bg-[#009AAC] text-white text-[9px] min-w-[18px] h-[18px] px-1 rounded-full font-bold flex items-center justify-center">{c.unreadCount}</span>}
+                        {naoLida && (
+                          (c.unreadCount || 0) > 0
+                            ? <span className="ml-auto bg-[#009AAC] text-white text-[9px] min-w-[18px] h-[18px] px-1 rounded-full font-bold flex items-center justify-center">{c.unreadCount}</span>
+                            : <span className="ml-auto bg-[#009AAC] w-[10px] h-[10px] rounded-full" title="Marcada como não lida" />
+                        )}
                       </div>
                     </div>
                   </button>
@@ -1461,11 +1734,11 @@ export default function InboxUnificadoPage() {
                   <div className="flex items-center gap-2.5">
                     <button onClick={() => setSelectedId(null)} title="Voltar para a lista" className="md:hidden -ml-1 mr-0.5 w-8 h-8 rounded-lg text-[#5F5E5A] hover:bg-gray-100 flex items-center justify-center text-lg shrink-0">‹</button>
                     <div className="w-8 h-8 rounded-full bg-[#009AAC] text-white flex items-center justify-center text-[11px] font-medium">
-                      {getInitials(selectedConv?.tutor?.name || selectedConv?.contactName)}
+                      {getInitials(selectedConv?.contactPushName || selectedConv?.contactName || selectedConv?.tutor?.name)}
                     </div>
                     <div>
                       <div className="text-xs text-[#0E2244] font-medium flex items-center gap-1.5">
-                        {selectedConv?.tutor?.name || selectedConv?.contactName || selectedConv?.contactNumber || "Sem nome"}
+                        {selectedConv?.contactPushName || selectedConv?.contactName || selectedConv?.tutor?.name || selectedConv?.contactNumber || "Sem nome"}
                         {selectedConv?.tutor?.id && (
                           <button onClick={() => window.open(`/dashboard/erp/tutores/${selectedConv.tutor!.id}`, "_blank")}
                             title="Editar ficha do cliente (abre a ficha completa)" className="text-[#c8d0d4] hover:text-[#009AAC] text-[11px]">✏️</button>
@@ -1473,8 +1746,8 @@ export default function InboxUnificadoPage() {
                       </div>
                       <div className="text-[10px] text-[#888780]">
                         📞 {selectedConv?.contactNumber || "—"}
-                        {selectedConv?.tutor?.name && selectedConv?.contactName && selectedConv.contactName !== selectedConv.tutor.name ? (
-                          <span className="text-[#A8A69C]"> · no WhatsApp: {selectedConv.contactName}</span>
+                        {selectedConv?.tutor?.name && selectedConv.tutor.name !== (selectedConv?.contactPushName || selectedConv?.contactName) ? (
+                          <span className="text-[#A8A69C]"> · cliente: {selectedConv.tutor.name}</span>
                         ) : null}
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -1509,13 +1782,17 @@ export default function InboxUnificadoPage() {
                       style={{ background: "#0F6E56" }}>
                       <span style={{fontSize:"10px"}}>✅</span>{resolvendo ? "Encerrando…" : "Encerrar"}
                     </button>
+                    <button onClick={() => setBuscaChatOpen((o) => { const n = !o; if (!n) setBuscaChat(""); return n; })} title="Buscar nesta conversa"
+                      className={`w-7 h-7 rounded-full inline-flex items-center justify-center text-[13px] border ${buscaChatOpen ? "bg-[#F0FBFC] border-[#009AAC] text-[#00798A]" : "bg-white border-[#e8e1d2] text-[#888780]"}`}>🔍</button>
                     {/* ⋮ ações secundárias (como no mockup) */}
                     <div className="relative">
                       <button onClick={() => setHeaderMenuOpen((o) => !o)} title="Mais ações"
                         className={`w-7 h-7 rounded-full inline-flex items-center justify-center text-[15px] border ${headerMenuOpen ? "bg-[#F0FBFC] border-[#009AAC] text-[#00798A]" : "bg-white border-[#e8e1d2] text-[#888780]"}`}>⋮</button>
                       {headerMenuOpen && (
                         <div className="absolute right-0 top-9 z-30 bg-white border border-[#e8e1d2] rounded-lg shadow-lg w-56 overflow-hidden">
+                          <button onClick={marcarConversaNaoLida} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">🔵 Marcar como não lida</button>
                           <button onClick={() => { setHeaderMenuOpen(false); setEncaminharOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">↪ Transferir de atendente</button>
+                          <button onClick={() => { setHeaderMenuOpen(false); abrirGaleria(); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">🖼️ Galeria de mídia</button>
                           <button onClick={() => { setHeaderMenuOpen(false); setExportAuto(true); setExportOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">📄 Exportar conversa (PDF)</button>
                           <button onClick={() => { setHeaderMenuOpen(false); setTagsOpen(true); }} className="w-full text-left px-3 py-2.5 text-[12px] hover:bg-[#F0FBFC] flex items-center gap-2 text-[#0E2244]">🏷️ Etiquetas{(selectedConv?.tags?.length || 0) > 0 ? ` (${selectedConv!.tags!.length})` : ""}</button>
                           {selectedConv?.tutor?.id && (
@@ -1548,7 +1825,37 @@ export default function InboxUnificadoPage() {
                   )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 bg-white flex flex-col gap-2">
+                {buscaChatOpen && (
+                  <div className="px-3 py-2 border-b border-[#e8e1d2] bg-[#F7FBFC] flex items-center gap-2">
+                    <span className="text-[13px] text-[#888780]">🔍</span>
+                    <input
+                      autoFocus
+                      value={buscaChat}
+                      onChange={(e) => setBuscaChat(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") { setBuscaChatOpen(false); setBuscaChat(""); }
+                        if (e.key === "Enter" && buscaMatches.length) {
+                          e.preventDefault();
+                          setBuscaIdx((idx) => e.shiftKey ? (idx + 1) % buscaMatches.length : (idx - 1 + buscaMatches.length) % buscaMatches.length);
+                        }
+                      }}
+                      placeholder="Buscar nesta conversa…"
+                      className="flex-1 text-[13px] bg-transparent outline-none text-[#0E2244] placeholder-[#A8A69C]" />
+                    {buscaChat.trim() && (
+                      <span className="text-[11px] text-[#888780] tabular-nums whitespace-nowrap">
+                        {buscaMatches.length ? `${Math.min(buscaIdx + 1, buscaMatches.length)} de ${buscaMatches.length}` : "0 de 0"}
+                      </span>
+                    )}
+                    <button disabled={!buscaMatches.length} onClick={() => setBuscaIdx((idx) => (idx - 1 + buscaMatches.length) % buscaMatches.length)} title="Resultado anterior (mais antigo)" className="w-6 h-6 rounded-md border border-[#e8e1d2] text-[#5F5E5A] disabled:opacity-40 text-[12px] leading-none">↑</button>
+                    <button disabled={!buscaMatches.length} onClick={() => setBuscaIdx((idx) => (idx + 1) % buscaMatches.length)} title="Próximo resultado (mais recente)" className="w-6 h-6 rounded-md border border-[#e8e1d2] text-[#5F5E5A] disabled:opacity-40 text-[12px] leading-none">↓</button>
+                    <button onClick={() => { setBuscaChatOpen(false); setBuscaChat(""); }} title="Fechar busca" className="w-6 h-6 rounded-md text-[#888780] text-[16px] leading-none">×</button>
+                  </div>
+                )}
+
+                <div ref={msgScrollRef} onScroll={(e) => { const el = e.currentTarget; stickBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120; }} className="flex-1 overflow-y-auto p-4 bg-white flex flex-col gap-2">
+                  {buscaChatOpen && buscaChat.trim() && buscaMatches.length === 0 && (
+                    <p className="text-center text-[11px] text-[#888780] py-2">Nada encontrado para “{buscaChat.trim()}” nesta conversa</p>
+                  )}
                   {messages.length === 0 ? (
                     <p className="text-center text-[11px] text-[#888780]">Sem mensagens</p>
                   ) : messages.map((m, i) => {
@@ -1563,6 +1870,8 @@ export default function InboxUnificadoPage() {
                       try { return new Date(m.createdAt).toDateString() !== new Date(messages[i - 1].createdAt).toDateString(); }
                       catch { return false; }
                     })();
+                    // Resultado ATUAL da busca (recebe realce laranja + rolagem).
+                    const ehMatch = buscaChatOpen && buscaMatches.length > 0 && buscaMatches[buscaIdx] === m.id;
                     return (
                       <Fragment key={m.id}>
                       {mudouDia && (
@@ -1570,7 +1879,7 @@ export default function InboxUnificadoPage() {
                           {rotuloDia(m.createdAt)}
                         </div>
                       )}
-                      <div className={`group max-w-[75%] ${outbound ? "self-end" : "self-start"}`}>
+                      <div ref={(el) => { msgRefs.current[m.id] = el; }} onClick={selMode ? () => toggleSel(m.id) : undefined} className={`group relative max-w-[75%] ${outbound ? "self-end" : "self-start"} ${selMode ? "cursor-pointer rounded-xl transition" : ""} ${selMode && selIds.has(m.id) ? "ring-2 ring-[#009AAC] ring-offset-2" : ""} ${ehMatch ? "ring-2 ring-[#FFB300] ring-offset-2 rounded-xl" : ""}`}>
                         <div className={`px-3 py-2 rounded-xl text-[13px] ${outbound ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-white border border-[#e8e1d2] text-[#0E2244] rounded-bl-sm"}`}>
                           {m.replyToWaMessageId && (
                             <div
@@ -1594,41 +1903,87 @@ export default function InboxUnificadoPage() {
                             </div>
                           )}
                           {m.type === "IMAGE" && m.hasMedia ? (
-                            <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="block">
-                              <img src={`/api/whatsapp/messages/${m.id}/media`} alt={m.content || "Imagem"} className="rounded-lg max-w-full max-h-64 object-cover" loading="lazy" />
+                            <div>
+                              <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="block">
+                                <img src={`/api/whatsapp/messages/${m.id}/media`} alt={m.content || "Imagem"} className="rounded-lg max-w-full max-h-64 object-cover" loading="lazy" />
+                              </a>
                               {m.content && !m.content.startsWith("[") && <div className="mt-1">{m.content}</div>}
-                            </a>
+                              <div className="flex gap-3 mt-1">
+                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
+                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
+                              </div>
+                            </div>
                           ) : (m.type === "STICKER") && m.hasMedia ? (
                             <img src={`/api/whatsapp/messages/${m.id}/media`} alt="Figurinha" className="max-w-[120px]" loading="lazy" />
                           ) : m.type === "AUDIO" && m.hasMedia ? (
                             <audio controls src={`/api/whatsapp/messages/${m.id}/media`} className="max-w-full" />
-                          ) : (m.type === "VIDEO" || m.type === "DOCUMENT") && m.hasMedia ? (
-                            <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1">📎 {m.content && !m.content.startsWith("[") ? m.content : "Abrir arquivo"}</a>
+                          ) : m.type === "VIDEO" && m.hasMedia ? (
+                            <div>
+                              <video controls preload="metadata" src={`/api/whatsapp/messages/${m.id}/media`} className="rounded-lg max-w-full max-h-72 bg-black" />
+                              {m.content && !m.content.startsWith("[") && <div className="mt-1">{m.content}</div>}
+                              <div className="flex gap-3 mt-1">
+                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
+                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
+                              </div>
+                            </div>
+                          ) : m.type === "DOCUMENT" && m.hasMedia ? (
+                            <div className="flex flex-col gap-1">
+                              <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1">📎 {m.content && !m.content.startsWith("[") ? m.content : "Abrir arquivo"}</a>
+                              <div className="flex gap-3">
+                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
+                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
+                              </div>
+                            </div>
                           ) : (m.type === "LOCATION" || m.metadata?.latitude) ? (
                             <a href={`https://www.google.com/maps?q=${m.metadata?.latitude},${m.metadata?.longitude}`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1" style={{ color: "#009AAC" }}>📍 {m.metadata?.name || m.metadata?.address || "Ver localização no mapa"}</a>
                           ) : (m.mediaType || m.type === "DOCUMENT" || m.type === "IMAGE" || m.type === "AUDIO" || m.type === "VIDEO") ? (
                             <span className="italic text-[#888780]">📎 {m.content || "anexo"} <span className="text-[10px]">(não foi possível carregar o arquivo)</span></span>
                           ) : (
-                            m.content ? renderWa(m.content) : "(mídia)"
+                            m.content ? (buscaChatOpen && buscaChat.trim() ? renderWaHL(m.content, buscaChat) : renderWa(m.content)) : "(mídia)"
                           )}
                         </div>
+                        {(m.reaction || m.myReaction) && (
+                          <div className={`flex gap-1 -mt-1.5 mb-0.5 ${outbound ? "justify-end pr-1" : "pl-1"}`}>
+                            {m.reaction && <span className="text-[12px] bg-white border border-[#e8e1d2] rounded-full px-1.5 py-0.5 shadow-sm" title="Reação do cliente">{m.reaction}</span>}
+                            {m.myReaction && <span className="text-[12px] bg-white border border-[#e8e1d2] rounded-full px-1.5 py-0.5 shadow-sm" title="Sua reação (da equipe)">{m.myReaction}</span>}
+                          </div>
+                        )}
                         <div className={`text-[9px] text-[#888780] mt-0.5 px-1 flex items-center gap-2 ${outbound ? "justify-end" : ""}`}>
+                          {m.encaminhado && <span className="italic opacity-70">↷ encaminhada</span>}
                           {(() => { try { return new Date(m.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}
-                          {m.waMessageId && (
-                            <button
-                              onClick={() => setRespondendo(m)}
-                              title="Responder citando esta mensagem"
-                              className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">
-                              ↩ Responder
-                            </button>
+                          {outbound && statusTick(m)}
+                          {!selMode && m.waMessageId && (
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); setReagindoId(reagindoId === m.id ? null : m.id); }} title="Reagir com emoji" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">😀 Reagir</button>
+                              <button onClick={(e) => { e.stopPropagation(); setRespondendo(m); }} title="Responder citando" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">↩ Responder</button>
+                              <button onClick={(e) => { e.stopPropagation(); abrirEncaminhar(m.id); }} title="Encaminhar esta" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">↷ Encaminhar</button>
+                              <button onClick={(e) => { e.stopPropagation(); entrarSelecao(m.id); }} title="Selecionar várias" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">☑︎ Selecionar</button>
+                            </>
                           )}
                         </div>
+                        {reagindoId === m.id && (
+                          <div className={`absolute z-30 -top-8 ${outbound ? "right-0" : "left-0"} bg-white border border-[#e8e1d2] rounded-full shadow-lg px-1.5 py-1 flex items-center gap-1`} onClick={(e) => e.stopPropagation()}>
+                            {EMOJIS_REACAO.map((e) => (
+                              <button key={e} onClick={() => reagir(m.id, e)} title={m.myReaction === e ? "Remover reação" : `Reagir ${e}`} className={`text-[17px] leading-none hover:scale-125 transition ${m.myReaction === e ? "" : "opacity-85"}`}>{e}</button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                       </Fragment>
                     );
                   })}
                   <div ref={msgEndRef} />
                 </div>
+
+                {selMode && (
+                  <div className="px-4 py-2 border-t border-[#e8e1d2] bg-[#EAF6F7] flex items-center justify-between gap-2">
+                    <span className="text-[12px] font-medium text-[#014D5E]">☑︎ {selIds.size} selecionada(s) — toque nas mensagens</span>
+                    <div className="flex gap-2">
+                      <button onClick={sairSelecao} className="text-[12px] px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8DFC8", color: "#5F5E5A" }}>Cancelar</button>
+                      <button onClick={abrirEncaminharLote} disabled={!selIds.size} className="text-[12px] px-3 py-1.5 rounded-lg text-white font-medium disabled:opacity-50" style={{ background: "#009AAC" }}>↷ Encaminhar ({selIds.size})</button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Input com Scripts dropdown */}
                 <div className="px-4 py-2.5 border-t border-[#e8e1d2]">
@@ -1673,6 +2028,7 @@ export default function InboxUnificadoPage() {
                       <button onClick={() => { setScriptsOpen(true); setAcoesOpen(false); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>📋</span><span className="text-[12.5px] text-[#0E2244]">Mensagens prontas</span></button>
                       <button onClick={() => { const l = window.location.origin + "/queremos-te-conhecer"; setMessageInput(`Vamos confirmar o atendimento do seu pet! 🐾 Para isso, precisamos te conhecer um pouquinho melhor — é rapidinho: ${l}\n\nAssim que você preencher, seu agendamento fica confirmado! 💙`); setAcoesOpen(false); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>🔗</span><span className="text-[12.5px] text-[#0E2244]">Enviar cadastro</span></button>
                       <button onClick={() => { setAgendarOpen(true); setAcoesOpen(false); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>📅</span><span className="text-[12.5px] text-[#0E2244]">Agendar consulta</span></button>
+                      <button onClick={() => { setAcoesOpen(false); const tid = selectedConv?.tutor?.id; if (!tid) { toast("Venda é pra cliente com ficha — este contato ainda não tem cadastro.", { icon: "🛒" }); return; } window.open(`/dashboard/erp/ponto-de-venda?tutorId=${tid}`, "_blank"); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>🛒</span><span className="text-[12.5px] text-[#0E2244]">Nova venda <span className="text-[#888780]">(abre o PDV com o cliente)</span></span></button>
                       <button onClick={() => { setAcoesOpen(false); abrirBoletim(); }} disabled={boletimLoading} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#F0FBFC] text-left disabled:opacity-50"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>🌿</span><span className="text-[12.5px] text-[#0E2244]">Boletim de fisioterapia{boletimLoading ? " …" : ""}</span></button>
                       <button onClick={() => { setAcoesOpen(false); toast("🧪 Resultado de exame entra quando terminarmos o módulo de exames.", { icon: "🛠️" }); }} className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-[#FBF9F4] text-left"><span style={{ fontSize: "14px", width: "20px", textAlign: "center" }}>🧪</span><span className="text-[12.5px] text-[#9a948a]">Exame</span></button>
                       <div className="h-px bg-[#e8e1d2] mx-1.5 my-1" />
@@ -1705,6 +2061,13 @@ export default function InboxUnificadoPage() {
                       </div>
                     </div>
                   )}
+                  {selectedId && !janelaAberta && (
+                    <div className="mb-2 flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "#FBF0DD", border: "1px solid #E7C888" }}>
+                      <span style={{ fontSize: 15 }}>⏱️</span>
+                      <span className="text-[11.5px] flex-1" style={{ color: "#8A5A0B" }}>Faz mais de 24h que o cliente não responde. O WhatsApp só entrega um <b>modelo (template) aprovado</b> agora — mensagem normal vai ser recusada.</span>
+                      <button onClick={() => abrirNovaConversa({ phone: selectedConv?.contactNumber, busca: selectedConv?.tutor?.name || selectedConv?.contactName || selectedConv?.contactNumber })} className="text-[11px] font-bold text-white px-2.5 py-1 rounded-md shrink-0 whitespace-nowrap" style={{ background: "#B45309" }}>Usar modelo</button>
+                    </div>
+                  )}
                   <div className="flex gap-2 items-center">
                     <button onClick={() => setAcoesOpen((v) => !v)} title="Ações rápidas — cadastro, agendar, boletim, PIX, endereço, mensagens prontas…"
                       className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition text-white ${acoesOpen ? "bg-[#007E8D]" : "bg-[#009AAC] hover:bg-[#008395]"}`}
@@ -1729,6 +2092,36 @@ export default function InboxUnificadoPage() {
                         }}
                       />
                     </label>
+                    {/* Figurinhas da clínica (biblioteca) */}
+                    <div className="relative shrink-0">
+                      <button onClick={abrirStickers} title="Enviar figurinha da clínica"
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center border border-[#e8e1d2] text-[#5F5E5A] ${stickersOpen ? "bg-[#F0FBFC] border-[#009AAC]" : "hover:bg-[#F0FBFC]"}`}>
+                        <span style={{ fontSize: "15px" }}>🩹</span>
+                      </button>
+                      {stickersOpen && (
+                        <div className="absolute bottom-11 left-0 z-40 bg-white border border-[#e8e1d2] rounded-xl shadow-lg p-2 w-72">
+                          <div className="flex items-center justify-between px-1 pb-1.5">
+                            <span className="text-[10px] font-medium uppercase text-[#888780]">Figurinhas da clínica</span>
+                            <button onClick={() => setStickersOpen(false)} className="text-[#888780] text-sm leading-none">×</button>
+                          </div>
+                          {!stickersCarregados ? (
+                            <p className="text-[12px] text-[#888780] px-1 py-4 text-center">Carregando…</p>
+                          ) : stickersList.length === 0 ? (
+                            <p className="text-[12px] text-[#888780] px-1 py-3 text-center">Nenhuma figurinha cadastrada. Suba as suas em <Link href="/dashboard/configuracoes/figurinhas" className="text-[#009AAC] underline">Configurações › Figurinhas</Link>.</p>
+                          ) : (
+                            <div className="grid grid-cols-4 gap-1.5 max-h-56 overflow-y-auto">
+                              {stickersList.map((s) => (
+                                <button key={s.id} onClick={() => enviarSticker(s.id)} disabled={enviandoSticker}
+                                  title={s.nome || "Enviar figurinha"}
+                                  className="aspect-square rounded-lg border border-[#eee] p-1 flex items-center justify-center hover:bg-[#F0FBFC] disabled:opacity-50" style={{ background: "#F4F8F9" }}>
+                                  <img src={`/api/whatsapp/stickers/${s.id}/media`} alt={s.nome || "figurinha"} className="max-w-full max-h-full object-contain" loading="lazy" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                     {gravando ? (
                       <div className="flex-1 flex items-center gap-2 px-3 py-1.5 border rounded-lg" style={{ borderColor: "#E24B4A", background: "#FDECEC" }}>
                         <span className="w-2.5 h-2.5 rounded-full bg-[#E24B4A] animate-pulse shrink-0" />
@@ -1742,9 +2135,9 @@ export default function InboxUnificadoPage() {
                       <>
                         <textarea value={messageInput} onChange={(e) => setMessageInput(e.target.value)}
                           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                          rows={1}
+                          rows={2}
                           placeholder="Digite sua mensagem…  (Enter envia · Shift+Enter pula linha)"
-                          className="flex-1 px-3.5 py-2.5 border border-[#e8e1d2] rounded-lg text-[13.5px] focus:outline-none focus:border-[#009AAC] resize-none leading-snug" style={{ maxHeight: 160 }} />
+                          className="flex-1 px-3.5 py-2.5 border border-[#e8e1d2] rounded-lg text-[13.5px] focus:outline-none focus:border-[#009AAC] resize-none leading-snug" style={{ maxHeight: 160, minHeight: 58 }} />
                         <EmojiPicker onPick={(em) => setMessageInput((v) => v + em)} />
                         {messageInput.trim() ? (
                           <button onClick={() => sendMessage()} className="bg-[#009AAC] text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0" title="Enviar">
@@ -1822,7 +2215,7 @@ export default function InboxUnificadoPage() {
                   </select>
                 </div>
                 {internasAnexo && (<div className="mb-2 flex items-center gap-2 text-[11px] bg-[#F1EFE8] rounded px-2 py-1 w-fit"><span>📎 {internasAnexo.name}</span><button onClick={() => setInternasAnexo(null)} className="text-[#A32D2D] font-medium">remover</button></div>)}
-                <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} rows={6} placeholder="Escreva a mensagem..." className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none mb-3" />
+                <textarea value={internalNote} onChange={(e) => setInternalNote(e.target.value)} onPaste={colarNasInternas} rows={6} placeholder="Escreva a mensagem… (pode colar um print)" className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none mb-3" />
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1">
                     <EmojiPicker onPick={(em) => setInternalNote((v) => v + em)} />
@@ -1845,21 +2238,35 @@ export default function InboxUnificadoPage() {
                     <div className="text-sm text-[#0E2244] font-medium">{c.name}</div>
                   </div>
                   <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2.5 min-h-0">
-                    {c.msgs.map((m: any) => (
-                      <div key={m.id} className={`max-w-[75%] ${m.mine ? "self-end" : "self-start"}`}>
-                        <div className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${m.mine ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-[#F1EFE8] text-[#0E2244] rounded-bl-sm"}`}>{m.content}{m.attachmentUrl && (<a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className={`mt-1 flex items-center gap-1 text-[12px] underline ${m.mine ? "text-white" : "text-[#0C447C]"}`}>📎 {m.attachmentName || "documento"}</a>)}</div>
-                        <div className={`text-[9.5px] text-[#374151] mt-0.5 flex items-center gap-1.5 ${m.mine ? "justify-end" : ""}`}>
-                          <span>{(() => { try { return new Date(m.createdAt).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}</span>
-                          {String(m.id || "").indexOf("local_") !== 0 && <button onClick={() => excluirNotaInterna(m.id)} title="Excluir" className="text-[#B4B2A9] hover:text-[#A32D2D]"><LuTrash className="w-2.5 h-2.5" /></button>}
+                    {c.msgs.map((m: any, i: number) => {
+                      const prev = c.msgs[i - 1];
+                      const showData = i === 0 || (prev && !mesmoDia(prev.createdAt, m.createdAt));
+                      const isImg = /\.(png|jpe?g|gif|webp|bmp)(\?|$)/i.test(m.attachmentUrl || "") || /\.(png|jpe?g|gif|webp|bmp)$/i.test(m.attachmentName || "");
+                      return (
+                      <Fragment key={m.id}>
+                        {showData && (
+                          <div className="self-center my-1.5 text-[10px] text-[#5F5E5A] bg-[#EDE7D8] rounded-full px-3 py-0.5">{rotuloDia(m.createdAt)}</div>
+                        )}
+                        <div className={`max-w-[75%] ${m.mine ? "self-end" : "self-start"}`}>
+                          <div className={`px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${m.mine ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-[#F1EFE8] text-[#0E2244] rounded-bl-sm"}`}>{m.content}
+                            {m.attachmentUrl && isImg && (<a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className="block mt-1"><img src={m.attachmentUrl} alt={m.attachmentName || "imagem"} className="rounded-lg max-h-56 max-w-full" /></a>)}
+                            {m.attachmentUrl && !isImg && (<a href={m.attachmentUrl} target="_blank" rel="noopener noreferrer" className={`mt-1 flex items-center gap-1 text-[12px] underline ${m.mine ? "text-white" : "text-[#0C447C]"}`}>📎 {m.attachmentName || "documento"}</a>)}
+                          </div>
+                          <div className={`text-[9.5px] text-[#374151] mt-0.5 flex items-center gap-1.5 ${m.mine ? "justify-end" : ""}`}>
+                            <span>{(() => { try { return new Date(m.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}</span>
+                            {String(m.id || "").indexOf("local_") !== 0 && <button onClick={() => excluirNotaInterna(m.id)} title="Excluir" className="text-[#B4B2A9] hover:text-[#A32D2D]"><LuTrash className="w-2.5 h-2.5" /></button>}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      </Fragment>
+                      );
+                    })}
+                    <div ref={internasEndRef} />
                   </div>
                   <div className="border-t border-[#e8e1d2] p-3 flex-shrink-0">
                     {internasAnexo && (<div className="mb-2 flex items-center gap-2 text-[11px] bg-[#F1EFE8] rounded px-2 py-1 w-fit"><span>📎 {internasAnexo.name}</span><button onClick={() => setInternasAnexo(null)} className="text-[#A32D2D] font-medium">remover</button></div>)}
                     <div className="flex items-end gap-2">
                     <label className="cursor-pointer flex items-center justify-center w-8 h-8 rounded-lg hover:bg-[#f0f0ea]" title="Anexar documento"><input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadDocInterno(f); e.currentTarget.value = ""; }} /><span style={{ fontSize: "15px" }}>{anexandoDoc ? "…" : "📎"}</span></label>
-                    <textarea value={internasReply} onChange={(e) => setInternasReply(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarRespostaInterna(); } }} rows={1} placeholder="Escreva uma mensagem..." className="flex-1 px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none" />
+                    <textarea value={internasReply} onChange={(e) => setInternasReply(e.target.value)} onPaste={colarNasInternas} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarRespostaInterna(); } }} rows={1} placeholder="Escreva uma mensagem… (pode colar um print)" className="flex-1 px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC] resize-none" />
                     <EmojiPicker onPick={(em) => setInternasReply((v) => v + em)} />
                     <button onClick={() => enviarRespostaInterna()} disabled={!internasReply.trim() && !internasAnexo} className="bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium disabled:opacity-50">Enviar</button>
                     </div>
@@ -1957,6 +2364,76 @@ export default function InboxUnificadoPage() {
             setMessageInput(`Prontinho, agendei o atendimento do seu pet! 🐾 Pra confirmar, é só completar seu cadastro rapidinho: ${l}\n\nAssim que você preencher, está tudo certo! 💙`);
           }
         }} />
+
+      {/* MODAL Galeria de mídia da conversa */}
+      {galeriaOpen && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setGaleriaOpen(false)}>
+          <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3 border-b border-[#e8e1d2] flex items-center justify-between">
+              <h3 className="text-base text-[#0E2244] font-medium">🖼️ Galeria de mídia
+                {!galeriaLoading && <span className="text-[12px] text-[#888780] font-normal"> · {galeriaItens.length} {galeriaItens.length === 1 ? "item" : "itens"}</span>}
+              </h3>
+              <button onClick={() => setGaleriaOpen(false)} className="text-[#5F5E5A] text-xl leading-none">×</button>
+            </div>
+            <div className="px-5 py-2 border-b border-[#e8e1d2] flex gap-1.5 flex-wrap">
+              {(([["todos", "Tudo"], ["IMAGE", "📷 Fotos"], ["VIDEO", "🎬 Vídeos"], ["AUDIO", "🎤 Áudios"], ["DOCUMENT", "📄 Docs"]]) as [typeof galeriaFiltro, string][]).map(([k, label]) => {
+                const n = k === "todos" ? galeriaItens.length : galeriaItens.filter((x) => x.type === k).length;
+                return (
+                  <button key={k} onClick={() => setGaleriaFiltro(k)}
+                    className={`text-[12px] px-2.5 py-1 rounded-full border transition ${galeriaFiltro === k ? "bg-[#009AAC] text-white border-[#009AAC]" : "bg-white text-[#5F5E5A] border-[#e8e1d2] hover:border-[#009AAC]"}`}>
+                    {label}{n ? ` (${n})` : ""}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {galeriaLoading ? (
+                <p className="text-center text-[12px] text-[#888780] py-10">Carregando mídias…</p>
+              ) : galeriaItens.length === 0 ? (
+                <p className="text-center text-[12px] text-[#888780] py-10">Esta conversa não tem fotos, vídeos, áudios ou documentos.</p>
+              ) : (() => {
+                const itens = galeriaFiltro === "todos" ? galeriaItens : galeriaItens.filter((x) => x.type === galeriaFiltro);
+                if (!itens.length) return <p className="text-center text-[12px] text-[#888780] py-10">Nada nesse filtro.</p>;
+                const dt = (v: any) => { try { return new Date(v).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }); } catch { return ""; } };
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                    {itens.map((it) => {
+                      const url = `/api/whatsapp/messages/${it.id}/media`;
+                      if (it.type === "IMAGE") return (
+                        <a key={it.id} href={url} target="_blank" rel="noreferrer" className="relative block aspect-square rounded-lg overflow-hidden border border-[#e8e1d2] bg-[#F4F8F9]">
+                          <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+                          <span className="absolute bottom-1 right-1 text-[9px] bg-black/50 text-white px-1 rounded">{dt(it.createdAt)}</span>
+                        </a>
+                      );
+                      if (it.type === "VIDEO") return (
+                        <a key={it.id} href={url} target="_blank" rel="noreferrer" className="relative block aspect-square rounded-lg overflow-hidden border border-[#e8e1d2] bg-black">
+                          <video src={url} preload="metadata" className="w-full h-full object-cover" />
+                          <span className="absolute inset-0 flex items-center justify-center text-white text-2xl pointer-events-none">▶</span>
+                          <span className="absolute bottom-1 right-1 text-[9px] bg-black/50 text-white px-1 rounded">{dt(it.createdAt)}</span>
+                        </a>
+                      );
+                      if (it.type === "AUDIO") return (
+                        <div key={it.id} className="aspect-square rounded-lg border border-[#e8e1d2] bg-[#F4F8F9] p-2 flex flex-col items-center justify-center gap-1 text-center">
+                          <span className="text-2xl">🎤</span>
+                          <audio controls src={url} className="w-full" style={{ height: "32px" }} />
+                          <span className="text-[9px] text-[#888780]">{dt(it.createdAt)}</span>
+                        </div>
+                      );
+                      return (
+                        <a key={it.id} href={url} target="_blank" rel="noreferrer" className="aspect-square rounded-lg border border-[#e8e1d2] bg-[#F4F8F9] p-2 flex flex-col items-center justify-center gap-1 text-center hover:bg-[#F0FBFC]">
+                          <span className="text-2xl">📄</span>
+                          <span className="text-[10px] text-[#0E2244] line-clamp-2 break-words">{it.content && !it.content.startsWith("[") ? it.content : "Documento"}</span>
+                          <span className="text-[9px] text-[#888780]">{dt(it.createdAt)}</span>
+                        </a>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL Exportar conversa (PDF) */}
       {exportOpen && (
@@ -2246,6 +2723,32 @@ export default function InboxUnificadoPage() {
             </div>
             <div className="flex justify-end mt-3">
               <button onClick={() => setEncaminharOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Encaminhar mídia/texto para outra conversa */}
+      {(fwdMsgId || fwdBatch) && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]" onClick={() => { if (!fwdEnviando) { setFwdMsgId(null); setFwdBatch(false); } }}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}>
+              <h3 className="text-[15px] font-semibold text-[#014D5E]">↷ Encaminhar {fwdBatch && selIds.size > 1 ? `${selIds.size} mensagens ` : ""}para…</h3>
+              <button onClick={() => { setFwdMsgId(null); setFwdBatch(false); }} className="text-[#94a3b8] text-lg leading-none">×</button>
+            </div>
+            <div className="p-3 border-b" style={{ borderColor: "#F0EBE0" }}>
+              <input autoFocus value={fwdBusca} onChange={(e) => setFwdBusca(e.target.value)} placeholder="🔍 Buscar cliente/conversa…" className="w-full border rounded-lg px-3 py-2 text-[13px]" style={{ borderColor: "#E8DFC8" }} />
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {conversations
+                .filter((c) => { const q = fwdBusca.trim().toLowerCase(); const nm = (c.tutor?.name || c.contactName || c.contactNumber || "").toLowerCase(); return !q || nm.includes(q) || (c.contactNumber || "").includes(q); })
+                .slice(0, 40)
+                .map((c) => { const nome = c.tutor?.name || c.contactName || c.contactNumber || "Sem nome"; return (
+                  <button key={c.id} disabled={fwdEnviando} onClick={() => encaminharPara(c.id, nome)} className="w-full text-left px-4 py-2.5 hover:bg-[#F6FDFD] border-b flex items-center gap-2 disabled:opacity-50" style={{ borderColor: "#F5F1E8" }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold flex-shrink-0" style={{ background: "#E0F4F6", color: "#014D5E" }}>{getInitials(c.tutor?.name || c.contactName)}</div>
+                    <div className="min-w-0"><div className="text-[13px] font-medium text-[#0E2244] truncate">{nome}</div><div className="text-[11px] text-[#94a3b8]">{c.contactNumber}</div></div>
+                  </button>
+                ); })}
             </div>
           </div>
         </div>

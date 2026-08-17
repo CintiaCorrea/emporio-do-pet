@@ -18,7 +18,10 @@ export class TutorsService {
 
   async create(createTutorDto: CreateTutorDto) {
 // === Normalize + dedupe por ultimos 9 digitos ===
-    const phones = (createTutorDto.contacts || []).map(c => last9(c.number)).filter(p => p && p.length >= 8);
+    // IMPORTANTE (15/08): normaliza ANTES de comparar. Sem isso, número do WhatsApp que chega SEM o
+    // 9º dígito (ex.: 558588290696) não casava com o cadastro que tem COM o 9 (5585988290696) → criava
+    // cliente DUPLICADO. normalizePhone insere o 9 → o last9 passa a casar. Ver [[inbox-cliente-vs-lead-raiz]].
+    const phones = (createTutorDto.contacts || []).map(c => last9(normalizePhone(c.number))).filter(p => p && p.length >= 8);
     if (phones.length > 0) {
       const existing = await this.prisma.tutor.findFirst({
         where: {
@@ -176,7 +179,7 @@ export class TutorsService {
         id: true, name: true, codigo: true, status: true, estadoRelacionamento: true,
         classificacao: true, // etiqueta (Cliente/Fornecedor/Profissional) — reconhecida no inbox
         email: true, // a tela de Clientes oferece busca por e-mail; sem isso ela falha calada
-        birthDate: true, proximoFollowupAt: true, rankingAbc: true,
+        birthDate: true, proximoFollowupAt: true, rankingAbc: true, nivelRelacionamento: true,
         contacts: { take: 1, orderBy: { isPrimary: 'desc' }, select: { number: true, isPrimary: true } },
         pets: { select: { id: true, name: true, species: true } },
       },
@@ -282,7 +285,14 @@ export class TutorsService {
       throw new NotFoundException('Tutor não encontrado');
     }
 
-    return tutor;
+    // 👥 Pets em que este cliente é 2º RESPONSÁVEL (co-tutor) — aparecem na ficha/inbox dele TAMBÉM,
+    // sem ser dono principal. `secondaryTutorId` é campo simples (sem relação), então buscamos à parte.
+    const petsResp2 = await this.prisma.pet.findMany({
+      where: { secondaryTutorId: id },
+      select: { id: true, name: true, species: true, breed: true, birthDate: true, tutorId: true, tutor: { select: { id: true, name: true } } },
+    });
+
+    return { ...tutor, petsResp2 };
   }
 
   async update(id: string, updateTutorDto: UpdateTutorDto) {
@@ -417,13 +427,17 @@ export class TutorsService {
       orderBy: { date: 'desc' },
     });
 
-    const visitsScore = Math.min(30, appointments.length);
-    const totalRevenue = 0; // TODO: calcular via Appointments quando tiver campo valor
+    // Realizados = exclui cancelados (2 grafias no banco: CANCELED e CANCELLED).
+    const realizados = appointments.filter((a: any) => a.status !== 'CANCELED' && a.status !== 'CANCELLED' && a.status !== 'MISSED');
+    const visitsScore = Math.min(30, realizados.length);
+    // LTV real = soma do valor dos atendimentos (antes vinha 0 fixo → todo cliente ficava travado em nível baixo).
+    const totalRevenue = realizados.reduce((s: number, a: any) => s + (Number(a.value) || 0), 0);
     const ltvScore = Math.min(30, Math.floor(totalRevenue / 100));
     
     let recenciaScore = 0;
-    if (appointments[0]) {
-      const daysSince = Math.floor((Date.now() - new Date(appointments[0].date).getTime()) / 86400000);
+    const ultimoRealizado = realizados.find((a: any) => new Date(a.date).getTime() <= Date.now()) || realizados[0];
+    if (ultimoRealizado) {
+      const daysSince = Math.floor((Date.now() - new Date(ultimoRealizado.date).getTime()) / 86400000);
       if (daysSince <= 30) recenciaScore = 25;
       else if (daysSince <= 90) recenciaScore = 18;
       else if (daysSince <= 180) recenciaScore = 10;
@@ -434,14 +448,20 @@ export class TutorsService {
 
     const total = visitsScore + ltvScore + recenciaScore + npsScore;
     const label = total >= 70 ? 'Ativo' : total >= 30 ? 'Acompanhando' : 'Inativo';
+    // Nível de relacionamento (mesmos cortes da ficha) — PERSISTE no cadastro pra aparecer em listas/filtros.
+    const nivel = total >= 80 ? 'Diamante' : total >= 60 ? 'Ouro' : total >= 40 ? 'Prata' : 'Bronze';
+    if ((tutor as any).nivelRelacionamento !== nivel) {
+      this.prisma.tutor.update({ where: { id: tutorId }, data: { nivelRelacionamento: nivel } }).catch(() => undefined);
+    }
 
     return {
       total,
       label,
+      nivel,
       dimensions: {
         visitas: { score: visitsScore, max: 30, value: appointments.length },
         ltv: { score: ltvScore, max: 30, value: totalRevenue },
-        recencia: { score: recenciaScore, max: 25, value: appointments[0]?.date || null },
+        recencia: { score: recenciaScore, max: 25, value: ultimoRealizado?.date || null },
         nps: { score: npsScore, max: 15, value: null },
       },
     };

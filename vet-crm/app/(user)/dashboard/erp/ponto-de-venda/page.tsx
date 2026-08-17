@@ -8,6 +8,11 @@ import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
 import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
+import { imprimirVenda } from '@/lib/documentos/venda-print';
+import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
+import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from '@/lib/catalogoVendavel';
+import { ehDinheiro, carregarFormasRecebimento, PagForma } from '@/lib/formasPagamento';
+import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 
 const TEAL = '#009AAC';
 const NAVY = '#014D5E';
@@ -30,11 +35,10 @@ const AV = [
 
 interface Pet { id: string; name: string }
 interface Tutor { id: string; name: string; pets?: Pet[] }
-interface Servico { id: string; nome: string; valorPadrao?: number | null }
+interface Servico { id: string; nome: string; valorPadrao?: number | null; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null }
 interface Prof { id: string; name: string }
-interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; desconto: number }
-interface Forma { forma: string; valor: number }
-interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string }
+interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null; _novo?: boolean; catalogoItemId?: string; descontoModo?: string; descontoLimite?: number | null }
+interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string; tutorId?: string }
 
 const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
 const TIPOS_VENDA = ['Presencial, para consumidor final', 'Online / delivery', 'Entrega a domicílio'];
@@ -73,15 +77,24 @@ export default function PDVPage() {
   const [qtd, setQtd] = useState(1);
   const [carrinho, setCarrinho] = useState<CartItem[]>([]);
   const [descontoGlobal, setDescontoGlobal] = useState('');
+  const [descontoGlobalTipo, setDescontoGlobalTipo] = useState<'$' | '%'>('$');
   const [obs, setObs] = useState('');
 
   const [modal, setModal] = useState(false);
-  const [formas, setFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0 }]);
-  const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas configuradas (Fase 2)
+  const [formas, setFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]);
+  const [formasCfg, setFormasCfg] = useState<string[]>([]); // nomes das formas (Fase 2)
+  const [formasConfig, setFormasConfig] = useState<any[]>([]); // config completa (tipo/adquirente/conta)
+  const [taxas, setTaxas] = useState<any[]>([]); // tabela de taxas por bandeira (TaxaContratada)
   const [salvando, setSalvando] = useState(false);
 
   const [vendas, setVendas] = useState<Venda[]>([]);
+  const [orcamentos, setOrcamentos] = useState<{ id: string; tutor: string; pet: string; valor: number; tutorId?: string; petId?: string; _orc?: any }[]>([]);
+  const [detOrc, setDetOrc] = useState<any>(null); // orçamento aberto no modal de detalhe
   const [vendaTab, setVendaTab] = useState<'NAO' | 'PAGO'>('NAO');
+  // Baixar todas as comandas de um cliente de uma vez (portado do "Em atendimento")
+  const [grupoBaixa, setGrupoBaixa] = useState<{ tutor: string; itens: Venda[]; total: number } | null>(null);
+  const [formaGrupo, setFormaGrupo] = useState('Dinheiro');
+  const [baixandoGrupo, setBaixandoGrupo] = useState(false);
   const buscaTimer = useRef<any>(null);
   const [vendaDia, setVendaDia] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [vendaAbertas, setVendaAbertas] = useState(false); // ver abertas de TODOS os dias
@@ -91,7 +104,7 @@ export default function PDVPage() {
   const [editItens, setEditItens] = useState<any[] | null>(null); // itens em edição no detalhe (null = modo leitura)
   const [savingEdit, setSavingEdit] = useState(false);
   const [recOpen, setRecOpen] = useState(false);            // modal de recebimento de venda existente
-  const [recFormas, setRecFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0 }]);
+  const [recFormas, setRecFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]);
   const [recSaving, setRecSaving] = useState(false);
 
   const loadVendas = useCallback(async () => {
@@ -103,6 +116,29 @@ export default function PDVPage() {
       if (r.ok) setVendas(await r.json());
     } catch { /* */ }
   }, [vendaDia, vendaAbertas]);
+
+  // 📄 Orçamentos EM ABERTO (não convertidos) — aparecem na MESMA lista "Não pago", em cor
+  // diferente (roxo), pra você converter em venda ali mesmo. Interconecta ficha/PDV/WhatsApp → Caixa.
+  const loadOrcamentos = useCallback(async () => {
+    try {
+      const r = await fetch('/api/orcamentos', { cache: 'no-store' });
+      if (!r.ok) return;
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.data || d.orcamentos || []);
+      setOrcamentos(arr
+        .filter((o: any) => !o.appointmentId && o.status !== 'RECUSADO' && o.status !== 'EXPIRADO')
+        .map((o: any) => ({ id: o.id, tutor: o.tutor?.name || 'Cliente', pet: o.pet?.name || '', valor: Number(o.valorTotal) || 0, tutorId: o.tutorId, petId: o.petId, _orc: o })));
+    } catch { /* */ }
+  }, []);
+  async function converterOrcamento(o: { id: string; tutor: string; valor: number }) {
+    if (!confirm(`Converter o orçamento de ${o.tutor} (${brl(o.valor)}) em venda?\nEla vai para "Não pago" para receber no caixa.`)) return;
+    try {
+      const r = await fetch(`/api/orcamentos/${o.id}/converter`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      if (!r.ok) throw new Error();
+      toast.success('Orçamento virou venda ✅');
+      await Promise.all([loadVendas(), loadOrcamentos()]);
+    } catch { toast.error('Erro ao converter orçamento'); }
+  }
 
   // Abre o detalhe de uma venda (itens) num modal.
   async function abrirDetVenda(v: any) {
@@ -164,7 +200,7 @@ export default function PDVPage() {
     const soma = formasValidas.reduce((s, f) => s + Number(f.valor || 0), 0);
     if (soma <= 0.001) { toast.error('Informe o valor recebido.'); return; }
     const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
-    const temDin = formasValidas.some((f) => /dinheiro/i.test(f.forma));
+    const temDin = formasValidas.some((f) => ehDinheiro(f.forma));
     const trocoR = temDin && soma > aReceber ? Number((soma - aReceber).toFixed(2)) : 0;
     const valorAplicado = Math.max(0, Number((soma - trocoR).toFixed(2)));
     setRecSaving(true);
@@ -198,7 +234,11 @@ export default function PDVPage() {
 
   useEffect(() => {
     (async () => {
-      try { const r = await fetch('/api/servicos/itens', { cache: 'no-store' }); if (r.ok) setServicos(await r.json()); } catch { /* */ }
+      try {
+        // FONTE ÚNICA (lib/catalogoVendavel): serviços + produtos + medicamentos/vacinas (todos ativos, sem truncar) + exames.
+        const itens = await carregarCatalogoVendavel({ exames: true });
+        setServicos(itens as any);
+      } catch { /* */ }
       try {
         const r = await fetch('/api/users', { cache: 'no-store' });
         if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.users || d.data || []); setProfs(arr.map((u: any) => ({ id: u.id, name: u.name || u.nome || u.email }))); }
@@ -209,12 +249,14 @@ export default function PDVPage() {
         else setCaixaAberto(false);
       } catch { setCaixaAberto(false); }
       try {
-        const r = await fetch('/api/listas?lista=formasrecebimento', { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); const arr = (Array.isArray(d) ? d : (d.itens || d.data || [])).map((x: any) => { try { return JSON.parse(x.valor); } catch { return null; } }).filter((v: any) => v && v.ativo !== false).map((v: any) => v.nome); setFormasCfg(arr); }
+        // FONTE ÚNICA (lib/formasPagamento): formas de recebimento + tabela de taxas.
+        const { formasConfig, formasList, taxas } = await carregarFormasRecebimento();
+        setFormasConfig(formasConfig); setFormasCfg(formasList); setTaxas(taxas);
       } catch { /* */ }
     })();
     loadVendas();
-  }, [loadVendas]);
+    loadOrcamentos();
+  }, [loadVendas, loadOrcamentos]);
 
   // Fatia B: ?venda=<atendimentoId> — abre direto o detalhe dessa venda pra registrar recebimento.
   useEffect(() => {
@@ -287,23 +329,44 @@ export default function PDVPage() {
   }, [servicos, itemBusca]);
 
   const addItem = (s: Servico) => {
+    const l = linhaDoItem(s as any);   // núcleo único: exame × produto/serviço, id certo, tira "🔬"
     setCarrinho((c) => {
-      const i = c.findIndex((x) => x.servicoId === s.id);
+      const i = l._novo ? c.findIndex((x) => x.catalogoItemId === l.catalogoItemId) : l._exame ? c.findIndex((x) => x.catalogoExameId === l.catalogoExameId) : c.findIndex((x) => x.servicoId === l.servicoId);
       if (i >= 0) { const cp = [...c]; cp[i] = { ...cp[i], quantidade: cp[i].quantidade + qtd }; return cp; }
-      return [...c, { servicoId: s.id, descricao: s.nome, quantidade: qtd, valorUnitario: Number(s.valorPadrao || 0), desconto: 0 }];
+      const base = { descricao: l.descricao, quantidade: qtd, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined };
+      return [...c, l._novo
+        ? { ...base, _novo: true, catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, descontoModo: l.descontoModo, descontoLimite: l.descontoLimite }
+        : l._exame
+        ? { ...base, _exame: true, catalogoExameId: l.catalogoExameId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome }
+        : { ...base, servicoId: l.servicoId }];
     });
     setItemBusca(''); setItemAberto(false); setQtd(1);
   };
-  const addAvulso = () => setCarrinho((c) => [...c, { descricao: '', quantidade: 1, valorUnitario: 0, desconto: 0 }]);
+  const addAvulso = () => setCarrinho((c) => [...c, { descricao: '', quantidade: 1, valorUnitario: 0, desconto: 0, executorUserId: profId || undefined }]);
   const updItem = (i: number, patch: Partial<CartItem>) => setCarrinho((c) => c.map((x, j) => j === i ? { ...x, ...patch } : x));
   const rmItem = (i: number) => setCarrinho((c) => c.filter((_, j) => j !== i));
 
-  const itemTotal = (it: CartItem) => Math.max(0, it.quantidade * it.valorUnitario - it.desconto);
+  // Desconto do item: resolve % → R$ (backend recebe sempre R$)
+  const descItemVal = (it: CartItem) => { const bruto = it.quantidade * it.valorUnitario; const d = Number(it.desconto) || 0; return it.descTipo === '%' ? bruto * d / 100 : d; };
+  // Política de desconto POR ITEM (catálogo novo): bloqueia/limita o desconto no caixa.
+  const clampDesc = (it: CartItem, valor: number) => {
+    if (it.descontoModo === 'SEM_DESCONTO') return 0;
+    if (it.descontoModo === 'LIMITE_ITEM' && it.descontoLimite != null) {
+      const lim = Number(it.descontoLimite);
+      if (it.descTipo === '%') return Math.min(valor, lim);
+      const total = (Number(it.valorUnitario) || 0) * (it.quantidade || 1);
+      return Math.min(valor, total * lim / 100);
+    }
+    return valor;
+  };
+  const itemTotal = (it: CartItem) => Math.max(0, it.quantidade * it.valorUnitario - descItemVal(it));
   const subtotal = useMemo(() => carrinho.reduce((s, it) => s + itemTotal(it), 0), [carrinho]);
-  const total = useMemo(() => Math.max(0, subtotal - num(descontoGlobal)), [subtotal, descontoGlobal]);
+  // Desconto total: resolve % → R$
+  const descGlobalVal = () => descontoGlobalTipo === '%' ? subtotal * num(descontoGlobal) / 100 : num(descontoGlobal);
+  const total = useMemo(() => Math.max(0, subtotal - (descontoGlobalTipo === '%' ? subtotal * num(descontoGlobal) / 100 : num(descontoGlobal))), [subtotal, descontoGlobal, descontoGlobalTipo]);
 
   const somaFormas = useMemo(() => formas.reduce((s, f) => s + Number(f.valor || 0), 0), [formas]);
-  const temDinheiro = formas.some((f) => /dinheiro/i.test(f.forma));
+  const temDinheiro = formas.some((f) => ehDinheiro(f.forma));
   const troco = temDinheiro && somaFormas > total ? somaFormas - total : 0;
   const pago = Math.max(0, somaFormas - troco);
   const restante = Math.max(0, total - pago);
@@ -315,14 +378,14 @@ export default function PDVPage() {
   const aReceberHoje = useMemo(() => vendas.reduce((s, v) => s + Math.max(0, v.valor - v.pago), 0), [vendas]);
 
   const reset = () => {
-    setCliente(null); setPetId(''); setCliBusca(''); setCarrinho([]); setDescontoGlobal(''); setObs('');
+    setCliente(null); setPetId(''); setCliBusca(''); setCarrinho([]); setDescontoGlobal(''); setDescontoGlobalTipo('$'); setObs('');
     setFormas([{ forma: 'Dinheiro', valor: 0 }]); setTipo('VENDA'); setQtd(1);
   };
 
   const payload = (extra: any) => ({
     tutorId: cliente!.id, petId, userId: profId || undefined, date: new Date(data + 'T12:00:00').toISOString(),
-    itens: carrinho.map((it) => ({ servicoId: it.servicoId, productId: it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: it.desconto })),
-    desconto: num(descontoGlobal), observacao: obs || null, ...extra,
+    itens: carrinho.map((it) => ({ servicoId: (it._exame || it._novo) ? undefined : it.servicoId, productId: (it._exame || it._novo) ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), executorUserId: it.executorUserId || profId || undefined, ...(it._novo ? { catalogoItemId: it.catalogoItemId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}), ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}) })),
+    desconto: Number(descGlobalVal().toFixed(2)), observacao: obs || null, ...extra,
   });
 
   const enviar = async (body: any, msg: string) => {
@@ -338,10 +401,74 @@ export default function PDVPage() {
 
   const abrirRecebimento = () => { if (!baseValida) return; setFormas([{ forma: 'Dinheiro', valor: Number(total.toFixed(2)) }]); setModal(true); };
   const confirmarRecebimento = () => enviar(payload({ tipo: 'VENDA', formas: formas.filter((f) => Number(f.valor) > 0) }), 'Venda registrada!');
-  const salvar = () => enviar(payload({ tipo }), tipo === 'ORCAMENTO' ? 'Orçamento salvo!' : 'Venda salva (a receber)');
+  const salvar = () => { if (tipo === 'ORCAMENTO') return salvarOrcamento(); return enviar(payload({ tipo }), 'Venda salva (a receber)'); };
+  // 🖨️ Imprime o que está na tela (venda ou orçamento, conforme o tipo) — mesmo antes de salvar.
+  const imprimirAtual = () => {
+    if (!carrinho.length) { toast.error('Adicione itens primeiro'); return; }
+    const itens = carrinho.map((it) => ({ descricao: it.descricao || 'Item', quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), valorTotal: itemTotal(it) }));
+    const petObj = (cliente?.pets || []).find((x: any) => x.id === petId);
+    if (tipo === 'ORCAMENTO') {
+      imprimirOrcamento({ itens, valorTotal: total, pet: petObj || undefined, tutor: cliente || undefined, createdAt: new Date().toISOString(), observacao: obs || undefined });
+    } else {
+      imprimirVenda({ itens, valor: total, pet: petObj || undefined, tutor: cliente || undefined, date: new Date().toISOString(), observacao: obs || undefined }, { rotulo: 'Venda' });
+    }
+  };
+  // Orçamento vai pro MÓDULO de orçamentos (salvar/aprovar/converter), não pro endpoint de venda.
+  const salvarOrcamento = async () => {
+    if (!cliente) { toast.error('Escolha o cliente'); return; }
+    if (!petId) { toast.error('Escolha o pet do orçamento'); return; }
+    setSalvando(true);
+    try {
+      const body = {
+        petId, tutorId: cliente.id, observacao: obs || null,
+        itens: carrinho.map((it) => ({ servicoId: (it._exame || it._novo) ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), ...(it._novo ? { catalogoItemId: it.catalogoItemId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}), ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId } : {}) })),
+      };
+      const r = await fetch('/api/orcamentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.message || d.error || 'Erro ao salvar orçamento');
+      toast.success('Orçamento salvo!'); setModal(false); reset(); loadVendas();
+    } catch (e: any) { toast.error(e.message || 'Erro ao salvar orçamento'); } finally { setSalvando(false); }
+  };
 
-  const vendasFiltradas = vendas.filter((v) => vendaTab === 'PAGO' ? v.pagoTotal : !v.pagoTotal);
+  // Só venda com valor (> 0) — atendimentos de R$ 0 (agenda/clínico) não são comanda nem venda.
+  const vendasFiltradas = vendas.filter((v) => Number(v.valor) > 0 && (vendaTab === 'PAGO' ? v.pagoTotal : !v.pagoTotal));
   const formasList = formasCfg.length ? formasCfg : FORMAS;
+
+  // Clientes com 2+ contas abertas (pra baixar todas de uma vez)
+  const gruposMulti = useMemo(() => {
+    const map = new Map<string, { tutor: string; itens: Venda[]; total: number }>();
+    for (const v of vendas) {
+      if (v.pagoTotal) continue;
+      const aReceber = Math.max(0, Number(v.valor || 0) - Number(v.pago || 0));
+      if (aReceber <= 0) continue;
+      const key = v.tutorId || v.tutor || v.id;
+      const g = map.get(key) || { tutor: v.tutor || 'Cliente', itens: [], total: 0 };
+      g.itens.push(v); g.total += aReceber;
+      map.set(key, g);
+    }
+    return [...map.values()].filter((g) => g.itens.length >= 2).sort((a, b) => b.total - a.total);
+  }, [vendas]);
+
+  async function baixarGrupoPDV() {
+    if (!grupoBaixa) return;
+    if (!caixaAbertoId) { toast.error('Abra o caixa primeiro (Outros caixas › Novo caixa).'); return; }
+    setBaixandoGrupo(true);
+    let ok = 0;
+    try {
+      for (const v of grupoBaixa.itens) {
+        const aReceber = Math.max(0, Number(v.valor || 0) - Number(v.pago || 0));
+        if (aReceber <= 0) continue;
+        const r = await fetch(`/api/caixa/${caixaAbertoId}/recebimento`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ appointmentId: v.id, valorTotal: aReceber, formas: [{ forma: formaGrupo, valor: aReceber }], observacao: 'Baixa em lote (cliente)' }),
+        });
+        if (r.ok) ok++;
+      }
+      toast.success(`${ok} comanda(s) de ${grupoBaixa.tutor} baixada(s) em ${formaGrupo}.`);
+      setGrupoBaixa(null);
+      await loadVendas();
+    } catch (e: any) { toast.error(e?.message || 'Erro ao baixar'); } finally { setBaixandoGrupo(false); }
+  }
 
   const card: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, overflow: 'hidden' };
   const chLeve: React.CSSProperties = { padding: '13px 16px', borderBottom: `1px solid ${SOFT}`, display: 'flex', alignItems: 'center', gap: 9 };
@@ -417,7 +544,7 @@ export default function PDVPage() {
             {/* 2 produtos */}
             {step('🛒', 'Produtos e serviços')}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
-              <select value={profId} onChange={(e) => setProfId(e.target.value)} style={{ ...inp, minWidth: 150 }} title="Profissional">
+              <select value={profId} onChange={(e) => { const novo = e.target.value; setCarrinho((c) => c.map((it) => (!it.executorUserId || it.executorUserId === profId) ? { ...it, executorUserId: novo || undefined } : it)); setProfId(novo); }} style={{ ...inp, minWidth: 150 }} title="Profissional — preenche o vendedor de cada item que você adicionar (trocável por linha)">
                 <option value="">Profissional…</option>
                 {profs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
@@ -431,8 +558,12 @@ export default function PDVPage() {
                 {itemAberto && itensFiltrados.length > 0 && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, marginTop: 4, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, boxShadow: '0 8px 24px -6px rgba(0,0,0,.12)', maxHeight: 240, overflowY: 'auto' }}>
                     {itensFiltrados.map((s) => (
-                      <button key={s.id} onClick={() => addItem(s)} style={{ display: 'flex', width: '100%', justifyContent: 'space-between', padding: '9px 12px', border: 'none', borderBottom: `1px solid ${SOFT}`, background: '#fff', cursor: 'pointer', fontSize: 13 }}>
-                        <span style={{ color: INK }}>{s.nome}</span><span style={{ color: MUT }}>{brl(Number(s.valorPadrao || 0))}</span>
+                      <button key={s.id} onClick={() => addItem(s)} style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '9px 12px', border: 'none', borderBottom: `1px solid ${SOFT}`, background: '#fff', cursor: 'pointer', fontSize: 13 }}>
+                        <span style={{ color: INK, display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nome}</span>
+                          {(() => { const lab = labDoItem(s); return lab ? <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: lab.veter ? '#E1F5EE' : '#EEF2F6', color: lab.veter ? '#0F6E56' : '#4D6A8A' }}>{lab.veter ? '⭐ ' : '🏥 '}{lab.nome}</span> : null; })()}
+                        </span>
+                        <span style={{ color: MUT, flexShrink: 0 }}>{brl(Number(s.valorPadrao || 0))}</span>
                       </button>
                     ))}
                   </div>
@@ -448,29 +579,48 @@ export default function PDVPage() {
                   <p style={{ fontSize: 12.5, color: MUT, margin: 0 }}>Busque acima para adicionar itens.</p>
                 </div>
               )}
-              {carrinho.map((it, i) => (
-                <div key={i} style={{ borderBottom: `1px solid ${SOFT}`, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                  <span style={{ width: 34, height: 34, borderRadius: 9, background: SUAVE, border: `1px solid ${SOFT}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2, fontSize: 15 }}>🏷️</span>
+              {carrinho.map((it, i) => {
+                const vendDiff = !!it.executorUserId && it.executorUserId !== profId;
+                return (
+                <div key={i} style={{ borderBottom: `1px solid ${SOFT}`, padding: '10px 12px', display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                  <span style={{ width: 30, height: 30, borderRadius: 8, background: SUAVE, border: `1px solid ${SOFT}`, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1, fontSize: 15 }}>🏷️</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                    {/* linha 1: descrição + total + excluir */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <input value={it.descricao} onChange={(e) => updItem(i, { descricao: e.target.value })} placeholder="Descrição do item" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                      {(() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span title={`Laboratório: ${lab.nome}`} style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: lab.veter ? '#E1F5EE' : '#EEF2F6', color: lab.veter ? '#0F6E56' : '#4D6A8A' }}>{lab.veter ? '⭐ ' : '🏥 '}{lab.nome}</span> : null; })()}
+                      <span style={{ fontSize: 13, fontWeight: 500, color: NAVY, minWidth: 78, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
                       <button onClick={() => rmItem(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <input type="number" min={1} value={it.quantidade} onChange={(e) => updItem(i, { quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} title="Qtd" style={{ ...inp, width: 52, padding: '6px 6px', textAlign: 'center' }} />
+                    {/* linha 2: qtd × unit · desc · vendedor compacto */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6, flexWrap: 'wrap' }}>
+                      <input type="number" min={1} value={it.quantidade} onChange={(e) => updItem(i, { quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} title="Qtd" style={{ ...inp, width: 46, padding: '5px 6px', textAlign: 'center', fontSize: 12 }} />
                       <span style={{ color: MUT, fontSize: 12 }}>×</span>
-                      <input value={it.valorUnitario || ''} inputMode="decimal" placeholder="Unit." onChange={(e) => updItem(i, { valorUnitario: num(e.target.value) })} title="Valor unitário" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
-                      <input value={it.desconto || ''} inputMode="decimal" placeholder="Desc." onChange={(e) => updItem(i, { desconto: num(e.target.value) })} title="Desconto" style={{ ...inp, width: 70, padding: '6px 8px' }} />
-                      <span style={{ fontSize: 12.5, fontWeight: 500, color: NAVY, minWidth: 76, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
+                      <input value={it.valorUnitario || ''} inputMode="decimal" placeholder="Unit." onChange={(e) => updItem(i, { valorUnitario: num(e.target.value) })} title="Valor unitário" style={{ ...inp, width: 96, padding: '5px 8px', fontSize: 12 }} />
+                      <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        <input value={it.desconto || ''} disabled={it.descontoModo === 'SEM_DESCONTO'} inputMode="decimal" placeholder="Desc." onChange={(e) => updItem(i, { desconto: clampDesc(it, num(e.target.value)) })} title={it.descontoModo === 'SEM_DESCONTO' ? 'Este item não permite desconto' : it.descontoModo === 'LIMITE_ITEM' && it.descontoLimite != null ? `Desconto máximo: ${it.descontoLimite}%` : 'Desconto'} style={{ ...inp, width: 52, padding: '5px 6px', fontSize: 12, borderTopRightRadius: 0, borderBottomRightRadius: 0, opacity: it.descontoModo === 'SEM_DESCONTO' ? 0.5 : 1 }} />
+                        <button type="button" onClick={() => updItem(i, { descTipo: it.descTipo === '%' ? '$' : '%' })} title="Alternar R$ / %" style={{ border: `1px solid ${SOFT}`, borderLeft: 'none', background: SUAVE, color: NAVY, fontSize: 11, fontWeight: 600, padding: '5px 6px', cursor: 'pointer', borderTopRightRadius: 7, borderBottomRightRadius: 7 }}>{it.descTipo === '%' ? '%' : 'R$'}</button>
+                      </span>
+                      <span title="Vendedor deste item" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, background: vendDiff ? AGUA : SUAVE, border: `1px solid ${vendDiff ? TEAL : SOFT}`, borderRadius: 999, padding: '2px 4px 2px 9px' }}>
+                        <span style={{ fontSize: 11 }}>👤</span>
+                        <select value={it.executorUserId || ''} onChange={(e) => updItem(i, { executorUserId: e.target.value || undefined })} style={{ border: 'none', background: 'transparent', padding: '3px 4px', fontSize: 12, color: NAVY, fontWeight: 500, maxWidth: 150, fontFamily: 'inherit', cursor: 'pointer' }}>
+                          <option value="">— vendedor —</option>
+                          {profs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                      </span>
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }}>
                 <button onClick={addAvulso} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>➕ item avulso</button>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12, color: INK2 }}>Desconto</span>
-                  <input value={descontoGlobal} inputMode="decimal" placeholder="0,00" onChange={(e) => setDescontoGlobal(e.target.value)} style={{ ...inp, width: 90, padding: '6px 8px', textAlign: 'right' }} />
+                  <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                    <input value={descontoGlobal} inputMode="decimal" placeholder="0,00" onChange={(e) => setDescontoGlobal(e.target.value)} style={{ ...inp, width: 76, padding: '6px 8px', textAlign: 'right', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} />
+                    <button type="button" onClick={() => setDescontoGlobalTipo((t) => t === '%' ? '$' : '%')} title="Alternar R$ / %" style={{ border: `1px solid ${SOFT}`, borderLeft: 'none', background: SUAVE, color: NAVY, fontSize: 12, fontWeight: 600, padding: '6px 9px', cursor: 'pointer', borderTopRightRadius: 8, borderBottomRightRadius: 8 }}>{descontoGlobalTipo === '%' ? '%' : 'R$'}</button>
+                  </span>
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: SUAVE, borderTop: `1px solid ${SOFT}` }}>
@@ -488,6 +638,7 @@ export default function PDVPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: `1px solid ${SOFT}`, paddingTop: 16 }}>
               <button onClick={abrirRecebimento} disabled={!baseValida || tipo === 'ORCAMENTO'} style={{ border: 'none', borderRadius: 9, background: (baseValida && tipo === 'VENDA') ? TEAL : '#cfd8d9', color: '#fff', padding: '11px 18px', fontSize: 13.5, fontWeight: 500, cursor: (baseValida && tipo === 'VENDA') ? 'pointer' : 'not-allowed' }}>💰 Registrar recebimento</button>
               <button onClick={salvar} disabled={!baseValida || salvando} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '11px 18px', fontSize: 13.5, cursor: baseValida ? 'pointer' : 'not-allowed', color: INK }}>{tipo === 'ORCAMENTO' ? '💾 Salvar orçamento' : '💾 Salvar'}</button>
+              <button onClick={imprimirAtual} disabled={!carrinho.length} title={tipo === 'ORCAMENTO' ? 'Imprimir o orçamento' : 'Imprimir a venda'} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '11px 16px', fontSize: 13.5, cursor: carrinho.length ? 'pointer' : 'not-allowed', color: INK, opacity: carrinho.length ? 1 : 0.5 }}>🖨️ Imprimir {tipo === 'ORCAMENTO' ? 'orçamento' : 'venda'}</button>
               <button onClick={reset} style={{ marginLeft: 'auto', border: 'none', background: 'none', color: MUT, padding: '11px', fontSize: 13, cursor: 'pointer' }}>✕ Cancelar</button>
             </div>
           </div>
@@ -498,7 +649,7 @@ export default function PDVPage() {
           <div style={card}>
             <div style={{ ...chLeve, justifyContent: 'space-between' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: NAVY, fontSize: 13.5, fontWeight: 500 }}>🧾 Vendas</span>
-              <button onClick={loadVendas} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 14 }} aria-label="Atualizar">🔄</button>
+              <button onClick={() => { loadVendas(); loadOrcamentos(); }} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 14 }} aria-label="Atualizar">🔄</button>
             </div>
             <div style={{ padding: '2px 13px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
               <input type="date" value={vendaDia} disabled={vendaAbertas} onChange={(e) => setVendaDia(e.target.value)}
@@ -520,7 +671,17 @@ export default function PDVPage() {
               </div>
             </div>
             <div style={{ padding: '6px 13px 13px', minHeight: 90 }}>
-              {vendasFiltradas.length === 0 && (
+              {vendaTab === 'NAO' && gruposMulti.map((g) => (
+                <div key={g.tutor} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', marginBottom: 6, background: '#EAF7F8', border: `1px solid ${TEAL}`, borderRadius: 10 }}>
+                  <span style={{ fontSize: 16 }}>👥</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, color: NAVY, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.tutor}</div>
+                    <div style={{ fontSize: 10.5, color: MUT }}>{g.itens.length} contas abertas · {brl(g.total)}</div>
+                  </div>
+                  <button onClick={() => { setGrupoBaixa(g); setFormaGrupo(formasList[0] || 'Dinheiro'); }} style={{ border: 'none', background: TEAL, color: '#fff', fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>Baixar todas</button>
+                </div>
+              ))}
+              {vendasFiltradas.length === 0 && (vendaTab !== 'NAO' || orcamentos.length === 0) && (
                 <div style={{ textAlign: 'center', padding: '18px 0' }}>
                   <div style={{ fontSize: 22, marginBottom: 4 }}>🧾</div>
                   <p style={{ fontSize: 12, color: MUT, margin: 0 }}>Nenhuma venda {vendaTab === 'PAGO' ? 'paga' : 'pendente'}.</p>
@@ -537,6 +698,19 @@ export default function PDVPage() {
                   <span style={{ background: v.pagoTotal ? OKB : WARNB, color: v.pagoTotal ? OK : WARN, fontSize: 11, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(v.valor)}</span>
                 </div>
               ))}
+              {/* 📄 ORÇAMENTOS em aberto — MESMA lista, valor em ROXO pra diferenciar + botão converter. */}
+              {vendaTab === 'NAO' && orcamentos.slice(0, 8).map((o) => (
+                <div key={o.id} onClick={() => setDetOrc(o._orc || o)} title="Abrir orçamento" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderTop: `1px solid ${SOFT}`, borderRadius: 8, cursor: 'pointer' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAF7')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+                  <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#EDE9FE', color: '#6D28D9', fontSize: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📄</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 500, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.tutor}</div>
+                    <div style={{ fontSize: 11, color: MUT }}>{o.pet}{o.pet ? ' · ' : ''}<span style={{ color: '#6D28D9', fontWeight: 600 }}>orçamento</span></div>
+                  </div>
+                  <span style={{ background: '#EDE9FE', color: '#6D28D9', fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(o.valor)}</span>
+                  <button onClick={(e) => { e.stopPropagation(); converterOrcamento(o); }} title="Converter este orçamento em venda" style={{ border: 'none', background: '#6D28D9', color: '#fff', fontSize: 10.5, fontWeight: 600, padding: '5px 8px', borderRadius: 8, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>→ Venda</button>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -549,6 +723,42 @@ export default function PDVPage() {
           </div>
         </div>
       </div>
+
+      {/* ===== MODAL BAIXAR TODAS DO CLIENTE ===== */}
+      {grupoBaixa && (
+        <div onClick={() => setGrupoBaixa(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>👥 {grupoBaixa.tutor}</span>
+              <button onClick={() => setGrupoBaixa(null)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ fontSize: 11.5, color: MUT, marginBottom: 8 }}>{grupoBaixa.itens.length} contas abertas · baixar tudo junto</div>
+              <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, overflow: 'hidden', marginBottom: 12 }}>
+                {grupoBaixa.itens.map((v, i) => {
+                  const aReceber = Math.max(0, Number(v.valor || 0) - Number(v.pago || 0));
+                  return (
+                    <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', borderTop: i ? `1px solid ${SOFT}` : 'none', fontSize: 13 }}>
+                      <span style={{ color: INK }}>{v.pet || v.tutor}</span>
+                      <span style={{ fontWeight: 500, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>{brl(aReceber)}</span>
+                    </div>
+                  );
+                })}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderTop: `1px solid ${LINE}`, background: '#FBF9F4' }}>
+                  <span style={{ fontSize: 12.5, color: MUT }}>Total a receber</span>
+                  <span style={{ fontSize: 17, fontWeight: 600, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>{brl(grupoBaixa.total)}</span>
+                </div>
+              </div>
+              <div style={{ fontSize: 10.5, color: '#374151', textTransform: 'uppercase', letterSpacing: '.03em', marginBottom: 6 }}>Forma de recebimento</div>
+              <select value={formaGrupo} onChange={(e) => setFormaGrupo(e.target.value)} style={{ ...inp, width: '100%', padding: '9px', marginBottom: 14 }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setGrupoBaixa(null)} disabled={baixandoGrupo} style={{ flex: 1, border: `1px solid ${LINE}`, background: '#fff', color: MUT, borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={baixarGrupoPDV} disabled={baixandoGrupo} style={{ flex: 2, border: 'none', background: baixandoGrupo ? '#9DBDC2' : TEAL, color: '#fff', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 600, cursor: baixandoGrupo ? 'default' : 'pointer' }}>{baixandoGrupo ? 'Baixando…' : '💰 Baixar tudo'}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== MODAL RECEBIMENTO ===== */}
       {modal && (
@@ -563,14 +773,7 @@ export default function PDVPage() {
                 <span style={{ fontSize: 13, color: INK2 }}>Total da venda</span>
                 <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(total)}</span>
               </div>
-              {formas.map((f, i) => (
-                <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7 }}>
-                  <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.3, padding: '8px' }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
-                  <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, valor: num(e.target.value) } : x))} style={{ ...inp, flex: 1, padding: '8px' }} />
-                  {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }}>🗑️</button>}
-                </div>
-              ))}
-              <button onClick={() => setFormas([...formas, { forma: 'Pix', valor: 0 }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>➕ outra forma</button>
+              <PagamentoFormas formas={formas} onChange={setFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
 
               <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Pago</span><b style={{ color: NAVY }}>{brl(pago)}</b></div>
@@ -579,6 +782,41 @@ export default function PDVPage() {
               </div>
 
               <button onClick={confirmarRecebimento} disabled={salvando} style={{ width: '100%', marginTop: 14, background: TEAL, color: '#fff', border: 'none', fontSize: 14, fontWeight: 500, padding: 12, borderRadius: 9, cursor: 'pointer' }}>{salvando ? 'Registrando…' : '✓ Confirmar recebimento'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== DETALHE DO ORÇAMENTO (abre ao clicar na linha roxa) ===== */}
+      {detOrc && (
+        <div onClick={() => setDetOrc(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16 }}>
+            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: '#6D28D9', fontSize: 15, fontWeight: 500 }}>📄 Orçamento</span>
+              <button onClick={() => setDetOrc(null)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ fontWeight: 600, color: INK, fontSize: 14 }}>{detOrc.tutor?.name || 'Cliente'}{detOrc.pet?.name ? ` · ${detOrc.pet.name}` : ''}</div>
+              <div style={{ fontSize: 12, color: MUT, marginBottom: 12 }}>{detOrc.createdAt ? new Date(detOrc.createdAt).toLocaleDateString('pt-BR') : ''}{detOrc.validade ? ` · válido até ${new Date(detOrc.validade).toLocaleDateString('pt-BR')}` : ''}</div>
+              <div style={{ border: `1px solid ${SOFT}`, borderRadius: 10, overflow: 'hidden' }}>
+                {(detOrc.itens || []).length === 0 ? (
+                  <div style={{ padding: 12, textAlign: 'center', color: MUT, fontSize: 12 }}>Sem itens.</div>
+                ) : (detOrc.itens || []).map((it: any, i: number) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '8px 12px', borderTop: i ? `1px solid ${SOFT}` : 'none', fontSize: 13 }}>
+                    <span style={{ color: INK }}>{it.descricao || it.servico?.nome || it.product?.name || 'Item'}{Number(it.quantidade) > 1 ? ` ×${it.quantidade}` : ''}</span>
+                    <span style={{ color: NAVY, fontWeight: 500, whiteSpace: 'nowrap' }}>{brl(Number(it.valorTotal ?? (Number(it.quantidade || 1) * Number(it.valorUnitario || 0))))}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                <span style={{ color: INK2, fontSize: 13 }}>Total</span>
+                <span style={{ fontSize: 18, fontWeight: 600, color: NAVY }}>{brl(Number(detOrc.valorTotal || 0))}</span>
+              </div>
+              {detOrc.observacao && <div style={{ marginTop: 10, fontSize: 12, color: '#374151' }}><b>Obs:</b> {detOrc.observacao}</div>}
+              <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+                <button onClick={() => imprimirOrcamento(detOrc)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>🖨️ Imprimir orçamento</button>
+                <button onClick={async () => { await converterOrcamento({ id: detOrc.id, tutor: detOrc.tutor?.name || 'Cliente', valor: Number(detOrc.valorTotal || 0) }); setDetOrc(null); }} style={{ marginLeft: 'auto', border: 'none', borderRadius: 9, background: '#6D28D9', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>→ Converter em venda</button>
+              </div>
             </div>
           </div>
         </div>
@@ -684,7 +922,7 @@ export default function PDVPage() {
       {recOpen && detVenda && (() => {
         const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
         const soma = recFormas.reduce((s, f) => s + Number(f.valor || 0), 0);
-        const temDin = recFormas.some((f) => /dinheiro/i.test(f.forma));
+        const temDin = recFormas.some((f) => ehDinheiro(f.forma));
         const trocoR = temDin && soma > aReceber ? soma - aReceber : 0;
         const pagoR = Math.max(0, soma - trocoR);
         const restanteR = Math.max(0, aReceber - pagoR);
@@ -700,14 +938,7 @@ export default function PDVPage() {
                   <span style={{ fontSize: 13, color: INK2 }}>Saldo a receber</span>
                   <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(aReceber)}</span>
                 </div>
-                {recFormas.map((f, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 7 }}>
-                    <select value={f.forma} onChange={(e) => setRecFormas(recFormas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.3, padding: '8px' }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
-                    <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setRecFormas(recFormas.map((x, j) => j === i ? { ...x, valor: num(e.target.value) } : x))} style={{ ...inp, flex: 1, padding: '8px' }} />
-                    {recFormas.length > 1 && <button onClick={() => setRecFormas(recFormas.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }}>🗑️</button>}
-                  </div>
-                ))}
-                <button onClick={() => setRecFormas([...recFormas, { forma: 'Pix', valor: 0 }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>➕ outra forma</button>
+                <PagamentoFormas formas={recFormas} onChange={setRecFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
 
                 <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Recebido agora</span><b style={{ color: NAVY }}>{brl(pagoR)}</b></div>

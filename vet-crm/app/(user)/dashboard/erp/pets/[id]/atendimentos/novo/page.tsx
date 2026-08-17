@@ -14,6 +14,9 @@ import { montarPetExame, faseInicialExame } from "@/lib/petExame";
 import PetComandaRail from "@/components/pets/PetComandaRail";
 import ConsultationRecorder from "@/components/protected/dashboard/clinical-documents/ConsultationRecorder";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
+import { assignFollowUp } from "@/lib/followup";
+import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda } from "@/lib/catalogoVendavel";
+import { imprimirDocumento } from "@/lib/print";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -60,7 +63,7 @@ export default function NovoAtendimentoPage() {
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 16), type: "CONSULTA", userId: "", status: "Realizado",
     peso: "", chiefComplaint: "", anamnesis: "", physicalExam: "", diagnosis: "", conduct: "",
-    recModelo: "", followUpNotes: "", followUpDate: "",
+    recModelo: "", followUpNotes: "", followUpDate: "", followUpResp: "",
   });
   const set = (k: keyof typeof form, v: any) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -83,6 +86,12 @@ export default function NovoAtendimentoPage() {
   const [fisioSrv, setFisioSrv] = useState<any[]>([]);
   const [pacForm, setPacForm] = useState<{ open: boolean; serviceId: string; nome: string; total: string; jaFeitas: string }>({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" });
   const [savingPac, setSavingPac] = useState(false);
+  // ⚡ Sequências (cadências) — mesmo controle da Visão geral, embutido no atendimento
+  const [cadAtivas, setCadAtivas] = useState<{ id: string; data: any }[]>([]);
+  const [cadOpts, setCadOpts] = useState<any[]>([]);
+  const [cadPick, setCadPick] = useState(false);
+  const [savingCad, setSavingCad] = useState(false);
+  const [tutorWhats, setTutorWhats] = useState("");
 
   useEffect(() => {
     if (!petId) return;
@@ -95,6 +104,11 @@ export default function NovoAtendimentoPage() {
       setVets(list);
       if ((session as any)?.user?.id) setForm((f) => ({ ...f, userId: (session as any).user.id }));
       else if (list[0]?.id) setForm((f) => ({ ...f, userId: list[0].id }));
+      // ⚡ Sequências: catálogo de cadências + as ativas do pet + telefone do tutor (p/ inscrever no motor)
+      const cds = await safeJson<any>(await fetch(`/api/cadencias?includeInactive=true`, { cache: "no-store" }), []);
+      setCadOpts(Array.isArray(cds) ? cds : (cds.cadencias || cds.data || []));
+      loadCad();
+      if (p?.tutorId) { const tt = await safeJson<any>(await fetch(`/api/tutors/${p.tutorId}`), null); const ph = tt?.phone || tt?.telefone || (Array.isArray(tt?.contacts) ? (tt.contacts.find((c: any) => c.phone || c.value)?.phone || tt.contacts.find((c: any) => c.value)?.value) : "") || ""; if (ph) setTutorWhats(ph); }
       // catálogo de exames (planilha config)
       const exm = await safeJson<any>(await fetch(`/api/fornecedores/exames/lista`), []);
       setExCat(Array.isArray(exm) ? exm : (exm.exames || exm.data || []));
@@ -118,8 +132,8 @@ export default function NovoAtendimentoPage() {
       const rtArr = (Array.isArray(rt) ? rt : (rt.itens || rt.data || [])).map((i: any) => { try { const o = JSON.parse(i.valor); return { v: o.v, l: o.l }; } catch { return { v: i.valor, l: i.valor }; } }).filter((x: any) => x.v);
       if (rtArr.length) setTipos(rtArr);
       // catálogo de serviços (coluna direita — venda)
-      const sv = await safeJson<any>(await fetch(`/api/servicos/itens?limit=1000`, { cache: "no-store" }), []);
-      const svArr = Array.isArray(sv) ? sv : (sv.servicos || sv.itens || sv.data || []);
+      // FONTE ÚNICA: serviços + produtos + medicamentos/vacinas (antes só serviços).
+      const svArr: any[] = await carregarCatalogoVendavel();
       setServicos(svArr);
       setFisioSrv(svArr.filter((s: any) => JSON.stringify(s).toLowerCase().includes("fisio")));
       // orçamentos do pet (aba Orçamentos — leitura)
@@ -187,7 +201,7 @@ export default function NovoAtendimentoPage() {
   function addItem() { setItens((p) => [...p, { servicoId: "", descricao: "", quantidade: 1, valorUnitario: 0, custoUnitario: 0, executorUserId: form.userId || "", comissaoValor: 0 }]); }
   function updItem(i: number, patch: any) { setItens((p) => p.map((x, idx) => idx === i ? { ...x, ...patch } : x)); }
   function rmItem(i: number) { setItens((p) => p.filter((_, idx) => idx !== i)); }
-  function pickServico(i: number, servicoId: string) { const s = servicos.find((x: any) => x.id === servicoId); updItem(i, { servicoId, descricao: s?.nome || "", valorUnitario: s?.valorPadrao ?? 0, custoUnitario: s?.custoPadrao ?? 0 }); }
+  function pickServico(i: number, servicoId: string) { const s = servicos.find((x: any) => x.id === servicoId); if (!s) return; const l = linhaDoItem(s); updItem(i, { servicoId: l.servicoId || "", descricao: l.descricao, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId ?? null, catalogoExameId: l.catalogoExameId, _exame: l._exame }); }
   const totalVenda = itens.reduce((sm, it) => sm + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0);
 
   async function addPacote() {
@@ -233,27 +247,21 @@ export default function NovoAtendimentoPage() {
   function addMed() { setMeds((m) => [...m, { nome: "", posologia: "", via: "Oral (VO)" }]); }
   function updMed(i: number, patch: any) { setMeds((m) => m.map((x, idx) => idx === i ? { ...x, ...patch } : x)); }
   function rmMed(i: number) { setMeds((m) => m.filter((_, idx) => idx !== i)); }
+  // Atendimento texto-livre: escolher um modelo INSERE o texto no campo de prescrição (não em blocos).
   function aplicarModeloReceita(nome: string) {
     set("recModelo", nome);
     const m = recModelos.find((x) => x.nome === nome);
-    if (m && m.corpo) {
-      // insere o corpo do modelo como um "medicamento" de texto livre (posologia = corpo), sem quebrar a estrutura
-      setMeds((prev) => [...prev, { nome: m.nome, posologia: m.corpo, via: "" }]);
-    }
+    if (m && m.corpo) setPrescEdit((prev) => (prev.trim() ? prev.trimEnd() + "\n" : "") + m.corpo);
   }
-  // Texto compatível salvo em Appointment.prescription (retrocompatível com a timeline existente)
-  function prescricaoTexto() {
-    if (meds.length === 0) return "";
-    return meds.map((md) => {
-      const via = md.via ? ` — ${md.via}` : "";
-      return `• ${md.nome || "(medicamento)"}: ${md.posologia || ""}${via}`.trim();
-    }).join("\n");
-  }
+  // A prescrição é um texto único (prescEdit) — conectado ao bloco Receita. Salvo em Appointment.prescription.
+  function prescricaoTexto() { return prescEdit.trim(); }
 
   // Lança o exame na comanda lateral com o VALOR AO CLIENTE (tabela de exames por laboratório).
   function lancarExameNaComanda(ex: ExameCat) {
     const valor = Number((ex as any).valorClienteSugerido ?? (ex as any).valorCliente ?? 0) || 0;
-    try { window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: ex.nome, valorUnitario: valor, quantidade: 1 } })); } catch { /* noop */ }
+    const custo = Number((ex as any).valorFornecedor ?? 0) || 0; // custo do lab → a-pagar
+    const fornecedorId = (ex as any).fornecedorId ?? (ex as any).fornecedor?.id ?? null;
+    try { window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: ex.nome, valorUnitario: valor, custoUnitario: custo, fornecedorId, catalogoExameId: (ex as any).id, _exame: true, quantidade: 1 } })); } catch { /* noop */ }
   }
   function pickExameClinica(ex: ExameCat) {
     if (exClinica.some((x) => x.nome === ex.nome)) return;
@@ -269,16 +277,24 @@ export default function NovoAtendimentoPage() {
     lancarExameNaComanda(ex); // → entra na comanda automaticamente
   }
 
+  // Receita / Solicitação de exames — TIMBRADO OFICIAL (o mesmo dos documentos/orçamentos/vendas)
+  // via imprimirDocumento; mantém a assinatura-imagem + nome/CRMV do profissional no rodapé.
   function imprimirFolha(titulo: string, corpo: string) {
-    const w = window.open("", "_blank", "width=800,height=900");
-    if (!w) { toast.error("Permita pop-ups para imprimir"); return; }
     const esc = (t: string) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const dt = new Date().toLocaleDateString("pt-BR");
-    const vetNome = vets.find((u) => u.id === form.userId)?.name || "";
-    w.document.write('<html><head><title>' + esc(titulo) + '</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto}h1{color:#014D5E;font-size:20px;margin:0 0 4px}.sub{color:#6B7280;font-size:12px;margin-bottom:18px}.who{font-size:13px;color:#475569;margin-bottom:14px}.box{white-space:pre-wrap;font-size:14px;line-height:1.6;border-top:2px solid #009AAC;padding-top:16px}.ft{margin-top:48px;font-size:12px;color:#6B7280;border-top:1px solid #ddd;padding-top:10px}</style></head><body><h1>Empório do Pet</h1><div class="sub">' + esc(titulo) + ' — ' + esc(dt) + '</div><div class="who">Pet: <b>' + esc(pet?.name || "") + '</b>' + (pet?.tutor?.name ? ' · Tutor: ' + esc(pet.tutor.name) : '') + (vetNome ? ' · Profissional: ' + esc(vetNome) : '') + '</div><div class="box">' + esc(corpo) + '</div><div class="ft">Documento gerado pelo sistema Empório do Pet</div></body></html>');
-    w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+    const vetObj: any = vets.find((u) => u.id === form.userId);
+    const vetNome = vetObj?.name || "";
+    const vsig = vetObj?.signatureUrl || "";
+    const vcrmv = vetObj?.crmv || vetObj?.profissional?.crmv || "";
+    const sigBlock = (vetNome && /receita/i.test(titulo)) // assinatura SÓ na receita (não na solicitação de exames)
+      ? '<div style="margin-top:' + (vsig ? 40 : 56) + 'px;text-align:left">'
+        + (vsig ? '<div><img src="' + vsig + '" alt="assinatura" style="max-height:72px;max-width:260px;object-fit:contain;mix-blend-mode:multiply" /></div>' : '')
+        + '<div style="display:inline-block;min-width:240px;border-top:1px solid #14253a;padding-top:6px;font-size:13px"><b>' + esc(vetNome) + '</b>'
+        + (vcrmv ? '<div style="font-size:12px;color:#475569;margin-top:2px">' + esc(vcrmv) + '</div>' : '') + '</div></div>'
+      : '';
+    const body = '<div style="white-space:pre-wrap;font-size:14px;line-height:1.6">' + esc(corpo) + '</div>' + sigBlock;
+    imprimirDocumento(titulo, body, undefined, { pet, tutor: (pet as any)?.tutor });
   }
-  function imprimirReceita() { const t = prescricaoTexto(); if (!t) { toast.error("Adicione ao menos um medicamento"); return; } imprimirFolha("Receita", t); }
+  function imprimirReceita() { const t = prescricaoTexto(); if (!t) { toast.error("Escreva a prescrição primeiro"); return; } imprimirFolha("Receita", t); }
   function imprimirSolicitacao() {
     const linhas = [...exClinica.map((e) => `• ${e.nome} (fazemos na clínica)`), ...exExterno.map((e) => `• ${e.nome} (externo)`)];
     if (linhas.length === 0) { toast.error("Escolha ao menos um exame"); return; }
@@ -286,6 +302,31 @@ export default function NovoAtendimentoPage() {
   }
 
   async function listasAdd(lista: string, valor: string) { try { await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista, valor }) }); } catch {} }
+  // ⚡ Sequências — carrega as ativas do pet (petcad_) e permite iniciar/encerrar aqui mesmo.
+  async function loadCad() {
+    const arr = await safeJson<any>(await fetch(`/api/listas?lista=petcad_${petId}`, { cache: "no-store" }), []);
+    const list = Array.isArray(arr) ? arr : (arr.itens || arr.data || []);
+    setCadAtivas(list.map((i: any) => { let d: any = {}; try { d = JSON.parse(i.valor); } catch {} return { id: i.id, data: d }; }));
+  }
+  async function addCad(c: any) {
+    setSavingCad(true);
+    try {
+      const phone = (tutorWhats || "").replace(/\D/g, "");
+      let inscId: string | null = null;
+      if (phone) { try { const r = await fetch(`/api/cadencias/${c.id}/inscrever`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId: pet?.tutorId, petId, phone }) }); if (r.ok) { const d = await r.json().catch(() => null); inscId = d?.id || null; } } catch {} }
+      await listasAdd(`petcad_${petId}`, JSON.stringify({ cadenciaId: c.id, nome: c.nome || c.titulo, startedAt: new Date().toISOString(), inscId }));
+      toast.success(inscId ? "Sequência iniciada — acompanhamento agendado 📲" : (phone ? "Sequência marcada" : "Sequência marcada — tutor sem telefone, não envia"));
+      setCadPick(false); await loadCad();
+    } catch { toast.error("Erro"); } finally { setSavingCad(false); }
+  }
+  async function delCad(c: any) {
+    try {
+      const inscId = c?.data?.inscId;
+      if (inscId) await fetch(`/api/cadencias/inscricoes/${inscId}/cancelar`, { method: "PATCH" }).catch(() => undefined);
+      await fetch(`/api/listas/${c.id}`, { method: "DELETE" });
+      toast.success("Sequência encerrada"); await loadCad();
+    } catch { toast.error("Erro"); }
+  }
 
   function receberNoCaixa() {
     if (!itens.some((i) => i.descricao || i.servicoId)) { toast.error("Adicione ao menos um serviço/produto para receber."); return; }
@@ -312,12 +353,10 @@ export default function NovoAtendimentoPage() {
       const itensValidos = itens.filter((it) => it.descricao || it.servicoId);
       if (itensValidos.length) {
         payload.items = itensValidos.map((it) => ({
-          ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}),
-          ...(it.descricao ? { descricao: it.descricao } : {}),
+          // NÚCLEO ÚNICO `itemParaVenda` (identidade: servicoId/productId | catalogoItemId+fornecedor | exame + custo).
+          ...itemParaVenda(it as any),
           ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}),
           quantidade: Number(it.quantidade) || 1,
-          valorUnitario: Number(it.valorUnitario) || 0,
-          custoUnitario: Number(it.custoUnitario) || 0,
           valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0),
           ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}),
         }));
@@ -374,11 +413,26 @@ export default function NovoAtendimentoPage() {
       for (const e of exClinica) await listasAdd(`petexa_${pet.id}`, JSON.stringify(montarPetExame({ nome: e.nome, catalogo: e._cat, fases: exFases, externo: false, acompanha: true, por: meNome, status: e.status })));
       for (const e of exExterno) await listasAdd(`petexa_${pet.id}`, JSON.stringify(montarPetExame({ nome: e.nome, catalogo: e._cat, fases: exFases, externo: true, acompanha: false, por: meNome })));
 
+      // Receita → também registra na ABA DE RECEITAS (clinical-document tipo PRESCRIPTION),
+      // pra aparecer no BOX de receitas independente, além da linha do tempo. Mesmo molde do bloco Receita da ficha.
+      if (prescricao && novoAtdId) {
+        const vetNome = vets.find((u) => u.id === form.userId)?.name || meNome || undefined;
+        try {
+          await fetch(`/api/clinical-documents`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appointmentId: novoAtdId, type: "PRESCRIPTION", title: form.recModelo || "Receita", content: prescricao, htmlContent: prescricao, signedBy: vetNome }) });
+        } catch {}
+      }
+
       // Pós-atendimento → integra ao Follow-up do pet (mesmo FU da Visão geral)
       const fuBody: any = {};
       if (form.followUpNotes !== (pet.followUpNotes || "")) fuBody.followUpNotes = form.followUpNotes || null;
       if (form.followUpDate) fuBody.proximoFollowupAt = new Date(form.followUpDate + "T12:00:00").toISOString();
       if (Object.keys(fuBody).length) { try { await fetch(`/api/pets/${pet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fuBody) }); } catch {} }
+      // 👤 quem acompanha o follow-up (padrão único): avisa a pessoa + rastro + KV → cai no painel dela.
+      if (form.followUpResp) {
+        const nome = vets.find((u) => u.id === form.followUpResp)?.name || "";
+        const fuLabel = form.followUpDate ? new Date(form.followUpDate + "T12:00:00").toLocaleDateString("pt-BR") : "";
+        try { await assignFollowUp({ petId: pet.id, userId: form.followUpResp, nome, petNome: pet.name, fuLabel }); } catch {}
+      }
 
       toast.success("Atendimento registrado");
       limparRascunho();
@@ -435,16 +489,20 @@ export default function NovoAtendimentoPage() {
       const diag = [a.diagnostico, ...(a.diagnosticosDiferenciais || []).map((d: string) => `DD: ${d}`)].filter(Boolean).join("\n");
       const exames = (a.examesSolicitados || []).filter(Boolean).join(", ");
 
-      // Preenche só campos vazios (não sobrescreve o que a vet já digitou).
+      // Atendimento texto-livre: a IA junta tudo num texto só (Anotações) + Resumo. Só preenche se vazio.
       let n = 0;
+      const corpoIA = [
+        a.historico && `Anamnese: ${a.historico}`,
+        a.exameClinico && `Exame físico: ${a.exameClinico}`,
+        diag && `Diagnóstico: ${diag}`,
+        conduta && `Conduta:\n${conduta}`,
+        exames && `Exames solicitados: ${exames}`,
+      ].filter(Boolean).join("\n\n");
       setForm((f) => {
         const nf = { ...f };
         const put = (k: keyof typeof f, v: string) => { if (v && !String((f as any)[k] || "").trim()) { (nf as any)[k] = v; n++; } };
         put("chiefComplaint", a.queixaPrincipal || "");
-        put("anamnesis", a.historico || "");
-        put("physicalExam", a.exameClinico || "");
-        put("diagnosis", diag);
-        put("conduct", conduta);
+        put("anamnesis", corpoIA);
         put("followUpNotes", a.retorno || "");
         return nf;
       });
@@ -542,56 +600,29 @@ export default function NovoAtendimentoPage() {
           </div>
         </div>
 
-        {/* CLÍNICO */}
+        {/* ATENDIMENTO — texto livre (estilo SimplesVet): Resumo + um campo só */}
         <div className={card} style={{ padding: "13px 16px" }}>
-          <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">📋 Clínico</div>
+          <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">📋 Atendimento</div>
           <div className="flex flex-col gap-2.5">
-            <div><label className={lbl}>Queixa / motivo</label><input value={form.chiefComplaint} onChange={(e) => set("chiefComplaint", e.target.value)} className={inp} placeholder="O que motivou a consulta" /></div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><label className={lbl}>Anamnese</label><textarea rows={3} value={form.anamnesis} onChange={(e) => set("anamnesis", e.target.value)} className={inp} /></div>
-              <div><label className={lbl}>Exame físico</label><textarea rows={3} value={form.physicalExam} onChange={(e) => set("physicalExam", e.target.value)} className={inp} /></div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div><label className={lbl}>Diagnóstico</label><textarea rows={2} value={form.diagnosis} onChange={(e) => set("diagnosis", e.target.value)} className={inp} /></div>
-              <div><label className={lbl}>Conduta</label><textarea rows={2} value={form.conduct} onChange={(e) => set("conduct", e.target.value)} className={inp} /></div>
-            </div>
+            <div><label className={lbl}>Resumo <span className="normal-case text-[#94a3a0]">(1 linha, opcional)</span></label><input value={form.chiefComplaint} onChange={(e) => set("chiefComplaint", e.target.value)} className={inp} placeholder="Ex.: Reavaliação — melhora do quadro" /></div>
+            <div><label className={lbl}>Anotações do atendimento</label><textarea rows={10} value={form.anamnesis} onChange={(e) => set("anamnesis", e.target.value)} className={inp} placeholder="Escreva livremente: queixa, anamnese, exame físico, diagnóstico, conduta…" /></div>
           </div>
         </div>
 
-        {/* PRESCRIÇÃO estruturada */}
+        {/* PRESCRIÇÃO — texto livre, conectada ao bloco Receita */}
         <div className={card} style={{ padding: "13px 16px" }}>
           <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
             <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">💊 Prescrição</div>
             <div className="flex items-center gap-2">
               <select value={form.recModelo} onChange={(e) => aplicarModeloReceita(e.target.value)} className="border border-[#E8E2D6] rounded-[9px] px-2 py-1.5 text-[12px] text-[#5C6B70] bg-white">
-                <option value="">Modelo (Normal/Especial)…</option>
+                <option value="">Inserir modelo…</option>
                 {recModelos.map((m) => <option key={m.nome} value={m.nome}>{m.nome}</option>)}
               </select>
               <button onClick={imprimirReceita} className="text-[12px] px-3 py-1.5 rounded-[9px] border border-[#E8E2D6] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">🖨️ Imprimir receita</button>
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            {editId && (
-              <div>
-                <label className={lbl}>Prescrição atual (editável)</label>
-                <textarea rows={3} value={prescEdit} onChange={(e) => setPrescEdit(e.target.value)} className={inp} placeholder="Prescrição registrada neste atendimento" />
-                <p className="text-[11px] text-[#374151] mt-0.5">Edite o texto acima ou adicione medicamentos abaixo (os medicamentos, se houver, substituem o texto ao salvar).</p>
-              </div>
-            )}
-            {meds.length === 0 && <p className="text-[12px] text-[#374151]">Nenhum medicamento. Use "＋ adicionar medicamento" ou escolha um modelo.</p>}
-            {meds.map((md, i) => (
-              <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_1fr_150px_auto] gap-2 items-center">
-                <input value={md.nome} onChange={(e) => updMed(i, { nome: e.target.value })} placeholder="Medicamento" className="px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px]" />
-                <input value={md.posologia} onChange={(e) => updMed(i, { posologia: e.target.value })} placeholder="Posologia" className="px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px]" />
-                <select value={md.via} onChange={(e) => updMed(i, { via: e.target.value })} className="px-2 py-1.5 border border-[#E8E2D6] rounded-[9px] text-[13px] text-[#5C6B70]">
-                  <option value="">Via…</option>
-                  {VIAS.map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-                <button onClick={() => rmMed(i)} title="Remover" className="text-[#b23b39] px-2 py-1.5 text-[14px]">✕</button>
-              </div>
-            ))}
-            <button onClick={addMed} className="self-start text-[12px] px-3 py-1.5 rounded-full border border-dashed border-[#E8E2D6] text-[#009AAC] hover:border-[#009AAC]">＋ adicionar medicamento</button>
-          </div>
+          <textarea rows={5} value={prescEdit} onChange={(e) => setPrescEdit(e.target.value)} className={inp} placeholder="Escreva a prescrição livremente (um medicamento por linha). Escolha um modelo acima pra já inserir pronto." />
+          <p className="text-[11px] text-[#374151] mt-1">📄 Ao salvar, a prescrição entra como <b>Receita</b> ligada a este atendimento (aparece no box de Receitas e na linha do tempo). Use 🖨️ pra imprimir e assinar.</p>
         </div>
 
         {/* EXAMES — duas caixas */}
@@ -679,7 +710,38 @@ export default function NovoAtendimentoPage() {
             <div><label className={lbl}>O que acompanhar</label><input value={form.followUpNotes} onChange={(e) => set("followUpNotes", e.target.value)} placeholder="Ex.: verificar se a coceira melhorou, se está tomando o remédio…" className={inp} /></div>
             <div><label className={lbl}>Data do follow-up</label><input type="date" value={form.followUpDate} onChange={(e) => set("followUpDate", e.target.value)} className={inp} /></div>
           </div>
-          <p className="text-[11px] text-[#374151] mt-1.5">Grava no follow-up do pet (aparece na Visão geral e no Hoje).</p>
+          <div className="mt-2 flex items-center gap-1.5" style={{ maxWidth: 380 }}>
+            <span className="text-[11px] whitespace-nowrap text-[#00798A]">👤 Acompanha:</span>
+            <select value={form.followUpResp} onChange={(e) => set("followUpResp", e.target.value)} className={inp}>
+              <option value="">Ninguém específico</option>
+              {vets.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+          <p className="text-[11px] text-[#374151] mt-1.5">Grava no follow-up do pet (aparece na Visão geral e no Hoje). Quem acompanha recebe um aviso e o follow-up cai no painel dele.</p>
+        </div>
+
+        {/* ⚡ SEQUÊNCIA DE CUIDADO — mesma da Visão geral, embutida no atendimento */}
+        <div className={card} style={{ padding: "13px 16px" }}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E]">⚡ Sequência de cuidado</div>
+            <button type="button" onClick={() => setCadPick((v) => !v)} className="text-[11px] text-[#009AAC] hover:underline">+ iniciar</button>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {cadAtivas.length === 0 && !cadPick && <p className="text-[12px] text-[#374151]">Nenhuma sequência ativa.</p>}
+            {cadAtivas.map((c) => (
+              <div key={c.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[10px] px-2.5 py-1.5 flex items-center justify-between text-[12px]">
+                <span className="text-[#1F2A2E]">⚡ {c.data?.nome || "Cadência"}</span>
+                <button type="button" onClick={() => delCad(c)} className="text-[#b23b39] text-[10.5px]">encerrar</button>
+              </div>
+            ))}
+            {cadPick && (
+              <div className="pt-1.5 border-t border-[#F0EBE0] flex flex-wrap gap-1.5">
+                {cadOpts.length === 0 ? <p className="text-[11px] text-[#374151]">Nenhuma sequência cadastrada em Configurações.</p> :
+                  cadOpts.map((c: any) => (<button type="button" key={c.id} disabled={savingCad} onClick={() => addCad(c)} className="text-[11px] px-2 py-1 rounded-lg border disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>+ {c.nome || c.titulo}</button>))}
+              </div>
+            )}
+          </div>
+          <p className="text-[11px] text-[#374151] mt-1.5">Inicia a cadência de mensagens (mesma da Visão geral) sem sair do atendimento.</p>
         </div>
       </div>
 

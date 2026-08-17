@@ -13,6 +13,8 @@ function toApi(m: any, productName?: string) {
     previousStock: m.saldoAntes,
     newStock: m.saldoDepois,
     reason: m.motivo ?? '',
+    custoUnitario: m.custoUnitario ?? null,
+    fornecedor: m.product?.fornecedor?.nome ?? null,
     origem: m.origem,
     userId: m.userId ?? null,
     userName: m.userName ?? null,
@@ -32,7 +34,7 @@ export class StockService {
     const [rows, total] = await Promise.all([
       this.prisma.estoqueMovimento.findMany({
         where,
-        include: { product: { select: { name: true } } },
+        include: { product: { select: { name: true, fornecedor: { select: { nome: true } } } } },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,

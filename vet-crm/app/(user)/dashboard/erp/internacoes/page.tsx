@@ -42,6 +42,8 @@ export default function InternacoesPage() {
   const [filtroTipo, setFiltroTipo] = useState<"Todas" | "CANINO" | "FELINO" | "ISOLAMENTO">("Todas");
   const [busca, setBusca] = useState("");
   const [tv, setTv] = useState(false);
+  // Vindo do atalho "Internação" na ficha do pet (?pet=Nome) → já filtra por ele.
+  useEffect(() => { try { const p = new URLSearchParams(window.location.search).get("pet"); if (p) setBusca(p); } catch {} }, []);
 
   const [novoOpen, setNovoOpen] = useState(false);
   const [form, setForm] = useState<any>({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });

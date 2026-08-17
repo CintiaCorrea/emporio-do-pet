@@ -16,7 +16,7 @@ export const PERFIS_SISTEMA = ["Admin", "Veterinário", "Recepção"];
 
 // Telas que NUNCA entram na matriz: são gateadas por cargo (só Admin) e
 // ficam sempre visíveis pro Admin (trava anti-lockout).
-export const LOCKED_KEYS = ["/dashboard/configuracoes", "/dashboard/configuracoes/permissoes"];
+export const LOCKED_KEYS = ["/dashboard/configuracoes", "/dashboard/configuracoes/permissoes", "/dashboard/hoje"];
 
 export interface PermItem { key: string; label: string; emoji: string; children?: PermItem[]; }
 export interface PermSection { titulo: string; emoji: string; itens: PermItem[]; }
@@ -25,20 +25,23 @@ export interface PermSection { titulo: string; emoji: string; itens: PermItem[];
 export const PERM_SECTIONS: PermSection[] = [
   {
     titulo: "Dia a dia", emoji: "🗂️", itens: [
-      { key: "/dashboard/hoje", label: "Hoje", emoji: "✨" },
-      { key: "/dashboard", label: "Painel", emoji: "📊" },
+      { key: "/dashboard/hoje", label: "Meu painel", emoji: "🏠" },
       { key: "/dashboard/inbox", label: "Inbox BC", emoji: "💬" },
       { key: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲" },
       { key: "/dashboard/comercial", label: "Comercial", emoji: "🎯" },
       { key: "/dashboard/erp/tutores", label: "Clientes", emoji: "👥" },
-      { key: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅" },
+      {
+        key: "agenda", label: "Agenda", emoji: "📅", children: [
+          { key: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅" },
+          { key: "/dashboard/erp/agendamentos/escala", label: "Escala", emoji: "🗓️" },
+          { key: "/dashboard/erp/agendamentos/configuracoes", label: "Configuração", emoji: "⚙️" },
+        ],
+      },
       { key: "/dashboard/erp/vacinacao", label: "Vacinação", emoji: "💉" },
       { key: "/dashboard/erp/aniversarios", label: "Aniversários", emoji: "🎂" },
       {
-        key: "clinico", label: "Atendimento clínico", emoji: "🩺", children: [
-          { key: "/dashboard/erp/consultas", label: "Consultas", emoji: "🩺" },
+        key: "clinico", label: "Documentos clínicos", emoji: "📄", children: [
           { key: "/dashboard/erp/documentos", label: "Documentos", emoji: "📄" },
-          { key: "/dashboard/erp/tratamentos", label: "Tratamentos", emoji: "💉" },
         ],
       },
       { key: "/dashboard/erp/internacoes", label: "Internação", emoji: "🏥" },
@@ -48,7 +51,6 @@ export const PERM_SECTIONS: PermSection[] = [
     titulo: "Gestão", emoji: "📊", itens: [
       {
         key: "vendas", label: "Vendas", emoji: "💰", children: [
-          { key: "/dashboard/erp/comandas", label: "Em atendimento", emoji: "🛎️" },
           { key: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒" },
           { key: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵" },
           { key: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦" },
@@ -62,7 +64,13 @@ export const PERM_SECTIONS: PermSection[] = [
           { key: "/dashboard/erp/importar-vendas", label: "Importar vendas", emoji: "📥" },
         ],
       },
-      { key: "/dashboard/erp/comissoes", label: "Comissionamento", emoji: "🧾" },
+      {
+        key: "comissionamento", label: "Comissionamento", emoji: "🧾", children: [
+          { key: "/dashboard/erp/comissoes", label: "Comissões em aberto", emoji: "📂" },
+          { key: "/dashboard/erp/comissoes/extratos", label: "Extratos", emoji: "📁" },
+          { key: "/dashboard/erp/comissoes/minhas", label: "Minhas comissões", emoji: "👤" },
+        ],
+      },
       {
         key: "inteligencia", label: "Inteligência", emoji: "💡", children: [
           { key: "/dashboard/erp/minhas-vendas", label: "Produtividade", emoji: "📈" },
@@ -73,16 +81,20 @@ export const PERM_SECTIONS: PermSection[] = [
       },
       {
         key: "estoque", label: "Estoque e serviços", emoji: "📦", children: [
-          { key: "/dashboard/erp/produtos", label: "Produtos", emoji: "📦" },
-          { key: "/dashboard/erp/servicos", label: "Serviços", emoji: "🏷️" },
+          { key: "/dashboard/erp/catalogo", label: "Produtos e Serviços", emoji: "🗂️" },
           { key: "/dashboard/erp/estoque", label: "Estoque", emoji: "📊" },
-          { key: "/dashboard/erp/lista-precos", label: "Lista de preços", emoji: "💲" },
+          { key: "/dashboard/erp/estoque/compras", label: "Compras", emoji: "🛒" },
+          { key: "/dashboard/erp/estoque/saidas", label: "Outras saídas de estoque", emoji: "📤" },
+          { key: "/dashboard/erp/estoque/analise", label: "Análise de estoque", emoji: "📈" },
+          { key: "/dashboard/erp/estoque/inventario", label: "Inventário", emoji: "📋" },
+          { key: "/dashboard/erp/estoque/pedido-compra", label: "Pedido de compra", emoji: "📝" },
+          { key: "/dashboard/configuracoes/grupos", label: "Grupos de Produtos", emoji: "📁" },
+          { key: "/dashboard/erp/estoque/marcas", label: "Marcas", emoji: "🏷️" },
         ],
       },
       {
         key: "financeiro", label: "Financeiro", emoji: "💵", children: [
           { key: "/dashboard/erp/financeiro", label: "Financeiro", emoji: "💵" },
-          { key: "/dashboard/erp/financeiro-terceiros", label: "Fin. Terceiros", emoji: "💸" },
         ],
       },
     ],

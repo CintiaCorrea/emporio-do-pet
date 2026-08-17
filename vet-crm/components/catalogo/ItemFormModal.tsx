@@ -22,9 +22,11 @@ export default function ItemFormModal({ editId, onClose, onSaved }: { editId?: s
     custoPadrao: "", markup: "", price: "", exibeListaPreco: true, permiteAlterarPreco: false,
     controlaEstoque: true, estoqueMin: "", estoqueMax: "", stock: "",
     comissionado: false, comissaoTipo: "PERCENTUAL", comissaoValor: "", fornecedorId: "",
+    planoTipo: "", planoUnidades: "", planoIntervaloDias: "",
   });
   const [cats, setCats] = useState<Cat[]>([]);
   const [forns, setForns] = useState<Forn[]>([]);
+  const [marcasCat, setMarcasCat] = useState<string[]>([]); // catálogo de marcas (autocompletar)
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!!editId);
   const set = (k: string, v: any) => setF((x: any) => ({ ...x, [k]: v }));
@@ -36,12 +38,15 @@ export default function ItemFormModal({ editId, onClose, onSaved }: { editId?: s
 
   useEffect(() => {
     (async () => {
-      const [c, fo] = await Promise.all([
+      const [c, fo, mk] = await Promise.all([
         fetch("/api/servicos/categorias", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/fornecedores?includeInactive=true", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+        fetch("/api/listas?lista=marcas", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
       setCats(Array.isArray(c) ? c : (c.data || c.itens || []));
       setForns(Array.isArray(fo) ? fo : (fo.data || []));
+      const mkArr = Array.isArray(mk) ? mk : (mk.itens || mk.data || []);
+      setMarcasCat(mkArr.map((x: any) => x.valor).filter(Boolean).sort());
     })();
   }, []);
 
@@ -58,6 +63,7 @@ export default function ItemFormModal({ editId, onClose, onSaved }: { editId?: s
           exibeListaPreco: d.exibeListaPreco !== false, permiteAlterarPreco: !!d.permiteAlterarPreco,
           controlaEstoque: d.controlaEstoque !== false, estoqueMin: d.estoqueMin ?? "", estoqueMax: d.estoqueMax ?? "", stock: d.stock ?? "",
           comissionado: !!d.comissionado, comissaoTipo: d.comissaoTipo || "PERCENTUAL", comissaoValor: d.comissaoValor ?? "", fornecedorId: d.fornecedorId || "",
+          planoTipo: d.planoTipo || "", planoUnidades: d.planoUnidades ?? "", planoIntervaloDias: d.planoIntervaloDias ?? "",
         });
       } catch { toast.error("Erro ao carregar item"); }
       try { const cc = await fetch(`/api/products/${editId}/composicao`, { cache: "no-store" }).then((r) => r.json()); if (Array.isArray(cc)) setComp(cc); } catch { /* sem ficha técnica */ }
@@ -104,6 +110,10 @@ export default function ItemFormModal({ editId, onClose, onSaved }: { editId?: s
       comissaoTipo: f.comissionado ? f.comissaoTipo : undefined,
       comissaoValor: f.comissionado ? num(f.comissaoValor) : undefined,
       fornecedorId: f.fornecedorId || undefined,
+      // Plano por venda (fisio = sessões · medicamento = doses). Vazio = não é plano.
+      planoTipo: f.planoTipo || undefined,
+      planoUnidades: f.planoTipo ? (num(f.planoUnidades) ?? undefined) : undefined,
+      planoIntervaloDias: f.planoTipo === "MEDICAMENTO" ? (num(f.planoIntervaloDias) ?? undefined) : undefined,
     };
     if (isProd) {
       payload.codigoBarras = f.codigoBarras || undefined;
@@ -183,7 +193,9 @@ export default function ItemFormModal({ editId, onClose, onSaved }: { editId?: s
               <h3 style={h3}>📋 Dados básicos</h3>
               <div style={grid}>
                 {isProd && <div><label style={lbl}>Código de barras</label><input style={inp} value={f.codigoBarras} onChange={(e) => set("codigoBarras", e.target.value)} placeholder="7896014670062" /></div>}
-                {isProd && <div><label style={lbl}>Marca</label><input style={inp} value={f.marca} onChange={(e) => set("marca", e.target.value)} placeholder="Ex.: Royal Canin" /></div>}
+                {isProd && <div><label style={lbl}>Marca</label><input style={inp} list="marcas-catalogo" value={f.marca} onChange={(e) => set("marca", e.target.value)} placeholder="Ex.: Royal Canin" />
+                  <datalist id="marcas-catalogo">{marcasCat.map((m) => <option key={m} value={m} />)}</datalist>
+                </div>}
                 <div style={{ gridColumn: "1 / -1" }}><label style={lbl}>Nome *</label><input style={inp} value={f.name} onChange={(e) => set("name", e.target.value)} placeholder="Nome do item" /></div>
                 <div><label style={lbl}>Unidade de venda</label><input style={inp} value={f.unidadeVenda} onChange={(e) => set("unidadeVenda", e.target.value)} placeholder="UN, KG, ML…" /></div>
                 <div>
@@ -202,6 +214,35 @@ export default function ItemFormModal({ editId, onClose, onSaved }: { editId?: s
                     {forns.map((fo) => <option key={fo.id} value={fo.id}>{fo.nome}</option>)}
                   </select>
                 </div>
+              </div>
+            </div>
+
+            {/* PLANO POR VENDA — fisio (sessões) / medicamento (doses) */}
+            <div style={sec}>
+              <h3 style={h3}>🔁 Plano por venda (fisio / medicamento)</h3>
+              <div style={grid}>
+                <div style={{ gridColumn: "1 / -1" }}><label style={lbl}>Este item gera um plano ao ser vendido?</label>
+                  <select style={inp} value={f.planoTipo} onChange={(e) => set("planoTipo", e.target.value)}>
+                    <option value="">Não é plano</option>
+                    <option value="FISIO">🦵 Fisioterapia (pacote de sessões)</option>
+                    <option value="MEDICAMENTO">💊 Medicamento periódico (doses)</option>
+                  </select>
+                </div>
+                {f.planoTipo === "FISIO" && (
+                  <div><label style={lbl}>Sessões por pacote</label>
+                    <input style={inp} inputMode="numeric" value={f.planoUnidades} onChange={(e) => set("planoUnidades", e.target.value)} placeholder="ex.: 10" /></div>
+                )}
+                {f.planoTipo === "MEDICAMENTO" && (
+                  <div><label style={lbl}>Intervalo entre doses (dias)</label>
+                    <input style={inp} inputMode="numeric" value={f.planoIntervaloDias} onChange={(e) => set("planoIntervaloDias", e.target.value)} placeholder="ex.: 30" /></div>
+                )}
+                {f.planoTipo && (
+                  <div style={{ gridColumn: "1 / -1", fontSize: 11.5, color: "#8a6d3b", lineHeight: 1.4 }}>
+                    Ao vender no caixa, cria um plano na ficha do pet. {f.planoTipo === "FISIO"
+                      ? <>Sessões = <b>(sessões por pacote) × quantidade vendida</b>.</>
+                      : <>Doses = <b>quantidade vendida</b>, espaçadas pelo intervalo.</>}
+                  </div>
+                )}
               </div>
             </div>
 

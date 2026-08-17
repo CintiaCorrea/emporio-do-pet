@@ -8,6 +8,10 @@ export class OrcamentoItemDto {
   @ApiPropertyOptional() @IsOptional() @IsNumber() quantidade?: number;
   @ApiPropertyOptional() @IsOptional() @IsNumber() valorUnitario?: number;
   @ApiPropertyOptional() @IsOptional() @IsNumber() desconto?: number;
+  // Exame vendável: identidade guardada num registro-companheiro (orcexa_) pra iniciar o ciclo na conversão.
+  @ApiPropertyOptional() @IsOptional() @IsString() tipoItem?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() catalogoExameId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() fornecedorId?: string;
 }
 
 export class CreateOrcamentoDto {

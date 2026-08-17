@@ -2,9 +2,14 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { LuTrash, LuPlus, LuMessageSquare } from "react-icons/lu";
+import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem, ItemVendavel } from "@/lib/catalogoVendavel";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ddmm = (iso: string) => { const [, m, d] = String(iso).split("-"); return d && m ? `${d}/${m}` : iso; };
+// Valor em pt-BR: aceita "1.234,50" (milhar . + decimal ,) ou "1234.5" (ponto); sempre p/ número.
+const parseVal = (s: any): number => { const str = String(s ?? "").trim(); if (!str) return 0; return (str.includes(",") ? Number(str.replace(/\./g, "").replace(",", ".")) : Number(str)) || 0; };
+// Formata p/ "0,00" (2 casas) ao sair do campo. Vazio continua vazio.
+const fmtVal = (s: any): string => { const str = String(s ?? "").trim(); if (!str) return ""; return parseVal(str).toFixed(2).replace(".", ","); };
 
 type Item = { descricao: string; qtd: string; valor: string };
 type Props = {
@@ -20,7 +25,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
   const [itens, setItens] = useState<Item[]>([{ descricao: "", qtd: "1", valor: "" }]);
   const [validade, setValidade] = useState("");
   const [obs, setObs] = useState("");
-  const [cat, setCat] = useState<{ nome: string; valor: number }[]>([]);
+  const [cat, setCat] = useState<ItemVendavel[]>([]); // catálogo COMPLETO (guarda identidade do exame)
   const [modelos, setModelos] = useState<any[]>([]);
   const [modeloSel, setModeloSel] = useState("");
   const [saving, setSaving] = useState(false);
@@ -37,32 +42,27 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
         setModelos(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return null; } }).filter((m: any) => m && m.ativo !== false));
       } catch { setModelos([]); }
     })();
-    // Catálogo (produtos/serviços) p/ preencher rápido — busca defensiva de nome/preço.
+    // Catálogo COMPLETO (fonte única lib/catalogoVendavel): serviços + produtos + medicamentos/vacinas + exames.
     (async () => {
       try {
-        const r = await fetch(`/api/products?limit=1000`, { cache: "no-store" });
-        const d = await r.json();
-        const arr = Array.isArray(d) ? d : (d.data || d.products || d.produtos || d.itens || []);
-        const mapped = arr
-          .map((s: any) => ({ nome: s.name || s.nome || "", valor: Number(s.price ?? s.preco ?? s.valor ?? 0), ativo: s.ativo }))
-          .filter((x: any) => x.nome && x.ativo !== false);
-        setCat(mapped);
+        const itens = await carregarCatalogoVendavel({ exames: true });
+        setCat(itens);
       } catch { setCat([]); }
     })();
   }, [open]);
 
   if (!open) return null;
 
-  const total = itens.reduce((s, it) => s + (Number(it.qtd) || 1) * (Number(it.valor) || 0), 0);
+  const total = itens.reduce((s, it) => s + (Number(it.qtd) || 1) * parseVal(it.valor), 0);
   const setItem = (i: number, patch: Partial<Item>) => setItens((arr) => arr.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
   const addItem = () => setItens((arr) => [...arr, { descricao: "", qtd: "1", valor: "" }]);
   const delItem = (i: number) => setItens((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
-  const preencherDoCatalogo = (i: number, nome: string) => { const s = cat.find((c) => c.nome === nome); if (s) setItem(i, { descricao: s.nome, valor: s.valor ? String(s.valor) : "" }); };
+  const preencherDoCatalogo = (i: number, nome: string) => { const s = cat.find((c) => c.nome === nome); if (s) setItem(i, { descricao: s.nome, valor: s.valorPadrao ? fmtVal(s.valorPadrao) : "" }); };
   const aplicarModelo = (id: string) => {
     setModeloSel(id);
     const m = modelos.find((x) => x.id === id);
     if (!m) { setItens([{ descricao: "", qtd: "1", valor: "" }]); setObs(""); return; }
-    const its = (m.itens || []).map((it: any) => ({ descricao: it.descricao || "", qtd: String(it.quantidade ?? 1), valor: it.valorUnitario != null ? String(it.valorUnitario) : "" }));
+    const its = (m.itens || []).map((it: any) => ({ descricao: it.descricao || "", qtd: String(it.quantidade ?? 1), valor: it.valorUnitario != null ? fmtVal(it.valorUnitario) : "" }));
     setItens(its.length ? its : [{ descricao: "", qtd: "1", valor: "" }]);
     setObs(m.observacao != null ? String(m.observacao) : "");
   };
@@ -78,7 +78,8 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
         petId: pet.id, tutorId: tutor?.id,
         validade: validade ? new Date(validade + "T12:00:00").toISOString() : undefined,
         observacao: obs.trim() || undefined,
-        itens: vs.map((it) => ({ descricao: it.descricao.trim(), quantidade: Number(it.qtd) || 1, valorUnitario: Number(it.valor) || 0 })),
+        // casa o nome escolhido de volta com o catálogo → leva identidade do exame (custo+fornecedor) pro orcexa_
+        itens: vs.map((it) => { const s = cat.find((c) => c.nome === it.descricao); const extra = s ? itemParaVenda(linhaDoItem(s)) : {}; return { ...extra, descricao: (extra.descricao ?? it.descricao.trim()), quantidade: Number(it.qtd) || 1, valorUnitario: parseVal(it.valor) }; }),
       };
       const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();
@@ -86,10 +87,34 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
     } catch { toast.error("Erro ao salvar orçamento"); return false; }
   }
 
+  // Itens no formato de VENDA (mesma fonte única do PDV/ficha: itemParaVenda → leva id/fornecedor/exame).
+  const itensVendaBody = () => itensValidos().map((it) => {
+    const s = cat.find((c) => c.nome === it.descricao);
+    const extra = s ? itemParaVenda(linhaDoItem(s)) : {};
+    const q = Number(it.qtd) || 1; const vu = parseVal(it.valor);
+    return { ...extra, descricao: ((extra as any).descricao ?? it.descricao.trim()), quantidade: q, valorUnitario: vu, valorTotal: q * vu };
+  });
+
+  // 🧾 Cria a COMANDA direto no caixa (venda em aberto → aparece no PDV "Não pago", a receber).
+  async function mandarProCaixa() {
+    const vs = itensValidos();
+    if (!vs.length) { toast.error("Adicione ao menos um item."); return; }
+    if (!pet?.id) { toast.error("Selecione o pet."); return; }
+    if (!tutor?.id) { toast.error("Cliente sem ficha — a comanda precisa de um cliente cadastrado."); return; }
+    setSaving(true);
+    try {
+      const body = { petId: pet.id, tutorId: tutor.id, date: new Date().toISOString(), type: "Venda", status: "COMPLETED", value: total, items: itensVendaBody() };
+      const r = await fetch(`/api/appointments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error();
+      toast.success("Comanda criada — está no Caixa (a receber) 🧾");
+      onClose();
+    } catch { toast.error("Erro ao criar comanda"); } finally { setSaving(false); }
+  }
+
   function montarTexto(): string {
     const hoje = new Date().toLocaleDateString("pt-BR");
     const linhas = itensValidos().map((it) => {
-      const q = Number(it.qtd) || 1; const v = Number(it.valor) || 0;
+      const q = Number(it.qtd) || 1; const v = parseVal(it.valor);
       return q > 1
         ? `• ${it.descricao.trim()}\n   ${q} × ${BRL(v)} = *${BRL(q * v)}*`
         : `• ${it.descricao.trim()} — *${BRL(v)}*`;
@@ -131,7 +156,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-md p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>💲 Orçamento rápido — {pet?.name || "pet"}</h3>
+          <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>💲 Orçamento / Comanda — {pet?.name || "pet"}</h3>
           <button onClick={onClose} className="text-[#94a3b8] text-lg leading-none">×</button>
         </div>
 
@@ -153,9 +178,9 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
           {itens.map((it, i) => (
             <div key={i} className="grid grid-cols-[1fr_44px_84px_24px] gap-1.5 items-center">
               <input list={`cat-${i}`} value={it.descricao} onChange={(e) => { setItem(i, { descricao: e.target.value }); preencherDoCatalogo(i, e.target.value); }} placeholder="Descrição ou catálogo…" style={inp} />
-              <datalist id={`cat-${i}`}>{cat.map((c) => <option key={c.nome} value={c.nome} />)}</datalist>
+              <datalist id={`cat-${i}`}>{cat.map((c) => { const lab = labDoItem(c); return <option key={c.nome} value={c.nome} label={lab ? `${lab.veter ? "⭐ " : ""}${lab.nome}` : undefined} />; })}</datalist>
               <input value={it.qtd} onChange={(e) => setItem(i, { qtd: e.target.value })} inputMode="numeric" style={{ ...inp, textAlign: "center" }} />
-              <input value={it.valor} onChange={(e) => setItem(i, { valor: e.target.value })} inputMode="decimal" placeholder="0,00" style={{ ...inp, textAlign: "right" }} />
+              <input value={it.valor} onChange={(e) => setItem(i, { valor: e.target.value })} onBlur={(e) => setItem(i, { valor: fmtVal(e.target.value) })} inputMode="decimal" placeholder="0,00" style={{ ...inp, textAlign: "right" }} />
               <button onClick={() => delItem(i)} title="Remover" className="text-[#b23b39] flex items-center justify-center"><LuTrash size={13} /></button>
             </div>
           ))}
@@ -168,9 +193,10 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
         </div>
         <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observação (opcional)" className="w-full mt-2" style={inp} />
 
-        <div className="flex gap-2 mt-3 justify-end">
+        <div className="flex gap-2 mt-3 justify-end flex-wrap">
           <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8E2D6", color: "#64748b" }}>Cancelar</button>
-          <button onClick={enviar} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#009AAC" }}><LuMessageSquare size={13} /> {saving ? "..." : "Enviar pelo WhatsApp"}</button>
+          <button onClick={mandarProCaixa} disabled={saving} title="Cria a comanda no caixa (a receber) — sem precisar converter" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#014D5E" }}>🧾 {saving ? "..." : "Mandar pro caixa"}</button>
+          <button onClick={enviar} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#009AAC" }}><LuMessageSquare size={13} /> {saving ? "..." : "Enviar orçamento"}</button>
         </div>
       </div>
     </div>

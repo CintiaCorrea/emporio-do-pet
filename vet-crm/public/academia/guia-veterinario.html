@@ -1,0 +1,199 @@
+<!doctype html><html lang="pt-BR" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Guia — Veterinário</title></head><body>
+<style>
+  :root{--turq:#009AAC;--marinho:#014D5E;--verde:#0F6E56;--vermelho:#A32D2D;--azul:#185FA5;--amber:#B45309;--roxo:#7C3AED;--ink:#14253a;--muted:#5F5E5A;--faint:#8A8778;--bg:#F6F2EA;--card:#fff;--line:#e8e1d2;--soft:#FBF9F4;--shadow:0 1px 3px rgba(1,77,94,.07),0 6px 20px rgba(1,77,94,.05);}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bg:#0e1516;--card:#16201f;--line:#26332f;--soft:#131c1b;--shadow:0 1px 3px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);}}
+  :root[data-theme="dark"]{--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bg:#0e1516;--card:#16201f;--line:#26332f;--soft:#131c1b;--shadow:0 1px 3px rgba(0,0,0,.3),0 6px 20px rgba(0,0,0,.25);}
+  *{box-sizing:border-box;} body{margin:0;}
+  .wrap{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.55;-webkit-font-smoothing:antialiased;padding:0 20px 80px;}
+  .container{max-width:880px;margin:0 auto;}
+  header.hero{background:linear-gradient(135deg,var(--marinho),var(--turq));color:#fff;border-radius:20px;padding:34px 30px 30px;margin:28px auto 26px;max-width:880px;box-shadow:var(--shadow);}
+  header.hero .eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:700;opacity:.85;margin:0 0 8px;}
+  header.hero h1{margin:0 0 8px;font-size:30px;line-height:1.15;font-weight:800;text-wrap:balance;}
+  header.hero p{margin:0;font-size:15px;opacity:.92;max-width:62ch;}
+  header.hero .meta{margin-top:16px;font-size:12px;opacity:.85;display:flex;gap:14px;flex-wrap:wrap;}
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px 26px;margin:0 0 18px;box-shadow:var(--shadow);}
+  section>h2{margin:0 0 4px;font-size:20px;color:var(--marinho);font-weight:800;display:flex;align-items:center;gap:9px;}
+  :root:not([data-theme="light"]) section>h2{color:var(--turq);} :root[data-theme="dark"] section>h2{color:var(--turq);}
+  section>.lead{margin:0 0 18px;color:var(--muted);font-size:14px;}
+  h3{font-size:15px;margin:20px 0 8px;color:var(--ink);font-weight:700;}
+  p.tx{color:var(--muted);font-size:14px;margin:0 0 10px;} p.tx b{color:var(--ink);}
+  .cols3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+  .cols2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .colbox{border:1.5px solid var(--line);border-radius:12px;padding:14px;background:var(--soft);}
+  .colbox .ic{font-size:20px;margin-bottom:6px;}
+  .colbox b{display:block;font-size:13.5px;color:var(--ink);margin-bottom:3px;} .colbox span{font-size:12.5px;color:var(--muted);}
+  @media (max-width:620px){.cols3,.cols2{grid-template-columns:1fr;}}
+  .flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;}
+  .st{display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:11px;font-weight:700;font-size:13px;background:var(--soft);border:1px solid var(--line);color:var(--ink);}
+  .arrow{color:var(--turq);font-weight:800;font-size:16px;}
+  ul.clean{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:9px;}
+  ul.clean li{display:flex;gap:10px;align-items:baseline;font-size:13.5px;color:var(--muted);}
+  ul.clean li b{color:var(--ink);} ul.clean li .ic{font-size:15px;width:22px;text-align:center;flex-shrink:0;}
+  .rules{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media (max-width:620px){.rules{grid-template-columns:1fr;}}
+  .rule{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:11px;font-size:13.5px;}
+  .rule.do{background:color-mix(in srgb,var(--verde) 10%,var(--card));border:1px solid color-mix(in srgb,var(--verde) 25%,var(--line));}
+  .rule.dont{background:color-mix(in srgb,var(--vermelho) 9%,var(--card));border:1px solid color-mix(in srgb,var(--vermelho) 22%,var(--line));}
+  .rule .mk{font-size:15px;flex-shrink:0;} .rule b{color:var(--ink);} .rule span{color:var(--muted);display:block;margin-top:1px;font-size:12.5px;}
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;padding:3px 9px;border-radius:999px;background:var(--soft);border:1px solid var(--line);color:var(--ink);}
+  .callout{display:flex;gap:12px;align-items:flex-start;background:color-mix(in srgb,var(--turq) 8%,var(--card));border:1px solid color-mix(in srgb,var(--turq) 25%,var(--line));border-radius:12px;padding:14px 16px;margin-top:14px;}
+  .callout.warn{background:color-mix(in srgb,var(--amber) 10%,var(--card));border-color:color-mix(in srgb,var(--amber) 30%,var(--line));}
+  .callout .mk{font-size:20px;flex-shrink:0;} .callout p{margin:0;font-size:13.5px;color:var(--muted);} .callout p b{color:var(--ink);}
+  /* passo a passo interativo */
+  .demo{border:1.5px solid var(--line);border-radius:14px;overflow:hidden;background:var(--soft);}
+  .demo .steps{display:flex;gap:6px;padding:12px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap;align-items:center;}
+  .demo button.sw{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--muted);cursor:pointer;transition:.12s;}
+  .demo button.sw .n{width:20px;height:20px;border-radius:50%;background:var(--line);color:var(--muted);font-size:11px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;}
+  .demo button.sw.on{background:var(--turq);color:#fff;border-color:var(--turq);} .demo button.sw.on .n{background:#fff;color:var(--turq);}
+  .demo .body{padding:18px;}
+  .demo .body h4{margin:0 0 6px;font-size:16px;color:var(--marinho);font-weight:800;}
+  :root:not([data-theme="light"]) .demo .body h4{color:var(--turq);}
+  .demo .body p{margin:0 0 10px;font-size:13.5px;color:var(--muted);} .demo .body p b{color:var(--ink);}
+  .demo .mock{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:12px 14px;font-size:13px;color:var(--ink);}
+  .demo .mock .row{display:flex;justify-content:space-between;padding:5px 0;border-top:1px dashed var(--line);} .demo .mock .row:first-child{border-top:none;}
+  .demo .mock .mut{color:var(--faint);}
+  /* tooltips */
+  [data-tip]{cursor:help;border-bottom:1.5px dotted var(--turq);}
+  #tip{position:fixed;z-index:99;max-width:280px;background:var(--marinho);color:#fff;font-size:12.5px;line-height:1.45;padding:9px 12px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.22);opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;pointer-events:none;}
+  #tip.on{opacity:1;transform:translateY(0);} #tip b{color:#8fe3ee;}
+  .foot{text-align:center;color:var(--faint);font-size:12px;margin:26px 0 0;}
+</style>
+<div class="wrap"><div class="container">
+
+  <header class="hero">
+    <div class="eyebrow">Academia · Empório do Pet</div>
+    <h1>🩺 Veterinário — seu atendimento no sistema</h1>
+    <p>Da agenda ao follow-up: onde registrar cada coisa pra o prontuário ficar completo, as receitas saírem certas e o tutor ser lembrado na hora — sem retrabalho.</p>
+    <div class="meta"><span>🕐 leitura ~8 min</span><span>👀 passe o mouse nos termos <span data-tip="Os termos sublinhados mostram uma explicação rápida.">sublinhados</span></span><span>🖱️ clique nos passos do atendimento</span></div>
+  </header>
+
+  <section>
+    <h2>🧭 A ideia em 1 minuto</h2>
+    <p class="lead">Tudo do paciente vive num lugar só — a <b>ficha do pet</b>. Você atende ali, e o que registra alimenta o prontuário, a receita, o exame e o lembrete do tutor.</p>
+    <div class="flow">
+      <span class="st">📅 Agenda</span><span class="arrow">→</span>
+      <span class="st">🩺 <span data-tip="A consulta em si: anamnese, exame físico, conduta. Pode gravar por áudio (o escriba de IA transcreve).">Atendimento</span></span><span class="arrow">→</span>
+      <span class="st">📋 <span data-tip="O histórico clínico do pet, organizado em blocos por tipo (consultas, exames, receitas, peso…).">Prontuário</span></span><span class="arrow">→</span>
+      <span class="st">💊 Receita / 🔬 Exame</span><span class="arrow">→</span>
+      <span class="st">📞 Follow-up</span>
+    </div>
+    <div class="callout"><span class="mk">💡</span><p><b>Regra de ouro:</b> registrou no atendimento = está no prontuário, na ficha e (quando for o caso) já dispara o lembrete pro tutor. Não precisa anotar em outro lugar.</p></div>
+  </section>
+
+  <section>
+    <h2>🏠 Seu dia — o Meu painel</h2>
+    <p class="lead">Ao entrar, você cai no <b>Meu painel</b>, já com o seu dia montado:</p>
+    <div class="cols3">
+      <div class="colbox"><div class="ic">📅</div><b>Seus atendimentos de hoje</b><span>A agenda do dia, só os seus.</span></div>
+      <div class="colbox"><div class="ic">💉</div><b>Doses a aplicar</b><span>Vacinas/protocolos vencidos e dos próximos dias.</span></div>
+      <div class="colbox"><div class="ic">🎯</div><b>Sua meta</b><span>Quanto falta pra bater — e a meta batida conta na comissão.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>🩺 Anatomia de um atendimento</h2>
+    <p class="lead">Clique em cada passo pra ver o que fazer — e o que o sistema faz por você.</p>
+    <div class="demo" id="demo">
+      <div class="steps">
+        <button class="sw on" data-s="0"><span class="n">1</span> Iniciar</button>
+        <button class="sw" data-s="1"><span class="n">2</span> Anamnese</button>
+        <button class="sw" data-s="2"><span class="n">3</span> Prontuário</button>
+        <button class="sw" data-s="3"><span class="n">4</span> Conduta</button>
+        <button class="sw" data-s="4"><span class="n">5</span> Follow-up</button>
+      </div>
+      <div class="body" id="body"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>💊 Receitas</h2>
+    <p class="lead">Duas formas, direto no atendimento ou na ficha do pet:</p>
+    <div class="cols2">
+      <div class="colbox"><div class="ic">📝</div><b>Receita comum</b><span>Sai com o <b>papel timbrado</b> e a <b>sua assinatura</b> (imagem cadastrada no seu Perfil). Fica salva na ficha (aba Receitas) e na linha do tempo.</span></div>
+      <div class="colbox"><div class="ic">⚖️</div><b>Receituário de controle especial</b><span>Formulário A4 completo (emitente + comprador + fornecedor + 1ª/2ª via). Preencha a prescrição e imprima nas 2 vias.</span></div>
+    </div>
+    <div class="callout warn"><span class="mk">🖋️</span><p><b>Cadastre sua assinatura</b> em <span class="tag">Perfil</span> (upload da imagem) pra ela sair impressa nas receitas comuns. Sem isso, a receita sai sem assinatura.</p></div>
+  </section>
+
+  <section>
+    <h2>🔬 Exames</h2>
+    <ul class="clean">
+      <li><span class="ic">➕</span><div><b>Solicitar.</b> O exame é um item do catálogo — ao solicitar/vender, ele entra no <span data-tip="O quadro que acompanha os exames por fase: solicitar → aguardando → resultado → entregue.">Kanban de exames</span> automaticamente (com o pet).</div></li>
+      <li><span class="ic">📋</span><div><b>Acompanhar.</b> No <b>Meu painel</b> e no quadro de exames você vê onde cada um está. A solicitação pro laboratório sai automática.</div></li>
+      <li><span class="ic">📎</span><div><b>Resultado.</b> Anexado ao exame, entra no prontuário do pet e (no Portal) fica disponível pro tutor.</div></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>💉 Vacinas &amp; protocolos</h2>
+    <p class="lead">Na ficha do pet, aba <b>Protocolos</b>:</p>
+    <ul class="clean">
+      <li><span class="ic">🏷️</span><div><b>Adicionar protocolo — escolha o template certo</b> (Antirrábica, V10, Giardia…). É o template que sabe o <b>intervalo das doses</b> e o <b>reforço anual</b>.</div></li>
+      <li><span class="ic">✏️</span><div><b>Registrar a aplicação</b> com <b>vacina/fabricante + lote</b>. A dose entra no prontuário na hora.</div></li>
+      <li><span class="ic">🔁</span><div><b>O próximo se gera sozinho.</b> Ao aplicar a última dose, o sistema já cria a dose do <b>reforço</b> (data = aplicação + reforço) e o <b>lembrete de WhatsApp</b> do tutor sai automático perto da data.</div></li>
+    </ul>
+    <div class="callout warn"><span class="mk">⚠️</span><p><b>Não use o "Vacina" genérico</b> se quiser o reforço automático — só o <b>template</b> (Antirrábica etc.) tem o reforço definido. Genérico não gera o próximo ano sozinho.</p></div>
+  </section>
+
+  <section>
+    <h2>🏥 Internação</h2>
+    <p class="lead">Na ficha de internação do pet você registra e acompanha:</p>
+    <div class="cols3">
+      <div class="colbox"><b>📈 Evolução</b><span>Anotações do quadro ao longo dos dias.</span></div>
+      <div class="colbox"><b>💊 Prescrição / vitais</b><span>Medicação, fluidos e sinais vitais do plantão.</span></div>
+      <div class="colbox"><b>📋 Boletins</b><span>O boletim vai pro tutor; o histórico fica registrado.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>📞 Follow-up &amp; quem acompanha</h2>
+    <ul class="clean">
+      <li><span class="ic">📝</span><div><b>Registrar interação</b> (na ficha, no atendimento ou no inbox): uma nota + a <b>data do follow-up</b>. Aparece no painel de quem precisa retornar.</div></li>
+      <li><span class="ic">👤</span><div><b>"Acompanha"</b> — escolha quem fica responsável pelo retorno. A pessoa <b>recebe um aviso</b> e o follow-up <b>cai no painel dela</b>. Se não for você, é só selecionar.</div></li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>✅ Regras de ouro</h2>
+    <div class="rules">
+      <div class="rule do"><span class="mk">✔️</span><div><b>Registre no atendimento</b><span>É o que alimenta prontuário, receita, exame e lembrete — de uma vez.</span></div></div>
+      <div class="rule do"><span class="mk">✔️</span><div><b>Vacina sempre por template</b><span>Garante o reforço e o lembrete anual automáticos.</span></div></div>
+      <div class="rule dont"><span class="mk">✖️</span><div><b>Não deixe a assinatura sem cadastrar</b><span>Receita comum sai sem assinatura até você subir a imagem no Perfil.</span></div></div>
+      <div class="rule dont"><span class="mk">✖️</span><div><b>Não anote em papel/à parte</b><span>O que não entra na ficha some do histórico e do Portal do tutor.</span></div></div>
+    </div>
+    <div class="callout"><span class="mk">🆘</span><p>Dúvida ou algo diferente na sua tela? <b>Fale com a Cintia.</b> Este material acompanha o sistema conforme ele evolui.</p></div>
+  </section>
+
+  <footer class="foot">Empório do Pet · Guia interno do Veterinário · feito pra toda a equipe clínica.</footer>
+</div></div>
+
+<div id="tip"></div>
+<script>
+(function(){
+  var tip=document.getElementById('tip');
+  function show(el){ tip.innerHTML=el.getAttribute('data-tip'); tip.classList.add('on'); var r=el.getBoundingClientRect(); var x=Math.min(Math.max(10,r.left),window.innerWidth-290); var y=r.bottom+8; if(y>window.innerHeight-70){y=r.top-tip.offsetHeight-8;} tip.style.left=x+'px'; tip.style.top=y+'px'; }
+  function hide(){ tip.classList.remove('on'); }
+  document.querySelectorAll('[data-tip]').forEach(function(el){
+    el.addEventListener('mouseenter',function(){show(el);});
+    el.addEventListener('mouseleave',hide);
+    el.setAttribute('tabindex','0'); el.addEventListener('focus',function(){show(el);}); el.addEventListener('blur',hide);
+  });
+  var passos=[
+    {h:'1 · Iniciar o atendimento',p:'Pela <b>agenda</b> ou pela <b>ficha do pet</b>: botão <b>Atendimento</b>. Já abre com o paciente e o tutor certos, ligado ao agendamento.',m:'<div class="row"><span class="mut">Paciente</span><span>Lipe · 🐾</span></div><div class="row"><span class="mut">Tutor</span><span>Maria</span></div><div class="row"><span class="mut">Origem</span><span>Agenda de hoje</span></div>'},
+    {h:'2 · Anamnese (e a gravação)',p:'Anote a queixa e o exame físico. Se quiser, <b>grave por áudio</b> — o escriba de IA transcreve e ajuda a montar o texto. Você revisa e confirma.',m:'<div class="row"><span>🎤 Gravação</span><span>transcreve a consulta</span></div><div class="row"><span>📝 Anamnese</span><span>queixa + exame físico</span></div>'},
+    {h:'3 · Prontuário em blocos',p:'O que você registra entra no <b>prontuário do pet</b>, organizado em <b>blocos por tipo</b> (consulta, exame, receita, peso). A linha do tempo mostra tudo em ordem.',m:'<div class="row"><span>📋 Consulta</span><span>hoje</span></div><div class="row"><span>⚖️ Peso</span><span>registrado</span></div><div class="row"><span>🗂️ Blocos</span><span>por tipo</span></div>'},
+    {h:'4 · Conduta: receita / exame / vacina',p:'Prescreva a <b>receita</b> (sai com sua assinatura), solicite <b>exames</b> (entram no Kanban) e registre <b>vacinas</b> por template (com reforço automático).',m:'<div class="row"><span>💊 Receita</span><span>com assinatura</span></div><div class="row"><span>🔬 Exame</span><span>→ Kanban</span></div><div class="row"><span>💉 Vacina</span><span>template + reforço</span></div>'},
+    {h:'5 · Follow-up ✅',p:'Defina o <b>retorno</b> e quem <b>acompanha</b>. A pessoa recebe o aviso e o follow-up cai no painel dela. Fim: prontuário completo, tutor lembrado, nada perdido.',m:'<div class="row"><span>📞 Follow-up</span><span>data marcada</span></div><div class="row"><span>👤 Acompanha</span><span>vai pro painel</span></div><div class="row"><span>📲 Tutor</span><span>lembrete automático</span></div>'}
+  ];
+  var bodyEl=document.getElementById('body');
+  function render(i){ var s=passos[i]; bodyEl.innerHTML='<h4>'+s.h+'</h4><p>'+s.p+'</p><div class="mock">'+s.m+'</div>'; }
+  document.querySelectorAll('#demo .sw').forEach(function(b){
+    b.addEventListener('click',function(){
+      document.querySelectorAll('#demo .sw').forEach(function(x){x.classList.remove('on');});
+      b.classList.add('on'); render(parseInt(b.getAttribute('data-s'),10));
+    });
+  });
+  render(0);
+})();
+</script>
+</body></html>

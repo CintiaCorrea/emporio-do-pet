@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { CronHealthService } from '../../common/cron-health.service';
 
 /**
  * Boletim de INTERNAÇÃO nos horários programados pelo vet.
@@ -19,10 +20,12 @@ export class InternacaoBoletimScheduler {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
+    private readonly cronHealth: CronHealthService,
   ) {}
 
   @Cron('*/10 * * * *', { timeZone: 'America/Fortaleza' })
   async rodar(): Promise<void> {
+    this.cronHealth.registrar('boletim_internacao').catch(() => undefined);
     try {
       const fort = new Date(Date.now() - 3 * 3600 * 1000);
       const nowMin = fort.getUTCHours() * 60 + fort.getUTCMinutes();

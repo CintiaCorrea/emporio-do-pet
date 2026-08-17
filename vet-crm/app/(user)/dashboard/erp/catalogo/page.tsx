@@ -8,6 +8,7 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import ItemFormModal from "@/components/catalogo/ItemFormModal";
 import ExameFormModal, { type ExameEdit } from "@/components/catalogo/ExameFormModal";
+import CategoriasModal from "@/components/catalogo/CategoriasModal";
 import toast from "react-hot-toast";
 
 const brl = (v?: number | null) => (v == null ? "—" : new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(v)));
@@ -17,7 +18,16 @@ const markupDe = (custo?: number | null, preco?: number | null) => {
 };
 
 type Grupo = "PRODUTO" | "SERVICO" | "EXAME";
-interface Item { key: string; rawId?: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; categoria?: string | null; marca?: string | null; controlaValidade?: boolean | null; validade?: string | null; tempo?: number | null; }
+interface Item { key: string; rawId?: string; grupo: Grupo; tipo: string; nome: string; codigo?: number | string | null; custo?: number | null; preco?: number | null; estoque?: number | null; ativo: boolean; fornecedor?: string | null; fornId?: string | null; categoria?: string | null; comissao?: string | null; marca?: string | null; controlaValidade?: boolean | null; validade?: string | null; tempo?: number | null; }
+
+// #2 validade — dias até vencer (negativo = já venceu). Módulo-level pra não entrar nas deps dos hooks.
+function diasParaVencer(v?: string | null): number | null {
+  if (!v) return null;
+  const d = new Date(String(v).slice(0, 10) + "T00:00:00").getTime();
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  return Math.round((d - now.getTime()) / 86400000);
+}
+const COM_LABEL: Record<string, string> = { VALOR_CHEIO: "Valor cheio", MARGEM: "Margem", SEM_COMISSAO: "Sem comissão", HERDAR: "Herdar" };
 
 const TIPO_PILL: Record<Grupo, { bg: string; fg: string; emoji: string }> = {
   PRODUTO: { bg: "#E6F1FB", fg: "#0C447C", emoji: "📦" },
@@ -25,12 +35,6 @@ const TIPO_PILL: Record<Grupo, { bg: string; fg: string; emoji: string }> = {
   EXAME: { bg: "#F0E9F7", fg: "#6b3fa0", emoji: "🔬" },
 };
 
-const CHIPS: { v: string; label: string }[] = [
-  { v: "", label: "Todos" },
-  { v: "PRODUTO", label: "📦 Produtos" },
-  { v: "SERVICO", label: "🛎️ Serviços" },
-  { v: "EXAME", label: "🔬 Exames" },
-];
 
 const CSS = `
 .cat-page{width:100%;padding:2px 2px 48px}
@@ -41,11 +45,12 @@ const CSS = `
 .cat-chip{border:1px solid #E8E2D6;background:#fff;color:#5C6B70;border-radius:999px;padding:6px 13px;font-size:12.5px;cursor:pointer;font-weight:500}
 .cat-chip.on{background:#009AAC;border-color:#009AAC;color:#fff}
 .cat-filtros{background:#FBF9F4;border:1px solid #E8E2D6;border-radius:12px;padding:14px 16px;margin-bottom:14px}
-.cat-fgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px 14px}
-.cat-flbl{display:block;font-size:11px;color:#374151;font-weight:500;margin-bottom:4px;text-transform:uppercase;letter-spacing:.03em}
-.cat-fin{width:100%;border:1px solid #E8E2D6;border-radius:9px;padding:8px 10px;font-size:13px;font-family:inherit;background:#fff;color:#1F2A2E;box-sizing:border-box}
+.cat-fgrid{display:flex;flex-wrap:wrap;gap:9px 11px;align-items:flex-end}
+.cat-fgrid>div{flex:1 1 150px;min-width:135px;max-width:220px}
+.cat-flbl{display:block;font-size:10px;color:#374151;font-weight:600;margin-bottom:3px;text-transform:uppercase;letter-spacing:.03em}
+.cat-fin{width:100%;border:1px solid #E8E2D6;border-radius:8px;padding:6px 8px;font-size:12.5px;font-family:inherit;background:#fff;color:#1F2A2E;box-sizing:border-box}
 .cat-seg{display:inline-flex;border:1px solid #E8E2D6;border-radius:9px;overflow:hidden;width:100%}
-.cat-seg button{flex:1;border:none;background:#fff;font-family:inherit;font-size:12px;font-weight:500;color:#5C6B70;padding:8px 4px;cursor:pointer}
+.cat-seg button{flex:1;border:none;background:#fff;font-family:inherit;font-size:11px;font-weight:500;color:#5C6B70;padding:6px 4px;cursor:pointer}
 .cat-seg button.on{background:#014D5E;color:#fff}
 .cat-factions{display:flex;justify-content:flex-end;margin-top:12px}
 .cat-card{background:#fff;border:1px solid #E8E2D6;border-radius:14px;overflow:hidden}
@@ -81,6 +86,7 @@ export default function CatalogoPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [exameEdit, setExameEdit] = useState<ExameEdit | null>(null);
+  const [catModalOpen, setCatModalOpen] = useState(false);
   const [page, setPage] = useState(1);
   const PER_PAGE = 50;
   // % padrão dos exames (precificação em lote)
@@ -101,8 +107,8 @@ export default function CatalogoPage() {
   const [fCtrlVal, setFCtrlVal] = useState<"" | "sim" | "nao">("");
   const [valDe, setValDe] = useState("");
   const [valAte, setValAte] = useState("");
-  const limparFiltros = () => { setFSit(""); setFGrupo(""); setFMarca(""); setFForn(""); setFCtrlVal(""); setValDe(""); setValAte(""); };
-  const nFiltros = [fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte].filter(Boolean).length;
+  const limparFiltros = () => { setGrupo(""); setFSit(""); setFGrupo(""); setFMarca(""); setFForn(""); setFCtrlVal(""); setValDe(""); setValAte(""); };
+  const nFiltros = [grupo, fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte].filter(Boolean).length;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,15 +127,15 @@ export default function CatalogoPage() {
           tipo: isServ ? "Serviço" : (p.type === "VACCINE" ? "Vacina" : "Produto"),
           nome: p.name, codigo: p.codigo ?? null, custo: p.custoPadrao ?? null, preco: p.price ?? null,
           estoque: isServ ? null : (p.stock ?? 0), ativo: p.ativo !== false, fornecedor: p.fornecedor?.nome ?? null,
-          categoria: p.category?.nome ?? null, marca: p.marca ?? null, controlaValidade: p.controlaValidade ?? null, validade: p.validadeMaisAntiga ?? null,
+          categoria: p.category?.nome ?? null, comissao: p.comissaoBaseDefault ?? "HERDAR", marca: p.marca ?? null, controlaValidade: p.controlaValidade ?? null, validade: p.validadeMaisAntiga ?? null,
         });
       }
       for (const e of exames) {
         rows.push({
           key: `e-${e.id}`, rawId: e.id, grupo: "EXAME", tipo: "Exame",
           nome: e.nome, codigo: e.codigo ?? null, custo: e.valorFornecedor ?? null, preco: e.valorClienteSugerido ?? null,
-          estoque: null, ativo: e.ativo !== false, fornecedor: e.fornecedor?.nome || null,
-          categoria: e.categoria ?? null, marca: null, controlaValidade: null, validade: null, tempo: e.tempoResultadoDias ?? null,
+          estoque: null, ativo: e.ativo !== false, fornecedor: e.fornecedor?.nome || null, fornId: e.fornecedor?.id || null,
+          categoria: e.categoria ?? null, comissao: null, marca: null, controlaValidade: null, validade: null, tempo: e.tempoResultadoDias ?? null,
         });
       }
       rows.sort((a, b) => a.nome.localeCompare(b.nome));
@@ -163,12 +169,17 @@ export default function CatalogoPage() {
     });
   }, [itens, grupo, busca, fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte]);
 
-  const cont = useMemo(() => ({
-    total: itens.length,
-    PRODUTO: itens.filter((i) => i.grupo === "PRODUTO").length,
-    SERVICO: itens.filter((i) => i.grupo === "SERVICO").length,
-    EXAME: itens.filter((i) => i.grupo === "EXAME").length,
-  }), [itens]);
+  // #2 — contador global de itens perto do vencimento (só produtos que controlam validade)
+  const { nVencendo, nVencidos } = useMemo(() => {
+    let ven = 0, vez = 0;
+    for (const it of itens) {
+      if (it.controlaValidade !== true || !it.validade) continue;
+      const d = diasParaVencer(it.validade);
+      if (d == null) continue;
+      if (d < 0) vez++; else if (d <= 60) ven++;
+    }
+    return { nVencendo: ven, nVencidos: vez };
+  }, [itens]);
 
   // Paginação: volta pra página 1 sempre que a busca/filtros mudam.
   useEffect(() => { setPage(1); }, [grupo, busca, fSit, fGrupo, fMarca, fForn, fCtrlVal, valDe, valAte]);
@@ -182,15 +193,21 @@ export default function CatalogoPage() {
   const aplicarPercExame = async () => {
     const p = Number(String(percExame).replace(",", "."));
     if (!isFinite(p)) { toast.error("Informe uma porcentagem válida."); return; }
+    // Por bloco: se o chip de Fornecedor estiver ativo, precifica só os exames DAQUELE laboratório.
+    let fornecedorId: string | undefined;
+    if (fForn) {
+      fornecedorId = itens.find((it) => it.grupo === "EXAME" && it.fornecedor === fForn)?.fornId || undefined;
+      if (!fornecedorId) { toast.error(`"${fForn}" não tem exames pra precificar.`); return; }
+    }
     setAplicandoPerc(true);
     try {
       const r = await fetch("/api/fornecedores/exames/precificar-lote", {
         method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({ percent: p, sobrescrever }),
+        body: JSON.stringify({ percent: p, sobrescrever, ...(fornecedorId ? { fornecedorId } : {}) }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d?.message || "Erro ao precificar");
-      toast.success(`${d.atualizados ?? 0} exame(s) precificado(s) com ${p}% de markup.`);
+      toast.success(`${d.atualizados ?? 0} exame(s)${fForn ? ` de ${fForn}` : ""} precificado(s) com ${p}% de markup.`);
       load();
     } catch (e: any) { toast.error(e.message || "Erro ao precificar"); }
     finally { setAplicandoPerc(false); }
@@ -241,6 +258,52 @@ export default function CatalogoPage() {
     load();
   }
 
+  // ── Ações por linha ──
+  const abrirEdicao = (it: Item) => {
+    if (!it.rawId) return;
+    if (it.grupo === "EXAME") setExameEdit({ id: it.rawId, nome: it.nome, codigo: it.codigo, fornecedor: it.fornecedor, fornecedorId: it.fornId, categoria: it.categoria, valorFornecedor: it.custo, valorClienteSugerido: it.preco, tempo: it.tempo, ativo: it.ativo });
+    else { setEditId(it.rawId); setModalOpen(true); }
+  };
+  async function toggleAtivo(it: Item) {
+    if (!it.rawId) return;
+    try {
+      const r = await fetch(endpointDe(it), { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ativo: !it.ativo }) });
+      if (!r.ok) throw new Error();
+      setItens((prev) => prev.map((x) => (x.key === it.key ? { ...x, ativo: !it.ativo } : x)));
+    } catch { toast.error("Não consegui mudar a situação."); }
+  }
+  async function excluirUm(it: Item) {
+    if (!it.rawId) return;
+    if (!window.confirm(`Excluir "${it.nome}" de vez?\n\n⚠️ Não dá pra desfazer. Pra só tirar da lista, use o interruptor "Ativo".`)) return;
+    try {
+      const r = await fetch(endpointDe(it), { method: "DELETE", credentials: "include" });
+      if (!r.ok) throw new Error();
+      setItens((prev) => prev.filter((x) => x.key !== it.key));
+      toast.success("Item excluído");
+    } catch { toast.error("Erro ao excluir."); }
+  }
+
+  // #5 — exporta o que está filtrado como planilha (.csv, abre no Excel). Cobre Lista de preços,
+  // Validade e Posição de estoque numa tabela só. Separador ";" + BOM p/ acentos no Excel pt-BR.
+  function exportarPlanilha() {
+    const num = (v?: number | null) => (v == null ? "" : String(v).replace(".", ","));
+    const esc = (v: any) => { const s = v == null ? "" : String(v); return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+    const cols = ["Tipo", "Nome", "Código", "Fornecedor", "Categoria", "Custo", "Markup %", "Preço", "Comissão", "Estoque", "Valor em estoque", "Validade", "Ativo"];
+    const linhas = filtrados.map((it) => {
+      const mk = markupDe(it.custo, it.preco);
+      const valEst = (it.estoque != null && it.custo != null) ? Math.round(it.estoque * it.custo * 100) / 100 : null;
+      const val = it.validade ? new Date(String(it.validade).slice(0, 10) + "T00:00:00").toLocaleDateString("pt-BR") : "";
+      return [it.tipo, it.nome, it.codigo ?? "", it.fornecedor ?? "", it.categoria ?? "", num(it.custo), mk ?? "", num(it.preco), (COM_LABEL[it.comissao || "HERDAR"] || ""), it.estoque ?? "", num(valEst), val, it.ativo ? "Sim" : "Não"];
+    });
+    const csv = [cols, ...linhas].map((r) => r.map(esc).join(";")).join("\r\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `catalogo_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+    toast.success(`Planilha exportada (${filtrados.length} itens)`);
+  }
+
   return (
     <div className="cat-page">
       <style>{CSS}</style>
@@ -250,21 +313,27 @@ export default function CatalogoPage() {
         <button className="cat-btn" onClick={() => setShowFiltros((v) => !v)} style={nFiltros ? { borderColor: "#009AAC", color: "#009AAC", fontWeight: 600 } : undefined}>🔎 Filtros{nFiltros ? ` (${nFiltros})` : ""}</button>
         <div style={{ flex: 1 }} />
         <button className="cat-btn" style={{ background: "#009AAC", borderColor: "#009AAC", color: "#fff" }} onClick={() => { setEditId(null); setModalOpen(true); }}>➕ Novo item</button>
+        <button className="cat-btn" onClick={() => setCatModalOpen(true)}>🏷️ Categorias</button>
         <a className="cat-btn" href="/dashboard/erp/catalogo/importar" style={{ textDecoration: "none" }}>📥 Importar CSV</a>
+        <button className="cat-btn" onClick={exportarPlanilha} title="Baixa uma planilha (.csv) do que está filtrado — abre no Excel">📊 Exportar</button>
         <button className="cat-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
       </div>
 
-      <div className="cat-chips no-print">
-        {CHIPS.map((c) => (
-          <button key={c.v} className={`cat-chip ${grupo === c.v ? "on" : ""}`} onClick={() => setGrupo(c.v)}>
-            {c.label}{c.v ? ` (${(cont as any)[c.v]})` : ` (${cont.total})`}
-          </button>
-        ))}
-      </div>
+      {(nVencendo > 0 || nVencidos > 0) && (
+        <div className="no-print" title="Clique para filtrar os itens que vencem em até 60 dias"
+          onClick={() => { const dt = new Date(); dt.setDate(dt.getDate() + 60); setShowFiltros(true); setValDe(""); setValAte(dt.toISOString().slice(0, 10)); }}
+          style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", cursor: "pointer", background: "#FBF1E2", border: "1px solid #E8E2D6", borderLeft: "4px solid #B26A00", borderRadius: 12, padding: "9px 14px", marginBottom: 14 }}>
+          <span style={{ fontSize: 13, color: "#1F2A2E" }}>⏰ <b style={{ color: "#B26A00" }}>{nVencendo}</b> vencendo em até 60 dias</span>
+          {nVencidos > 0 && <span style={{ fontSize: 13, color: "#1F2A2E" }}>· <b style={{ color: "#C0392B" }}>{nVencidos}</b> já vencido(s)</span>}
+          <span style={{ fontSize: 11.5, color: "#8A928F" }}>(só produtos que controlam validade)</span>
+        </div>
+      )}
 
       {grupo === "EXAME" && isAdmin && (
         <div className="no-print" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", background: "#F0E9F7", border: "1px solid #E8E2D6", borderLeft: "4px solid #6b3fa0", borderRadius: 12, padding: "11px 15px", marginBottom: 14 }}>
-          <span style={{ fontSize: 13, color: "#1F2A2E" }}>🔬 <b style={{ color: "#6b3fa0" }}>% padrão dos exames:</b></span>
+          <button onClick={() => setExameEdit({ id: "", nome: "", ativo: true })} className="cat-btn" style={{ background: "#6b3fa0", borderColor: "#6b3fa0", color: "#fff", fontWeight: 600 }}>➕ Adicionar exame</button>
+          <span style={{ width: 1, height: 20, background: "#d9c8ea" }} />
+          <span style={{ fontSize: 13, color: "#1F2A2E" }}>🔬 <b style={{ color: "#6b3fa0" }}>% padrão dos exames{fForn ? ` de ${fForn}` : ""}:</b></span>
           <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid #d9c98f", background: "#fffdf5", borderRadius: 8, padding: "5px 9px" }}>
             <input value={percExame} onChange={(e) => setPercExame(e.target.value)} inputMode="decimal" style={{ width: 52, border: "none", background: "transparent", fontSize: 13, textAlign: "right", color: "#1F2A2E", outline: "none", fontFamily: "inherit" }} />
             <span style={{ fontSize: 12, color: "#5C6B70" }}>%</span>
@@ -276,23 +345,27 @@ export default function CatalogoPage() {
             <input type="checkbox" checked={sobrescrever} onChange={(e) => setSobrescrever(e.target.checked)} />
             {sobrescrever ? "em todos (reescreve preços)" : "só nos que ainda não têm preço"}
           </label>
-          <span style={{ fontSize: 11.5, color: "#8a6400" }}>preço = custo do lab × (1 + %). Depois ajuste item a item.</span>
+          <span style={{ fontSize: 11.5, color: "#8a6400" }}>preço = custo do lab × (1 + %). {fForn ? "Só neste laboratório (filtro Fornecedor)." : "Dica: escolha um Fornecedor em 🔎 Filtros pra precificar só aquele laboratório."} Depois ajuste item a item.</span>
         </div>
       )}
 
       {showFiltros && (
         <div className="cat-filtros no-print">
           <div className="cat-fgrid">
+            <div><label className="cat-flbl">Tipo</label>
+              <select className="cat-fin" value={grupo} onChange={(e) => setGrupo(e.target.value)}>
+                <option value="">Todos</option><option value="PRODUTO">📦 Produtos</option><option value="SERVICO">🛎️ Serviços</option><option value="EXAME">🔬 Exames</option>
+              </select></div>
             <div>
-              <label className="cat-flbl">Situação</label>
+              <label className="cat-flbl">Situação (Ativo)</label>
               <div className="cat-seg">
                 {([["", "Todos"], ["ativo", "Ativo"], ["inativo", "Inativo"]] as const).map(([v, l]) => (
                   <button key={v} className={fSit === v ? "on" : ""} onClick={() => setFSit(v as any)}>{l}</button>
                 ))}
               </div>
             </div>
-            <div><label className="cat-flbl">Grupo</label>
-              <select className="cat-fin" value={fGrupo} onChange={(e) => setFGrupo(e.target.value)}><option value="">Todos</option>{opts.grupos.map((g) => <option key={g} value={g}>{g}</option>)}</select></div>
+            <div><label className="cat-flbl">Categoria</label>
+              <select className="cat-fin" value={fGrupo} onChange={(e) => setFGrupo(e.target.value)}><option value="">Todas</option>{opts.grupos.map((g) => <option key={g} value={g}>{g}</option>)}</select></div>
             <div><label className="cat-flbl">Marca</label>
               <select className="cat-fin" value={fMarca} onChange={(e) => setFMarca(e.target.value)}><option value="">Todas</option>{opts.marcas.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
             <div><label className="cat-flbl">Fornecedor</label>
@@ -325,47 +398,73 @@ export default function CatalogoPage() {
             <thead>
               <tr>
                 <th className="no-print" style={{ width: 34, textAlign: "center" }}><input type="checkbox" checked={todosVisSel} onChange={toggleTodosVis} title="Selecionar todos (os filtrados)" /></th>
-                <th>Tipo</th><th>Nome</th><th className="col-sec2">Fornecedor</th>{isAdmin && <><th className="r col-sec">Custo</th><th className="r col-sec">Markup</th></>}<th className="r">Preço</th><th className="r">Estoque</th><th>Situação</th>
+                <th>Nome <span style={{ color: "#8A928F", fontWeight: 400 }}>({filtrados.length})</span></th><th>Tipo</th><th className="col-sec2">Fornecedor</th><th>Categoria</th><th className="col-sec">Validade</th>{isAdmin && <th className="r col-sec">Custo</th>}<th className="r" title="Markup: preço = custo × (1 + %). Editável nos exames.">%</th><th className="r">Preço</th><th>Comissão</th><th style={{ textAlign: "center" }}>Ativo</th><th className="no-print" style={{ textAlign: "center" }}>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={isAdmin ? 9 : 7} className="cat-empty">Carregando catálogo…</td></tr>}
-              {!loading && filtrados.length === 0 && <tr><td colSpan={isAdmin ? 9 : 7} className="cat-empty">Nenhum item encontrado.</td></tr>}
+              {loading && <tr><td colSpan={isAdmin ? 12 : 11} className="cat-empty">Carregando catálogo…</td></tr>}
+              {!loading && filtrados.length === 0 && <tr><td colSpan={isAdmin ? 12 : 11} className="cat-empty">Nenhum item encontrado.</td></tr>}
               {!loading && paginados.map((it) => {
                 const pill = TIPO_PILL[it.grupo];
                 const mk = markupDe(it.custo, it.preco);
                 return (
-                  <tr key={it.key} onClick={() => {
-                    if (!it.rawId) return;
-                    if (it.grupo === "EXAME") { setExameEdit({ id: it.rawId, nome: it.nome, codigo: it.codigo, fornecedor: it.fornecedor, valorFornecedor: it.custo, valorClienteSugerido: it.preco, tempo: it.tempo, ativo: it.ativo }); }
-                    else { setEditId(it.rawId); setModalOpen(true); }
-                  }} style={{ cursor: it.rawId ? "pointer" : "default", background: sel.has(it.key) ? "#EAF6F7" : undefined }}>
+                  <tr key={it.key} onClick={() => abrirEdicao(it)} style={{ cursor: it.rawId ? "pointer" : "default", background: sel.has(it.key) ? "#EAF6F7" : undefined }}>
                     <td className="no-print" onClick={(e) => e.stopPropagation()} style={{ textAlign: "center" }}>
                       {it.rawId ? <input type="checkbox" checked={sel.has(it.key)} onChange={() => toggleSel(it.key)} /> : null}
                     </td>
-                    <td><span className="cat-pill" style={{ background: pill.bg, color: pill.fg }}>{pill.emoji} {it.tipo}</span></td>
                     <td className="cat-nm">{it.nome}{it.codigo != null && it.codigo !== "" ? <div className="cat-cod">cód. {it.codigo}</div> : null}</td>
+                    <td><span className="cat-pill" style={{ background: pill.bg, color: pill.fg }}>{pill.emoji} {it.tipo}</span></td>
                     <td className="cat-forn col-sec2" style={{ color: it.fornecedor ? "#5C6B70" : "#374151" }}>{it.fornecedor || "—"}</td>
-                    {isAdmin && <><td className="r col-sec" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>
-                    <td className="r col-sec" style={{ color: mk == null ? "#374151" : "#5C6B70" }} onClick={(e) => e.stopPropagation()}>
-                      {it.grupo === "EXAME" && it.custo && it.custo > 0 ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 1, border: "1px solid #d9c98f", background: "#fffdf5", borderRadius: 6, padding: "2px 5px", opacity: savingPerc === it.key ? 0.5 : 1 }} title="Digite a % e tecle Enter — o preço calcula sozinho">
-                          <input
-                            value={percEdits[it.key] ?? (mk == null ? "" : String(mk))}
-                            onChange={(e) => setPercEdits((m) => ({ ...m, [it.key]: e.target.value }))}
-                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                            onBlur={(e) => { const v = e.target.value.trim(); if (v !== "" && v !== (mk == null ? "" : String(mk))) salvarPercExame(it, v); }}
-                            disabled={savingPerc === it.key}
-                            inputMode="decimal" placeholder="—"
-                            style={{ width: 38, border: "none", background: "transparent", textAlign: "right", fontSize: 12.5, color: "#1F2A2E", outline: "none", fontFamily: "inherit" }}
-                          />
-                          <span style={{ fontSize: 10, color: "#5C6B70" }}>%</span>
-                        </span>
-                      ) : (mk == null ? "—" : `${mk}%`)}
-                    </td></>}
+                    <td style={{ color: it.categoria ? "#5C6B70" : "#374151" }}>{it.categoria || "—"}</td>
+                    <td className="col-sec">{(() => {
+                      if (!it.validade) return <span style={{ color: "#374151" }}>—</span>;
+                      const dv = diasParaVencer(it.validade);
+                      const dt = new Date(String(it.validade).slice(0, 10) + "T00:00:00").toLocaleDateString("pt-BR");
+                      const bd = dv == null ? null : dv < 0 ? { c: "#C0392B", b: "#FBEEEC", t: "vencido" } : dv <= 30 ? { c: "#C0392B", b: "#FBEEEC", t: `${dv}d` } : dv <= 60 ? { c: "#B26A00", b: "#FBF1E2", t: `${dv}d` } : null;
+                      return <span style={{ display: "inline-flex", alignItems: "center", gap: 5, color: "#5C6B70", fontSize: 12.5, whiteSpace: "nowrap" }}>{dt}{bd && <span style={{ background: bd.b, color: bd.c, fontSize: 10.5, fontWeight: 700, padding: "1px 6px", borderRadius: 20 }}>{bd.t}</span>}</span>;
+                    })()}</td>
+                    {isAdmin && <td className="r col-sec" style={{ color: "#5C6B70" }}>{brl(it.custo)}</td>}
+                    <td className="r" onClick={(e) => e.stopPropagation()}>
+                      {it.grupo === "EXAME" ? (
+                        (it.custo && it.custo > 0) ? (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: 3, justifyContent: "flex-end" }}>
+                            <input
+                              value={percEdits[it.key] ?? (markupDe(it.custo, it.preco) ?? "")}
+                              onChange={(e) => setPercEdits((m) => ({ ...m, [it.key]: e.target.value }))}
+                              onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                              onBlur={() => {
+                                const v = percEdits[it.key];
+                                if (v === undefined || v === "") return;
+                                if (Number(String(v).replace(",", ".")) === markupDe(it.custo, it.preco)) { setPercEdits((m) => { const n = { ...m }; delete n[it.key]; return n; }); return; }
+                                salvarPercExame(it, v);
+                              }}
+                              inputMode="decimal"
+                              disabled={savingPerc === it.key}
+                              title="Digite a % e tecle Enter — o preço recalcula (custo × (1 + %)) e salva."
+                              style={{ width: 46, textAlign: "right", border: "1px solid #E8E2D6", borderRadius: 6, padding: "3px 5px", fontSize: 12.5, fontFamily: "inherit", outline: "none", color: "#1F2A2E" }}
+                            />
+                            <span style={{ fontSize: 11, color: "#8A928F" }}>{savingPerc === it.key ? "⏳" : "%"}</span>
+                          </span>
+                        ) : <span style={{ color: "#B08900", fontSize: 11 }} title="Sem custo do laboratório — não dá pra calcular a %.">s/ custo</span>
+                      ) : (
+                        <span style={{ color: "#8A928F" }}>{markupDe(it.custo, it.preco) != null ? `${markupDe(it.custo, it.preco)}%` : "—"}</span>
+                      )}
+                    </td>
                     <td className="r" style={{ color: "#014D5E", fontWeight: 500 }}>{brl(it.preco)}</td>
-                    <td className="r" style={{ color: it.estoque == null ? "#374151" : "#1F2A2E" }}>{it.estoque == null ? "—" : it.estoque}</td>
-                    <td><span className="cat-sit" style={it.ativo ? { background: "#E7F6EE", color: "#1c7a47" } : { background: "#F0EBE0", color: "#374151" }}>{it.ativo ? "Ativo" : "Inativo"}</span></td>
+                    <td style={{ color: "#5C6B70" }}>{it.grupo === "EXAME" ? "—" : (COM_LABEL[it.comissao || "HERDAR"] || "Herdar")}</td>
+                    <td style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                      {it.rawId ? (
+                        <button onClick={() => toggleAtivo(it)} title={it.ativo ? "Ativo — clique pra inativar" : "Inativo — clique pra ativar"} style={{ width: 38, height: 20, borderRadius: 999, border: "none", cursor: "pointer", background: it.ativo ? "#1c7a47" : "#cbd2d0", position: "relative", verticalAlign: "middle" }}>
+                          <span style={{ position: "absolute", top: 2, left: it.ativo ? 20 : 2, width: 16, height: 16, borderRadius: "50%", background: "#fff", transition: "left .15s" }} />
+                        </button>
+                      ) : "—"}
+                    </td>
+                    <td className="no-print" style={{ textAlign: "center", whiteSpace: "nowrap" }} onClick={(e) => e.stopPropagation()}>
+                      {it.rawId ? (<>
+                        <button onClick={() => abrirEdicao(it)} title="Editar" style={{ border: "none", background: "none", cursor: "pointer", fontSize: 14, padding: 4 }}>✏️</button>
+                        <button onClick={() => excluirUm(it)} title="Excluir" style={{ border: "none", background: "none", cursor: "pointer", fontSize: 14, padding: 4, color: "#c0392b" }}>✕</button>
+                      </>) : null}
+                    </td>
                   </tr>
                 );
               })}
@@ -387,6 +486,7 @@ export default function CatalogoPage() {
 
       {modalOpen && <ItemFormModal editId={editId} onClose={() => setModalOpen(false)} onSaved={() => { setModalOpen(false); load(); }} />}
       {exameEdit && <ExameFormModal exame={exameEdit} onClose={() => setExameEdit(null)} onSaved={() => { setExameEdit(null); load(); }} />}
+      {catModalOpen && <CategoriasModal onClose={() => setCatModalOpen(false)} onChanged={load} />}
     </div>
   );
 }

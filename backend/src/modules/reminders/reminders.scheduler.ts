@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { CronHealthService } from '../../common/cron-health.service';
+import { fortalezaYMD, dataPuraMD, diasAteDataPura, ddmmDataPura } from './reminders-datas';
 
 /**
  * Lembretes automáticos (todo dia às 9h de Fortaleza):
@@ -19,6 +21,7 @@ export class RemindersScheduler {
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
+    private readonly cronHealth: CronHealthService,
   ) {}
 
   @Cron('0 9 * * *', { timeZone: 'America/Fortaleza' })
@@ -41,6 +44,7 @@ export class RemindersScheduler {
 
   /** Roda o lote e, se TUDO completou sem erro, grava o marcador do dia em `reminder_run`. */
   private async rodarComMarcador(): Promise<void> {
+    this.cronHealth.registrar('lembretes').catch(() => undefined);
     let ok = true;
     try { await this.aniversarios(); } catch (e: any) { ok = false; this.logger.error(`aniversarios: ${e?.message || e}`); }
     try { await this.protocolos(); } catch (e: any) { ok = false; this.logger.error(`protocolos: ${e?.message || e}`); }
@@ -55,9 +59,11 @@ export class RemindersScheduler {
   }
 
   // ---------- helpers ----------
-  private fort(d: Date) { const f = new Date(d.getTime() - 3 * 3600 * 1000); return { y: f.getUTCFullYear(), m: f.getUTCMonth(), d: f.getUTCDate() }; }
-  private diffDias(prevista: Date): number { const h = this.fort(new Date()); const p = this.fort(prevista); return Math.round((Date.UTC(p.y, p.m, p.d) - Date.UTC(h.y, h.m, h.d)) / 86400000); }
-  private ddmm(d: Date) { const f = this.fort(d); return `${String(f.d).padStart(2, '0')}/${String(f.m + 1).padStart(2, '0')}`; }
+  // Toda a lógica de fuso mora em reminders-datas.ts (PURA + testada). Estes só delegam.
+  private fort(d: Date) { return fortalezaYMD(d); }
+  private mdData(d: Date) { return dataPuraMD(d); }                       // data pura → UTC (sem -3h)
+  private diffDias(prevista: Date): number { return diasAteDataPura(prevista, new Date()); } // vacina: sem o bug de 1 dia
+  private ddmm(d: Date) { return ddmmDataPura(d); }
   private primeiro(nome?: string | null) { return (nome || '').trim().split(/\s+/)[0] || 'tutor'; }
   private telDe(tutor: any): string | null { const cs = tutor?.contacts || []; const wa = cs.find((x: any) => x.isWhatsApp) || cs.find((x: any) => x.isPrimary) || cs[0]; return wa?.number || null; }
   private T(text: string) { return { type: 'text' as const, text }; }
@@ -90,7 +96,7 @@ export class RemindersScheduler {
       select: { id: true, name: true, birthDate: true, contacts: true },
     });
     for (const t of tutores) {
-      const b = this.fort(new Date(t.birthDate as Date));
+      const b = this.mdData(new Date(t.birthDate as Date));
       if (b.m !== h.m || b.d !== h.d) continue;
       const phone = this.telDe(t); if (!phone) continue;
       const enviou = await this.enviarUmaVez(`aniv-tutor:${t.id}:${ano}`, phone, 'aniversario_tutor', [this.T(this.primeiro(t.name))], `🎂 Mensagem de aniversário enviada para ${this.primeiro(t.name)}.`);
@@ -103,7 +109,7 @@ export class RemindersScheduler {
       select: { id: true, name: true, birthDate: true, tutor: { select: { id: true, name: true, contacts: true } } },
     });
     for (const p of pets) {
-      const b = this.fort(new Date(p.birthDate as Date));
+      const b = this.mdData(new Date(p.birthDate as Date));
       if (b.m !== h.m || b.d !== h.d) continue;
       const phone = this.telDe(p.tutor); if (!phone) continue;
       const enviou = await this.enviarUmaVez(`aniv-pet:${p.id}:${ano}`, phone, 'aniversario_pet', [this.T(this.primeiro(p.tutor?.name)), this.T(p.name || 'seu pet')], `🎂 Aniversário do pet ${p.name || ''} — mensagem enviada.`);
@@ -116,8 +122,8 @@ export class RemindersScheduler {
     const ini = new Date(); ini.setDate(ini.getDate() - 17);
     const fim = new Date(); fim.setDate(fim.getDate() + 17);
     const doses = await this.prisma.protocoloDose.findMany({
-      // Pet FALECIDO não recebe lembrete de vacina/vermífugo (nem antes, nem "vencido").
-      where: { status: 'PENDENTE', dataPrevista: { gte: ini, lte: fim }, protocolo: { pet: { status: { not: 'DECEASED' } } } },
+      // Pet FALECIDO ou em CUIDADOS PALIATIVOS não recebe lembrete de vacina/vermífugo (seria insensível).
+      where: { status: 'PENDENTE', dataPrevista: { gte: ini, lte: fim }, protocolo: { pet: { status: { not: 'DECEASED' }, cuidadoPaliativo: false } } },
       include: { protocolo: { select: { nomeProtocolo: true, pet: { select: { name: true, tutor: { select: { id: true, name: true, acceptsWhatsApp: true, contacts: true } } } }, tutor: { select: { id: true, name: true, acceptsWhatsApp: true, contacts: true } } } } },
       take: 1000,
     });

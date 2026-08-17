@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { LuPlus, LuPill, LuTrash, LuX, LuPencil } from "react-icons/lu";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 import toast from "react-hot-toast";
+import { carregarCatalogoVendavel, nomeSemMarcador } from "@/lib/catalogoVendavel";
+import { diaCalendario, hojeLocalISO } from "@/lib/datas";
 
 type Tipo = "VACINA" | "VERMIFUGO" | "ECTOPARASITA" | "OUTRO";
 const TIPO_LABEL: Record<string, string> = { VACINA: "Vacinas", VERMIFUGO: "Vermífugo", ECTOPARASITA: "Antipulgas", OUTRO: "Outros" };
@@ -11,10 +13,20 @@ const TIPOS: Tipo[] = ["VACINA", "VERMIFUGO", "ECTOPARASITA", "OUTRO"];
 
 interface Dose { id: string; numero: number; dataPrevista: string; status: string; dataAplicada?: string | null; lote?: string | null; fabricante?: string | null; }
 interface Template { id: string; nome: string; tipo: Tipo; variante?: string | null; doses: number; intervaloDias?: number | null; reforcoMeses?: number | null; indicacaoIdade?: string | null; }
-interface Aplicado { id: string; tipo: string; nomeProtocolo: string; dataInicial: string; status: string; doses: Dose[]; }
+interface Aplicado { id: string; tipo: string; nomeProtocolo: string; marca?: string | null; dataInicial: string; status: string; doses: Dose[]; }
 
-function fmt(d?: string | null) { if (!d) return "—"; try { return new Date(d).toLocaleDateString("pt-BR"); } catch { return "—"; } }
-function fmtMesAno(d?: string | null) { if (!d) return ""; try { return new Date(d).toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }); } catch { return ""; } }
+// Nome de exibição: quando o protocolo tem nome GENÉRICO ("Vacina", "Dose"…), mostra junto a
+// vacina/fabricante que foi aplicada (ex.: "Vacina — Nobivac Raiva"), pra saber QUAL vacina foi.
+const NOME_GENERICO = /^(vacinas?|doses?|protocolos?|outros?|aplica[çc][ãa]o)$/i;
+function nomeExibicao(a: Aplicado): string {
+  const nome = (a?.nomeProtocolo || "").trim();
+  const fab = (a?.doses || []).find((d) => d.fabricante)?.fabricante?.trim();
+  return fab && NOME_GENERICO.test(nome) ? `${nome} — ${fab}` : (nome || "Protocolo");
+}
+
+// Datas de dose são de CALENDÁRIO (dia previsto/aplicado) — tratadas pela fonte única lib/datas (sem fuso).
+function fmt(d?: string | null) { const x = diaCalendario(d); return x ? x.toLocaleDateString("pt-BR") : "—"; }
+function fmtMesAno(d?: string | null) { const x = diaCalendario(d); return x ? x.toLocaleDateString("pt-BR", { month: "2-digit", year: "numeric" }) : ""; }
 function hint(t: Template) {
   const p: string[] = [];
   if (t.doses > 1) p.push(`${t.doses} doses` + (t.intervaloDias ? ` (${t.intervaloDias}d)` : ""));
@@ -42,7 +54,7 @@ function periodoSub(a: Aplicado): string {
   if (ds.length >= 2) dias = Math.round((new Date(ds[1].dataPrevista).getTime() - new Date(ds[0].dataPrevista).getTime()) / 86400000);
   const p = periodoLabel(a);
   const pTxt = p ? `Doses ${dias >= 350 ? "a cada 12 meses" : dias >= 28 && dias <= 40 ? "a cada 30 dias" : `${p}`}` : "Dose única";
-  return `${pTxt} · iniciado em ${fmtMesAno(a.dataInicial)}`;
+  return `${pTxt}${a.marca ? ` · ${a.marca}` : ""} · iniciado em ${fmtMesAno(a.dataInicial)}`;
 }
 const DOSE_BADGE: Record<string, { bg: string; fg: string; label: string }> = {
   PENDENTE: { bg: "#E6F1FB", fg: "#185FA5", label: "programada" },
@@ -71,10 +83,9 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
   useEffect(() => {
     (async () => {
       try {
-        const r = await fetch(`/api/products?limit=1000`, { cache: "no-store" });
-        const d = await r.json();
-        const arr = Array.isArray(d) ? d : (d.products || d.data || d.itens || []);
-        setCat(arr.map((s: any) => ({ nome: s.name || s.nome || "", valor: Number(s.price ?? s.preco ?? 0), ativo: s.ativo })).filter((x: any) => x.nome && x.ativo !== false));
+        // FONTE ÚNICA (sem truncar) — pra achar o preço da vacina/produto ao lançar na comanda.
+        const itens = await carregarCatalogoVendavel();
+        setCat(itens.map((i) => ({ nome: nomeSemMarcador(i.nome), valor: i.valorPadrao })));
       } catch {}
     })();
   }, []);
@@ -90,7 +101,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
     try {
       const r = await fetch(`/api/protocolos?petId=${petId}`, { cache: "no-store" });
       const d = await r.json();
-      const arr = Array.isArray(d) ? d : [];
+      const arr = Array.isArray(d) ? d : (d?.protocolos || d?.data || []); // aceita array puro OU envelopado
       setList(arr);
       setSelId((cur) => (cur && arr.some((a: Aplicado) => a.id === cur)) ? cur : (arr[0]?.id || ""));
     } catch (e) { console.error(e); } finally { setLoading(false); }
@@ -125,6 +136,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
       if (!form.templateId) { toast.error("Escolha o protocolo."); return; }
       payload = { petId, tipo: form.tipo, templateId: form.templateId, dataInicial: new Date(form.dataInicial).toISOString() };
     }
+    if (form.marca?.trim()) payload.marca = form.marca.trim();
     try {
       const r = await fetch(`/api/protocolos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!r.ok) { const e = await r.json().catch(() => null); toast.error(`Erro: ${e?.message || r.status}`); return; }
@@ -141,7 +153,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
   }
   function openDose(d: Dose, nomeProto?: string) {
     const pv = precoDe(nomeProto || "");
-    setDoseModal({ dose: d, nomeProto: nomeProto || "", lote: d.lote || "", fabricante: d.fabricante || "", dataAplicada: (d.dataAplicada || new Date().toISOString()).slice(0, 10), observacao: "", lancarComanda: pv > 0, comandaValor: pv ? String(pv) : "" });
+    setDoseModal({ dose: d, nomeProto: nomeProto || "", lote: d.lote || "", fabricante: d.fabricante || "", dataAplicada: d.dataAplicada ? String(d.dataAplicada).slice(0, 10) : hojeLocalISO(), observacao: "", lancarComanda: pv > 0, comandaValor: pv ? String(pv) : "" });
   }
   async function registrarDose() {
     const m = doseModal;
@@ -191,7 +203,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
                       const st = statusProto(a); const on = a.id === selId;
                       return (
                         <button key={a.id} onClick={() => { setSelId(a.id); setApplyOpen(false); }} className="w-full text-left border rounded-[10px] px-2.5 py-2 mb-1.5" style={{ borderColor: on ? "#009AAC" : "#F0EBE0", background: on ? "#F0FBFC" : "#fff" }}>
-                          <div className="text-[12.5px] font-semibold text-[#1F2A2E] truncate">{a.nomeProtocolo}</div>
+                          <div className="text-[12.5px] font-semibold text-[#1F2A2E] truncate">{nomeExibicao(a)}</div>
                           <div className="text-[11px] text-[#5C6B70] mt-0.5 flex items-center justify-between gap-2">
                             <span>{periodoLabel(a) || "dose única"}</span>
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: st.bg, color: st.fg }}>{st.label}</span>
@@ -249,6 +261,9 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
                       {templates.length === 0 && <div className="text-xs text-amber-600 -mt-1">Nenhum protocolo cadastrado p/ este tipo. Cadastre em Configurações → Protocolos, ou use <b>Outros</b>.</div>}
                     </>
                   )}
+                  <label className="text-sm block">Marca <span className="text-gray-400 font-normal">(opcional)</span>
+                    <input value={form.marca || ""} onChange={e => setForm({ ...form, marca: e.target.value })} placeholder="Ex.: Zoetis, MSD, Vetnil…" className="mt-1 w-full px-3 py-2 border rounded-lg" style={{ borderColor: "#E8DFC8" }} />
+                  </label>
                   <label className="text-sm block">Data inicial
                     <input type="date" value={form.dataInicial} onChange={e => setForm({ ...form, dataInicial: e.target.value })} className="mt-1 w-full px-3 py-2 border rounded-lg" style={{ borderColor: "#E8DFC8" }} />
                   </label>
@@ -262,7 +277,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
               <div>
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <div className="text-[15px] font-bold" style={{ color: "#014D5E" }}>{sel.nomeProtocolo}</div>
+                    <div className="text-[15px] font-bold" style={{ color: "#014D5E" }}>{nomeExibicao(sel)}</div>
                     <div className="text-[11.5px] text-[#8A857A] mt-0.5">{periodoSub(sel)}</div>
                   </div>
                   <button onClick={() => removeAplicado(sel)} className="p-1.5 rounded hover:bg-red-50 text-red-500 shrink-0" title="Excluir protocolo"><LuTrash size={15} /></button>
@@ -270,7 +285,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
                 <div className="overflow-x-auto mt-3">
                   <table className="w-full border-collapse">
                     <thead><tr style={{ borderBottom: "1px solid #E8DFC8" }}>
-                      <th className={th}>Programação</th><th className={th}>Aplicação</th><th className={th}>Laboratório</th><th className={th}>Lote</th><th className={th}>Status</th><th className={th}></th>
+                      <th className={th}>Programação</th><th className={th}>Aplicação</th><th className={th}>Vacina / Fabricante</th><th className={th}>Lote</th><th className={th}>Status</th><th className={th}></th>
                     </tr></thead>
                     <tbody>
                       {sel.doses.slice().sort((a, b) => new Date(a.dataPrevista).getTime() - new Date(b.dataPrevista).getTime()).map((d) => {

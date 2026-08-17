@@ -46,6 +46,21 @@ export class CaixaController {
     return this.service.rankingClientes();
   }
 
+  @Get('retencao')
+  retencao() {
+    return this.service.retencao();
+  }
+
+  @Get('rfm')
+  rfm() {
+    return this.service.rfm();
+  }
+
+  @Get('coorte')
+  coorte() {
+    return this.service.coorte();
+  }
+
   @Get('recebimentos-resumo')
   recebimentosResumo(@Query() query: any) {
     return this.service.recebimentosResumo(query);
@@ -56,9 +71,20 @@ export class CaixaController {
     return this.service.vendasResumo(query);
   }
 
+  @Get('previsao-credito')
+  previsaoCredito() {
+    return this.service.previsaoCredito();
+  }
+
   @Post('pdv')
   pdv(@Body() dto: any, @CurrentUser('id') userId: string) {
     return this.service.vendaDireta(dto, userId);
+  }
+
+  // Grade de caixas (todos os dias, filtrável por período/status) — antes do :id pra não colidir.
+  @Get('grade')
+  grade(@Query() query: any) {
+    return this.service.listCaixasGrade(query);
   }
 
   @Get(':id')
@@ -79,6 +105,11 @@ export class CaixaController {
   @Patch(':id/reabrir')
   reabrir(@Param('id') id: string) {
     return this.service.reabrir(id);
+  }
+
+  @Patch(':id/status')
+  setStatus(@Param('id') id: string, @Body() dto: any) {
+    return this.service.setStatusCaixa(id, dto?.status);
   }
 
   @Post(':id/recebimento')

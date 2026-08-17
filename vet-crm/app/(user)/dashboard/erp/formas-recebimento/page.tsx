@@ -13,8 +13,7 @@ const PADROES = [
   { nome: "Pix", tipo: "Pix", conta: "" },
   { nome: "Crédito do cliente", tipo: "Crédito do cliente", conta: "" },
 ];
-const PARCELAS = Array.from({ length: 12 }, (_, i) => i + 1);
-const novaForma = () => ({ id: "", nome: "", tipo: "Dinheiro", conta: "", ativo: true, prazoCredito: "", prazoDebito: "", taxas: {} as Record<string, string> });
+const novaForma = () => ({ id: "", nome: "", tipo: "Dinheiro", conta: "", contaId: "", adquirente: "", ativo: true, prazoCredito: "", prazoDebito: "", taxas: {} as Record<string, string> });
 
 export default function FormasRecebimentoPage() {
   usePageTitle("Formas de recebimento", "Configurar formas de pagamento e taxas");
@@ -22,6 +21,8 @@ export default function FormasRecebimentoPage() {
   const [loading, setLoading] = useState(true);
   const jaCarregou = useRef(false);
   const [formas, setFormas] = useState<any[]>([]);
+  const [contas, setContas] = useState<any[]>([]); // contas financeiras reais (fonte única)
+  const [adquirentes, setAdquirentes] = useState<string[]>([]); // maquininhas da tabela de taxas
   const [expandido, setExpandido] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<any>(novaForma());
@@ -33,13 +34,20 @@ export default function FormasRecebimentoPage() {
       const d = await fetch("/api/listas?lista=formasrecebimento").then((r) => r.json()).catch(() => []);
       const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
       setFormas(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return { id: x.id }; } }));
+      const cs = await fetch("/api/financeiro/contas").then((r) => r.json()).catch(() => []);
+      setContas(Array.isArray(cs) ? cs : (cs.itens || cs.data || []));
+      const tx = await fetch("/api/financeiro/auditoria/taxas").then((r) => r.json()).catch(() => []);
+      const txArr = Array.isArray(tx) ? tx : (tx.data || tx.itens || []);
+      setAdquirentes([...new Set(txArr.map((t: any) => t.adquirente).filter(Boolean))] as string[]);
     } catch {}
     jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
 
   const abrir = (f?: any) => {
-    setForm(f ? { id: f.id, nome: f.nome || "", tipo: f.tipo || "Dinheiro", conta: f.conta || "", ativo: f.ativo !== false, prazoCredito: f.prazoCredito ?? "", prazoDebito: f.prazoDebito ?? "", taxas: { ...(f.taxas || {}) } } : novaForma());
+    // recarrega as contas na hora — pega contas criadas depois que a página abriu
+    fetch("/api/financeiro/contas").then((r) => r.json()).then((cs) => setContas(Array.isArray(cs) ? cs : (cs.itens || cs.data || []))).catch(() => {});
+    setForm(f ? { id: f.id, nome: f.nome || "", tipo: f.tipo || "Dinheiro", conta: f.conta || "", contaId: f.contaId || "", adquirente: f.adquirente || "", ativo: f.ativo !== false, prazoCredito: f.prazoCredito ?? "", prazoDebito: f.prazoDebito ?? "", taxas: { ...(f.taxas || {}) } } : novaForma());
     setOpen(true);
   };
   const salvar = async () => {
@@ -47,8 +55,8 @@ export default function FormasRecebimentoPage() {
     setSaving(true);
     try {
       const isCartao = form.tipo === "Maquininha (cartão)";
-      const payload: any = { nome: form.nome.trim(), tipo: form.tipo, conta: form.conta.trim(), ativo: !!form.ativo };
-      if (isCartao) { payload.prazoCredito = form.prazoCredito; payload.prazoDebito = form.prazoDebito; payload.taxas = form.taxas || {}; }
+      const payload: any = { nome: form.nome.trim(), tipo: form.tipo, conta: form.conta.trim(), contaId: form.contaId || "", ativo: !!form.ativo };
+      if (isCartao) { payload.prazoCredito = form.prazoCredito; payload.prazoDebito = form.prazoDebito; payload.adquirente = form.adquirente || ""; } // taxa vem da tabela por bandeira, não da forma
       const url = form.id ? `/api/listas/${form.id}` : "/api/listas";
       const res = await fetch(url, { method: form.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(form.id ? { valor: JSON.stringify(payload) } : { lista: "formasrecebimento", valor: JSON.stringify(payload) }) });
       if (!res.ok) throw new Error();
@@ -68,9 +76,8 @@ export default function FormasRecebimentoPage() {
     } catch {}
   };
 
-  const setTaxa = (k: string, v: string) => setForm((f: any) => ({ ...f, taxas: { ...f.taxas, [k]: v } }));
   const resumo = (f: any) => {
-    if (f.tipo === "Maquininha (cartão)") { const d = f.taxas?.debito, c = f.taxas?.["1"]; return `Cartão${d ? ` · déb ${d}%` : ""}${c ? ` · créd ${c}%+` : ""}${f.conta ? ` · ${f.conta}` : ""}`; }
+    if (f.tipo === "Maquininha (cartão)") { return `Maquininha${f.adquirente ? ` · ${f.adquirente}` : ""}${f.conta ? ` · ${f.conta}` : ""}`; }
     return `${f.tipo}${f.conta ? ` · ${f.conta}` : ""}`;
   };
   const ordenadas = useMemo(() => [...formas].sort((a, b) => (a.nome || "").localeCompare(b.nome || "")), [formas]);
@@ -105,7 +112,7 @@ export default function FormasRecebimentoPage() {
                   <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>{TIPO_EMOJI[f.tipo] || "💠"}</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-[14px] font-medium text-[#014D5E] truncate">{f.nome}</div>
-                    <div className="text-[11px] text-[#374151] truncate">{resumo(f)}{cartao && !aberto ? " · toque p/ abrir taxas" : ""}</div>
+                    <div className="text-[11px] text-[#374151] truncate">{resumo(f)}{cartao && !aberto ? " · toque p/ ver" : ""}</div>
                   </div>
                   <div className="flex items-center gap-2.5 flex-shrink-0">
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={f.ativo !== false ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F0EBE0", color: "#374151" }}>{f.ativo !== false ? "Ativa" : "Inativa"}</span>
@@ -119,14 +126,11 @@ export default function FormasRecebimentoPage() {
                       <span>Prazo crédito: <b className="text-[#014D5E]">{f.prazoCredito || "—"} dia(s)</b></span>
                       <span>Prazo débito: <b className="text-[#014D5E]">{f.prazoDebito || "—"} dia(s)</b></span>
                     </div>
-                    <div className="text-[10.5px] text-[#374151] uppercase tracking-wide mb-2">Taxas por parcela</div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-1">
-                      <div className="flex justify-between text-[12px]"><span className="text-[#5C6B70]">💠 Débito</span><span className="text-[#014D5E] tabular-nums font-medium">{f.taxas?.debito ? `${f.taxas.debito}%` : "—"}</span></div>
-                      {PARCELAS.map((n) => (
-                        <div key={n} className="flex justify-between text-[12px]"><span className="text-[#5C6B70]">{n === 1 ? "À vista (1x)" : `${n}x`}</span><span className="text-[#014D5E] tabular-nums font-medium">{f.taxas?.[String(n)] ? `${f.taxas[String(n)]}%` : "—"}</span></div>
-                      ))}
+                    <div className="flex gap-5 flex-wrap text-[11.5px] text-[#5C6B70]">
+                      <span>Maquininha: <b className="text-[#014D5E]">{f.adquirente || "— não ligada —"}</b></span>
+                      <span>Taxas: <b className="text-[#014D5E]">tabela por bandeira</b> (Financeiro › Taxas)</span>
                     </div>
-                    {podeEditar && <button onClick={() => abrir(f)} className="mt-3 text-[11.5px] font-medium text-[#00798A]">✏️ Editar taxas</button>}
+                    {podeEditar && <button onClick={() => abrir(f)} className="mt-3 text-[11.5px] font-medium text-[#00798A]">✏️ Editar</button>}
                   </div>
                 )}
               </div>
@@ -149,8 +153,14 @@ export default function FormasRecebimentoPage() {
                   <input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Ex.: Maquininha InfinitePay" className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
                 <div><label className="text-[11px] text-[#374151] block mb-1">Tipo</label>
                   <select value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{TIPOS.map((t) => <option key={t} value={t}>{TIPO_EMOJI[t]} {t}</option>)}</select></div>
-                <div><label className="text-[11px] text-[#374151] block mb-1">Conta (opcional)</label>
-                  <input value={form.conta} onChange={(e) => setForm({ ...form, conta: e.target.value })} placeholder="Conta Nubank" className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+                <div><label className="text-[11px] text-[#374151] block mb-1">Conta de destino</label>
+                  <select value={form.contaId || ""} onChange={(e) => { const c = contas.find((x: any) => x.id === e.target.value); setForm({ ...form, contaId: e.target.value, conta: c ? (c.nome || "") : "" }); }} className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>
+                    <option value="">— Escolher conta —</option>
+                    {contas.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                  </select>
+                  {!form.contaId && form.conta ? <div className="text-[10.5px] text-[#B45309] mt-1">Texto antigo: "{form.conta}" — selecione a conta real acima.</div> : null}
+                  {contas.length === 0 ? <div className="text-[10.5px] text-[#374151] mt-1">Nenhuma conta ainda. Cadastre em Financeiro › Contas.</div> : null}
+                </div>
               </div>
 
               {form.tipo === "Maquininha (cartão)" && (
@@ -161,13 +171,14 @@ export default function FormasRecebimentoPage() {
                     <div><label className="text-[11px] text-[#374151] block mb-1">Prazo débito (dias)</label>
                       <input type="number" value={form.prazoDebito} onChange={(e) => setForm({ ...form, prazoDebito: e.target.value })} placeholder="1" className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
                   </div>
-                  <div className="text-[10.5px] text-[#374151] uppercase tracking-wide mb-2">Taxas por parcela (%)</div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    <div className="flex items-center justify-between gap-1"><span className="text-[12px] text-[#5C6B70]">💠 Déb</span><input value={form.taxas?.debito ?? ""} onChange={(e) => setTaxa("debito", e.target.value)} placeholder="0" className="w-16 border rounded-lg px-2 py-1 text-[12px] text-right tabular-nums bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-                    {PARCELAS.map((n) => (
-                      <div key={n} className="flex items-center justify-between gap-1"><span className="text-[12px] text-[#5C6B70]">{n}x</span><input value={form.taxas?.[String(n)] ?? ""} onChange={(e) => setTaxa(String(n), e.target.value)} placeholder="0" className="w-16 border rounded-lg px-2 py-1 text-[12px] text-right tabular-nums bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-                    ))}
+                  <div><label className="text-[11px] text-[#374151] block mb-1">Maquininha / adquirente <span className="text-[#B45309]">(liga às taxas)</span></label>
+                    <select value={form.adquirente || ""} onChange={(e) => setForm({ ...form, adquirente: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>
+                      <option value="">— Escolher maquininha —</option>
+                      {adquirentes.map((a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                    {adquirentes.length === 0 ? <div className="text-[10.5px] text-[#374151] mt-1">Nenhuma taxa cadastrada. Configure em Financeiro › Taxas.</div> : null}
                   </div>
+                  <div className="text-[11.5px] text-[#0F6E56] mt-2.5" style={{ background: "#E1F5EE", borderRadius: 9, padding: "9px 11px" }}>💳 As <b>taxas</b> vêm da tabela por bandeira em <b>Financeiro › Taxas</b> — não precisa digitar aqui. Bandeira e parcelas são escolhidas na hora do recebimento.</div>
                 </div>
               )}
 

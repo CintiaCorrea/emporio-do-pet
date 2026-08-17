@@ -8,6 +8,7 @@ const PRODUCT_EXTRA_KEYS = [
   'codigoBarras', 'unidadeVenda', 'marca', 'categoryId', 'custoPadrao', 'proposito', 'markup',
   'exibeListaPreco', 'permiteAlterarPreco', 'controlaEstoque', 'estoqueMin', 'estoqueMax',
   'comissionado', 'comissaoTipo', 'comissaoValor', 'fornecedorId',
+  'planoTipo', 'planoUnidades', 'planoIntervaloDias',
 ] as const;
 
 @Injectable()
@@ -219,17 +220,37 @@ export class ProductsService {
   private normNome(s?: string): string {
     return (s || '').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
   }
+  // Parser de linha CSV que RESPEITA aspas (campos com o separador dentro de "..." não quebram).
+  private parseCsvLine(line: string, sep: string): string[] {
+    const out: string[] = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQ) {
+        if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+        else cur += ch;
+      } else {
+        if (ch === '"') inQ = true;
+        else if (ch === sep) { out.push(cur); cur = ''; }
+        else cur += ch;
+      }
+    }
+    out.push(cur);
+    return out.map((s) => s.trim());
+  }
 
-  async importarCatalogo(csv: string, opts?: { dryRun?: boolean }) {
+  async importarCatalogo(csv: string, opts?: { dryRun?: boolean; inativarForaDaLista?: boolean; confirmarInativacaoEmMassa?: boolean }) {
     const dryRun = !!opts?.dryRun;
-    const linhas = String(csv || '').split(/\r?\n/).filter((l) => l.trim().length);
+    const inativarForaDaLista = !!opts?.inativarForaDaLista; // TRAVA: por padrão NÃO inativa (só adiciona/atualiza)
+    const LIMITE_MASSA = 0.2; // recusa desligar mais que 20% do catálogo sem 2ª confirmação
+    const linhas = String(csv || '').replace(/^﻿/, '').split(/\r?\n/).filter((l) => l.trim().length);
     if (!linhas.length) throw new BadRequestException('CSV vazio');
-    // Detecta o separador de colunas (";" padrão pt-BR, ou TAB). Vírgula é evitada
-    // porque colide com o decimal (ex.: "1,50") — se vier só vírgula, avisamos.
+    // Detecta o separador: TAB > ";" > ",". A vírgula agora é aceita porque o parser
+    // respeita aspas e os decimais deste catálogo usam ponto (1214.00).
     const cont = (s: string, ch: string) => (s.match(new RegExp(ch === '\t' ? '\\t' : `\\${ch}`, 'g')) || []).length;
     const h0 = linhas[0];
-    const sep = cont(h0, '\t') > cont(h0, ';') ? '\t' : ';';
-    const sepLabel = sep === '\t' ? 'TAB' : 'ponto e vírgula (;)';
+    const sep = cont(h0, '\t') > 0 ? '\t' : cont(h0, ';') > 0 ? ';' : cont(h0, ',') > 0 ? ',' : ';';
+    const sepLabel = sep === '\t' ? 'TAB' : sep === ',' ? 'vírgula (,)' : 'ponto e vírgula (;)';
     const start = /tipo/i.test(linhas[0]) && /nome/i.test(linhas[0]) ? 1 : 0;
 
     const vistos = new Set<string>();
@@ -238,7 +259,7 @@ export class ProductsService {
     let duplicadosRemovidos = 0;
 
     for (let i = start; i < linhas.length; i++) {
-      const c = linhas[i].split(sep);
+      const c = this.parseCsvLine(linhas[i], sep);
       const nome = (c[1] || '').trim();
       if (!nome) continue;
       const chave = this.normNome(nome);
@@ -261,13 +282,10 @@ export class ProductsService {
       });
     }
     if (!itens.length) {
-      const nCols = (linhas[start] || h0).split(sep).length;
-      const temVirgula = cont(h0, ',') > cont(h0, ';') && cont(h0, ';') === 0;
-      const dica = temVirgula
-        ? 'O arquivo parece separado por VÍRGULA. Reexporte como "CSV UTF-8" (que usa ; ) ou troque o separador para ponto e vírgula.'
-        : nCols < 2
-          ? 'Não consegui separar as colunas. Se você exportou do Excel, use "Salvar como > CSV UTF-8 (delimitado por ;)" — não envie .xlsx.'
-          : 'A 2ª coluna (nome) veio vazia em todas as linhas. Confira se a ordem é: tipo;nome;categoria;preco;custo;...';
+      const nCols = this.parseCsvLine(linhas[start] || h0, sep).length;
+      const dica = nCols < 2
+        ? 'Não consegui separar as colunas. Se você exportou do Excel, use "Salvar como > CSV UTF-8" — não envie .xlsx.'
+        : 'A 2ª coluna (nome) veio vazia em todas as linhas. Confira se a ordem é: tipo,nome,categoria,preco,custo,ativo,aparece_no_pdv,marca,unidade,codigo_barras,estoque';
       throw new BadRequestException(`Nenhum item válido. Detectei separador "${sepLabel}" e ${nCols} coluna(s) na 1ª linha de dados. ${dica}`);
     }
 
@@ -277,6 +295,12 @@ export class ProductsService {
     let novos = 0, atualizados = 0;
     for (const it of itens) (mapaExist.has(this.normNome(it.nome)) ? atualizados++ : novos++);
     const foraDaLista = existentes.filter((e) => e.ativo && !chavesLista.has(this.normNome(e.name)));
+    const ativosHoje = existentes.filter((e) => e.ativo).length;
+    // Só inativa se a pessoa PEDIU (inativarForaDaLista). Cap de segurança: se for desligar
+    // mais que LIMITE_MASSA do catálogo, bloqueia até uma 2ª confirmação consciente.
+    const vaiInativar = inativarForaDaLista ? foraDaLista.length : 0;
+    const pctInativar = ativosHoje ? vaiInativar / ativosHoje : 0;
+    const bloqueioMassa = vaiInativar > 0 && pctInativar > LIMITE_MASSA && !opts?.confirmarInativacaoEmMassa;
 
     const relatorio = {
       totalItens: itens.length,
@@ -284,11 +308,25 @@ export class ProductsService {
       servicos: itens.filter((i) => !i.isProduto).length,
       novos, atualizados, duplicadosRemovidos,
       precoZeroInativados: itens.filter((i) => !i.ativo).length,
-      foraDaListaInativados: foraDaLista.length,
+      inativarForaDaLista,                                   // eco do modo escolhido
+      foraDaListaCandidatos: foraDaLista.length,             // quantos ficariam de fora (informativo)
+      foraDaListaInativados: vaiInativar,                    // quantos SERÃO inativados de fato (0 se opt-out)
+      foraDaLista: foraDaLista.map((e) => e.name).sort((a, b) => a.localeCompare(b)).slice(0, 300),
+      ativosHoje,
+      pctInativar: Math.round(pctInativar * 100),
+      bloqueioMassa,                                         // true = precisa confirmar em massa
       totalSuspeitos: suspeitos.length,
       suspeitos: suspeitos.slice(0, 60),
     };
     if (dryRun) return { dryRun: true, ...relatorio };
+
+    // TRAVA DURA no import real: não deixa uma planilha parcial zerar o catálogo por acidente.
+    if (bloqueioMassa) {
+      throw new BadRequestException(
+        `Essa importação desligaria ${vaiInativar} de ${ativosHoje} itens ativos (${Math.round(pctInativar * 100)}%). ` +
+        `Isso parece uma planilha parcial. Se for mesmo intencional, marque a confirmação de inativação em massa e importe de novo.`,
+      );
+    }
 
     // ---------- IMPORT REAL (com backup) ----------
     // Backup do que existe hoje (pra desfazer se preciso) — UM registro por item.
@@ -340,12 +378,12 @@ export class ProductsService {
       if (ex) { await this.prisma.product.update({ where: { id: ex.id }, data: dadosDe(it) }); atualizadosN++; }
       else { await this.prisma.product.create({ data: { name: it.nome, ...dadosDe(it) } }); criados++; }
     }
-    // Itens atuais fora da lista → inativos (não apaga).
-    if (foraDaLista.length) {
+    // Itens atuais fora da lista → inativos (não apaga). SÓ se a pessoa pediu de propósito.
+    if (inativarForaDaLista && foraDaLista.length) {
       await this.prisma.product.updateMany({ where: { id: { in: foraDaLista.map((f) => f.id) } }, data: { ativo: false } });
     }
 
-    return { dryRun: false, ...relatorio, criados, atualizados: atualizadosN, inativados: foraDaLista.length };
+    return { dryRun: false, ...relatorio, criados, atualizados: atualizadosN, inativados: vaiInativar };
   }
 
   // ── Ficha técnica (ProdutoComposicao): insumos que um procedimento/kit consome ──

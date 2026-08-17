@@ -16,23 +16,18 @@ const ITEMS: Item[] = [
   { href: "/dashboard/configuracoes/profissionais", title: "Equipe", description: "Equipe interna + acessos ao sistema (login)", emoji: "👥", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/permissoes", title: "Perfis e Permissões", description: "O que cada perfil vê e edita em cada tela", emoji: "🔐", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/etiquetas", title: "Etiquetas", description: "Tags pra Lead, Cliente e Pet", emoji: "🏷️", group: "CADASTROS" },
-  { href: "/dashboard/configuracoes/servicos", title: "Serviços e Produtos", description: "Catálogo com preço, custo e comissão", emoji: "📦", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/racas", title: "Raças", description: "Lista de raças por espécie", emoji: "🐾", group: "CADASTROS" },
-  { href: "/dashboard/configuracoes/modelos-receita", title: "Modelos de Receita", description: "Modelos editáveis da ficha do pet", emoji: "💊", group: "CADASTROS" },
-  { href: "/dashboard/configuracoes/modelos-documento", title: "Modelos de Documento", description: "Modelos editáveis da ficha do pet", emoji: "📄", group: "CADASTROS" },
-  { href: "/dashboard/configuracoes/modelos-boletim", title: "Modelos de boletim", description: "Textos prontos para os boletins de internação", emoji: "🔔", group: "CADASTROS", novo: true },
+  { href: "/dashboard/configuracoes/modelos", title: "Modelos", description: "Receita, documento e boletim — num lugar só (abas)", emoji: "📝", group: "CADASTROS", novo: true },
   { href: "/dashboard/configuracoes/listas", title: "Listas customizáveis", description: "Canais, origens, motivos, fases…", emoji: "📋", group: "CADASTROS" },
   { href: "/dashboard/configuracoes/protocolos", title: "Protocolos", description: "Vacinas, vermífugos e ectoparasitas", emoji: "💉", group: "CADASTROS" },
-
-  // Agenda & Atendimento
-  { href: "/dashboard/erp/agendamentos/configuracoes", title: "Agenda", description: "Horários, durações e tipos de agendamento", emoji: "📅", group: "AGENDA", novo: true },
-  { href: "/dashboard/configuracoes/atendimento", title: "Atendimento", description: "Tipos e status do atendimento", emoji: "🩺", group: "AGENDA" },
+  { href: "/dashboard/configuracoes/atendimento", title: "Atendimento", description: "Tipos e status do atendimento", emoji: "🩺", group: "CADASTROS" },
 
   // Comunicação & Mensagens
   { href: "/dashboard/configuracoes/inbox", title: "Caixa de Entrada", description: "WhatsApp: criar lead automático de número novo", emoji: "📥", group: "COMUNICACAO" },
   { href: "/dashboard/configuracoes/cadastros-recebidos", title: "Cadastros recebidos", description: "Fichas que os clientes preenchem pelo link público", emoji: "📝", group: "COMUNICACAO", novo: true },
   { href: "/dashboard/configuracoes/resposta-automatica", title: "Resposta automática", description: "Mensagem automática fora do horário", emoji: "⏰", group: "COMUNICACAO" },
   { href: "/dashboard/configuracoes/scripts", title: "Scripts", description: "Roteiros de mensagem (texto/áudio/e-mail)", emoji: "💬", group: "COMUNICACAO" },
+  { href: "/dashboard/configuracoes/figurinhas", title: "Figurinhas", description: "Figurinhas da clínica pra enviar no WhatsApp", emoji: "🩹", group: "COMUNICACAO", novo: true },
   { href: "/dashboard/configuracoes/cadencias", title: "Cadências", description: "Sequências automáticas de comunicação", emoji: "🔁", group: "COMUNICACAO" },
   { href: "/dashboard/configuracoes/email-templates", title: "Templates de E-mail", description: "Modelos com variáveis", emoji: "✉️", group: "COMUNICACAO" },
   { href: "/dashboard/configuracoes/pipelines", title: "Pipelines", description: "Etapas comercial / clínico / fisio", emoji: "🧩", group: "COMUNICACAO" },
@@ -40,16 +35,11 @@ const ITEMS: Item[] = [
   // Catálogo & Terceiros
   { href: "/dashboard/configuracoes/exames", title: "Exames, Fornecedores e Profissionais", description: "Catálogo de exames + fornecedores (lab/empresa) e profissionais", emoji: "🔬", group: "CATALOGO" },
   { href: "/dashboard/configuracoes/departamentos", title: "Departamentos (DRE)", description: "De-para: cada categoria do catálogo → departamento do Financeiro/DRE", emoji: "🔗", group: "CATALOGO", novo: true },
-  { href: "/dashboard/configuracoes/grupos", title: "Grupos do catálogo", description: "Categorias de produtos e serviços", emoji: "📁", group: "CATALOGO" },
-
-  // Vendas & Financeiro
-  { href: "/dashboard/erp/configuracoes-vendas", title: "Configuração de vendas", description: "Regras de venda, descontos e comportamento do PDV", emoji: "💰", group: "VENDAS", novo: true },
-  { href: "/dashboard/erp/formas-recebimento", title: "Formas de recebimento", description: "Dinheiro, cartão, Pix, prazos…", emoji: "💳", group: "VENDAS" },
 
   // Sistema & Acesso
   { href: "/dashboard/erp/dados-clinica", title: "Dados da clínica", description: "Nome, CNPJ, endereço e marcas", emoji: "🏢", group: "SISTEMA", novo: true },
   { href: "/dashboard/configuracoes/metas", title: "Metas", description: "Faturamento, atendimentos, conversões", emoji: "🎯", group: "SISTEMA" },
-  { href: "/dashboard/configuracoes/acesso-horario", title: "Acesso por horário", description: "Restringe o login ao horário de escala de cada um", emoji: "🔒", group: "SISTEMA", novo: true },
+  { href: "/dashboard/configuracoes/notificacoes", title: "Notificações", description: "Ativar/testar os avisos que aparecem fora do sistema (push)", emoji: "🔔", group: "SISTEMA", novo: true },
   { href: "/dashboard/configuracoes/timbrado", title: "Papel timbrado", description: "A folha com o logo pros documentos impressos (boletim, receituário…)", emoji: "📄", group: "SISTEMA", novo: true },
 ];
 

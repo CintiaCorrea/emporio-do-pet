@@ -347,13 +347,14 @@ export class AuthService {
     const base = (this.configService.get<string>('frontendUrl') || process.env.FRONTEND_URL || 'https://emporio-do-web.fly.dev').replace(/\/$/, '');
     const link = `${base}/reset-password?token=${token}`;
     try {
-      await this.email.sendEmail({
+      const envio = await this.email.sendEmail({
         to: user.email,
         subject: 'Redefinição de senha — Empório do Pet',
         html: this.htmlResetSenha(user.name || '', link),
         text: `Olá${user.name ? ' ' + user.name.split(/\s+/)[0] : ''}!\n\nRecebemos um pedido para redefinir sua senha no Empório do Pet.\nAbra este link (válido por 1 hora) para criar uma nova senha:\n${link}\n\nSe não foi você, pode ignorar este e-mail — sua senha continua a mesma.`,
       });
-      this.logger.log(`E-mail de reset enviado para ${user.email}`);
+      if ((envio as any)?.success) this.logger.log(`E-mail de reset enviado para ${user.email}`);
+      else this.logger.warn(`Falha ao enviar e-mail de reset para ${user.email}: ${(envio as any)?.error || 'sem detalhe'}`);
     } catch (e: any) { this.logger.warn(`Falha ao enviar e-mail de reset: ${e?.message || e}`); }
     return resposta;
   }

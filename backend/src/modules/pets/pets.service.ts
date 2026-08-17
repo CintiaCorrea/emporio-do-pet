@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { CreatePetDto } from './dto/create-pet.dto';
@@ -10,6 +11,7 @@ export class PetsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly eventsService: EventsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   /** Histórico clínico (importado do SimplesVet) do pet, mais recente primeiro.
@@ -120,8 +122,9 @@ export class PetsService {
     limit?: number;
     skip?: number;
     take?: number;
+    incluirResp2?: boolean;
   }) {
-    const { tutorId, search, species, status, page = 1, limit = 10, skip, take } = params || {};
+    const { tutorId, search, species, status, page = 1, limit = 10, skip, take, incluirResp2 } = params || {};
 
     const resolvedTake = Number.isFinite(take as any) ? (take as number) : limit;
     const resolvedSkip = Number.isFinite(skip as any)
@@ -129,7 +132,10 @@ export class PetsService {
       : Math.max(0, (page - 1) * resolvedTake);
 
     const where: any = {};
-    if (tutorId) where.tutorId = tutorId;
+    // Com incluirResp2, traz também os pets em que o cliente é 2º responsável (secondaryTutorId) —
+    // pra o pet aparecer na ficha/inbox dos DOIS. Opt-in (só quem pede), pra não afetar as outras telas.
+    if (tutorId && incluirResp2) where.OR = [{ tutorId }, { secondaryTutorId: tutorId }];
+    else if (tutorId) where.tutorId = tutorId;
     if (species) where.species = species;
     if (status) where.status = status;
 
@@ -221,17 +227,27 @@ export class PetsService {
   }
 
   async update(id: string, updatePetDto: UpdatePetDto) {
-    await this.findById(id);
+    const antigo = await this.findById(id);
 
     const dados: any = { ...updatePetDto };
     if (dados.birthDate) { const d = new Date(dados.birthDate); dados.birthDate = isNaN(d.getTime()) ? undefined : d; }
-    return this.prisma.pet.update({
+    const atualizado = await this.prisma.pet.update({
       where: { id },
       data: dados,
       include: {
         tutor: true,
       },
     });
+    // 🕊️ Hospice: dispara os toques de carinho SÓ na transição (não a cada save).
+    try {
+      if (!(antigo as any)?.cuidadoPaliativo && atualizado.cuidadoPaliativo) {
+        this.eventEmitter.emit('crm.pet.paliativo', { petId: id });
+      }
+      if ((antigo as any)?.status !== 'DECEASED' && atualizado.status === 'DECEASED') {
+        this.eventEmitter.emit('crm.pet.faleceu', { petId: id });
+      }
+    } catch { /* evento nunca derruba o update */ }
+    return atualizado;
   }
 
   async remove(id: string) {

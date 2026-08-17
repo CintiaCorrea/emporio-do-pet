@@ -7,6 +7,8 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { usePodeEditar } from '@/lib/permissions/context';
+import { ehDinheiro, carregarFormasRecebimento, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
+import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
   LuX, LuWallet, LuTrash2, LuGift, LuSettings, LuCircleDollarSign, LuEye, LuEyeOff,
@@ -18,16 +20,15 @@ const ORANGE = '#D85A30';
 const GREEN = '#0f6e56';
 const LINE = '#E8E2D6';
 
-type Forma = { forma: string; valor: number; parcelas: number; nsu: string };
+type Forma = PagForma; // fonte única (lib/formasPagamento): forma+valor +modalidade/bandeira/parcelas/nsu
 interface Movimento { id: string; tipo: string; valor: number; forma?: string | null; conta?: string | null; descricao?: string | null; observacao?: string | null; data: string; }
 interface CreditoUtil { id: string; tipo: string; valor: number; descricao?: string | null; data: string; appointmentId?: string | null; tutor?: { id: string; name: string } | null; }
 interface Recebimento { id: string; valorTotal: number; desconto: number; troco: number; formas: Forma[]; observacao?: string | null; data: string; appointmentId?: string | null; appointment?: { id: string; value: number; numeroVenda?: number | null; codigoExterno?: string | null; pet?: { name: string }; tutor?: { name: string } } | null; }
-interface Caixa { id: string; numero: number; status: 'ABERTO' | 'FECHADO'; abertura: string; fechamento?: string | null; suprimento: number; observacao?: string | null; valorEsperado?: number | null; valorContado?: number | null; diferenca?: number | null; obsFechamento?: string | null; user?: { id: string; name: string } | null; recebimentos: Recebimento[]; movimentos?: Movimento[]; creditosUtilizados?: CreditoUtil[]; }
+interface Caixa { id: string; numero: number; status: string; abertura: string; fechamento?: string | null; suprimento: number; observacao?: string | null; valorEsperado?: number | null; valorContado?: number | null; diferenca?: number | null; obsFechamento?: string | null; user?: { id: string; name: string } | null; recebimentos: Recebimento[]; movimentos?: Movimento[]; creditosUtilizados?: CreditoUtil[]; }
 interface Appointment { id: string; value: number; numeroVenda?: number | null; codigoExterno?: string | null; paymentStatus?: string; tutorId?: string; pet?: { name: string } | null; tutor?: { id?: string; name: string } | null; start?: string; }
 
 const FORMAS_PADRAO = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
 const CONTAS = ['Caixa', 'Banco', 'Cofre'];
-const ehDinheiro = (f?: string | null) => /dinheiro/i.test(f || '');
 const ehCredito = (f?: string | null) => /cr[eé]dito do pet/i.test(f || '');
 const ehEntrada = (tipo: string) => tipo === 'SUPRIMENTO';
 const tipoLabel: Record<string, string> = { SUPRIMENTO: 'Suprimento', SANGRIA: 'Sangria', DESPESA: 'Despesa', TRANSFERENCIA: 'Transferência' };
@@ -51,6 +52,38 @@ export default function CaixaPage() {
   const [detail, setDetail] = useState<Caixa | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [tab, setTab] = useState<'resumo' | 'receb' | 'mov' | 'cred'>('resumo');
+  // Status do caixa (4 estados, string) + grade filtrável
+  const STATUS_UI = (s: string) => {
+    const S = String(s || '').toUpperCase();
+    if (S === 'ABERTO') return { label: '🟢 Aberto', bg: '#E1F5EE', fg: GREEN };
+    if (S === 'EM_REVISAO') return { label: '🔎 Em revisão', bg: '#FBF1E2', fg: '#B26A00' };
+    if (S === 'ENCERRADO') return { label: '🔒 Encerrado', bg: '#EDE7FA', fg: '#6A4FB0' };
+    return { label: '⚪ Fechado', bg: '#EEF2F3', fg: '#5C6B70' };
+  };
+  const miniBtn: React.CSSProperties = { fontSize: 11.5, padding: '5px 9px', borderRadius: 8, border: '1px solid #E8E2D6', background: '#fff', color: '#5C6B70', cursor: 'pointer' };
+  const [gradeOpen, setGradeOpen] = useState(false);
+  const [gradeFrom, setGradeFrom] = useState('');
+  const [gradeTo, setGradeTo] = useState('');
+  const [gradeStatus, setGradeStatus] = useState('');
+  const [gradeRows, setGradeRows] = useState<any[]>([]);
+  const [gradeLoading, setGradeLoading] = useState(false);
+  const fetchGrade = async () => {
+    setGradeLoading(true);
+    try {
+      const p = new URLSearchParams();
+      if (gradeFrom) p.set('from', gradeFrom); if (gradeTo) p.set('to', gradeTo); if (gradeStatus) p.set('status', gradeStatus);
+      const r = await fetch(`/api/caixa/grade?${p.toString()}`, { cache: 'no-store' });
+      setGradeRows(r.ok ? await r.json() : []);
+    } catch { setGradeRows([]); } finally { setGradeLoading(false); }
+  };
+  const mudarStatus = async (novo: string) => {
+    if (!detail) return;
+    try {
+      const r = await fetch(`/api/caixa/${detail.id}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: novo }) });
+      if (!r.ok) throw new Error();
+      toast.success('Status atualizado'); await fetchCaixas(); await fetchDetail(detail.id);
+    } catch { toast.error('Erro ao mudar status'); }
+  };
   const [loading, setLoading] = useState(true);
   const [ocultar, setOcultar] = useState(false);
 
@@ -58,7 +91,7 @@ export default function CaixaPage() {
   const money = (v: number) => (ocultar ? 'R$ ••••••' : brl(v));
 
   const [abrirOpen, setAbrirOpen] = useState(false);
-  const [abrirForm, setAbrirForm] = useState({ suprimento: '', observacao: '' });
+  const [abrirForm, setAbrirForm] = useState({ suprimento: '', observacao: '', abertura: '' });
   const [receberOpen, setReceberOpen] = useState(false);
   const [vendaSel, setVendaSel] = useState<Appointment | null>(null);
   const [formas, setFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]);
@@ -67,11 +100,20 @@ export default function CaixaPage() {
   const [tutorSaldo, setTutorSaldo] = useState<number | null>(null);
   const [movOpen, setMovOpen] = useState(false);
   const [movTipo, setMovTipo] = useState('SUPRIMENTO');
-  const [movForm, setMovForm] = useState({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '' });
+  const [movForm, setMovForm] = useState({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '' });
+  const [categoriasDespesa, setCategoriasDespesa] = useState<any[]>([]); // categorias de DESPESA (DRE)
+  const [contasFin, setContasFin] = useState<any[]>([]); // contas reais (id+nome) p/ transferência
   const [credOpen, setCredOpen] = useState(false);
   const [credForm, setCredForm] = useState({ appointmentId: '', tipo: 'RECARGA', valor: '', descricao: '' });
+  const [prevCred, setPrevCred] = useState<{ totalCentavos: number; porData: { data: string; liquidoCentavos: number }[] } | null>(null); // item 10 — previsão de crédito das maquininhas (D+1)
   const [fecharOpen, setFecharOpen] = useState(false);
   const [fecharForm, setFecharForm] = useState({ valorContado: '', observacao: '' });
+  const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas cadastradas (fonte única — igual PDV)
+  const [formasConfig, setFormasConfig] = useState<FormaCfg[]>([]); // config completa por forma (p/ cartão: adquirente/bandeira)
+  const [taxas, setTaxas] = useState<TaxaRow[]>([]); // tabela TaxaContratada (mostra bandeiras do cartão)
+  const [contasCfg, setContasCfg] = useState<string[]>([]); // contas financeiras reais
+  const formasList = formasCfg.length ? formasCfg : FORMAS_PADRAO;
+  const contasList = contasCfg.length ? contasCfg : CONTAS;
 
   const fetchCaixas = useCallback(async () => {
     try {
@@ -104,6 +146,29 @@ export default function CaixaPage() {
 
   useEffect(() => { fetchCaixas(); fetchAppointments(); }, [date]); // eslint-disable-line
   useEffect(() => { if (selectedId) fetchDetail(selectedId); }, [selectedId, fetchDetail]);
+  useEffect(() => { fetch('/api/caixa/previsao-credito', { cache: 'no-store' }).then((r) => r.json()).then(setPrevCred).catch(() => setPrevCred(null)); }, [date]);
+  useEffect(() => { // fonte única: formas + contas cadastradas no Financeiro
+    (async () => {
+      try {
+        // FONTE ÚNICA (lib/formasPagamento) — mesma lista + config + taxas do PDV.
+        const { formasList, formasConfig, taxas } = await carregarFormasRecebimento();
+        if (formasList.length) setFormasCfg(formasList);
+        setFormasConfig(formasConfig); setTaxas(taxas);
+      } catch { /* usa padrão */ }
+      try {
+        const cs = await fetch('/api/financeiro/contas', { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
+        const list = Array.isArray(cs) ? cs : (cs.itens || cs.data || []);
+        const nomes = list.map((c: any) => c?.nome).filter(Boolean);
+        if (nomes.length) setContasCfg(nomes);
+        setContasFin(list.filter((c: any) => c?.id && c?.nome).map((c: any) => ({ id: c.id, nome: c.nome })));
+      } catch { /* usa padrão */ }
+      try {
+        const cats = await fetch('/api/financeiro/categorias', { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
+        const arr = Array.isArray(cats) ? cats : (cats.itens || cats.data || []);
+        setCategoriasDespesa(arr.filter((c: any) => String(c?.tipo || '') === 'DESPESA').sort((a: any, b: any) => (a.nome || '').localeCompare(b.nome || '')));
+      } catch { /* sem categorias */ }
+    })();
+  }, []);
 
   const mudarDia = (delta: number) => { const d = new Date(date + 'T00:00:00'); d.setDate(d.getDate() + delta); setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); };
   const tutorIdDe = (a?: Appointment | null) => a?.tutorId || a?.tutor?.id || null;
@@ -146,9 +211,9 @@ export default function CaixaPage() {
 
   const abrirCaixa = async () => {
     try {
-      const r = await fetch('/api/caixa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suprimento: Number(String(abrirForm.suprimento).replace(',', '.')) || 0, observacao: abrirForm.observacao || null }) });
+      const r = await fetch('/api/caixa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suprimento: Number(String(abrirForm.suprimento).replace(',', '.')) || 0, observacao: abrirForm.observacao || null, abertura: abrirForm.abertura || undefined }) });
       if (!r.ok) throw new Error('Erro ao abrir caixa');
-      toast.success('Caixa aberto!'); setAbrirOpen(false); setAbrirForm({ suprimento: '', observacao: '' }); await fetchCaixas();
+      toast.success(abrirForm.abertura ? `Caixa aberto para ${abrirForm.abertura.split('-').reverse().join('/')}!` : 'Caixa aberto!'); setAbrirOpen(false); setAbrirForm({ suprimento: '', observacao: '', abertura: '' }); await fetchCaixas();
     } catch (e: any) { toast.error(e.message || 'Erro ao abrir caixa'); }
   };
   const abrirFechar = () => { setFecharForm({ valorContado: '', observacao: '' }); setFecharOpen(true); };
@@ -211,12 +276,12 @@ export default function CaixaPage() {
       toast.success('Recebimento registrado!'); setReceberOpen(false); await fetchDetail(detail.id); await fetchAppointments();
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar recebimento'); }
   };
-  const abrirMov = (tipo: string) => { setMovTipo(tipo); setMovForm({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '' }); setMovOpen(true); };
+  const abrirMov = (tipo: string) => { setMovTipo(tipo); setMovForm({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '' }); setMovOpen(true); };
   const registrarMovimento = async () => {
     if (!detail) return; const valor = Number(String(movForm.valor).replace(',', '.')) || 0;
     if (valor <= 0) { toast.error('Informe o valor'); return; }
     try {
-      const r = await fetch(`/api/caixa/${detail.id}/movimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: movTipo, valor, forma: movForm.forma || null, conta: movTipo === 'TRANSFERENCIA' ? movForm.conta : null, descricao: movForm.descricao || null, observacao: movForm.observacao || null }) });
+      const r = await fetch(`/api/caixa/${detail.id}/movimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: movTipo, valor, forma: movForm.forma || null, conta: movTipo === 'TRANSFERENCIA' ? movForm.conta : null, descricao: movForm.descricao || null, observacao: movForm.observacao || null, ...(movTipo === 'DESPESA' && movForm.categoriaId ? { categoriaId: movForm.categoriaId } : {}), ...((movTipo === 'SUPRIMENTO' || movTipo === 'TRANSFERENCIA') && movForm.contaOrigemId ? { contaOrigemId: movForm.contaOrigemId } : {}), ...((movTipo === 'SANGRIA' || movTipo === 'TRANSFERENCIA') && movForm.contaDestinoId ? { contaDestinoId: movForm.contaDestinoId } : {}) }) });
       if (!r.ok) throw new Error('Erro ao registrar movimento');
       toast.success(`${tipoLabel[movTipo]} registrada!`); setMovOpen(false); await fetchDetail(detail.id);
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar movimento'); }
@@ -268,8 +333,52 @@ export default function CaixaPage() {
             <span style={{ fontSize: 13, fontWeight: 500, padding: '0 12px' }}>{date === hojeStr() ? 'Hoje · ' : ''}{fmtDataLabel(date)}</span>
             <button onClick={() => mudarDia(1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Próximo dia"><LuChevronRight size={16} /></button>
           </div>
+          <button onClick={() => { setGradeOpen(true); fetchGrade(); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #E8E2D6', background: '#fff', color: TEAL_DARK }}>📋 Todos os caixas</button>
           {podeEditar && <button onClick={() => setAbrirOpen(true)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuPlus size={15} /> Abrir caixa</button>}
         </div>
+
+        {gradeOpen && (
+          <div className="no-print" onClick={() => setGradeOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 760, maxWidth: '100%', background: '#fff', border: '1px solid #E8E2D6', borderRadius: 16, overflow: 'hidden' }}>
+              <div style={{ padding: '13px 18px', borderBottom: '1px solid #E8E2D6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: '#014D5E', fontSize: 15, fontWeight: 600 }}>📋 Todos os caixas</span>
+                <button onClick={() => setGradeOpen(false)} style={{ border: 'none', background: 'none', color: '#5C6B70', cursor: 'pointer', fontSize: 16 }}>✕</button>
+              </div>
+              <div style={{ padding: 16 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+                  <label style={{ fontSize: 11, color: '#5C6B70' }}>De<br /><input type="date" value={gradeFrom} onChange={(e) => setGradeFrom(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13 }} /></label>
+                  <label style={{ fontSize: 11, color: '#5C6B70' }}>Até<br /><input type="date" value={gradeTo} onChange={(e) => setGradeTo(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13 }} /></label>
+                  <label style={{ fontSize: 11, color: '#5C6B70' }}>Status<br />
+                    <select value={gradeStatus} onChange={(e) => setGradeStatus(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13, minWidth: 140 }}>
+                      <option value="">Todos</option><option value="ABERTO">Aberto</option><option value="FECHADO">Fechado</option><option value="ENCERRADO">Encerrado</option><option value="EM_REVISAO">Em revisão</option>
+                    </select>
+                  </label>
+                  <button onClick={fetchGrade} style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 9, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>🔍 Filtrar</button>
+                </div>
+                <div style={{ border: '1px solid #E8E2D6', borderRadius: 10, overflow: 'hidden', maxHeight: '55vh', overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead><tr style={{ background: '#FBF9F4' }}>{['Nº', 'Usuário', 'Abertura', 'Fechamento', 'Status', 'Diferença'].map((h, i) => <th key={h} style={{ padding: '9px 11px', fontSize: 10.5, color: '#5C6B70', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.4px', textAlign: i === 5 ? 'right' : 'left' }}>{h}</th>)}</tr></thead>
+                    <tbody>
+                      {gradeLoading ? <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: '#5C6B70' }}>Carregando…</td></tr>
+                        : gradeRows.length === 0 ? <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: '#5C6B70' }}>Nenhum caixa no filtro.</td></tr>
+                        : gradeRows.map((c) => { const u = STATUS_UI(c.status); return (
+                          <tr key={c.id} style={{ borderTop: '1px solid #F0EBE0', cursor: 'pointer' }} onClick={() => { const d = new Date(c.abertura); setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); setSelectedId(c.id); setGradeOpen(false); }}>
+                            <td style={{ padding: '9px 11px', color: '#014D5E', fontWeight: 500 }}>nº {c.numero}</td>
+                            <td style={{ padding: '9px 11px', color: '#374151' }}>{c.user?.name || '—'}</td>
+                            <td style={{ padding: '9px 11px', color: '#5C6B70' }}>{c.abertura ? new Date(c.abertura).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                            <td style={{ padding: '9px 11px', color: '#5C6B70' }}>{c.fechamento ? new Date(c.fechamento).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                            <td style={{ padding: '9px 11px' }}><span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 9px', borderRadius: 20, background: u.bg, color: u.fg }}>{u.label}</span></td>
+                            <td style={{ padding: '9px 11px', textAlign: 'right', color: c.diferenca != null && c.diferenca < 0 ? '#C0392B' : '#5C6B70' }}>{c.diferenca != null ? (ocultar ? '•••' : c.diferenca.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })) : '—'}</td>
+                          </tr>
+                        ); })}
+                    </tbody>
+                  </table>
+                </div>
+                <p style={{ fontSize: 11, color: '#8A938F', marginTop: 8 }}>Clique numa linha pra abrir aquele caixa.</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading && <p style={{ color: '#5C6B70' }}>Carregando…</p>}
         {!loading && caixas.length === 0 && (
@@ -291,8 +400,10 @@ export default function CaixaPage() {
                   <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Usuário:</span> {detail.user?.name || '—'}</div>
                   <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Abertura:</span> {dataHora(detail.abertura)}</div>
                   {detail.fechamento && <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Fechamento:</span> {dataHora(detail.fechamento)}</div>}
-                  <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Status:</span>{' '}
-                    <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, ...(aberto ? { background: '#e1f5ee', color: GREEN } : { background: '#eef2f3', color: '#5C6B70' }) }}>{aberto ? 'ABERTO' : 'FECHADO'}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><span style={{ color: '#014D5E', fontWeight: 500 }}>Status:</span>
+                    {(() => { const u = STATUS_UI(detail.status); return <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, background: u.bg, color: u.fg }}>{u.label}</span>; })()}
+                    {podeEditar && detail.status !== 'ABERTO' && detail.status !== 'ENCERRADO' && <button onClick={() => mudarStatus('ENCERRADO')} style={miniBtn} title="Encerrar definitivamente">🔒 Encerrar</button>}
+                    {podeEditar && detail.status !== 'ABERTO' && detail.status !== 'EM_REVISAO' && <button onClick={() => mudarStatus('EM_REVISAO')} style={miniBtn} title="Marcar em revisão">🔎 Em revisão</button>}
                   </div>
                 </div>
                 {caixas.length > 1 && (
@@ -382,23 +493,29 @@ export default function CaixaPage() {
                 {tab === 'receb' && (
                   <>
                     {aberto && (
-                      <div className="no-print" style={{ marginBottom: 12 }}>
-                        {vendasEmAberto.length > 0 ? (
-                          <details style={{ fontSize: 13 }}>
-                            <summary style={{ cursor: 'pointer', fontWeight: 500, color: TEAL }}>+ Registrar recebimento ({vendasEmAberto.length} venda(s) em aberto)</summary>
-                            <div style={{ marginTop: 8, border: '1px solid #eef2f3', borderRadius: 10 }}>
-                              {vendasEmAberto.map((v) => (
-                                <div key={v.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderBottom: '1px solid #F0EBE0' }}>
-                                  <span style={{ color: '#1F2A2E' }}>{v.numeroVenda != null && <b style={{ color: '#014D5E', fontWeight: 500, marginRight: 6 }}>{vendaLabel(v)}</b>}{v.tutor?.name || 'Cliente'} · {v.pet?.name || 'Pet'}</span>
-                                  <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <span style={{ color: ORANGE, fontWeight: 500 }}>{money(Number(v.value) - (pagoPorAppt.get(v.id) || 0))}</span>
-                                    {podeEditar && <button onClick={() => abrirReceber(v)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12, padding: '6px 12px', borderRadius: 8, cursor: 'pointer' }}>Receber</button>}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          </details>
-                        ) : (<p style={{ fontSize: 13, color: '#374151' }}>Nenhuma venda em aberto neste dia.</p>)}
+                      <div className="no-print" style={{ marginBottom: 12, fontSize: 12.5, color: '#5C6B70', background: '#EAF6F7', border: '1px solid #CFE7EA', borderRadius: 10, padding: '10px 13px' }}>
+                        💡 Recebimentos são registrados no <b style={{ color: '#014D5E' }}>Ponto de venda</b> (aba “Não pago”). Aqui você <b>acompanha e confere</b> os recebimentos do dia para o fechamento.
+                      </div>
+                    )}
+                    {prevCred && prevCred.totalCentavos > 0 && (
+                      <div className="no-print" style={{ marginBottom: 12, background: '#F0FAF6', border: '1px solid #BFE6D4', borderRadius: 12, padding: '12px 14px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                          <div style={{ fontSize: 13, color: '#0F5132', fontWeight: 600 }}>💳 A receber das maquininhas <span style={{ fontWeight: 400, color: '#5C6B70' }}>(previsão de crédito · líquido · pelo prazo de cada maquininha)</span></div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: '#0F5132' }}>{money(prevCred.totalCentavos / 100)}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+                          {prevCred.porData.map((p) => {
+                            const [y, m, d] = p.data.split('-');
+                            const base = new Date(); base.setHours(0, 0, 0, 0);
+                            const diff = Math.round((new Date(Number(y), Number(m) - 1, Number(d)).getTime() - base.getTime()) / 86400000);
+                            const quando = diff <= 0 ? 'hoje' : diff === 1 ? 'amanhã' : `${d}/${m}`;
+                            return (
+                              <div key={p.data} style={{ background: '#fff', border: '1px solid #D8ECE0', borderRadius: 9, padding: '6px 11px', fontSize: 12.5 }}>
+                                <span style={{ color: '#5C6B70' }}>{quando}</span> · <b style={{ color: '#0F5132' }}>{money(p.liquidoCentavos / 100)}</b>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -472,6 +589,7 @@ export default function CaixaPage() {
       {/* MODAIS */}
       {abrirOpen && (
         <Modal title="Abrir caixa" onClose={() => setAbrirOpen(false)} onConfirm={abrirCaixa} confirmLabel="Abrir caixa">
+          <Field label="Data do caixa (deixe vazio = hoje; escolha um dia passado p/ lançar retroativo)"><input type="date" value={abrirForm.abertura} max={hojeStr()} onChange={(e) => setAbrirForm({ ...abrirForm, abertura: e.target.value })} style={inp} /></Field>
           <Field label="Suprimento (fundo de troco)"><input value={abrirForm.suprimento} onChange={(e) => setAbrirForm({ ...abrirForm, suprimento: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field>
           <Field label="Observação"><input value={abrirForm.observacao} onChange={(e) => setAbrirForm({ ...abrirForm, observacao: e.target.value })} placeholder="Ex: Abertura de caixa Isabela" style={inp} /></Field>
         </Modal>
@@ -496,10 +614,24 @@ export default function CaixaPage() {
       {movOpen && (
         <Modal title={tipoLabel[movTipo]} onClose={() => setMovOpen(false)} onConfirm={registrarMovimento} confirmLabel="Confirmar" dark={!ehEntrada(movTipo)}>
           <Field label="Valor"><input value={movForm.valor} onChange={(e) => setMovForm({ ...movForm, valor: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field>
-          {movTipo === 'TRANSFERENCIA' ? (
-            <Field label="Conta destino"><select value={movForm.conta} onChange={(e) => setMovForm({ ...movForm, conta: e.target.value })} style={inp}>{CONTAS.filter((c) => c !== 'Caixa').map((c) => <option key={c} value={c}>{c}</option>)}</select></Field>
-          ) : (
-            <Field label="Forma"><select value={movForm.forma} onChange={(e) => setMovForm({ ...movForm, forma: e.target.value })} style={inp}>{FORMAS_PADRAO.filter((f) => !ehCredito(f)).map((f) => <option key={f} value={f}>{f}</option>)}</select></Field>
+          {movTipo === 'TRANSFERENCIA' && (<>
+            <Field label="Conta de origem"><select value={movForm.contaOrigemId} onChange={(e) => setMovForm({ ...movForm, contaOrigemId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
+            <Field label="Conta de destino"><select value={movForm.contaDestinoId} onChange={(e) => setMovForm({ ...movForm, contaDestinoId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
+          </>)}
+          {movTipo === 'SANGRIA' && (
+            <Field label="Conta de destino (sai do caixa em dinheiro)"><select value={movForm.contaDestinoId} onChange={(e) => setMovForm({ ...movForm, contaDestinoId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
+          )}
+          {movTipo === 'SUPRIMENTO' && (
+            <Field label="Conta de origem (entra no caixa em dinheiro)"><select value={movForm.contaOrigemId} onChange={(e) => setMovForm({ ...movForm, contaOrigemId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
+          )}
+          {movTipo === 'DESPESA' && (
+            <Field label="Forma"><select value={movForm.forma} onChange={(e) => setMovForm({ ...movForm, forma: e.target.value })} style={inp}>{formasList.filter((f) => !ehCredito(f)).map((f) => <option key={f} value={f}>{f}</option>)}</select></Field>
+          )}
+          {movTipo === 'DESPESA' && (
+            <Field label="Categoria (entra no DRE)"><select value={movForm.categoriaId} onChange={(e) => setMovForm({ ...movForm, categoriaId: e.target.value })} style={inp}>
+              <option value="">— Escolher categoria —</option>
+              {categoriasDespesa.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </select>{categoriasDespesa.length === 0 ? <div style={{ fontSize: 11, color: '#5C6B70', marginTop: 3 }}>Sem categorias — a despesa entra sem classificação.</div> : null}</Field>
           )}
           <Field label="Descrição"><input value={movForm.descricao} onChange={(e) => setMovForm({ ...movForm, descricao: e.target.value })} style={inp} /></Field>
           <Field label="Observação"><input value={movForm.observacao} onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })} style={inp} /></Field>
@@ -535,15 +667,8 @@ export default function CaixaPage() {
           )}
           <div>
             <label style={lbl}>Formas de pagamento</label>
-            {formas.map((f, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
-                <select value={f.forma} onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, forma: e.target.value } : x))} style={{ ...inp, flex: 1.4 }}>{FORMAS_PADRAO.map((op) => <option key={op} value={op}>{op}</option>)}</select>
-                <input value={f.valor || ''} inputMode="decimal" placeholder="R$" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, valor: Number(String(e.target.value).replace(',', '.')) || 0 } : x))} style={{ ...inp, flex: 1 }} />
-                <input value={f.parcelas || 1} type="number" min={1} title="Parcelas" onChange={(e) => setFormas(formas.map((x, j) => j === i ? { ...x, parcelas: Number(e.target.value) || 1 } : x))} style={{ ...inp, width: 52, textAlign: 'center' }} />
-                {formas.length > 1 && <button onClick={() => setFormas(formas.filter((_, j) => j !== i))} aria-label="Remover" style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuTrash2 size={15} color="#374151" /></button>}
-              </div>
-            ))}
-            <button onClick={() => setFormas([...formas, { forma: 'Pix', valor: 0, parcelas: 1, nsu: '' }])} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}><LuPlus size={13} /> adicionar forma</button>
+            {/* FONTE ÚNICA: mesmo componente do PDV (captura modalidade/bandeira → taxa correta no Financeiro). */}
+            <PagamentoFormas formas={formas} onChange={setFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
             {creditoExcede && <p style={{ fontSize: 11, color: ORANGE, margin: '6px 0 0' }}>Crédito usado ({brl(creditoNasFormas)}) maior que o disponível ({brl(tutorSaldo || 0)}).</p>}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>

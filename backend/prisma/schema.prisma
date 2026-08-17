@@ -236,6 +236,7 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
+  signatureUrl  String? // 🖋️ assinatura-imagem do vet p/ carimbar em receitas comuns
   password      String?
   role          Role      @default(VETERINARIAN)
   permissions   String[]  @default([])
@@ -324,6 +325,7 @@ model Tutor {
   id                    String                 @id @default(uuid())
   codigo                Int?                   @unique // Codigo sequencial curto (estilo SimplesVet)
   rankingAbc            String? // Ranking ABC: A/B/C (importado do SimplesVet)
+  nivelRelacionamento   String? // 💎 Diamante / 🥇 Ouro / 🥈 Prata / 🥉 Bronze (calculado do score RFM)
   nps                   Int? // NPS do cliente (importado do SimplesVet)
   ticketMedio           Float? // Ticket medio (snapshot SimplesVet)
   primeiraCompraAt      DateTime? // Data da primeira compra (SimplesVet)
@@ -439,6 +441,7 @@ model Pet {
   species              PetSpecies           @default(CANINE)
   breed                String?
   status               PetStatus            @default(ACTIVE)
+  cuidadoPaliativo     Boolean              @default(false) // 🕊️ pet em fim de vida: silencia cobranças + toques de carinho
   gender               Gender?
   sterilization        SterilizationStatus? @default(NOT_STERILIZED)
   birthDate            DateTime?
@@ -631,9 +634,14 @@ model Product {
   pacoteValidadeQtd     Int?
   pacoteValidadeUnidade String? // Dias | Meses
   pacoteTermos          String?         @db.Text
+  // 💊/🦵 PLANO por venda: ao vender no caixa, gera um plano com N sessões/doses na ficha do pet.
+  planoTipo          String? // FISIO (sessões) | MEDICAMENTO (doses/aplicações)
+  planoUnidades      Int? // sessões (fisio) ou doses (medicamento) por UNIDADE vendida
+  planoIntervaloDias Int? // dias entre doses (medicamento periódico)
   composicao          ProdutoComposicao[] @relation("ProdutoPai")
   componenteDe        ProdutoComposicao[] @relation("ProdutoFilho")
   estoqueMovimentos   EstoqueMovimento[]
+  pedidoCompraItens   PedidoCompraItem[]
   treatments          Treatment[]
   appointmentItems    AppointmentItem[]
   orcamentoItens      OrcamentoItem[]
@@ -682,6 +690,42 @@ model EstoqueMovimento {
   @@index([productId])
   @@index([createdAt])
   @@map("est_movimentos")
+}
+
+// Pedido de compra — ordem de compra a um fornecedor. Ao "receber", cada item vira
+// uma ENTRADA de estoque (EstoqueMovimento origem COMPRA, recalculando custo médio).
+model PedidoCompra {
+  id           String             @id @default(uuid())
+  numero       Int                @default(autoincrement()) // nº sequencial legível
+  fornecedorId String?
+  fornecedor   Fornecedor?        @relation(fields: [fornecedorId], references: [id], onDelete: SetNull)
+  status       String             @default("RASCUNHO") // RASCUNHO | ENVIADO | RECEBIDO | CANCELADO
+  observacao   String?
+  previsao     DateTime? // previsão de entrega
+  recebidoEm   DateTime?
+  userId       String?
+  userName     String?
+  itens        PedidoCompraItem[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@index([status])
+  @@index([fornecedorId])
+  @@map("est_pedidos_compra")
+}
+
+model PedidoCompraItem {
+  id            String       @id @default(uuid())
+  pedidoId      String
+  pedido        PedidoCompra @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  productId     String?
+  product       Product?     @relation(fields: [productId], references: [id], onDelete: SetNull)
+  descricao     String // nome do item no momento do pedido (snapshot)
+  quantidade    Int
+  custoUnitario Float?
+
+  @@index([pedidoId])
+  @@map("est_pedidos_compra_itens")
 }
 
 // ============================================
@@ -1352,6 +1396,8 @@ model WhatsAppMessage {
   deliveredAt    DateTime?
   readAt         DateTime?
   failedReason   String?
+  reaction       String? // emoji com que o CLIENTE reagiu a esta mensagem (vazio = removida)
+  myReaction     String? // emoji com que a EQUIPE reagiu a esta mensagem
 
   // Cloud storage - mídia permanente
   mediaCloudUrl     String? // URL permanente no cloud storage
@@ -1372,6 +1418,23 @@ model WhatsAppMessage {
   @@map("whatsapp_messages")
 }
 
+// Biblioteca de FIGURINHAS da clínica (sobe uma vez em Configurações, reusa no inbox).
+// Guardadas em .webp 512x512 (a conversão é feita no navegador ao subir).
+model WhatsAppSticker {
+  id          String   @id @default(uuid())
+  nome        String? // rótulo opcional pra organizar
+  url         String // nossa URL permanente (cloud storage)
+  cloudId     String? // publicId no provider (pra apagar depois)
+  storageType String? // s3, cloudinary, local
+  mime        String   @default("image/webp")
+  ordem       Int      @default(0)
+  ativo       Boolean  @default(true)
+  origem      String? // mediaCloudUrl de origem quando importada de uma conversa (evita duplicar)
+  createdAt   DateTime @default(now())
+
+  @@map("whatsapp_stickers")
+}
+
 // WhatsApp Conversation - Conversas com contatos
 model WhatsAppConversation {
   id                 String                     @id @default(uuid())
@@ -1385,6 +1448,7 @@ model WhatsAppConversation {
   lastMessageAt      DateTime                   @default(now())
   lastMessagePreview String? // Preview da última mensagem
   unreadCount        Int                        @default(0)
+  manualUnread       Boolean                    @default(false) // marcada como "não lida" à mão (lembrete pra responder)
   isAutoReplyEnabled Boolean                    @default(false)
   assignedUserId     String?
   humanTakeoverAt    DateTime?
@@ -1525,6 +1589,24 @@ model Notification {
   @@index([userId, createdAt])
   @@index([type])
   @@map("notifications")
+}
+
+// Push (web push) da EQUIPE — 1 registro por aparelho/navegador de cada usuário.
+// Permite avisar mesmo com o sistema fechado (recado/transferência). Espelha o
+// ptl_push do Portal, mas por userId (equipe), não tutorId.
+model StaffPush {
+  id          String    @id @default(uuid())
+  userId      String
+  endpoint    String    @unique
+  p256dh      String
+  auth        String
+  userAgent   String?
+  ultimoEnvio DateTime?
+  falhas      Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+  @@map("staff_push")
 }
 
 // ============================================
@@ -1877,6 +1959,11 @@ enum CadenciaGatilho {
   LEAD_INATIVO_7D
   PACOTE_ATIVADO
   PACOTE_PROXIMO_DO_FIM
+  CLIENTE_INATIVO_90D
+  POS_CIRURGICO
+  CLIENTE_NOVO
+  PET_PALIATIVO
+  PET_FALECEU
   NIVER_PET
   NIVER_TUTOR
   MANUAL
@@ -2049,11 +2136,13 @@ model Fornecedor {
   comissaoTipo       ComissaoTipo?
   comissaoValor      Float?
   diaFechamentoLote  Int? // dia do mês (1-31)
+  percExamePadrao    Float? // % padrão de markup pra precificar os exames deste laboratório em lote
   ativo              Boolean         @default(true)
   observacoes        String?
 
-  exames   CatalogoExame[]
-  produtos Product[]       @relation("ProdutoFornecedor")
+  exames        CatalogoExame[]
+  produtos      Product[]       @relation("ProdutoFornecedor")
+  pedidosCompra PedidoCompra[]
 
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
@@ -2662,6 +2751,11 @@ model AvaliacaoNPS {
   dataColeta     DateTime         @default(now())
   coletadoPor    String? // email
   observacoes    String?
+  // Rótulos livres (preenchidos pela tela de NPS quando não há vínculo por ID)
+  tutorNome        String?
+  petNome          String?
+  profissionalNome String?
+  categoriaLivre   String? // categoria como digitada na tela (Consulta/Retorno/Fisioterapia…)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2712,6 +2806,7 @@ model AppointmentItem {
   servico   Servico? @relation(fields: [servicoId], references: [id], onDelete: SetNull)
   productId String? // catálogo unificado (Fase 1 da unificação; dual-write com servicoId)
   product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  catalogoItemId String? // catálogo NOVO (cat_itens) — liga a linha ao item novo p/ estoque/comissão
   descricao String?
 
   // Executor: profissional interno OU fornecedor externo (lab)
@@ -2898,6 +2993,7 @@ model ProtocoloAplicado {
   templateId    String?
   template      ProtocoloTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   nomeProtocolo String // snapshot do nome (ex: "V10 - Filhote (3 x 30 dias)")
+  marca         String? // marca da vacina/produto (ex: Zoetis, MSD) — informado na aplicação
   dataInicial   DateTime
   status        String             @default("EM_ANDAMENTO") // EM_ANDAMENTO | CONCLUIDO | CANCELADO
   observacao    String?
@@ -3869,4 +3965,266 @@ model FaturaFornecedorItem {
   @@index([fornecedorId])
   @@index([faturaId])
   @@map("fin_fatura_itens")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CATÁLOGO ÚNICO (rebuild do zero — 12/08). Um cadastro só p/ tudo que se vende.
+// Produto/Serviço/Exame/Vacina/Pacote/Kit numa entidade, campos condicionais por tipo.
+// Tabelas prefixo cat_. NÃO reaproveita Product/Servico/CatalogoExame (arquivados).
+// ═══════════════════════════════════════════════════════════════════════════
+enum ItemTipo {
+  PRODUTO
+  SERVICO
+  EXAME
+  VACINA
+  PACOTE
+  KIT
+}
+
+enum PropositoItem {
+  VENDA
+  CONSUMO_INTERNO
+  AMBOS
+}
+
+enum ComissaoTipoItem {
+  PERCENTUAL
+  VALOR_FIXO
+}
+
+enum DescontoModo {
+  LIMITE_GERAL
+  LIMITE_ITEM
+  SEM_DESCONTO
+  ATE_100
+}
+
+// Grupos em árvore (2 camadas): agrupador (não recebe item, só organiza) + folha.
+model CatGrupo {
+  id        String     @id @default(cuid())
+  nome      String
+  paiId     String?
+  pai       CatGrupo?  @relation("CatGrupoTree", fields: [paiId], references: [id])
+  filhos    CatGrupo[] @relation("CatGrupoTree")
+  agrupador Boolean    @default(false) // true = não pode receber item diretamente
+  ordem     Int        @default(0)
+  ativo     Boolean    @default(true)
+  itens     ItemCatalogo[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  @@map("cat_grupos")
+}
+
+// Marcas/fabricantes (cadastro à parte).
+model CatMarca {
+  id    String @id @default(cuid())
+  nome  String @unique
+  ativo Boolean @default(true)
+  itens ItemCatalogo[]
+  @@map("cat_marcas")
+}
+
+// A ENTIDADE ÚNICA do catálogo.
+model ItemCatalogo {
+  id                  String    @id @default(cuid())
+  codigo              Int?      @unique // sequencial interno visível
+  tipo                ItemTipo
+  nome                String
+  grupoId             String?
+  grupo               CatGrupo? @relation(fields: [grupoId], references: [id])
+  // preço
+  custo               Float?
+  markup              Float?    // % desejado
+  preco               Float     @default(0)
+  exibeListaPreco     Boolean   @default(true)
+  permiteAlterarPreco Boolean   @default(true)
+  // básico (produto/vacina)
+  codigoBarras        String?
+  unidadeVenda        String?
+  marcaId             String?
+  marca               CatMarca? @relation(fields: [marcaId], references: [id])
+  proposito           PropositoItem @default(VENDA)
+  duracaoMin          Int?      // serviço: duração da sessão
+  // estoque (flags + saldo; movimentações vêm na Fatia 4)
+  controlaEstoque     Boolean   @default(false)
+  estoqueAtual        Float     @default(0)
+  estoqueMin          Float?
+  estoqueMax          Float?
+  controlaValidade    Boolean   @default(false)
+  validadeMaisAntiga  DateTime?
+  // comissão (camada 1 — padrão do item)
+  comissionado        Boolean   @default(false)
+  comissaoTipo        ComissaoTipoItem?
+  comissaoValor       Float?
+  // desconto (cascata: empresa → usuário → item)
+  descontoModo        DescontoModo @default(LIMITE_GERAL)
+  descontoLimite      Float?
+  // vacina: liga ao protocolo clínico (ProtocoloTemplate) — FK string simples
+  protocoloTemplateId String?
+  // status
+  ativo               Boolean   @default(true)
+  arquivado           Boolean   @default(false) // soft delete (≠ excluir)
+  // relações do catálogo
+  exame               ItemExame?
+  composicao          ItemComposicao[] @relation("CatComposicaoPai")
+  comoInsumo          ItemComposicao[] @relation("CatComposicaoFilho")
+  overrides           ItemComissaoOverride[]
+  historico           ItemHistorico[]
+  movimentos          CatEstoqueMovimento[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  @@index([tipo, ativo, arquivado])
+  @@index([grupoId])
+  @@map("cat_itens")
+}
+
+// Extensão 1:1 do EXAME (laboratório + custo do lab).
+model ItemExame {
+  id                 String  @id @default(cuid())
+  itemId             String  @unique
+  item               ItemCatalogo @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  fornecedorId       String? // laboratório (Fornecedor) — FK string simples
+  custoLab           Float?
+  prazoResultadoDias Int?
+  categoria          String? // categoria de exame (livre)
+  externo            Boolean @default(false)
+  @@map("cat_item_exame")
+}
+
+// Composição de Pacote/Kit (itens que compõem).
+model ItemComposicao {
+  id         String  @id @default(cuid())
+  paiId      String
+  pai        ItemCatalogo @relation("CatComposicaoPai", fields: [paiId], references: [id], onDelete: Cascade)
+  itemId     String
+  item       ItemCatalogo @relation("CatComposicaoFilho", fields: [itemId], references: [id])
+  quantidade Float   @default(1)
+  @@index([paiId])
+  @@map("cat_composicao")
+}
+
+// Comissão diferenciada por funcionário (camada 2, sobre a padrão do item).
+model ItemComissaoOverride {
+  id            String  @id @default(cuid())
+  itemId        String
+  item          ItemCatalogo @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  userId        String
+  comissaoTipo  ComissaoTipoItem
+  comissaoValor Float
+  @@unique([itemId, userId])
+  @@map("cat_comissao_override")
+}
+
+// Auditoria por item (histórico de alterações).
+model ItemHistorico {
+  id        String   @id @default(cuid())
+  itemId    String
+  item      ItemCatalogo @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  evento    String   // criado | alterado | arquivado | reativado | estoque
+  detalhe   String?  // o que mudou
+  userId    String?
+  userName  String?
+  createdAt DateTime @default(now())
+  @@index([itemId])
+  @@map("cat_historico")
+}
+
+// ── ESTOQUE do catálogo novo (Fatia 4): livro-caixa de movimentações + motivos de saída ──
+enum MovEstoqueTipo {
+  ENTRADA
+  SAIDA
+  AJUSTE
+  INVENTARIO
+}
+
+// Motivos de saída configuráveis (avaria, consumo interno, perda de validade, doação…).
+model CatMotivoSaida {
+  id    String  @id @default(cuid())
+  nome  String
+  ativo Boolean @default(true)
+  @@map("cat_motivos_saida")
+}
+
+// Cada entrada/saída/ajuste — com saldo antes/depois (dá o histórico e a média/duração).
+model CatEstoqueMovimento {
+  id            String         @id @default(cuid())
+  itemId        String
+  item          ItemCatalogo   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tipo          MovEstoqueTipo
+  quantidade    Float          // ENTRADA/SAIDA = delta; AJUSTE/INVENTARIO = saldo novo absoluto
+  saldoAntes    Float
+  saldoDepois   Float
+  custoUnitario Float?
+  motivoId      String?        // p/ SAIDA (CatMotivoSaida)
+  motivoNome    String?        // snapshot do motivo
+  origem        String         @default("MANUAL") // MANUAL | VENDA | INVENTARIO | COMPRA
+  refId         String?        // ex.: id da venda/appointmentItem
+  userId        String?
+  userName      String?
+  obs           String?
+  createdAt     DateTime       @default(now())
+  @@index([itemId, createdAt])
+  @@map("cat_estoque_movimentos")
+}
+
+// ── INVENTÁRIO (Fatia 4b): contagem física → gera ajustes de estoque ──
+enum InventarioStatus {
+  ABERTO
+  FECHADO
+}
+
+model CatInventario {
+  id              String              @id @default(cuid())
+  responsavelId   String?
+  responsavelNome String?
+  status          InventarioStatus    @default(ABERTO)
+  totalItens      Int                 @default(0)
+  totalCorretos   Int                 @default(0) // contagem bateu com o sistema
+  totalCorrigidos Int                 @default(0) // precisou de ajuste
+  obs             String?
+  itens           CatInventarioItem[]
+  createdAt       DateTime            @default(now())
+  fechadoAt       DateTime?
+  @@map("cat_inventarios")
+}
+
+model CatInventarioItem {
+  id                String        @id @default(cuid())
+  inventarioId      String
+  inventario        CatInventario @relation(fields: [inventarioId], references: [id], onDelete: Cascade)
+  itemId            String        // FK string simples p/ ItemCatalogo
+  itemNome          String        // snapshot
+  quantidadeSistema Float         // saldo no momento em que o item entrou na contagem
+  quantidadeContada Float
+  aplicado          Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  @@unique([inventarioId, itemId])
+  @@map("cat_inventario_itens")
+}
+
+// ── CONVÊNIO (Fatia 7b): pagador MENSAL (a receber) — espelho do laboratório ──
+// A clínica atende, marca a venda como "convênio X", fecha o mês e recebe no mês seguinte.
+// A tabela "o que o convênio paga" (CatConvenioPreco) traz o valor por procedimento/item.
+model CatConvenio {
+  id            String             @id @default(cuid())
+  nome          String             @unique
+  diaFechamento Int?               // dia do mês em que fecha o lote
+  contato       String?            // telefone/e-mail do convênio
+  ativo         Boolean            @default(true)
+  precos        CatConvenioPreco[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+  @@map("cat_convenios")
+}
+
+// Tabela do convênio: quanto ele paga por procedimento (casado pelo NOME do item; código opcional).
+model CatConvenioPreco {
+  id             String      @id @default(cuid())
+  convenioId     String
+  convenio       CatConvenio @relation(fields: [convenioId], references: [id], onDelete: Cascade)
+  itemNome       String      // nome do procedimento/exame/serviço na tabela do convênio
+  valor          Float       // o que o convênio paga
+  codigoConvenio String?     // código do procedimento na tabela deles (opcional)
+  @@index([convenioId])
+  @@map("cat_convenio_precos")
 }

@@ -1,17 +1,106 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { CronHealthService } from '../../common/cron-health.service';
 import { CreateCadenciaDto, UpdateCadenciaDto, CreatePassoDto, UpdatePassoDto, InscreverDto } from './dto/cadencia.dto';
 
 @Injectable()
-export class CadenciasService {
+export class CadenciasService implements OnModuleInit {
   private readonly logger = new Logger(CadenciasService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
+    private readonly cronHealth: CronHealthService,
   ) {}
+
+  // Semeia os templates dos gatilhos "faltantes" (reativação, fim de pacote, pós-cirúrgico)
+  // DESLIGADOS por padrão — a Cintia revisa o texto na tela de Cadências e liga quando quiser.
+  // Idempotente: só cria se ainda não existir um template com aquele gatilho.
+  async onModuleInit() {
+    try { await this.garantirCadenciasFaltantes(); }
+    catch (e: any) { this.logger.warn(`garantirCadenciasFaltantes: ${e?.message || e}`); }
+  }
+
+  async garantirCadenciasFaltantes() {
+    const faltantes: Array<{ gatilho: string; nome: string; descricao: string; passos: Array<{ ordem: number; titulo: string; conteudo: string; atrasoValor: number; atrasoUnidade: 'MINUTOS' | 'HORAS' | 'DIAS' }> }> = [
+      {
+        gatilho: 'CLIENTE_INATIVO_90D',
+        nome: 'Reativação — 90 dias sem voltar',
+        descricao: 'Reaproxima o cliente que não traz o pet há ~90 dias (começa DESLIGADA).',
+        passos: [
+          { ordem: 1, titulo: 'Sentimos sua falta', conteudo: 'Oi, {tutor}! 🐾 Faz um tempinho que a gente não vê o(a) {pet} por aqui. Está tudo bem com ele(a)? Se quiser, posso dar uma olhadinha na agenda pra um check-up. 💚', atrasoValor: 0, atrasoUnidade: 'MINUTOS' },
+          { ordem: 2, titulo: 'Reforço em 3 dias', conteudo: 'Oi, {tutor}! Só reforçando: se quiser agendar uma visita pro(a) {pet}, é só me chamar. A saúde dele(a) em dia é o que a gente mais quer. 🌿', atrasoValor: 3, atrasoUnidade: 'DIAS' },
+        ],
+      },
+      {
+        gatilho: 'PACOTE_PROXIMO_DO_FIM',
+        nome: 'Fim de pacote — renovação',
+        descricao: 'Convida a renovar quando o pacote está na última sessão (começa DESLIGADA).',
+        passos: [
+          { ordem: 1, titulo: 'Última sessão', conteudo: 'Oi, {tutor}! O pacote do(a) {pet} está chegando ao fim. Quer que eu já deixe a renovação encaminhada pra não interromper o tratamento? 🐾', atrasoValor: 0, atrasoUnidade: 'MINUTOS' },
+          { ordem: 2, titulo: 'Reforço em 2 dias', conteudo: 'Oi, {tutor}! Posso reservar as próximas sessões do(a) {pet}? Manter a constância faz toda a diferença no resultado. 💚', atrasoValor: 2, atrasoUnidade: 'DIAS' },
+        ],
+      },
+      {
+        gatilho: 'CLIENTE_NOVO',
+        nome: 'Boas-vindas (cliente novo)',
+        descricao: 'Recebe o cliente novo após o 1º atendimento — a primeira impressão (começa DESLIGADA).',
+        passos: [
+          { ordem: 1, titulo: 'Bem-vindo à família', conteudo: 'Que alegria receber você e o(a) {pet} na família Empório do Pet, {tutor}! 🐾 Foi um prazer cuidar dele(a). Estamos por aqui pra qualquer dúvida — é só chamar. 💚', atrasoValor: 2, atrasoUnidade: 'HORAS' },
+          { ordem: 2, titulo: 'Nossos canais / facilidades', conteudo: 'Oi, {tutor}! Pra facilitar o dia a dia: por aqui você agenda, tira dúvidas e recebe os lembretes de vacina e retorno do(a) {pet}. Conte com a gente pra cuidar dele(a) sempre. 🐶💙', atrasoValor: 5, atrasoUnidade: 'DIAS' },
+        ],
+      },
+      {
+        gatilho: 'POS_CIRURGICO',
+        nome: 'Pós-cirúrgico (recuperação)',
+        descricao: 'Acompanha a recuperação após uma cirurgia (começa DESLIGADA).',
+        passos: [
+          { ordem: 1, titulo: 'Primeira noite', conteudo: 'Oi, {tutor}! Como o(a) {pet} passou a primeira noite após o procedimento? Qualquer sinal de dor, inchaço ou sangramento, me avise na hora. 🐾', atrasoValor: 1, atrasoUnidade: 'DIAS' },
+          { ordem: 2, titulo: 'Check-in 3 dias', conteudo: 'Oi, {tutor}! Seguindo o pós-operatório do(a) {pet}: está se alimentando bem e sem mexer no local? Lembre da medicação nos horários certos. 💚', atrasoValor: 2, atrasoUnidade: 'DIAS' },
+          { ordem: 3, titulo: 'Retorno / pontos', conteudo: 'Oi, {tutor}! Já está chegando a hora do retorno do(a) {pet} (avaliar cicatrização/retirar pontos). Quer que eu agende? 🌿', atrasoValor: 7, atrasoUnidade: 'DIAS' },
+        ],
+      },
+      {
+        gatilho: 'PET_PALIATIVO',
+        nome: 'Cuidados paliativos — apoio',
+        descricao: 'Acolhe a família quando o pet entra em cuidados de fim de vida (começa DESLIGADA — revise o tom).',
+        passos: [
+          { ordem: 1, titulo: 'Estamos aqui', conteudo: 'Oi, {tutor}. Sabemos que é um momento delicado com o(a) {pet}. Nossa equipe está aqui pra ajudar no que ele(a) precisar pra ficar confortável — dor, alimentação, qualquer dúvida. Conte com a gente. 💛', atrasoValor: 0, atrasoUnidade: 'MINUTOS' },
+          { ordem: 2, titulo: 'Como ele(a) está', conteudo: 'Oi, {tutor}. Só passando pra saber como o(a) {pet} está hoje. Se precisar de qualquer suporte, é só me chamar — estamos por perto. 🕊️', atrasoValor: 3, atrasoUnidade: 'DIAS' },
+        ],
+      },
+      {
+        gatilho: 'PET_FALECEU',
+        nome: 'Condolências (falecimento)',
+        descricao: 'Mensagem de carinho quando o pet parte (começa DESLIGADA — revise o tom).',
+        passos: [
+          { ordem: 1, titulo: 'Nossos sentimentos', conteudo: 'Oi, {tutor}. Ficamos muito tristes com a partida do(a) {pet}. Foi um privilégio cuidar dele(a) ao seu lado. Nossos sentimentos, de coração. 🕊️💛', atrasoValor: 2, atrasoUnidade: 'HORAS' },
+        ],
+      },
+    ];
+
+    let criadas = 0;
+    for (const f of faltantes) {
+      const existe = await this.prisma.cadenciaTemplate.count({ where: { gatilho: f.gatilho as any } });
+      if (existe > 0) continue;
+      const tpl = await this.prisma.cadenciaTemplate.create({
+        data: { nome: f.nome, descricao: f.descricao, gatilho: f.gatilho as any, ativo: false },
+      });
+      for (const p of f.passos) {
+        await this.prisma.cadenciaPasso.create({ data: { ...p, tipo: 'WHATSAPP' as any, cadenciaId: tpl.id } });
+      }
+      criadas++;
+    }
+    if (criadas) this.logger.log(`Cadencias faltantes semeadas (DESLIGADAS): ${criadas}`);
+    return { criadas };
+  }
+
+  private async temCadAtiva(gatilho: string): Promise<boolean> {
+    const n = await this.prisma.cadenciaTemplate.count({ where: { ativo: true, gatilho: gatilho as any } });
+    return n > 0;
+  }
 
   async list(includeInactive = false) {
     return this.prisma.cadenciaTemplate.findMany({
@@ -160,7 +249,15 @@ export class CadenciasService {
   }
   private render(text: string, vars: any): string {
     if (!text) return '';
-    const v = vars || {};
+    const v: any = { ...(vars || {}) };
+    // Apelidos: templates usam {tutor}/{tutor_nome} e {pet}/{pet_nome} sem padrão. Aceita os dois
+    // e garante {profissional} e {link_google} — senão o cliente receberia o texto literal "{tutor_nome}".
+    if (v.tutor != null && v.tutor_nome == null) v.tutor_nome = v.tutor;
+    if (v.tutor_nome != null && v.tutor == null) v.tutor = v.tutor_nome;
+    if (v.pet != null && v.pet_nome == null) v.pet_nome = v.pet;
+    if (v.pet_nome != null && v.pet == null) v.pet = v.pet_nome;
+    if (v.link_google == null) v.link_google = 'https://g.page/r/CctbNjVipnY8EAI/review';
+    if (v.profissional == null) v.profissional = 'nossa equipe';
     return text.replace(/\{(\w+)\}/g, (_m, k) => (v[k] != null ? String(v[k]) : `{${k}}`));
   }
 
@@ -170,7 +267,8 @@ export class CadenciasService {
       include: { passos: { where: { ativo: true }, orderBy: { ordem: 'asc' } } },
     });
     if (!tpl) throw new NotFoundException('Cadencia nao encontrada');
-    if (!tpl.ativo) throw new NotFoundException('Cadencia inativa');
+    // Inscrição MANUAL (ex.: escolher a sequência de cuidado na ficha do pet) vale mesmo com o
+    // template desligado — o `ativo` controla só o disparo AUTOMÁTICO por gatilho, não a escolha manual.
     const primeiro = tpl.passos[0];
     if (!primeiro) throw new NotFoundException('Cadencia sem passos ativos');
     const phone = (dto.phone || '').replace(/\D/g, '');
@@ -221,6 +319,7 @@ export class CadenciasService {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async processarInscricoes() {
+    this.cronHealth.registrar('cadencias').catch(() => undefined);
     const due = await this.prisma.cadenciaInscricao.findMany({
       where: { status: 'ATIVA', proximoEm: { lte: new Date() } },
       take: 20,
@@ -326,15 +425,42 @@ export class CadenciasService {
     }
   }
 
+  // 🕊️ Hospice: pet marcado em cuidados paliativos → cadência de apoio (1x por pet).
+  @OnEvent('crm.pet.paliativo')
+  async onPetPaliativo(payload: { petId: string }) { await this.dispararHospice(payload.petId, 'PET_PALIATIVO', 'paliativo'); }
+
+  // 🕊️ Hospice: pet faleceu → cadência de condolências (1x por pet).
+  @OnEvent('crm.pet.faleceu')
+  async onPetFaleceu(payload: { petId: string }) { await this.dispararHospice(payload.petId, 'PET_FALECEU', 'faleceu'); }
+
+  private async dispararHospice(petId: string, gatilho: string, tag: string) {
+    try {
+      const pet = await this.prisma.pet.findUnique({ where: { id: petId }, include: { tutor: { include: { contacts: true } } } });
+      if (!pet) return;
+      const phone = this.bestPhone((pet as any).tutor?.contacts || []);
+      if (!phone) return;
+      await this.dispararGatilho(gatilho, {
+        tutorId: pet.tutorId,
+        petId: pet.id,
+        phone,
+        vars: { tutor: (pet as any).tutor?.name || '', pet: pet.name },
+        origemId: `${tag}:${pet.id}`,
+      });
+    } catch (e: any) {
+      this.logger.warn(`dispararHospice(${tag}): ${e?.message || e}`);
+    }
+  }
+
   // Polling: atendimentos finalizados / agendamentos confirmados recentes
   @Cron(CronExpression.EVERY_5_MINUTES)
   async varrerAtendimentos() {
     const desde = new Date(Date.now() - 16 * 60_000);
     const apps = await this.prisma.appointment.findMany({
       where: { updatedAt: { gte: desde }, status: { in: ['COMPLETED', 'DONE', 'CONFIRMED'] } },
-      include: { tutor: { include: { contacts: true } }, pet: true },
+      include: { tutor: { include: { contacts: true } }, pet: true, user: { select: { name: true } } },
       take: 50,
     });
+    const temBoasVindas = await this.temCadAtiva('CLIENTE_NOVO'); // evita a contagem por atendimento se estiver desligada
     for (const a of apps) {
       try {
         const phone = this.bestPhone((a as any).tutor?.contacts || []);
@@ -344,12 +470,99 @@ export class CadenciasService {
         const vars = {
           tutor: (a as any).tutor?.name || '',
           pet: (a as any).pet?.name || '',
+          profissional: (a as any).user?.name || 'nossa equipe',
           data: d.toLocaleDateString('pt-BR'),
           hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
         };
         await this.dispararGatilho(gat, { tutorId: a.tutorId, petId: a.petId, phone, vars, origemId: `appt:${a.id}:${a.status}` });
+        // Pós-cirúrgico: além do pós-atendimento genérico, uma cadência própria quando é CIRURGIA finalizada.
+        if ((a as any).type === 'CIRURGIA' && (a.status === 'COMPLETED' || a.status === 'DONE')) {
+          await this.dispararGatilho('POS_CIRURGICO', { tutorId: a.tutorId, petId: a.petId, phone, vars, origemId: `poscirurg:${a.id}` });
+        }
+        // Boas-vindas: se este é o PRIMEIRO atendimento realizado do cliente → jornada de boas-vindas (1x por cliente).
+        if (temBoasVindas && a.tutorId && (a.status === 'COMPLETED' || a.status === 'DONE')) {
+          const realizados = await this.prisma.appointment.count({
+            where: { tutorId: a.tutorId, status: { in: ['COMPLETED', 'DONE'] as any } },
+          });
+          if (realizados === 1) {
+            await this.dispararGatilho('CLIENTE_NOVO', { tutorId: a.tutorId, petId: a.petId, phone, vars, origemId: `boasvindas:${a.tutorId}` });
+          }
+        }
       } catch (e: any) {
         this.logger.warn(`varrerAtendimentos ${a.id}: ${e?.message || e}`);
+      }
+    }
+  }
+
+  // Polling: cliente inativo há ~90 dias (janela 90–97d pra pegar quando cruza o limite, sem inundar).
+  @Cron(CronExpression.EVERY_6_HOURS)
+  async varrerClientesInativos90d() {
+    if (!(await this.temCadAtiva('CLIENTE_INATIVO_90D'))) return;
+    const now = Date.now();
+    const hi = new Date(now - 90 * 86_400_000); // limite: 90 dias atrás
+    const lo = new Date(now - 97 * 86_400_000); // janela de 7 dias
+    // Atendimentos realizados que caem na janela (candidatos a "última visita ~90d atrás")
+    const apps = await this.prisma.appointment.findMany({
+      where: { date: { gte: lo, lte: hi }, status: { in: ['COMPLETED', 'DONE'] as any } },
+      include: { tutor: { include: { contacts: true } }, pet: true },
+      orderBy: { date: 'desc' },
+      take: 300,
+    });
+    const jaVistos = new Set<string>();
+    for (const a of apps) {
+      try {
+        if (!a.tutorId || jaVistos.has(a.tutorId)) continue;
+        jaVistos.add(a.tutorId);
+        // Precisa ser a ÚLTIMA visita: nenhum atendimento não-cancelado depois do limite de 90d
+        const posteriores = await this.prisma.appointment.count({
+          where: { tutorId: a.tutorId, date: { gt: hi }, status: { not: 'CANCELLED' as any } },
+        });
+        if (posteriores > 0) continue;
+        const phone = this.bestPhone((a as any).tutor?.contacts || []);
+        if (!phone) continue;
+        await this.dispararGatilho('CLIENTE_INATIVO_90D', {
+          tutorId: a.tutorId,
+          petId: a.petId,
+          phone,
+          vars: { tutor: (a as any).tutor?.name || '', pet: (a as any).pet?.name || 'seu pet' },
+          origemId: `reativa90:${a.tutorId}:${a.id}`,
+        });
+      } catch (e: any) {
+        this.logger.warn(`varrerClientesInativos90d ${a.id}: ${e?.message || e}`);
+      }
+    }
+  }
+
+  // Polling: pacotes na última sessão → convite de renovação.
+  @Cron(CronExpression.EVERY_6_HOURS)
+  async varrerPacotesProximosDoFim() {
+    if (!(await this.temCadAtiva('PACOTE_PROXIMO_DO_FIM'))) return;
+    const ativos = await this.prisma.pacote.findMany({
+      where: { status: 'ATIVO' as any, sessoesUsadas: { gt: 0 } },
+      take: 300,
+    });
+    for (const pac of ativos) {
+      try {
+        // "próximo do fim" = falta 1 sessão (ou já usou todas mas o pacote segue ATIVO)
+        if (!(pac.totalSessoes > 0 && pac.sessoesUsadas >= pac.totalSessoes - 1)) continue;
+        const pet = await this.prisma.pet.findUnique({
+          where: { id: pac.petId },
+          include: { tutor: { include: { contacts: true } } },
+        });
+        if (!pet) continue;
+        // 🕊️ pet em cuidados paliativos ou falecido não recebe cobrança de renovação.
+        if ((pet as any).cuidadoPaliativo || pet.status === 'DECEASED') continue;
+        const phone = this.bestPhone((pet as any).tutor?.contacts || []);
+        if (!phone) continue;
+        await this.dispararGatilho('PACOTE_PROXIMO_DO_FIM', {
+          tutorId: pac.tutorId || pet.tutorId,
+          petId: pac.petId,
+          phone,
+          vars: { tutor: (pet as any).tutor?.name || '', pet: pet.name || 'seu pet', servico: pac.servico || 'pacote' },
+          origemId: `pacotefim:${pac.id}`,
+        });
+      } catch (e: any) {
+        this.logger.warn(`varrerPacotesProximosDoFim ${pac.id}: ${e?.message || e}`);
       }
     }
   }

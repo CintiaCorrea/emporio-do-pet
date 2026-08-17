@@ -43,6 +43,9 @@ export default function PerfilPage() {
   const [stats, setStats] = useState<ProfileStats>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(undefined);
+  const sigInputRef = useRef<HTMLInputElement>(null);
+  const [signatureUrl, setSignatureUrl] = useState<string | undefined>(undefined);
+  const [isUploadingSig, setIsUploadingSig] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     email: ''});
@@ -64,6 +67,7 @@ export default function PerfilPage() {
           name: p.name || '',
           email: p.email || ''});
         setAvatarUrl(p.image || undefined);
+        setSignatureUrl((p as any).signatureUrl || undefined);
 
         // Stats (real)
         const [tutorsRes, petsRes, appointmentsRes] = await Promise.all([
@@ -222,6 +226,44 @@ export default function PerfilPage() {
     await uploadAvatar(file);
   };
 
+  // 🖋️ Upload da ASSINATURA-IMAGEM (mesmo fluxo do avatar, mas pasta/id próprios e persiste em signatureUrl)
+  const uploadSignature = async (file: File) => {
+    const userId = session?.user?.id;
+    if (!userId) { toast.error('Sessão inválida. Faça login novamente.'); return; }
+    if (!file.type.startsWith('image/')) { toast.error('Selecione uma imagem (PNG com fundo transparente fica melhor).'); return; }
+    if (file.size > 5 * 1024 * 1024) { toast.error('A imagem deve ter no máximo 5MB.'); return; }
+
+    setIsUploadingSig(true);
+    const toastId = toast.loading('Enviando assinatura...');
+    try {
+      // Storage real do sistema = S3 (Tigris), a MESMA rota dos documentos (Cloudinary nunca foi configurado).
+      const fd = new FormData();
+      fd.append('file', file);
+      const uploadRes = await fetch(`/api/media/upload?pasta=documentos&origem=assinatura&origemId=${encodeURIComponent(userId)}`, { method: 'POST', body: fd });
+      const uploadData = await uploadRes.json().catch(() => null);
+      if (!uploadRes.ok || !uploadData?.url) throw new Error(uploadData?.error || uploadData?.message || `Falha no upload (HTTP ${uploadRes.status})`);
+      const secureUrl: string = uploadData.url;
+
+      setSignatureUrl(secureUrl);
+      const patchRes = await fetch(`/api/users/${encodeURIComponent(userId)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ signatureUrl: secureUrl }) });
+      const patchData = await patchRes.json().catch(() => null);
+      if (!patchRes.ok) throw new Error(patchData?.error || patchData?.message || 'Erro ao salvar assinatura');
+      toast.success('Assinatura salva!', { id: toastId });
+    } catch (err) {
+      console.error(err);
+      toast.error(err instanceof Error ? err.message : 'Erro ao enviar assinatura', { id: toastId });
+    } finally {
+      setIsUploadingSig(false);
+    }
+  };
+
+  const onSigFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    await uploadSignature(file);
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -339,6 +381,34 @@ export default function PerfilPage() {
               <button className="w-full mt-2 py-3 px-4 bg-gray-50 hover:bg-gray-100 rounded-xl text-sm font-medium text-gray-700 transition-colors text-left">
                 Autenticação de dois fatores
               </button>
+            </div>
+
+            {/* 🖋️ Card da ASSINATURA (carimbada nas receitas comuns) */}
+            <div className="mt-6 bg-white rounded-3xl shadow-sm shadow-gray-200/50 border border-gray-100 p-6">
+              <h3 className="font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                <span style={{ fontSize: '14px' }}>🖋️</span>
+                Minha assinatura
+              </h3>
+              <p className="text-xs text-gray-500 mb-4">Usada nas <b>receitas comuns</b> impressas. Para receituário especial/controlado, a assinatura é feita pelo gov.br (em breve).</p>
+              <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 flex items-center justify-center h-28 mb-3 overflow-hidden">
+                {signatureUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={signatureUrl?.startsWith('http') ? `/api/media/ver?u=${encodeURIComponent(signatureUrl)}` : signatureUrl} alt="Assinatura" className="max-h-24 max-w-full object-contain" style={{ mixBlendMode: 'multiply' }} />
+                ) : (
+                  <span className="text-xs text-gray-400">Nenhuma assinatura enviada ainda</span>
+                )}
+              </div>
+              <input ref={sigInputRef} type="file" accept="image/*" className="hidden" onChange={onSigFileChange} />
+              <button
+                type="button"
+                onClick={() => sigInputRef.current?.click()}
+                disabled={isUploadingSig}
+                className="w-full py-3 px-4 bg-gray-50 hover:bg-cyan-50 hover:text-cyan-700 rounded-xl text-sm font-medium text-gray-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {isUploadingSig ? <LuLoaderCircle className="w-4 h-4 animate-spin" /> : <LuCamera className="w-4 h-4" />}
+                {signatureUrl ? 'Trocar assinatura' : 'Enviar assinatura'}
+              </button>
+              <p className="text-[11px] text-gray-400 mt-2 text-center">Dica: foto da assinatura em papel branco, ou PNG com fundo transparente.</p>
             </div>
           </div>
 

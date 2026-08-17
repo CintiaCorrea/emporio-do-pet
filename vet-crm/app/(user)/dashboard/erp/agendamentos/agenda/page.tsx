@@ -6,10 +6,23 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
 import BoletimModal from "@/components/pets/BoletimModal";
+import Link from "next/link";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import toast from "react-hot-toast";
 
-const HORAS = Array.from({ length: 12 }, (_, i) => i + 8);
+// Nome do pet/tutor CLICÁVEL no card da agenda → abre a ficha. stopPropagation pra não abrir o menu do card.
+function NomeClicavel({ a, tutor = true }: { a: any; tutor?: boolean }) {
+  const petId = a?.pet?.id || a?.petId; const petName = a?.pet?.name;
+  const tutorId = a?.tutor?.id || a?.tutorId; const tutorName = a?.tutor?.name;
+  const Pet = petName ? (petId ? <Link href={`/dashboard/erp/pets/${petId}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{petName}</Link> : <>{petName}</>) : null;
+  const Tut = tutorName ? (tutorId ? <Link href={`/dashboard/erp/tutores/${tutorId}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{tutorName}</Link> : <>{tutorName}</>) : null;
+  if (!Pet && !Tut) return <>Agendamento</>;
+  if (!Pet) return <>{Tut}</>;
+  return <>{Pet}{tutor && Tut ? <> · {Tut}</> : null}</>;
+}
+// Lógica pura da grade (testada em lib/agenda.blindagem.test.ts) — a tela usa o MESMO código dos testes.
+import { corServico, corConfirmacao, ESTAGIOS, PREV_STATUS, estagioIdx, ehArtefato, layoutSobreposicao, posicaoCard, agendaDoDia as agendaDoDiaLib } from "@/lib/agenda";
+
 const STATUS_COR: Record<string, { c: string; bg: string }> = {
   "Agendado": { c: "#185FA5", bg: "#E6F1FB" }, "Confirmado": { c: "#0F6E56", bg: "#E1F5EE" },
   "Em espera": { c: "#854F0B", bg: "#FAEEDA" }, "Aguardando": { c: "#854F0B", bg: "#FAEEDA" },
@@ -21,21 +34,7 @@ function corDe(st?: string, cores?: any) { const base = STATUS_COR[st || ""] || 
 // Cor automática por parceiro terceirizado (sempre a mesma pra o mesmo id).
 const CORES_PARCEIRO = ["#0F6E56", "#7C3AED", "#B45309", "#0C447C", "#CC3366", "#00707E", "#8a6400", "#4d5a66"];
 function corParceiro(id?: string): string { const s = String(id || ""); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return CORES_PARCEIRO[h % CORES_PARCEIRO.length]; }
-// Estágios do atendimento (um controle só no card, em vez de vários botões).
-// Cada estágio aponta o próximo status e o rótulo da ação de avançar.
-const ESTAGIOS = [
-  { label: "Agendado", cor: "#6b6857", bg: "#EDEBE3", next: "Em espera", acao: "chegou ›" },
-  { label: "🚪 Chegou", cor: "#185FA5", bg: "#E3EEFA", next: "Em atendimento", acao: "atender ›" },
-  { label: "🩺 Em atendimento", cor: "#B45309", bg: "#FDECD6", next: "Atendido", acao: "concluir ›" },
-  { label: "✅ Concluído", cor: "#0F6E56", bg: "#DEF3E8", next: null as string | null, acao: null as string | null },
-];
-function estagioIdx(status?: string): number {
-  const s = status || "";
-  if (["Atendido", "Animal pronto", "Realizado", "Concluído", "CONCLUIDO"].includes(s)) return 3;
-  if (s === "Em atendimento") return 2;
-  if (["Em espera", "Aguardando"].includes(s)) return 1;
-  return 0; // Agendado, Confirmado, Atrasado, etc.
-}
+// Cor por SERVIÇO/tipo de atendimento (mesma cor sempre pro mesmo serviço) — usada no visual novo.
 function ymd(d: Date) { const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
 function hm(d: Date) { const p = (n: number) => String(n).padStart(2, "0"); return `${p(d.getHours())}:${p(d.getMinutes())}`; }
 function brl(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
@@ -57,6 +56,7 @@ export default function AgendaPage() {
   const [appts, setAppts] = useState<any[]>([]);
   const [profs, setProfs] = useState<any[]>([]);
   const [avulsas, setAvulsas] = useState<any[]>([]); // agendas avulsas (Parceiro/MAP)
+  const [fisioEquipe, setFisioEquipe] = useState<string[]>([]); // userIds da equipe de fisio (Config)
   const [terceiroProf, setTerceiroProf] = useState<Record<string, { id: string; nome: string }>>({}); // appointmentId -> parceiro que atende
   const [arrastando, setArrastando] = useState<any>(null); // agendamento sendo arrastado (drag pra mudar horário)
   const { data: _sess } = useSession();
@@ -107,18 +107,24 @@ export default function AgendaPage() {
   async function load() {
     if (!jaCarregou.current) setLoading(true);
     try {
-      const [a, p, c, av, tp] = await Promise.all([
-        fetch("/api/appointments?limit=1000", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
-        fetch("/api/profissionais", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
-        fetch("/api/listas?lista=agenda_config", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
-        fetch("/api/listas?lista=agenda_avulsa", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
-        fetch("/api/listas?lista=agenda_terceiro_prof", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+      // 🛡️ cada chamada devolve NULL em falha (não []): assim um blip de rede OU o reinício do
+      // backend num deploy NÃO zera a tela — só atualizamos o que veio de fato.
+      const [a, p, c, av, tp, fe] = await Promise.all([
+        fetch("/api/appointments?limit=1000", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch("/api/profissionais", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch("/api/listas?lista=agenda_config", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch("/api/listas?lista=agenda_avulsa", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch("/api/listas?lista=agenda_terceiro_prof", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch("/api/listas?lista=fisio_equipe", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       ]);
-      setAppts(Array.isArray(a) ? a : (a.data || a.appointments || a.items || []));
-      setProfs(Array.isArray(p) ? p : (p.data || p.items || []));
-      try { const arr = Array.isArray(c) ? c : (c.itens || c.data || []); if (arr[0]?.valor) setCfg(JSON.parse(arr[0].valor)); } catch {}
-      try { const arr = Array.isArray(av) ? av : (av.itens || av.data || []); setAvulsas(arr.map((i: any) => { try { return { _id: i.id, ...JSON.parse(i.valor) }; } catch { return null; } }).filter(Boolean)); } catch {}
-      try { const arr = Array.isArray(tp) ? tp : (tp.itens || tp.data || []); const m: Record<string, { id: string; nome: string }> = {}; arr.forEach((x: any) => { try { const v = JSON.parse(x.valor); if (v.appointmentId) m[v.appointmentId] = { id: v.id, nome: v.nome }; } catch {} }); setTerceiroProf(m); } catch {}
+      const apptsArr = Array.isArray(a) ? a : (a?.data || a?.appointments || a?.items || null);
+      if (apptsArr) setAppts(apptsArr);            // só troca se veio válido (senão mantém o que estava)
+      const profsArr = Array.isArray(p) ? p : (p?.data || p?.items || null);
+      if (profsArr) setProfs(profsArr);
+      if (fe != null) { try { const arr = Array.isArray(fe) ? fe : (fe.itens || fe.data || []); setFisioEquipe(arr.map((x: any) => x.valor).filter(Boolean)); } catch {} }
+      if (c != null) { try { const arr = Array.isArray(c) ? c : (c.itens || c.data || []); if (arr[0]?.valor) setCfg(JSON.parse(arr[0].valor)); } catch {} }
+      if (av != null) { try { const arr = Array.isArray(av) ? av : (av.itens || av.data || []); setAvulsas(arr.map((i: any) => { try { return { _id: i.id, ...JSON.parse(i.valor) }; } catch { return null; } }).filter(Boolean)); } catch {} }
+      if (tp != null) { try { const arr = Array.isArray(tp) ? tp : (tp.itens || tp.data || []); const m: Record<string, { id: string; nome: string }> = {}; arr.forEach((x: any) => { try { const v = JSON.parse(x.valor); if (v.appointmentId) m[v.appointmentId] = { id: v.id, nome: v.nome }; } catch {} }); setTerceiroProf(m); } catch {} }
     } catch {}
     jaCarregou.current = true;
     setLoading(false);
@@ -157,10 +163,10 @@ export default function AgendaPage() {
   function expedienteNoDia(e: any) { if (!temEscala(e)) return false; if (bloqueadoNoDia(e)) return false; return (e.semana[String(wdAtual)] || []).length > 0; }
 
   // Cancelado e Remarcado SAEM da agenda (somem do quadro e liberam o horário), mas continuam no histórico do pet (consulta à parte).
-  // "Artefatos" do atendimento (Documento, Receita, Peso, Venda, Observação) NÃO são agendamentos —
-  // não devem aparecer na agenda (viravam cartões "duplicados").
-  const ehArtefato = (t?: string) => /^(documento|receitas?|peso|venda|observa)/i.test(String(t || "").trim());
-  const doDia = useMemo(() => appts.filter((a: any) => a.date && ymd(new Date(a.date)) === diaStr && a.status !== "Cancelado" && a.status !== "Remarcado" && !ehArtefato(a.type)), [appts, diaStr]);
+  // Dia/Semana/Mês usam a MESMA regra (lib/agenda.agendaDoDia, testada): sem Cancelado/Remarcado,
+  // sem artefatos (Documento/Receita/Peso/Venda/Observação) e dedup por id — pra não trazer "lixo".
+  const doDia = useMemo(() => agendaDoDiaLib(appts, diaStr), [appts, diaStr]);
+  function agendaDoDia(ds: string) { return agendaDoDiaLib(appts, ds); }
   function valorDe(a: any) { const tr = a.treatments || []; return tr.reduce((s: number, t: any) => s + (Number(t.product?.price) || Number(t.valorUnitario) || 0) * (Number(t.quantidade) || 1), 0); }
   const profUserIds = useMemo(() => new Set(profsAtende.map((p: any) => p.userId).filter(Boolean)), [profsAtende]);
   function ehDoProf(a: any, prof: any) {
@@ -187,7 +193,9 @@ export default function AgendaPage() {
   function avulsaVisivelHoje(a: any) { const e = normEsc(a.horario); if (!temEscala(e)) return true; if (bloqueadoNoDia(e)) return doDia.some((x: any) => x.agendaAvulsa === a.id); return expedienteNoDia(e) || doDia.some((x: any) => x.agendaAvulsa === a.id); }
 
   const visiveis = useMemo(() => profsAtende.filter((p: any) => !hidden.has(p.id) && profVisivelHoje(p)), [profsAtende, hidden, externosDia, diaStr, doDia]);
-  const avulsasAtivas = useMemo(() => avulsas.filter((a: any) => a.ativo !== false), [avulsas]);
+  // Ordena as agendas avulsas por nome com ordenação NUMÉRICA (MAP 1, MAP 2, MAP 3… e depois Terceiros).
+  const avulsasAtivas = useMemo(() => avulsas.filter((a: any) => a.ativo !== false)
+    .sort((x: any, y: any) => String(x.nome || "").localeCompare(String(y.nome || ""), "pt-BR", { numeric: true })), [avulsas]);
   // Avulsa aparece se NÃO estiver desligada no seletor Filas (e for do dia); OU se já tiver
   // agendamento no dia (assim, mesmo desligada, ela volta quando tem algo marcado).
   const avulsasVis = useMemo(() => avulsasAtivas.filter((a: any) => (hidden.has(a.id) ? doDia.some((x: any) => x.agendaAvulsa === a.id) : avulsaVisivelHoje(a))), [avulsasAtivas, diaStr, doDia, hidden]);
@@ -226,23 +234,15 @@ export default function AgendaPage() {
     const g = grupoDaAvulsa(a.agendaAvulsa);
     return !!g && g === prof.grupo;
   };
-  function apptsDe(prof: any, hora: number, minuto: number) { const ss = slots[1] || 30; return doDia.filter((a: any) => { const d = new Date(a.date); if (d.getHours() !== hora || Math.floor(d.getMinutes() / ss) * ss !== minuto) return false; if (prof._avulsa) return a.agendaAvulsa === prof.id || ocupaEstaAvulsa(a, prof); return ehDoProf(a, prof) && !a.agendaAvulsa; }); }
-  // O agendamento OCUPA todo o seu tempo: aparece como card no slot em que começa e como
-  // faixa de continuação nos slots seguintes que a duração cobre (1h, 1h30 etc.).
-  function apptsCobrindo(prof: any, hora: number, minuto: number) {
-    const ss = slots[1] || 30;
-    const ini = hora * 60 + minuto, fim = ini + ss;
-    return doDia
-      .filter((a: any) => {
-        if (!a.date) return false;
-        const d = new Date(a.date);
-        const aIni = d.getHours() * 60 + d.getMinutes();
-        const aFim = aIni + (Number(a.duration) || 30);
-        if (!(aIni < fim && aFim > ini)) return false;
-        if (prof._avulsa) return a.agendaAvulsa === prof.id || ocupaEstaAvulsa(a, prof);
-        return ehDoProf(a, prof) && !a.agendaAvulsa;
-      })
-      .map((a: any) => { const d = new Date(a.date); const aIni = d.getHours() * 60 + d.getMinutes(); return { a, comeca: aIni >= ini && aIni < fim }; });
+  // GRADE (blocos contínuos): px por minuto + os agendamentos de UMA coluna (sem filtro por slot).
+  const PXMIN = 100 / 30; // 30 min ≈ 100px — espaço p/ hora + pet + tipo + acompanhamento sem apertar
+  const totalMinDia = (hFim - hIni + 1) * 60;
+  function apptsDaColuna(p: any) {
+    return doDia.filter((a: any) => {
+      if (!a.date) return false;
+      if (p._avulsa) return a.agendaAvulsa === p.id || ocupaEstaAvulsa(a, p);
+      return ehDoProf(a, p) && !a.agendaAvulsa;
+    });
   }
   const doDiaVis = useMemo(() => doDia.filter((a: any) => visiveis.some((p: any) => ehDoProf(a, p))), [doDia, visiveis, profUserIds]);
   const previsao = useMemo(() => doDiaVis.reduce((s: number, a: any) => s + valorDe(a), 0), [doDiaVis]);
@@ -255,7 +255,6 @@ export default function AgendaPage() {
   function cardMenu(e: any, a: any) { e.stopPropagation(); setMenuAppt({ a, x: e.clientX, y: e.clientY }); }
   function toggleFila(id: string) { const s = new Set(hidden); s.has(id) ? s.delete(id) : s.add(id); setHidden(s); persist(s); }
   function soEste(id: string) { const s = new Set(profsAtende.filter((p: any) => p.id !== id).map((p: any) => p.id)); setHidden(s); persist(s); }
-  function esperaDesde(a: any) { const diff = Math.round((Date.now() - new Date(a.date).getTime()) / 60000); return diff > 0 ? `há ${diff} min` : hm(new Date(a.date)); }
 
   // ---- Confirmação por WhatsApp (Fatia 1) ----
   function tipoFisio(a: any) { return `${a?.type || ""} ${a?.description || ""}`.toLowerCase().includes("fisio"); }
@@ -304,7 +303,7 @@ export default function AgendaPage() {
   async function confirmarManual(a: any) {
     setSending(true);
     try {
-      const r = await fetch(`/api/appointments/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: "Confirmado" }) });
+      const r = await fetch(`/api/appointments/${a.id}/confirmar-manual`, { method: "POST", credentials: "include" });
       if (!r.ok) throw new Error();
       toast.success("Presença confirmada ✅");
       load();
@@ -337,13 +336,41 @@ export default function AgendaPage() {
     try {
       const r = await fetch(`/api/appointments/${a.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ status: next }) });
       if (!r.ok) throw new Error();
-      if (next === "Em espera" && tipoFisio(a)) await darBaixaFisio(a); // chegou numa fisio → baixa
+      if (next === "Em espera") { // cliente CHEGOU
+        if (tipoFisio(a)) await darBaixaFisio(a); // chegou numa fisio → baixa
+        notificarChegada(a); // #8 — avisa o profissional que o cliente chegou (pop-up)
+      }
       load();
     } catch { toast.error("Não consegui atualizar o estágio."); }
     setAvancandoId(null);
   }
-  // Volta o atendimento pro estágio anterior (corrigir clique errado). Por índice de estágio.
-  const PREV_STATUS = [null, "Agendado", "Em espera", "Em atendimento"];
+  // #8 — quando a recepção marca "chegou", manda um aviso (pop-up) pro profissional do
+  // atendimento. Usa o recado interno (caminho que já popa). Best-effort; não avisa a si mesmo.
+  function notificarChegada(a: any) {
+    const cliente = a.tutor?.name || "O cliente";
+    const pet = a.pet?.name ? ` (${a.pet.name})` : "";
+    const hora = (() => { try { return new Date(a.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })();
+    const avisar = (toUserId: string, texto: string) => {
+      if (!toUserId || toUserId === meId) return false;
+      fetch(`/api/internal-notes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toUserId, content: texto }) }).catch(() => undefined);
+      return true;
+    };
+    // MAP (Sala MAP) = agenda avulsa: o "profissional" costuma ser quem agendou, então avisa a
+    // EQUIPE DE FISIO (Config › lista fisio_equipe). Fora do MAP: avisa o profissional do atendimento.
+    const av = a.agendaAvulsa ? avulsas.find((x: any) => (x.id || x._id) === a.agendaAvulsa) : null;
+    const ehMap = !!av && (av.grupo === "Sala MAP" || /MAP/i.test(av.nome || ""));
+    if (ehMap) {
+      const sala = av?.nome || "MAP";
+      let n = 0;
+      for (const uid of fisioEquipe) { if (avisar(uid, `🚪 ${cliente}${pet} chegou${hora ? ` — ${hora}` : ""} na ${sala}. Está na recepção.`)) n++; }
+      if (n > 0) toast.success(`Equipe de fisio avisada — cliente chegou na ${sala} 🔔`, { duration: 2500 });
+      return;
+    }
+    if (avisar(a.userId, `🚪 ${cliente}${pet} chegou${hora ? ` — agendamento das ${hora}` : ""}. Está na recepção.`) && a.user?.name) {
+      toast.success(`${a.user.name.split(" ")[0]} foi avisado(a) que o cliente chegou 🔔`, { duration: 2500 });
+    }
+  }
+  // Volta o atendimento pro estágio anterior (corrigir clique errado). Por índice de estágio (PREV_STATUS da lib).
   async function retrocederEstagio(a: any) {
     const prev = PREV_STATUS[estagioIdx(a.status)];
     if (!prev) return;
@@ -390,11 +417,12 @@ export default function AgendaPage() {
     } catch (e: any) { toast.error(e?.message || "Erro ao cancelar"); }
     setSending(false);
   }
-  const CONF_BADGE: Record<string, { t: string; c: string }> = { ENVIADA: { t: "📲", c: "#854F0B" }, CONFIRMADO: { t: "✅", c: "#0F6E56" }, REMARCAR: { t: "🔄", c: "#A32D2D" } };
   const label = dia.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "short" });
   const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
   const tituloView = view === "mes" ? cap(dia.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })) : view === "semana" ? (() => { const i = startOfWeek(dia); const f = addD(i, 6); return `${i.getDate()}/${i.getMonth() + 1} – ${f.getDate()}/${f.getMonth() + 1}`; })() : labelCap;
-  const cols = `52px repeat(${Math.max(colunas.length, 1)}, minmax(120px, 1fr))`;
+  const cols = `52px repeat(${Math.max(colunas.length, 1)}, minmax(0, 1fr))`;
+  // Selo da confirmação por WhatsApp (campo separado do estágio): 📲 enviada, ✅ confirmou, 🔄 quer remarcar.
+  const CONF_BADGE: Record<string, { t: string; c: string; nome: string }> = { ENVIADA: { t: "📲", c: "#854F0B", nome: "Confirmação enviada" }, CONFIRMADO: { t: "✅", c: "#0F6E56", nome: "Presença confirmada" }, REMARCAR: { t: "🔄", c: "#A32D2D", nome: "Cliente quer remarcar" } };
 
   return (
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
@@ -422,8 +450,8 @@ export default function AgendaPage() {
             </button>
             {filasOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setFilasOpen(false)} />
-                <div className="absolute right-0 mt-1 z-20 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 w-[320px]" style={{ borderColor: "#E8E2D6" }}>
+                <div className="fixed inset-0 z-40" onClick={() => setFilasOpen(false)} />
+                <div className="absolute right-0 mt-1 z-50 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 w-[320px]" style={{ borderColor: "#E8E2D6" }}>
                   {profsAtende.map((p: any) => { const on = !hidden.has(p.id); return (
                     <span key={p.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#374151", borderColor: "#E8E2D6" }}>
                       <button onClick={() => toggleFila(p.id)} className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1"><span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />{nomeCurto(p)}{on ? <span className="text-[11px]">✓</span> : null}</button>
@@ -451,8 +479,8 @@ export default function AgendaPage() {
             <button onClick={() => setIncluirOpen((v) => !v)} className="text-[13px] px-3 py-1.5 rounded-lg border flex items-center gap-1.5" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#fff" }}>➕ Incluir profissional</button>
             {incluirOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setIncluirOpen(false)} />
-                <div className="absolute right-0 mt-1 z-20 bg-white border rounded-xl shadow-lg py-1 min-w-[220px]" style={{ borderColor: "#E8E2D6" }}>
+                <div className="fixed inset-0 z-40" onClick={() => setIncluirOpen(false)} />
+                <div className="absolute right-0 mt-1 z-50 bg-white border rounded-xl shadow-lg py-1 min-w-[220px]" style={{ borderColor: "#E8E2D6" }}>
                   <div className="px-3 py-1.5 text-[11px] text-gray-400">Não estão na agenda hoje</div>
                   {foraHoje.map((p: any) => { const ext = escDe(p)?.sobDemanda; return (
                     <button key={p.id} onClick={() => incluirExterno(p.id)} className="w-full text-left px-3 py-2 hover:bg-[#F6FDFD] text-[13px] flex items-center gap-2">
@@ -470,8 +498,8 @@ export default function AgendaPage() {
       </div>
 
       {view === "dia" && (<>
-      {/* Sala de espera: faixa HORIZONTAL acima da agenda, com rolagem lateral. */}
-      <div className="bg-white border rounded-2xl mb-3" style={{ borderColor: "#E8E2D6" }}>
+      {/* Sala de espera: faixa HORIZONTAL acima da agenda, TRAVADA no topo (não some ao rolar). */}
+      <div className="bg-white border rounded-2xl mb-3 sticky z-30" style={{ borderColor: "#E8E2D6", top: 64, boxShadow: "0 8px 16px -10px rgba(1,77,94,.20)" }}>
         <div className="px-3.5 py-2 flex items-center gap-2 border-b" style={{ borderColor: "#F0EBE0" }}>
           <span className="text-[14px]">🪑</span>
           <span className="text-[13px] font-medium" style={{ color: "#014D5E" }}>Sala de espera</span>
@@ -490,7 +518,7 @@ export default function AgendaPage() {
               return (
                 <div key={a.id} className="rounded-lg px-2.5 py-2 shrink-0" style={{ background: bg, minWidth: 186, maxWidth: 230 }}>
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-[12px] font-medium truncate" style={{ color: "#014D5E" }}>{a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "—")}</span>
+                    <span className="text-[12px] font-medium truncate" style={{ color: "#014D5E" }}><NomeClicavel a={a} /></span>
                     <span className="text-[10px] font-semibold whitespace-nowrap" style={{ color: cor }}>{emAtend ? "🩺 atendendo" : atrasado ? `⚠ atrasado ${diff} min` : diff > 0 ? `⏱ há ${diff} min` : "⏱ na hora"}</span>
                   </div>
                   <div className="text-[10px] flex items-center gap-1.5 mt-0.5" style={{ color: cor }}>
@@ -545,16 +573,17 @@ export default function AgendaPage() {
                 const profCor = c?.corAvatar || c?.cor || "#009AAC";
                 const idx = estagioIdx(a.status); const est = ESTAGIOS[idx];
                 const petlife = /petlife/i.test(a.pet?.insurancePlan || "");
+                const confCor = corConfirmacao(a.confirmacaoStatus);
                 return (
                   <div key={"m-" + a.id}>
                     {showHdr && <div className="text-[11px] font-bold uppercase tracking-wide text-[#8A857A] mt-2 mb-1 px-1">{per}</div>}
-                    <div onClick={(e) => cardMenu(e, a)} className="bg-white border rounded-[13px] p-3 flex gap-3 relative overflow-hidden active:bg-[#FBF9F4]" style={{ borderColor: "#E8E2D6" }}>
+                    <div onClick={(e) => cardMenu(e, a)} className="bg-white rounded-[13px] p-3 flex gap-3 relative overflow-hidden active:bg-[#FBF9F4]" style={{ border: confCor ? `2px solid ${confCor}` : "1px solid #E8E2D6" }}>
                       <span className="absolute left-0 top-0 bottom-0 w-1" style={{ background: profCor }} />
-                      <div className="text-[13px] font-bold pl-1.5 w-[46px] shrink-0" style={{ color: "#014D5E" }}>{hm(d)}</div>
+                      <div className="text-[13px] font-bold pl-1.5 w-[46px] shrink-0 flex flex-col items-start" style={{ color: "#014D5E" }}>{hm(d)}{a.confirmacaoStatus && CONF_BADGE[a.confirmacaoStatus] ? <span className="text-[11px]" title={CONF_BADGE[a.confirmacaoStatus].nome}>{CONF_BADGE[a.confirmacaoStatus].t}</span> : null}</div>
                       <div className="flex-1 min-w-0">
                         <div className="text-[14px] font-semibold text-[#1F2A2E] flex items-center gap-1.5 truncate">
                           {petlife && <span style={{ fontSize: "8.5px", fontWeight: 700, background: "#EDE7F6", color: "#5E35B1", borderRadius: 4, padding: "1px 5px" }}>🩺 Petlife</span>}
-                          <span className="truncate">{quem}</span>
+                          <span className="truncate"><NomeClicavel a={a} /></span>
                         </div>
                         <div className="text-[12px] text-[#5C6B70] mt-0.5 flex items-center gap-1.5 truncate"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: profCor }} /><span className="truncate">{profNome} · {a.type || "Atendimento"}</span></div>
                         <div className="mt-1.5 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -573,131 +602,110 @@ export default function AgendaPage() {
         })()}
       </div>
 
+
+      {/* Grade do dia — blocos coloridos por serviço; cabeçalho e sala de espera travados. */}
       <div className="hidden md:block">
-        <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+        <div className="bg-white border rounded-2xl" style={{ borderColor: "#E8E2D6" }}>
           {loading ? (
             <div className="text-center text-sm text-gray-400 py-12">Carregando agenda...</div>
           ) : colunas.length === 0 ? (
-            <div className="text-center text-sm text-gray-400 py-12">{profsAtende.length === 0 ? "Cadastre profissionais em Configurações › Equipe (ou agendas avulsas em Configurações › Agenda)." : "Nenhuma fila selecionada — escolha acima."}</div>
+            <div className="text-center text-sm text-gray-400 py-12">{profsAtende.length === 0 ? "Cadastre profissionais em Configurações › Equipe." : "Nenhuma fila selecionada — escolha acima."}</div>
           ) : (
-            <div className="overflow-x-auto">
-              <div style={{ minWidth: `${64 + colunas.length * 130}px` }}>
-                <div className="grid border-b" style={{ gridTemplateColumns: cols, borderColor: "#F0EBE0", background: "#FBF9F4" }}>
-                  <div />
-                  {colunas.map((p: any) => (
-                    <div key={p._avulsa ? "av-" + p.id : p.id} className="flex flex-col items-center justify-center gap-0.5 py-2 px-2 border-l" style={{ borderColor: "#ECE6D8" }}>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />
-                        <span className="text-[12px] font-medium" style={{ color: "#014D5E" }}>{nomeCurto(p)}</span>
-                      </div>
-                      {p._avulsa && <span className="text-[8px] font-bold uppercase px-1 rounded" style={{ color: "#7C3AED", background: "#F5F3FF" }}>avulsa</span>}
-                      {!p._avulsa && (externosDia[diaStr] || []).includes(p.id) && (
-                        <span className="text-[8px] font-bold uppercase px-1 rounded inline-flex items-center gap-0.5" style={{ color: "#B45309", background: "#FCF3E7" }}>
-                          externo hoje
-                          <button onClick={() => setExternosDia((m) => ({ ...m, [diaStr]: (m[diaStr] || []).filter((x) => x !== p.id) }))} title="Tirar da agenda de hoje" className="hover:text-[#A32D2D]">✕</button>
-                        </span>
-                      )}
+            <div>
+              {/* cabeçalho dos profissionais TRAVADO (mesmo offset da grade atual) */}
+              <div className="grid border-b sticky z-20 rounded-t-2xl" style={{ gridTemplateColumns: cols, borderColor: "#F0EBE0", background: "#FBF9F4", top: 172 }}>
+                <div />
+                {colunas.map((p: any) => (
+                  <div key={(p._avulsa ? "nv-av-" : "nv-") + p.id} className="flex flex-col items-center justify-center gap-0.5 py-2.5 px-2 border-l" style={{ borderColor: "#ECE6D8" }}>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />
+                      <span className="text-[13px] font-semibold" style={{ color: "#014D5E" }}>{nomeCurto(p)}</span>
                     </div>
+                    {p._avulsa && <span className="text-[8px] font-bold uppercase px-1 rounded" style={{ color: "#7C3AED", background: "#F5F3FF" }}>avulsa</span>}
+                    {!p._avulsa && (externosDia[diaStr] || []).includes(p.id) && <span className="text-[8px] font-bold uppercase px-1 rounded" style={{ color: "#B45309", background: "#FCF3E7" }}>externo</span>}
+                  </div>
+                ))}
+              </div>
+              {/* corpo: gutter de horas + lanes com blocos contínuos */}
+              <div className="grid" style={{ gridTemplateColumns: cols }}>
+                <div style={{ position: "relative", height: totalMinDia * PXMIN }}>
+                  {horas.map((h) => (
+                    <div key={"g" + h} className="text-[11px] text-right pr-2" style={{ position: "absolute", top: (h - hIni) * 60 * PXMIN - 7, right: 0, color: "#8FA0A0", fontWeight: 600 }}>{String(h).padStart(2, "0")}:00</div>
                   ))}
                 </div>
-                {horas.flatMap((h) => slots.map((m) => (
-                  <div key={`${h}-${m}`} className="grid" style={{ gridTemplateColumns: cols, borderBottom: m === slots[slots.length - 1] ? "1px solid #DED6C4" : "1px dashed #ECE6D8", minHeight: "42px" }}>
-                    <div className="text-[11px] text-right pr-2 pt-1" style={{ color: m === 0 ? "#4A5A5F" : "#93A0A0", fontWeight: m === 0 ? 600 : 400 }}>{m === 0 ? `${String(h).padStart(2, "0")}:00` : `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`}</div>
-                    {colunas.map((p: any) => {
-                      const cobre = apptsCobrindo(p, h, m);
-                      const ocupado = cobre.length > 0;
-                      return (
-                      <div key={(p._avulsa ? "av-" : "") + p.id} onClick={ocupado ? undefined : () => {
-                        if (p._avulsa) { if (!meId) { toast("Recarregue a página."); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, agendaAvulsa: p.id, avulsaNome: p.nomeCompleto, userId: meId, duration: cfg?.duracaoPadrao }); setNovoOpen(true); return; }
-                        if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Equipe"); return; }
-                        setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId, duration: cfg?.duracaoPadrao }); setNovoOpen(true);
-                      }}
-                        onDragOver={(e) => { if (arrastando) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
-                        onDrop={(e) => { if (arrastando) { e.preventDefault(); moverAppt(arrastando, p, h, m); } }}
-                        className={"border-l px-0.5 " + (ocupado ? "" : "cursor-pointer hover:bg-[#EAF6F7]") + (arrastando ? " hover:bg-[#E0F4F6]" : "")} style={{ borderColor: "#ECE6D8", background: foraDoHorario(p, h, m) ? "repeating-linear-gradient(45deg,#f5f6f4,#f5f6f4 4px,#e9ebe6 4px,#e9ebe6 8px)" : undefined }}>
-                        {cobre.map(({ a, comeca }: any) => { const cor = corDe(a.status, cfg?.cores); const _conf = a.confirmacaoStatus; const terc = terceiroProf[a.id]; const cBorder = terc ? corParceiro(terc.id) : (_conf === "CONFIRMADO" ? "#0F6E56" : _conf === "REMARCAR" ? "#A32D2D" : cor.c); const cBg = _conf === "CONFIRMADO" ? "#E7F7EF" : _conf === "REMARCAR" ? "#FCEBEB" : cor.bg; const v = valorDe(a); const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento");
-                          // Continuação: MESMA cor/opacidade do card (não desbotada) e colada nele,
-                          // pra um agendamento de 1h aparecer como UM bloco inteiro, não 2 de 30min.
-                          if (!comeca) {
-                            // Último slot do agendamento? (arredonda embaixo só no fim, pra virar UM cartão só)
-                            const aEndMin = (() => { const d = new Date(a.date); return d.getHours() * 60 + d.getMinutes() + (a.duration || 30); })();
-                            const ultimo = aEndMin <= (h * 60 + m + (slots[1] || 30));
-                            return (
-                            // Continuação do MESMO cartão: flutua (mx) e cola no início; marginTop negativo
-                            // cobre a linha tracejada da grade; arredonda embaixo só no último slot.
-                            <div key={a.id + "-c"} onClick={(e) => cardMenu(e, a)} title={`${quem} · ${a.duration || 30} min`} className={"cursor-pointer relative mx-1 " + (ultimo ? "rounded-b-xl mb-1 shadow-sm" : "")} style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, height: ultimo ? "calc(100% + 6px)" : "calc(100% + 12px)", minHeight: 40, marginTop: -10, zIndex: 1 }} />
-                            );
-                          }
-                          // Esta coluna está travada POR TABELA (o agendamento é da outra MAP do grupo)
-                          const espelho = p._avulsa && a.agendaAvulsa !== p.id;
-                          const donaNome = espelho ? (colunas.find((x: any) => x._avulsa && x.id === a.agendaAvulsa)?.nomeCompleto || "outra agenda") : "";
-                          const obs = obsDe(a);
-                          return (
-                          <div key={a.id}
+                {colunas.map((p: any) => {
+                  const items = apptsDaColuna(p);
+                  const laid = layoutSobreposicao(items);
+                  return (
+                    <div key={(p._avulsa ? "lane-av-" : "lane-") + p.id} className="border-l" style={{ position: "relative", height: totalMinDia * PXMIN, borderColor: "#ECE6D8", overflow: "hidden" }}>
+                      {/* fundo: slots (linhas + fora do horário + clique cria + soltar arrasta) */}
+                      {horas.flatMap((h) => slots.map((m) => {
+                        const top = ((h * 60 + m) - hIni * 60) * PXMIN;
+                        const sh = (slots[1] || 30) * PXMIN;
+                        const fora = foraDoHorario(p, h, m);
+                        return (
+                          <div key={`s${h}-${m}`}
+                            onClick={() => {
+                              if (p._avulsa) { if (!meId) { toast("Recarregue a página."); return; } setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, agendaAvulsa: p.id, avulsaNome: p.nomeCompleto, userId: meId, duration: cfg?.duracaoPadrao }); setNovoOpen(true); return; }
+                              if (!p.userId) { toast("Profissional sem login — cadastre o acesso em Configurações › Equipe"); return; }
+                              setEditAppt(null); setNovoDefaults({ date: diaStr, time: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`, userId: p.userId, duration: cfg?.duracaoPadrao }); setNovoOpen(true);
+                            }}
+                            onDragOver={(e) => { if (arrastando) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }}
+                            onDrop={(e) => { if (arrastando) { e.preventDefault(); moverAppt(arrastando, p, h, m); } }}
+                            className="hover:bg-[#EAF6F7]"
+                            style={{ position: "absolute", left: 0, right: 0, top, height: sh, borderTop: m === 0 ? "1px solid #EFE8D9" : "1px dashed #F3EEE1", background: fora ? "repeating-linear-gradient(45deg,#f5f6f4,#f5f6f4 4px,#e9ebe6 4px,#e9ebe6 8px)" : undefined, cursor: "pointer" }} />
+                        );
+                      }))}
+                      {/* agendamentos: 1 bloco CONTÍNUO cada, posicionado por hora+duração; sobrepostos ficam lado a lado */}
+                      {laid.map(({ a, track, cols }: any) => {
+                        const d = new Date(a.date);
+                        const dur = Number(a.duration) || 30; // duração real (exibida)
+                        const slotSize = slots[1] || 30;
+                        // ENCAIXA no box (lib/agenda.posicaoCard, testada): card na linha da grade mais próxima; hora exata no texto.
+                        const { top, height } = posicaoCard(d, dur, hIni, slotSize, PXMIN);
+                        const cor = corDe(a.status, cfg?.cores);
+                        const terc = terceiroProf[a.id];
+                        const v = valorDe(a);
+                        const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento");
+                        const espelho = p._avulsa && a.agendaAvulsa !== p.id;
+                        const idx = estagioIdx(a.status); const est = ESTAGIOS[idx];
+                        // Confirmação FIXA no card (bate o olho): borda verde = confirmou, vermelha = quer remarcar.
+                        const confCor = corConfirmacao(a.confirmacaoStatus);
+                        return (
+                          <div key={"nv" + a.id}
                             draggable={!espelho}
                             onDragStart={(e) => { if (espelho) return; setArrastando(a); try { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", a.id); } catch {} }}
                             onDragEnd={() => setArrastando(null)}
-                            onClick={(e) => cardMenu(e, a)} title={espelho ? `Sala ocupada: ${quem} está na ${donaNome} (pet ${String(a.pet?.temperament || "").toLowerCase()})` : (obs ? `📝 ${obs}` : "Arraste para mudar o horário · clique para as ações")} className={"relative px-2 py-1 cursor-pointer mx-1 mt-0.5 shadow-sm " + ((a.duration || 30) > 30 ? "rounded-t-xl" : "rounded-xl mb-1")} style={{ borderLeft: `3px solid ${cBorder}`, background: cBg, opacity: espelho ? 0.75 : (arrastando?.id === a.id ? 0.4 : 1) }}>
+                            onClick={(e) => cardMenu(e, a)}
+                            title={espelho ? `Sala ocupada por ${quem}` : "Arraste para mudar o horário · clique para as ações"}
+                            className="rounded-xl cursor-pointer overflow-hidden"
+                            style={{ position: "absolute", top, height, left: cols <= 1 ? 5 : `calc(${track * (100 / cols)}% + 2px)`, right: cols <= 1 ? 5 : undefined, width: cols <= 1 ? undefined : `calc(${100 / cols}% - 4px)`, background: `color-mix(in srgb, ${corServico(a.type)} 16%, #ffffff)`, border: confCor ? `2px solid ${confCor}` : `1px solid color-mix(in srgb, ${corServico(a.type)} 42%, #EAE3D4)`, boxShadow: confCor ? `0 1px 3px color-mix(in srgb, ${confCor} 30%, transparent)` : `0 1px 2px color-mix(in srgb, ${corServico(a.type)} 22%, transparent)`, opacity: espelho ? 0.7 : (arrastando?.id === a.id ? 0.4 : 1), zIndex: 2, padding: "4px 9px", display: "flex", flexDirection: "column", gap: 2, maxWidth: "100%", boxSizing: "border-box" }}>
                             <div className="flex items-center justify-between gap-1">
-                              <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: cor.c }}>{hm(new Date(a.date))}{a.duration ? <span className="text-[9.5px] font-normal" style={{ color: cor.c, opacity: .8 }}>· {a.duration}min</span> : null}{a.confirmacaoStatus && CONF_BADGE[a.confirmacaoStatus] ? <span title={`Confirmação: ${a.confirmacaoStatus}`}>{CONF_BADGE[a.confirmacaoStatus].t}</span> : null}{obs ? <span title={obs} style={{ fontSize: "10px" }}>📝</span> : null}</span>
-                              {travaSala(a) ? <span title="Ocupa a sala inteira" className="text-[10px]">🔒</span> : (mostrarValores && v > 0 ? <span className="text-[10px] font-medium" style={{ color: "#0F6E56" }}>{brl(v)}</span> : null)}
+                              <span className="text-[10.5px] font-bold flex items-center gap-1" style={{ color: cor.c }}>{hm(d)}<span className="font-normal" style={{ opacity: .75 }}>· {dur}min</span>{a.confirmacaoStatus && CONF_BADGE[a.confirmacaoStatus] ? <span title={CONF_BADGE[a.confirmacaoStatus].nome}>{CONF_BADGE[a.confirmacaoStatus].t}</span> : null}</span>
+                              {mostrarValores && v > 0 ? <span className="text-[10px] font-semibold" style={{ color: "#0F6E56" }}>{brl(v)}</span> : (travaSala(a) ? <span title="Ocupa a sala inteira">🔒</span> : null)}
                             </div>
-                            <div className="text-[12px] font-medium truncate hover:underline cursor-pointer flex items-center gap-1" style={{ color: "#014D5E" }} title="Abrir a ficha completa" onClick={(e) => { e.stopPropagation(); const url = a.pet?.id ? `/dashboard/erp/pets/${a.pet.id}` : (a.tutor?.id ? `/dashboard/erp/tutores/${a.tutor.id}` : null); if (url) window.open(url, "_blank"); }}>{/petlife/i.test(a.pet?.insurancePlan || "") && <span title="Convênio Petlife" className="shrink-0" style={{ fontSize: "8px", fontWeight: 700, background: "#EDE7F6", color: "#5E35B1", borderRadius: 4, padding: "0 4px", lineHeight: "14px", whiteSpace: "nowrap", letterSpacing: ".02em" }}>🩺 Petlife</span>}{a.origem === "PORTAL" && <span title="O próprio tutor marcou pelo Portal do Tutor" className="shrink-0">📱</span>}<span className="truncate">{quem}</span></div>
-                            {/* Parceiro na MESMA linha do tipo: linha extra deixava o cartão mais alto e "quebrava" a grade. */}
-                            <div className="text-[10px] truncate flex items-center gap-1" style={{ color: cor.c }}>
-                              <span className="truncate">{a.type || "Atendimento"}</span>
-                              {terc?.nome && <span className="truncate font-medium" style={{ color: corParceiro(terc.id), maxWidth: "55%" }} title={`Parceiro: ${terc.nome}`}>· 🤝 {terc.nome}</span>}
-                              {tipoFisio(a) && (() => { const env = boletinsEnv.has(`${a.pet?.id || a.petId}|${ymd(new Date(a.date))}`); return <span title={env ? "Boletim enviado ✅" : "Boletim ainda não enviado"} className="shrink-0" style={{ fontSize: "9px" }}>{env ? "🌿✅" : "🌿✉️"}</span>; })()}
-                            </div>
-                            {/* Controle de estágio: um elemento só que avança Agendado → Chegou → Em atendimento → Concluído. */}
-                            {!espelho && (() => {
-                              const idx = estagioIdx(a.status); const est = ESTAGIOS[idx];
-                              return (
-                                <div className="mt-1" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center rounded-md overflow-hidden border" style={{ borderColor: "#00000010" }}>
-                                    {idx > 0 && (
-                                      <button onClick={() => retrocederEstagio(a)} disabled={avancandoId === a.id} title="Voltar o estágio" className="px-1.5 py-[3px] text-[9.5px] font-bold border-r disabled:opacity-50" style={{ background: "#fff", color: "#374151", borderColor: "#00000010" }}>‹</button>
-                                    )}
-                                    <span className="flex-1 px-1.5 py-[3px] text-[9.5px] font-bold truncate" style={{ background: est.bg, color: est.cor }}>{est.label}</span>
-                                    {est.next && (
-                                      <button onClick={() => avancarEstagio(a)} disabled={avancandoId === a.id} className="px-1.5 py-[3px] text-[9.5px] font-bold border-l disabled:opacity-50" style={{ background: "#fff", color: "#009AAC", borderColor: "#00000010" }}>{avancandoId === a.id ? "…" : est.acao}</button>
-                                    )}
-                                  </div>
-                                  <div className="flex gap-0.5 mt-0.5">{[0, 1, 2, 3].map((i) => <span key={i} className="h-[2px] flex-1 rounded" style={{ background: i <= idx ? "#009AAC" : "#E8E2D6" }} />)}</div>
-                                </div>
-                              );
-                            })()}
-                            {travaSala(a) && (
-                              <div className="text-[9px] truncate" style={{ color: "#B23B39" }}>
-                                {String(a.pet?.temperament || "").toLowerCase()} · {espelho ? `está na ${donaNome}` : "ocupa as duas"}
-                              </div>
-                            )}
-                            {/* Recado da recepção: aparece no card, não só no tooltip —
-                                recado que exige passar o mouse não é recado. */}
-                            {obs && (
-                              <div className="text-[9px] truncate mt-0.5 px-1 py-0.5 rounded" title={obs} style={{ color: "#8a6400", background: "#FBF3E3" }}>
-                                📝 {obs}
+                            <div className="text-[13px] font-semibold truncate" style={{ color: "#013D4A" }}>{/petlife/i.test(a.pet?.insurancePlan || "") && <span title="Petlife" style={{ fontSize: "8px", fontWeight: 700, background: "#EDE7F6", color: "#5E35B1", borderRadius: 4, padding: "0 4px", marginRight: 3 }}>🩺</span>}{a.origem === "PORTAL" && <span title="O próprio tutor marcou pelo Portal do Tutor" className="shrink-0" style={{ marginRight: 3 }}>📱</span>}<NomeClicavel a={a} /></div>
+                            {height > 44 && <div className="text-[10.5px] truncate" style={{ color: cor.c }}>{a.type || "Atendimento"}{terc?.nome ? ` · 🤝 ${terc.nome}` : ""}</div>}
+                            {height > 58 && !espelho && (
+                              <div className="inline-flex items-center rounded-md overflow-hidden border" style={{ borderColor: "#00000012" }} onClick={(e) => e.stopPropagation()}>
+                                {idx > 0 && <button onClick={() => retrocederEstagio(a)} disabled={avancandoId === a.id} className="px-1.5 py-[2px] text-[9.5px] font-bold border-r disabled:opacity-50" style={{ background: "#fff", color: "#374151", borderColor: "#00000012" }}>‹</button>}
+                                <span className="px-2 py-[2px] text-[9.5px] font-bold" style={{ background: est.bg, color: est.cor }}>{est.label}</span>
+                                {est.next && <button onClick={() => avancarEstagio(a)} disabled={avancandoId === a.id} className="px-1.5 py-[2px] text-[9.5px] font-bold border-l disabled:opacity-50" style={{ background: "#fff", color: "#009AAC", borderColor: "#00000012" }}>{avancandoId === a.id ? "…" : est.acao}</button>}
                               </div>
                             )}
                           </div>
-                        ); })}
-                      </div>
-                      );
-                    })}
-                  </div>
-                )))}
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-3 flex-wrap px-3 py-2 border-t text-[11px] text-[#5C6B70]" style={{ borderColor: "#F0EBE0" }}>
+                <span>🎨 Cor por serviço · barrinha/cabeçalho = profissional · clique num horário livre pra agendar · arraste pra remarcar.</span>
               </div>
             </div>
           )}
-          <div className="flex gap-3 flex-wrap px-3 py-2 border-t text-[11px] text-[#5C6B70]" style={{ borderColor: "#F0EBE0" }}>
-            <span className="flex items-center gap-1">🔵 Agendado</span>
-            <span className="flex items-center gap-1">🟠 Em espera</span>
-            <span className="flex items-center gap-1">🟢 Em atendimento</span>
-            <span className="flex items-center gap-1">✅ Atendido</span>
-            <span className="flex items-center gap-1">🔴 Atrasado</span>
-          </div>
         </div>
-
       </div>
 
       </>)}
@@ -707,7 +715,7 @@ export default function AgendaPage() {
           <div className="grid" style={{ gridTemplateColumns: "repeat(7,minmax(120px,1fr))" }}>
             {Array.from({ length: 7 }, (_, i) => addD(startOfWeek(dia), i)).map((d) => {
               const ds = ymd(d); const hoje = ds === ymd(new Date());
-              const list = appts.filter((a: any) => a.date && ymd(new Date(a.date)) === ds).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              const list = agendaDoDia(ds);
               return (
                 <div key={ds} className="border-l first:border-l-0 min-h-[360px]" style={{ borderColor: "#F0EBE0" }}>
                   <button onClick={() => { setDia(d); setView("dia"); }} className="w-full text-center py-2 border-b hover:bg-[#f6fdfd]" style={{ borderColor: "#F0EBE0", background: hoje ? "#E1F3F5" : "#FBF9F4" }}>
@@ -718,7 +726,7 @@ export default function AgendaPage() {
                     {list.length === 0 ? <div className="text-[10px] text-gray-300 text-center py-3">—</div> : list.map((a: any) => { const cor = corDe(a.status, cfg?.cores); return (
                       <div key={a.id} onClick={(e) => cardMenu(e, a)} title="Clique para ações" className="rounded-r-md px-1.5 py-1 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
                         <div className="text-[10px] font-medium" style={{ color: cor.c }}>{hm(new Date(a.date))}</div>
-                        <div className="text-[11px] truncate" style={{ color: "#014D5E" }}>{a.pet?.name || a.tutor?.name || "Agendamento"}</div>
+                        <div className="text-[11px] truncate" style={{ color: "#014D5E" }}><NomeClicavel a={a} tutor={false} /></div>
                       </div>
                     ); })}
                   </div>
@@ -737,7 +745,7 @@ export default function AgendaPage() {
           <div className="grid" style={{ gridTemplateColumns: "repeat(7,1fr)" }}>
             {Array.from({ length: 42 }, (_, i) => addD(startOfWeek(new Date(dia.getFullYear(), dia.getMonth(), 1)), i)).map((d) => {
               const ds = ymd(d); const inMonth = d.getMonth() === dia.getMonth(); const hoje = ds === ymd(new Date());
-              const list = appts.filter((a: any) => a.date && ymd(new Date(a.date)) === ds).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+              const list = agendaDoDia(ds);
               return (
                 <div key={ds} onClick={() => { setDia(d); setView("dia"); }} className="border-l border-t p-1 min-h-[92px] cursor-pointer hover:bg-[#f9fbfb]" style={{ borderColor: "#F0EBE0", opacity: inMonth ? 1 : 0.4, background: hoje ? "#F2FBFC" : undefined }}>
                   <div className="text-[11px] font-medium mb-0.5" style={{ color: hoje ? "#014D5E" : "#014D5E" }}>{d.getDate()}</div>
@@ -787,7 +795,12 @@ export default function AgendaPage() {
             <div className="px-4 pt-3 text-[11px]" style={{ color: "#5C6B70" }}>Modelo: <b style={{ color: "#0F6E56" }}>{tplConfirmacao(confirmData)}</b></div>
             <div className="p-4">
               <div style={{ background: "#DCF8C6", borderRadius: "10px 10px 10px 2px", padding: "10px 12px", fontSize: 12.5, color: "#1f2a2e", whiteSpace: "pre-wrap", maxHeight: 320, overflowY: "auto" }}>{msgConfirmacao(confirmData)}</div>
-              <div className="text-[11px] mt-2" style={{ color: "#374151" }}>Nome, data, hora e pet vêm do agendamento.</div>
+              {/* Botões que vêm no template da Meta — o cliente toca e a agenda atualiza sozinha. */}
+              <div style={{ marginTop: 6, borderRadius: 10, overflow: "hidden", border: "1px solid #E3E8EA", background: "#fff" }}>
+                <div style={{ padding: "9px", textAlign: "center", fontSize: 12.5, color: "#0a7cff", fontWeight: 600 }}>Confirmar</div>
+                <div style={{ padding: "9px", textAlign: "center", fontSize: 12.5, color: "#0a7cff", fontWeight: 600, borderTop: "1px solid #E3E8EA" }}>Remarcar</div>
+              </div>
+              <div className="text-[11px] mt-2" style={{ color: "#374151" }}>É o <b>template aprovado da Meta</b>, com esses <b>botões</b>: o cliente toca e a agenda atualiza sozinha (Confirmado / Remarcar). Nome, data, hora, pet e profissional vêm do agendamento.</div>
             </div>
             <div className="px-4 py-3 border-t flex gap-2" style={{ borderColor: "#F0EBE0" }}>
               <button disabled={sending} onClick={() => setConfirmData(null)} className="px-4 py-2.5 rounded-xl text-[13px]" style={{ background: "#fff", border: "1px solid #E8E2D6", color: "#5C6B70" }}>Cancelar</button>

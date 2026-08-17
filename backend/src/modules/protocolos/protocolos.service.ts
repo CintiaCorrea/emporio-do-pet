@@ -149,6 +149,7 @@ export class ProtocolosService {
         tipo,
         templateId: template?.id ?? null,
         nomeProtocolo,
+        marca: dto.marca ?? null,
         dataInicial,
         observacao: dto.observacao ?? null,
         appointmentId: dto.appointmentId ?? null,
@@ -309,15 +310,34 @@ export class ProtocolosService {
     }
     const updated = await this.prisma.protocoloDose.update({ where: { id: doseId }, data });
 
-    // se todas as doses do protocolo ficaram aplicadas/canceladas, conclui o protocolo
+    // se todas as doses do protocolo ficaram aplicadas/canceladas:
     const restantes = await this.prisma.protocoloDose.count({
       where: { protocoloId: dose.protocoloId, status: 'PENDENTE' },
     });
     if (restantes === 0) {
-      await this.prisma.protocoloAplicado.update({
+      // 🔁 REFORÇO AUTOMÁTICO: se o protocolo tem template com reforço (ex.: 12 = anual), cria a
+      // dose do PRÓXIMO reforço (data = aplicação + reforço) e mantém o protocolo EM_ANDAMENTO —
+      // assim o lembrete de WhatsApp da próxima sai sozinho, sem re-cadastrar todo ano. Idempotente:
+      // depois de criar, já existe 1 dose pendente, então não recria ao reeditar a mesma dose.
+      const aplicado = await this.prisma.protocoloAplicado.findUnique({
         where: { id: dose.protocoloId },
-        data: { status: 'CONCLUIDO' },
+        include: { template: { select: { reforcoMeses: true } }, doses: { select: { numero: true } } },
       });
+      const meses = aplicado?.template?.reforcoMeses ?? null;
+      if (aplicado && meses && meses > 0) {
+        const base = updated.dataAplicada ? new Date(updated.dataAplicada) : new Date();
+        const prox = new Date(base); prox.setMonth(prox.getMonth() + meses);
+        const maxNum = aplicado.doses.reduce((mx, d) => Math.max(mx, d.numero || 0), 0);
+        await this.prisma.protocoloDose.create({
+          data: { protocoloId: aplicado.id, numero: maxNum + 1, dataPrevista: prox, status: 'PENDENTE' },
+        });
+        // protocolo segue EM_ANDAMENTO (tem a dose do reforço pendente) — NÃO conclui.
+      } else {
+        await this.prisma.protocoloAplicado.update({
+          where: { id: dose.protocoloId },
+          data: { status: 'CONCLUIDO' },
+        });
+      }
     }
     return updated;
   }

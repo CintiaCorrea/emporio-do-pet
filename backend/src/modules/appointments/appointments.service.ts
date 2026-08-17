@@ -52,7 +52,12 @@ export class AppointmentsService {
     const hora = mn && mn !== '00' ? `${hh}h${mn}` : `${hh}h`;
     const tutor = (appt.tutor?.name || 'tutor').trim().split(/\s+/)[0];
     const pet = appt.pet?.name || 'seu pet';
-    const prof = (appt.user?.name || 'nossa equipe').trim();
+    // #12 — o "profissional" só sai com NOME se for veterinário. Se o agendamento estiver com
+    // recepcionista/gerente no userId (quem operou), sai "nossa equipe" pra não mandar o nome errado
+    // (bug do caso Julianna 07/08: confirmação saiu no nome da recepcionista Maria Gabriela).
+    const profTipo = appt.user?.profissional?.tipo;
+    const profNome = (appt.user?.profissional?.nomeExibicao || appt.user?.name || '').trim();
+    const prof = (profTipo === 'RECEPCIONISTA' || profTipo === 'GERENTE' || !profNome) ? 'nossa equipe' : profNome;
     const T = (text: string) => ({ type: 'text' as const, text });
 
     if (this.isFisio(appt)) {
@@ -88,6 +93,44 @@ export class AppointmentsService {
     });
 
     return { success: true, to: phone, templateName };
+  }
+
+  /**
+   * Aviso automático de AGENDADO — o MESMO texto simples que o "+" da conversa manda ao criar
+   * ("✅ Agendamento confirmado! Pet — dd/mm às HH:MM..."). Usado no REAGENDAMENTO feito pelo inbox,
+   * pra NÃO mandar o template de confirmação de presença. A confirmação de véspera continua saindo
+   * normalmente pelo scheduler no dia anterior à nova data.
+   */
+  async sendAvisoAgendado(id: string) {
+    const appt = await this.findById(id);
+    const contatos = await this.prisma.contact.findMany({
+      where: { tutorId: appt.tutorId },
+      orderBy: [{ isPrimary: 'desc' }, { isWhatsApp: 'desc' }],
+      take: 1,
+    });
+    const phone = contatos[0]?.number;
+    if (!phone) return { success: false, error: 'Tutor sem telefone/WhatsApp cadastrado.' };
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Fortaleza',
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(new Date(appt.date));
+    const get = (t: string) => parts.find((p) => p.type === t)?.value || '';
+    const dia = `${get('day')}/${get('month')}`;
+    const hora = `${get('hour')}:${get('minute')}`;
+    const pet = appt.pet?.name ? `${appt.pet.name} — ` : '';
+    const msg = `✅ Agendamento confirmado! ${pet}${dia} às ${hora}. Qualquer coisa é só chamar por aqui. 🐾`;
+    const res = await this.whatsapp.enviarTextoRegistrando(phone, msg);
+    return res?.success ? { success: true, to: phone } : { success: false, error: res?.error };
+  }
+
+  /** Confirma a presença MANUALMENTE (cliente confirmou por telefone/pessoalmente, sem WhatsApp). */
+  async confirmarManual(id: string) {
+    await this.findById(id);
+    await this.prisma.appointment.update({
+      where: { id },
+      data: { confirmacaoStatus: 'CONFIRMADO' },
+    });
+    return { success: true };
   }
 
   /** Cancela o agendamento com motivo opcional (lista) + observação livre. */
@@ -240,6 +283,15 @@ export class AppointmentsService {
     const finalStatus = createAppointmentDto.status || 'SCHEDULED';
 
     const dto = createAppointmentDto as any;
+    // 🧾 Fatia 0 (13/08): se a venda vier SEM total mas COM itens, calcula o total pela SOMA dos itens.
+    // Sem isso, a comanda da ficha do pet (que envia só `items`, sem `value`) nascia com value=0 e
+    // SUMIA do Caixa/PDV (que listam só vendas com value>0). Mesma fórmula do item (createMany, ~L413).
+    const _itensDto = ((createAppointmentDto as any).items || []) as any[];
+    const _somaItens = _itensDto.reduce((s: number, it: any) => {
+      const qtd = Number(it.quantidade ?? 1); const unit = Number(it.valorUnitario ?? 0); const desc = Number(it.desconto ?? 0);
+      const total = Number.isFinite(it.valorTotal) ? Number(it.valorTotal) : (qtd * unit - desc);
+      return s + (Number.isFinite(total) ? total : 0);
+    }, 0);
     const appointmentData: any = {
       tutorId: createAppointmentDto.tutorId,
       petId: finalPetId,
@@ -249,7 +301,7 @@ export class AppointmentsService {
       duration: createAppointmentDto.duration || 30,
       description: createAppointmentDto.description ?? null,
       notes: createAppointmentDto.notes ?? null,
-      value: createAppointmentDto.value || 0,
+      value: Number(createAppointmentDto.value) || _somaItens || 0,
       status: finalStatus,
       paymentStatus: createAppointmentDto.paymentStatus || 'PENDING',
       // Campos clínicos
@@ -274,7 +326,10 @@ export class AppointmentsService {
     // agendamento ATIVO hoje, REAPROVEITA esse agendamento (atualiza, mantendo horário/coluna)
     // em vez de criar outro — senão a agenda mostra o agendado + o atendimento como 2 cartões.
     let reuseId: string | null = null;
-    if (/(realiz|conclu|atend)/.test(String(finalStatus).toLowerCase())) {
+    // ⚠️ NÃO reaproveitar quando o NOVO registro é um documento/receita/peso/venda — senão
+    // salvar uma receita durante um atendimento ativo "sequestra" a consulta (bug ficha 10/08).
+    const tiposDoc = ['Documento', 'Peso', 'Receitas', 'Receita', 'Venda', 'Observação'];
+    if (!tiposDoc.includes(String(appointmentData.type)) && /(realiz|conclu|atend)/.test(String(finalStatus).toLowerCase())) {
       const d0 = new Date(appointmentDate); d0.setHours(0, 0, 0, 0);
       const d1 = new Date(appointmentDate); d1.setHours(23, 59, 59, 999);
       const agendado = await this.prisma.appointment.findFirst({
@@ -292,7 +347,8 @@ export class AppointmentsService {
     const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       let appointment: any;
       if (reuseId) {
-        // mantém o HORÁRIO e a coluna (date/userId/agendaAvulsa) agendados; aplica o atendimento por cima.
+        // mantém o HORÁRIO e a coluna agendados (date/userId/agendaAvulsa) — a Cintia quer o
+        // horário MARCADO na agenda + 1 registro só; o atendimento é aplicado por cima do agendado.
         const { date: _d, userId: _u, agendaAvulsa: _a, ...dadosAtendimento } = appointmentData;
         appointment = await tx.appointment.update({ where: { id: reuseId }, data: dadosAtendimento });
       } else {
@@ -374,6 +430,7 @@ export class AppointmentsService {
               descricao: it.descricao ?? null,
               executorUserId: it.executorUserId ?? null,
               fornecedorId: it.fornecedorId ?? null,
+              catalogoItemId: it.catalogoItemId ?? null,
               quantidade: qtd,
               valorUnitario: unit,
               custoUnitario: Number(it.custoUnitario ?? 0),
@@ -568,7 +625,7 @@ export class AppointmentsService {
             weight: true,
           },
         },
-        user: { select: { id: true, name: true, email: true } },
+        user: { select: { id: true, name: true, email: true, role: true, profissional: { select: { tipo: true, nomeExibicao: true } } } },
         treatments: {
           include: {
             product: { select: { id: true, name: true, type: true, price: true } },
@@ -719,6 +776,10 @@ export class AppointmentsService {
           });
           return criado;
         });
+        // Reagendamento: avisa o cliente do NOVO dia/horário com a MESMA mensagem automática do "+"
+        // da conversa ("✅ Agendamento confirmado! …"), NÃO o template de confirmação de presença.
+        // Best-effort — se o WhatsApp falhar, a remarcação segue valendo.
+        this.sendAvisoAgendado(novo.id).catch(() => undefined);
         return this.findById(novo.id);
       }
     }
@@ -819,6 +880,7 @@ export class AppointmentsService {
                 descricao: it.descricao ?? null,
                 executorUserId: it.executorUserId ?? null,
                 fornecedorId: it.fornecedorId ?? null,
+                catalogoItemId: it.catalogoItemId ?? null,
                 quantidade: qtd,
                 valorUnitario: unit,
                 custoUnitario: Number(it.custoUnitario ?? 0),

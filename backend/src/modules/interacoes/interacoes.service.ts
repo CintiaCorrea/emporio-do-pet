@@ -26,8 +26,28 @@ export class InteracoesService {
       if (data.leadId) await this.prisma.lead.update({ where: { id: data.leadId }, data: { proximoFollowupAt: data.proximoFollowupAt } as any });
       if (data.tutorId) await this.prisma.tutor.update({ where: { id: data.tutorId }, data: { proximoFollowupAt: data.proximoFollowupAt } as any });
       if (data.petId) await this.prisma.pet.update({ where: { id: data.petId }, data: { proximoFollowupAt: data.proximoFollowupAt } as any });
+      // 👤 RESPONSÁVEL AUTOMÁTICO (13/08): quem AGENDA o retorno vira o dono do follow-up.
+      // Grava na KV fu_responsavel (mesma que a ficha/Meu painel leem) → o retorno cai no
+      // painel da pessoa certa, sem passo manual. Sem autor (automação) = fica sem dono ("a revisar").
+      if (data.autorUserId) {
+        const nome = created?.autor?.name || '';
+        if (data.leadId) await this.marcarRespFU('leadId', data.leadId, data.autorUserId, nome);
+        if (data.tutorId) await this.marcarRespFU('tutorId', data.tutorId, data.autorUserId, nome);
+        if (data.petId) await this.marcarRespFU('petId', data.petId, data.autorUserId, nome);
+      }
     }
     return created;
+  }
+
+  /** Upsert do responsável do follow-up (KV fu_responsavel, uma entrada por alvo). Best-effort. */
+  private async marcarRespFU(field: 'petId' | 'tutorId' | 'leadId', id: string, userId: string, nome: string) {
+    if (!id || !userId) return;
+    try {
+      const existing = await this.prisma.listaItem.findFirst({ where: { lista: 'fu_responsavel', valor: { contains: `"${field}":"${id}"` } } });
+      const valor = JSON.stringify({ [field]: id, userId, nome, at: new Date().toISOString() });
+      if (existing) await this.prisma.listaItem.update({ where: { id: existing.id }, data: { valor } });
+      else await this.prisma.listaItem.create({ data: { lista: 'fu_responsavel', valor } });
+    } catch { /* best-effort: nunca trava o registro da interação */ }
   }
 
   async findAll(params: { leadId?: string; tutorId?: string; petId?: string; canal?: string; tipo?: string; limit?: number }) {

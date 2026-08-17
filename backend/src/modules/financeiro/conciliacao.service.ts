@@ -29,8 +29,12 @@ export class ConciliacaoService {
    */
   async preview(dto: PreviewConciliacaoDto) {
     const tolDias = dto.toleranciaDias ?? 15;
+    // Pool de casamento: contas a pagar/receber PENDENTES (manuais) + receitas/despesas do
+    // CAIXA já CONFIRMADAS mas ainda não batidas com o banco. Sem isso o extrato não enxerga
+    // as vendas do caixa (elas nascem CONFIRMADO) e sugeria "criar" (duplicava). CONCILIADO fica
+    // de fora (já batido). TRANSFERENCIA idem (extrato traz receita/despesa, não transferência).
     const pendentes = await this.prisma.lancamento.findMany({
-      where: { status: 'PENDENTE' },
+      where: { status: { in: ['PENDENTE', 'CONFIRMADO'] }, tipo: { in: ['RECEITA', 'DESPESA'] } },
     });
 
     const eids = dto.linhas.map((l) => l.externalId || this.eid(l));
@@ -55,9 +59,12 @@ export class ConciliacaoService {
         const diff = Math.abs(linha.valorCentavos - p.valorCentavos);
         const tolValor = Math.max(Math.round(p.valorCentavos * 0.3), 5000); // 30% ou R$50
         if (diff > tolValor) continue;
-        if (p.vencimento) {
+        // Janela de data: PENDENTE compara pelo vencimento; CONFIRMADO (venda do caixa, sem
+        // vencimento) compara pela data em que o $ entrou (dataPagamento) ou pela data do lançamento.
+        const refData = p.vencimento ?? p.dataPagamento ?? p.data;
+        if (refData) {
           const dd = Math.abs(
-            (new Date(linha.data).getTime() - new Date(p.vencimento).getTime()) / 86400000,
+            (new Date(linha.data).getTime() - new Date(refData).getTime()) / 86400000,
           );
           if (dd > tolDias) continue;
         }
@@ -106,28 +113,35 @@ export class ConciliacaoService {
         });
         // Receita que caiu líquida (link/cartão): a diferença vira Taxa Operadora de Cartão
         // (dedução, grupo 2) — a receita fica BRUTA no DRE e o caixa fecha com o banco.
-        if (a.taxaCartaoCentavos && a.taxaCartaoCentavos > 0) {
+        // Só cria a taxa aqui se a venda NÃO for do caixa (origem CRM) — pra venda do caixa a taxa
+        // já é lançada automaticamente pelo recebimento (evita taxa duplicada). E com externalId
+        // pra não repetir se a mesma linha for reconciliada de novo.
+        if (a.taxaCartaoCentavos && a.taxaCartaoCentavos > 0 && (conciliado.origem as any) !== 'CRM') {
           const catTaxa = await this.prisma.categoria.findFirst({
             where: { nome: { contains: 'Taxa Operadora' } },
           });
-          await this.prisma.lancamento.create({
-            data: {
-              data: dataPg,
-              competencia: new Date(
-                Date.UTC(dataPg.getUTCFullYear(), dataPg.getUTCMonth(), 1),
-              ),
-              dataPagamento: dataPg,
-              tipo: 'DESPESA',
-              status: 'CONCILIADO',
-              descricao: `Taxa de cartão — ${conciliado.descricao ?? 'venda por link'}`,
-              valorCentavos: a.taxaCartaoCentavos,
-              unidadeId: conciliado.unidadeId,
-              contaId: conciliado.contaId,
-              categoriaId: catTaxa?.id ?? null,
-              marcaId: conciliado.marcaId,
-              linhaServicoId: conciliado.linhaServicoId,
-            },
-          });
+          try {
+            await this.prisma.lancamento.create({
+              data: {
+                data: dataPg,
+                competencia: new Date(
+                  Date.UTC(dataPg.getUTCFullYear(), dataPg.getUTCMonth(), 1),
+                ),
+                dataPagamento: dataPg,
+                tipo: 'DESPESA',
+                status: 'CONCILIADO',
+                descricao: `Taxa de cartão — ${conciliado.descricao ?? 'venda por link'}`,
+                valorCentavos: a.taxaCartaoCentavos,
+                unidadeId: conciliado.unidadeId,
+                contaId: conciliado.contaId,
+                categoriaId: catTaxa?.id ?? null,
+                marcaId: conciliado.marcaId,
+                linhaServicoId: conciliado.linhaServicoId,
+                origem: 'MEU_DINHEIRO' as any,
+                externalId: `taxa-concil:${a.lancamentoId}`,
+              },
+            });
+          } catch { /* já existe (unique origem+externalId) — não duplica */ }
         }
         conciliados++;
       } else if (a.tipo === 'CRIAR' && a.linha) {

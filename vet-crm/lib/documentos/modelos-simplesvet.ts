@@ -480,43 +480,50 @@ Estamos felizes em cuidar do seu animal de estimação com o apoio da ozoniotera
   },
   {
     nome: "Receituário de Controle Especial",
-    corpo: `RECEITUÁRIO DE CONTROLE ESPECIAL
+    // Layout A4 estruturado (fig 2). O TIMBRADO (logo + título + dados do animal em 2 colunas)
+    // é montado pelo montarTimbradoHtml na impressão — aqui vai só o CORPO. Formulário EM BRANCO:
+    // a prescrição é preenchida à mão. Comprador e Fornecedor lado a lado.
+    corpo: `<div style="font-size:11px;line-height:1.4;color:#14253a">
+  <div style="font-weight:700;letter-spacing:.04em;margin:2px 0 6px">USO ORAL</div>
+  <div style="border:1px solid #d9d4c8;border-radius:6px;padding:10px 12px;margin-bottom:12px;min-height:118px">
+    <div style="border-bottom:1px solid #cfcabb;height:24px"></div>
+    <div style="border-bottom:1px solid #cfcabb;height:24px"></div>
+    <div style="border-bottom:1px solid #cfcabb;height:24px"></div>
+    <div style="border-bottom:1px solid #cfcabb;height:24px"></div>
+  </div>
 
-Prescrição:
-______________________________________________________________
-______________________________________________________________
-______________________________________________________________
+  <div style="margin-bottom:5px"><b>Dados do emitente:</b></div>
+  <div style="margin-bottom:2px">Nome: <b>@USUARIO_NOMEPUBLICO@</b> &nbsp; @USUARIO_CRMV@ &nbsp;·&nbsp; Nº (MAPA/Seq./Ano): ____________</div>
+  <div style="margin-bottom:2px">Endereço: @CLINICA_ENDERECO@ — @CLINICA_CIDADE@/@CLINICA_ESTADO@</div>
+  <div style="margin-bottom:2px">Telefone: @CLINICA_TELEFONE@ &nbsp;·&nbsp; Data de emissão: @GERAL_DATA@</div>
 
-Dados do emitente:
-Nome: @USUARIO_NOMEPUBLICO@    @USUARIO_CRMV@    Número MAPA-Sequência-Ano: ____________
-Endereço: @CLINICA_ENDERECO@
-Cidade / Estado: @CLINICA_CIDADE@, @CLINICA_ESTADO@
-Telefones: @CLINICA_TELEFONE@ - @CLINICA_TELEFONE2@
-Data de emissão: @GERAL_DATA@
+  <div style="text-align:center;margin:32px auto 8px;max-width:340px">
+    <div style="border-top:1px solid #14253a;padding-top:5px"><b>@USUARIO_NOMEPUBLICO@</b> &nbsp; @USUARIO_CRMV@</div>
+  </div>
 
+  <div style="margin:8px 0 10px">Farmácia veterinária (&nbsp;&nbsp;&nbsp;) &nbsp;&nbsp;&nbsp; Farmácia Humana (&nbsp;&nbsp;&nbsp;)</div>
 
-_________________________________
-@USUARIO_NOMEPUBLICO@
-@USUARIO_CRMV@
+  <div style="display:flex;gap:12px">
+    <div style="flex:1;border:1px solid #d9d4c8;border-radius:6px;padding:9px 11px">
+      <div style="font-weight:700;margin-bottom:7px">Identificação do comprador</div>
+      <div style="margin-bottom:6px">Nome: ______________________________</div>
+      <div style="margin-bottom:6px">RG: _______________ Órg. Emissor: ______</div>
+      <div style="margin-bottom:6px">Endereço: ___________________________</div>
+      <div style="margin-bottom:6px">Cidade: _________________ UF: ______</div>
+      <div>Telefone: __________________________</div>
+    </div>
+    <div style="flex:1;border:1px solid #d9d4c8;border-radius:6px;padding:9px 11px;display:flex;flex-direction:column">
+      <div style="font-weight:700;margin-bottom:7px">Identificação do fornecedor</div>
+      <div style="margin-bottom:6px">_______________________________</div>
+      <div style="margin-bottom:6px">_______________________________</div>
+      <div style="margin-top:auto;text-align:center;border-top:1px solid #14253a;padding-top:5px">Assinatura do Farmacêutico &nbsp;·&nbsp; DATA __/__/__</div>
+    </div>
+  </div>
 
-Farmácia veterinária (  )      Farmácia Humana (  )
-
-Identificação do comprador:
-Nome: __________________________________
-RG: ___________________ Órg. Emissor: ______
-End.: ___________________________________
-Cidade: ______________________ UF: _______
-Telefone: ________________________________
-
-Identificação do fornecedor:
-______________________________________________________________
-
-
-_____________________________
-Assinatura do Farmacêutico     DATA __/__/__
-
-1ª via - Farmácia
-2ª via - Paciente`,
+  <div style="display:flex;justify-content:space-between;margin-top:14px;font-size:10px;color:#475569">
+    <span>1ª via - Farmácia</span><span>2ª via - Paciente</span>
+  </div>
+</div>`,
   },
   {
     nome: "Recomendações — Cuidados neurológicos/coluna",

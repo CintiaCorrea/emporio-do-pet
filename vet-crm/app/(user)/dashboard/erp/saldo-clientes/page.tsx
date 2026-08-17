@@ -12,9 +12,11 @@ const GREEN = '#0f6e56';
 const ORANGE = '#D85A30';
 const LINE = '#E8E2D6';
 
-interface Saldo { tutorId: string; nome: string; saldo: number }
+interface Saldo { tutorId: string; nome: string; saldo: number; situacao?: 'CREDOR' | 'DEVEDOR'; ultimaCompra?: string | null }
 
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
+const fmtD = (s?: string | null) => (s ? new Date(s).toLocaleDateString('pt-BR') : '—');
+const sit = (r: Saldo): 'CREDOR' | 'DEVEDOR' => r.situacao || (Number(r.saldo) >= 0 ? 'CREDOR' : 'DEVEDOR');
 const th: React.CSSProperties = { color: '#5C6B70', fontWeight: 500, padding: '9px 10px', borderBottom: `1px solid ${LINE}`, textAlign: 'left', fontSize: 12.5 };
 const td: React.CSSProperties = { padding: '10px', borderBottom: '1px solid #F0EBE0', fontSize: 13 };
 
@@ -24,6 +26,7 @@ export default function SaldosPage() {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [ocultar, setOcultar] = useState(false);
+  const [fSit, setFSit] = useState<'ALL' | 'CREDOR' | 'DEVEDOR'>('ALL');
   const money = (v: number) => (ocultar ? 'R$ ••••' : brl(v));
 
   const fetchData = useCallback(async () => {
@@ -39,8 +42,13 @@ export default function SaldosPage() {
 
   const filtradas = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    return q ? rows.filter((r) => (r.nome || '').toLowerCase().includes(q)) : rows;
-  }, [rows, busca]);
+    let arr = rows;
+    if (fSit !== 'ALL') arr = arr.filter((r) => sit(r) === fSit);
+    if (q) arr = arr.filter((r) => (r.nome || '').toLowerCase().includes(q));
+    return arr;
+  }, [rows, busca, fSit]);
+  const nCredores = useMemo(() => rows.filter((r) => sit(r) === 'CREDOR').length, [rows]);
+  const nDevedores = useMemo(() => rows.filter((r) => sit(r) === 'DEVEDOR').length, [rows]);
   const total = useMemo(() => filtradas.reduce((s, r) => s + Number(r.saldo || 0), 0), [filtradas]);
 
   return (
@@ -51,6 +59,11 @@ export default function SaldosPage() {
           <div style={{ position: 'relative', flex: '1 1 260px', maxWidth: 360 }}>
             <LuSearch size={15} style={{ position: 'absolute', left: 10, top: 10, color: '#374151' }} />
             <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar cliente…" style={{ ...inp, width: '100%', paddingLeft: 32, boxSizing: 'border-box' }} />
+          </div>
+          <div style={{ display: 'inline-flex', border: '1px solid #E8E2D6', borderRadius: 9, overflow: 'hidden' }}>
+            {(([['ALL', 'Todos'], ['CREDOR', `Credores (${nCredores})`], ['DEVEDOR', `Devedores (${nDevedores})`]]) as [typeof fSit, string][]).map(([k, l]) => (
+              <button key={k} onClick={() => setFSit(k)} style={{ border: 'none', padding: '9px 12px', fontSize: 12.5, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', background: fSit === k ? '#E0F4F6' : '#fff', color: fSit === k ? '#014D5E' : '#5C6B70' }}>{l}</button>
+            ))}
           </div>
           <button onClick={() => setOcultar((v) => !v)} style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '9px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #E8E2D6', background: '#fff', color: TEAL_DARK }}>
             {ocultar ? <LuEyeOff size={15} /> : <LuEye size={15} />}{ocultar ? 'Mostrar valores' : 'Esconder valores'}
@@ -65,16 +78,18 @@ export default function SaldosPage() {
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={th}>Cliente</th><th style={{ ...th, textAlign: 'right' }}>Saldo</th></tr></thead>
+              <thead><tr><th style={th}>Cliente</th><th style={th}>Última compra</th><th style={th}>Situação</th><th style={{ ...th, textAlign: 'right' }}>Saldo</th></tr></thead>
               <tbody>
-                {loading && <tr><td colSpan={2} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Carregando…</td></tr>}
-                {!loading && filtradas.length === 0 && <tr><td colSpan={2} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum cliente com saldo.</td></tr>}
-                {filtradas.map((r) => (
+                {loading && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Carregando…</td></tr>}
+                {!loading && filtradas.length === 0 && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum cliente com saldo.</td></tr>}
+                {filtradas.map((r) => { const credor = sit(r) === 'CREDOR'; return (
                   <tr key={r.tutorId}>
                     <td style={{ ...td, color: '#1F2A2E' }}>{r.nome}</td>
-                    <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: Number(r.saldo) < 0 ? ORANGE : GREEN }}>{money(Number(r.saldo))}</td>
+                    <td style={{ ...td, color: '#5C6B70' }}>{fmtD(r.ultimaCompra)}</td>
+                    <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: credor ? '#E7F6EE' : '#FBEEEC', color: credor ? '#0F6E56' : '#C0392B' }}>{credor ? '🟢 Credor' : '🔴 Devedor'}</span></td>
+                    <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: credor ? GREEN : ORANGE }}>{money(Number(r.saldo))}</td>
                   </tr>
-                ))}
+                ); })}
               </tbody>
             </table>
           </div>
