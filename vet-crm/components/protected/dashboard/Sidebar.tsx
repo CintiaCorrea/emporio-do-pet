@@ -73,6 +73,7 @@ const NAV: Entry[] = [
       { href: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅", roles: ALL },
       { href: "/dashboard/erp/agendamentos/escala", label: "Escala", emoji: "🗓️", roles: ALL },
       { href: "/dashboard/erp/agendamentos/configuracoes", label: "Configuração", emoji: "⚙️", roles: ["ADMIN"] },
+      { href: "/dashboard/configuracoes/agendamento-online", label: "Agendamento online", emoji: "🌐", roles: ["ADMIN"] },
     ],
   },
   { href: "/dashboard/erp/internacoes", label: "Internação", emoji: "🏥", roles: ALL, section: "DIA" },

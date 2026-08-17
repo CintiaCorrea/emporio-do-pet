@@ -35,6 +35,7 @@ export const PERM_SECTIONS: PermSection[] = [
           { key: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅" },
           { key: "/dashboard/erp/agendamentos/escala", label: "Escala", emoji: "🗓️" },
           { key: "/dashboard/erp/agendamentos/configuracoes", label: "Configuração", emoji: "⚙️" },
+          { key: "/dashboard/configuracoes/agendamento-online", label: "Agendamento online", emoji: "🌐" },
         ],
       },
       { key: "/dashboard/erp/vacinacao", label: "Vacinação", emoji: "💉" },
