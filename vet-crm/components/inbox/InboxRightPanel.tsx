@@ -1236,6 +1236,14 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   const [proximasConsultas, setProximasConsultas] = useState<any[]>([]);
   const [agendaOpen, setAgendaOpen] = useState(false);
   const [editAppt, setEditAppt] = useState<any>(null); // agendamento sendo editado/cancelado a partir do card
+  // 📅 Avisa o cliente na conversa (MESMA mensagem da marcação pelo "+"): vale p/ novo agendamento E remarcação.
+  const avisarAgendado = (info?: { date?: string; time?: string; petNome?: string }) => {
+    if (!info?.date || !info?.time || !onEnviarTexto) return;
+    const [, mm, dd] = String(info.date).split("-");
+    const diaBR = dd && mm ? `${dd}/${mm}` : info.date;
+    const petTxt = info.petNome ? `${info.petNome} — ` : "";
+    onEnviarTexto(`✅ Agendamento confirmado! ${petTxt}${diaBR} às ${info.time}. Qualquer coisa é só chamar por aqui. 🐾`);
+  };
   const [orcRapidoOpen, setOrcRapidoOpen] = useState(false); // popup de orçamento rápido (envia pelo WhatsApp)
   const [proximasTick, setProximasTick] = useState(0);
   const agendaDefaults = useMemo(() => (tutor && selectedPet ? { tutor, petId: selectedPet.id } : undefined), [tutor?.id, selectedPet?.id]);
@@ -2636,7 +2644,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                   </div>
                 )}
                 {editAppt && (
-                  <NovoAgendamentoModal open={!!editAppt} editAppt={editAppt} onClose={() => setEditAppt(null)} onCreated={() => { setEditAppt(null); setProximasTick((t) => t + 1); }} />
+                  <NovoAgendamentoModal open={!!editAppt} editAppt={editAppt} onClose={() => setEditAppt(null)} onCreated={(info) => { setEditAppt(null); setProximasTick((t) => t + 1); avisarAgendado(info); }} />
                 )}
               </section>
             )}
@@ -2658,7 +2666,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                   <button type="button" onClick={() => setPetActForward(o => !o)} title="Encaminhar" className="flex items-center justify-center h-11 rounded-lg border hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuShare2 size={18} style={{ color: "#009AAC" }} /></button>
                   <button type="button" onClick={abrirExames} title="Acompanhar exames do pet" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuFlaskConical size={18} style={{ color: "#009AAC" }} /></button>
                 </div>
-                <NovoAgendamentoModal inline open={agendaOpen} onClose={() => setAgendaOpen(false)} defaults={agendaDefaults} onCreated={() => { setAcaoFeita(true); setProximasTick((t) => t + 1); }} />
+                <NovoAgendamentoModal inline open={agendaOpen} onClose={() => setAgendaOpen(false)} defaults={agendaDefaults} onCreated={(info) => { setAcaoFeita(true); setProximasTick((t) => t + 1); avisarAgendado(info); }} />
                 <OrcamentoRapidoModal open={orcRapidoOpen} onClose={() => setOrcRapidoOpen(false)} pet={selectedPet ? { id: selectedPet.id, name: selectedPet.name } : null} tutor={tutor ? { id: tutor.id, name: tutor.name } : null} onEnviarTexto={onEnviarTexto} phone={initialPhone} />
                 {petActForward && (
                   <div className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
