@@ -293,7 +293,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
         // no card da agenda — evita mandar confirmação para agendamento de dias à frente.
       }
       const petNome = (pets.find((p: any) => p.id === petId)?.name) || novoPetNome.trim() || "";
-      fechar(); if (onCreated) onCreated(editId ? undefined : { date, time, petNome });
+      // Passa data/hora/pet SEMPRE (novo E remarcação) — quem chama decide se avisa o cliente.
+      fechar(); if (onCreated) onCreated({ date, time, petNome });
     } catch { alert("Erro ao criar agendamento. Tente novamente."); } finally { setSaving(false); }
   };
 
