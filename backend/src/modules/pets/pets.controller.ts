@@ -71,6 +71,7 @@ export class PetsController {
     @Query('limit') limit?: number,
     @Query('skip') skip?: number,
     @Query('take') take?: number,
+    @Query('incluirResp2') incluirResp2?: string,
   ) {
     return this.petsService.findAll({
       tutorId,
@@ -81,6 +82,7 @@ export class PetsController {
       limit: limit ? Number(limit) : undefined,
       skip,
       take,
+      incluirResp2: incluirResp2 === '1' || incluirResp2 === 'true',
     });
   }
 

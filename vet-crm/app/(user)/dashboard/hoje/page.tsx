@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
+import { assignFollowUpFor } from "@/lib/followup";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
@@ -316,7 +317,9 @@ export default function HojePage() {
   const [boletinsPend, setBoletinsPend] = useState<any[]>([]);
   const [fuDue, setFuDue] = useState<any[]>([]);
   const [fuDueOpen, setFuDueOpen] = useState(false);
-  const [fuMine, setFuMine] = useState(true); // "Meus" (responsável=eu + sem dono) x "Todos"
+  const [fuFilter, setFuFilter] = useState<"meus" | "revisar" | "todos">("meus"); // Meus (dono=eu) · A revisar (sem dono) · Todos
+  const [vets, setVets] = useState<any[]>([]); // equipe (p/ encaminhar follow-up)
+  const [encaminhando, setEncaminhando] = useState<any | null>(null); // FU sendo encaminhado → abre o seletor de pessoa
   const [toques, setToques] = useState<any[]>([]);
   const [toquesOpen, setToquesOpen] = useState(false);
   const [aniv, setAniv] = useState<any[]>([]);
@@ -485,12 +488,18 @@ export default function HojePage() {
     toast.success(`${ok} exame(s) de ${lab} → ${faseRetirado} 🧪`);
   }
 
-  // 🗑 Excluir boletim pendente (limpa a listagem). Boletim = listaItem petboletim_<pet>.
-  async function deletarBoletim(id: string, nome?: string) {
-    if (!window.confirm(`Excluir o boletim${nome ? ` de ${nome}` : ""}? Ele sai da lista (não é enviado ao tutor). Não dá pra desfazer.`)) return;
+  // 📤 Tirar boletim do painel SEM apagar. Marca dispensadoPainel no JSON → some do painel mas
+  // continua salvo na ficha do pet (não é enviado ao tutor). Boletim = listaItem petboletim_<pet>.
+  async function dispensarBoletim(id: string, dd: any, nome?: string) {
+    if (!window.confirm(`Tirar o boletim${nome ? ` de ${nome}` : ""} do painel?\n\nEle NÃO é enviado ao tutor e continua salvo na ficha do pet.`)) return;
+    const antes = boletinsPend;
     setBoletinsPend((prev) => prev.filter((b) => b.id !== id));
-    try { const r = await fetch(`/api/listas/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); toast.success("Boletim excluído"); }
-    catch { toast.error("Erro ao excluir"); }
+    try {
+      const novo = { ...(dd || {}), dispensadoPainel: true, dispensadoAt: new Date().toISOString() };
+      const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify(novo) }) });
+      if (!r.ok) throw new Error();
+      toast.success("Tirado do painel — segue salvo na ficha ✓");
+    } catch { toast.error("Erro ao tirar do painel"); setBoletinsPend(antes); }
   }
 
   useEffect(() => {
@@ -500,13 +509,16 @@ export default function HojePage() {
       const d = await safeJson<HojeData | null>(res, null);
       setData(d);
       try {
-        const [lst, pts, tts, lds, cds] = await Promise.all([
+        const [lst, pts, tts, lds, cds, usr] = await Promise.all([
           safeJson<any>(await fetch("/api/listas"), []),
           safeJson<any>(await fetch("/api/pets?limit=1000"), []),
           safeJson<any>(await fetch("/api/tutors?limit=1000"), []),
           safeJson<any>(await fetch("/api/leads?limit=1000"), []),
           safeJson<any>(await fetch("/api/cadencias"), []),
+          safeJson<any>(await fetch("/api/users"), []),
         ]);
+        const usrArr = Array.isArray(usr) ? usr : (usr.users || usr.data || []);
+        setVets(usrArr.filter((u: any) => !u.isBlocked));
         const listArr = Array.isArray(lst) ? lst : (lst.itens || lst.data || []);
         const petArr = Array.isArray(pts) ? pts : (pts.pets || pts.data || []);
         const petMap: Record<string, string> = {};
@@ -530,9 +542,9 @@ export default function HojePage() {
         for (const it of listArr) {
           if ((it.lista || "").startsWith("petboletim_")) {
             let dd: any = {}; try { dd = JSON.parse(it.valor); } catch {}
-            if (!dd.enviadoAt) {
+            if (!dd.enviadoAt && !dd.dispensadoPainel) {
               const petId = it.lista.replace("petboletim_", "");
-              bol.push({ id: it.id, petId, petName: petMap[petId] || dd.animal || "Pet", sessao: dd.sessaoNumero || "", mv: dd.mvResponsavel || "", date: dd.sessaoData || dd.createdAt });
+              bol.push({ id: it.id, petId, petName: petMap[petId] || dd.animal || "Pet", sessao: dd.sessaoNumero || "", mv: dd.mvResponsavel || "", date: dd.sessaoData || dd.createdAt, data: dd });
             }
           }
         }
@@ -665,10 +677,26 @@ export default function HojePage() {
     const arr = Array.isArray(dosesPend) ? dosesPend : [];
     return (effectiveRole === "VETERINARIAN" && meId) ? arr.filter((d: any) => d.vetId === meId) : arr;
   }, [dosesPend, effectiveRole, meId]);
-  // Retornos filtrados por responsável: "Meus" = eu OU sem dono; "Todos" = tudo
-  const fuShown = useMemo(() => (
-    fuMine ? fuDue.filter((f: any) => !f.respUserId || f.respUserId === meId) : fuDue
-  ), [fuDue, fuMine, meId]);
+  // Retornos separados: "Meus" = dono sou eu · "A revisar" = SEM dono (você dá destino) · "Todos" = tudo
+  const fuShown = useMemo(() => {
+    if (fuFilter === "todos") return fuDue;
+    if (fuFilter === "revisar") return fuDue.filter((f: any) => !f.respUserId);
+    return fuDue.filter((f: any) => f.respUserId === meId);
+  }, [fuDue, fuFilter, meId]);
+  const fuCounts = useMemo(() => ({
+    meus: fuDue.filter((f: any) => f.respUserId === meId).length,
+    revisar: fuDue.filter((f: any) => !f.respUserId).length,
+    todos: fuDue.length,
+  }), [fuDue, meId]);
+  // Encaminhar um follow-up para outra pessoa: grava responsável + avisa (assignFollowUpFor) e move na lista.
+  async function encaminharFU(fu: any, userId: string, nome: string) {
+    const kind = fu.id?.[0] === "t" ? "tutor" : fu.id?.[0] === "p" ? "pet" : "lead";
+    const rawId = String(fu.id).slice(1);
+    setFuDue((prev) => prev.map((x) => (x.id === fu.id ? { ...x, respUserId: userId, respNome: nome } : x)));
+    setEncaminhando(null);
+    try { await assignFollowUpFor({ kind: kind as any, id: rawId, userId, nome, alvoNome: fu.nome }); toast.success(`Encaminhado para ${String(nome).split(" ")[0]} 👤`); }
+    catch { toast.error("Erro ao encaminhar"); }
+  }
 
   const items: Pendencia[] = useMemo(() => {
     if (!data) return [];
@@ -677,7 +705,7 @@ export default function HojePage() {
         key: "retornos",
         title: "Retornos vencidos",
         sub: "Follow-ups vencidos e de hoje (Cliente/Pet/Lead)",
-        count: fuShown.length,
+        count: fuCounts.meus + fuCounts.revisar,
         link: "Follow-up",
         href: "#",
         Icon: LuRefreshCcw,
@@ -725,7 +753,7 @@ export default function HojePage() {
         emoji: "🎂",
       },
     ];
-  }, [data, examesPend, dosesView, fuShown, toques, aniv, pacRisco]);
+  }, [data, examesPend, dosesView, fuCounts, toques, aniv, pacRisco]);
 
   const total = items.reduce((s, t) => s + t.count, 0);
 
@@ -1168,7 +1196,7 @@ export default function HojePage() {
                 </div>
               );
             }
-            const fuExpand = (list: any[], open: boolean, setOpen: (f: (o: boolean) => boolean) => void, emptyMsg: string, topNode?: any) => (
+            const fuExpand = (list: any[], open: boolean, setOpen: (f: (o: boolean) => boolean) => void, emptyMsg: string, topNode?: any, onEnc?: (e: any) => void) => (
               <div key={p.key}>
                 <div className={rowCls} style={{ borderColor: B44.lineSoft }} onClick={() => setOpen(o => !o)}>{inner}</div>
                 {open && (
@@ -1177,25 +1205,33 @@ export default function HojePage() {
                     {list.length === 0 ? (
                       <div className="px-[58px] py-3 text-xs border-b" style={{ color: B44.text3, borderColor: B44.lineSoft }}>{emptyMsg}</div>
                     ) : list.map((e: any) => (
-                      <Link key={e.id} href={e.href} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: B44.lineSoft }}>
-                        <TipoChip tipo={e.tipo} />
-                        <span className="font-medium" style={{ color: B44.text1 }}>{e.nome}</span>
-                        {e.respNome && <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ background: "#E0F4F6", color: "#00798A" }}>👤 {String(e.respNome).split(" ")[0]}</span>}
-                        {e.date && <span className="ml-auto" style={{ color: B44.text2 }}>{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
-                      </Link>
+                      <div key={e.id} className="flex items-center gap-2 px-[58px] py-2.5 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ borderColor: B44.lineSoft }}>
+                        <Link href={e.href} className="flex items-center gap-2 flex-1 min-w-0">
+                          <TipoChip tipo={e.tipo} />
+                          <span className="font-medium truncate" style={{ color: B44.text1 }}>{e.nome}</span>
+                          {e.respNome && <span className="text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: "#E0F4F6", color: "#00798A" }}>👤 {String(e.respNome).split(" ")[0]}</span>}
+                        </Link>
+                        {e.date && <span className="whitespace-nowrap" style={{ color: B44.text2 }}>{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+                        {onEnc && <button onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); onEnc(e); }} title="Encaminhar para outra pessoa" className="text-[10.5px] px-2 py-1 rounded-md border whitespace-nowrap hover:bg-white" style={{ borderColor: B44.line, color: B44.primary }}>Encaminhar →</button>}
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
             );
-            if (p.key === "retornos") return fuExpand(fuShown, fuDueOpen, setFuDueOpen, fuMine ? "Nenhum follow-up seu (ou sem dono) para hoje." : "Nenhum follow-up vencido ou de hoje.", (
-              <div className="flex items-center gap-2 px-[58px] py-2 border-b" style={{ borderColor: B44.lineSoft }}>
-                <span className="text-[11px]" style={{ color: B44.text3 }}>Mostrar:</span>
-                <button onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setFuMine(true); }} className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={fuMine ? { background: "#009AAC", color: "#fff" } : { background: "#fff", border: "1px solid " + B44.line, color: B44.text2 }}>Meus</button>
-                <button onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setFuMine(false); }} className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={!fuMine ? { background: "#009AAC", color: "#fff" } : { background: "#fff", border: "1px solid " + B44.line, color: B44.text2 }}>Todos</button>
-                <span className="ml-auto text-[10.5px]" style={{ color: B44.text3 }}>{fuShown.length} de {fuDue.length}</span>
-              </div>
-            ));
+            if (p.key === "retornos") return fuExpand(
+              fuShown, fuDueOpen, setFuDueOpen,
+              fuFilter === "meus" ? "Nenhum follow-up seu para hoje." : fuFilter === "revisar" ? "Nada a revisar — todos os retornos já têm dono. 🎉" : "Nenhum follow-up vencido ou de hoje.",
+              (
+                <div className="flex items-center gap-1.5 px-[58px] py-2 border-b flex-wrap" style={{ borderColor: B44.lineSoft }}>
+                  <span className="text-[11px] mr-1" style={{ color: B44.text3 }}>Mostrar:</span>
+                  {(([["meus", "Meus"], ["revisar", "A revisar"], ["todos", "Todos"]]) as [any, string][]).map(([v, lbl]) => (
+                    <button key={v} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setFuFilter(v); }} className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={fuFilter === v ? { background: "#009AAC", color: "#fff" } : { background: "#fff", border: "1px solid " + B44.line, color: B44.text2 }}>{lbl} · {(fuCounts as any)[v]}</button>
+                  ))}
+                </div>
+              ),
+              (e: any) => setEncaminhando(e),
+            );
             if (p.key === "aniversariantes") return fuExpand(aniv, anivOpen, setAnivOpen, "Ninguém faz aniversário hoje.");
             if (p.key === "toques") return (
               <div key={p.key}>
@@ -1306,7 +1342,7 @@ export default function HojePage() {
                 {b.date && <span className="ml-auto text-[11px] flex-shrink-0" style={{ color: B44.text3 }}>{new Date(b.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
                 <span className="text-[11px] flex-shrink-0" style={{ color: B44.primary }}>abrir / enviar →</span>
               </Link>
-              <button onClick={() => deletarBoletim(b.id, b.petName)} title="Excluir boletim" className="flex-shrink-0 text-[13px] px-1.5 py-1 rounded-md hover:bg-[#FBEDEC]" style={{ color: "#B23B39", lineHeight: 1 }}>🗑</button>
+              <button onClick={() => dispensarBoletim(b.id, b.data, b.petName)} title="Tira do painel. O boletim continua salvo na ficha do pet (não é enviado ao tutor)." className="flex-shrink-0 text-[11px] px-2 py-1 rounded-md border hover:bg-[#F4F1EA]" style={{ color: B44.text2, borderColor: B44.lineSoft, lineHeight: 1 }}>tirar do painel</button>
             </div>
           ))}
         </SectionCard>
@@ -1366,6 +1402,32 @@ export default function HojePage() {
           <div className="text-[15px] font-medium mb-1" style={{ color: B44.navy }}>⚙️ Metas</div>
           <p className="text-sm mb-4" style={{ color: B44.text2 }}>Aqui você vai definir as metas por perfil que alimentam a gamificação e a comissão. Por ora, a configuração está na tela atual:</p>
           <Link href="/dashboard/configuracoes/metas" className="text-[13px] font-medium px-3.5 py-2 rounded-lg text-white inline-block" style={{ background: B44.primary }}>🎯 Configurar metas</Link>
+        </div>
+      )}
+
+      {/* Encaminhar follow-up → escolhe quem vai resolver (grava responsável + avisa a pessoa). */}
+      {encaminhando && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.30)" }} onClick={() => setEncaminhando(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[80vh] overflow-hidden flex flex-col" style={{ border: "1px solid " + B44.line }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b" style={{ borderColor: B44.lineSoft }}>
+              <div className="text-[14px] font-semibold" style={{ color: B44.navy }}>Encaminhar follow-up</div>
+              <div className="text-[12px]" style={{ color: B44.text2 }}>{encaminhando.tipo} · {encaminhando.nome} — escolha quem vai resolver</div>
+            </div>
+            <div className="overflow-y-auto p-2">
+              {vets.length === 0 ? (
+                <div className="px-3 py-4 text-xs" style={{ color: B44.text3 }}>Carregando equipe…</div>
+              ) : vets.map((u: any) => (
+                <button key={u.id} onClick={() => encaminharFU(encaminhando, u.id, u.name)} className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-[#E0F4F6]/60 text-[13px] flex items-center gap-2" style={{ color: B44.text1 }}>
+                  <span className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-semibold" style={{ background: "#E0F4F6", color: "#00798A" }}>{String(u.name || "?").charAt(0).toUpperCase()}</span>
+                  <span className="flex-1">{u.name}</span>
+                  {u.id === meId && <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#E8F0E0", color: "#3B6D11" }}>eu</span>}
+                </button>
+              ))}
+            </div>
+            <div className="px-4 py-2.5 border-t text-right" style={{ borderColor: B44.lineSoft }}>
+              <button onClick={() => setEncaminhando(null)} className="text-[12px] px-3 py-1.5 rounded-lg border" style={{ borderColor: B44.line, color: B44.text2 }}>Cancelar</button>
+            </div>
+          </div>
         </div>
       )}
     </PageShell>

@@ -453,18 +453,24 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     setSavingContato(true);
     try {
       const payload: any = { number: contatoForm.number.trim(), type: contatoForm.type, isWhatsApp: !!contatoForm.isWhatsApp, observations: contatoForm.observations?.trim() || null };
+      let r: Response;
       if (editContatoId) {
-        const r = await fetch(`/api/contacts/${editContatoId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-        if (!r.ok) throw new Error();
+        r = await fetch(`/api/contacts/${editContatoId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       } else {
         const semPrincipal = !(tutor?.contacts || []).some((c) => c.isPrimary);
-        const r = await fetch(`/api/contacts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, tutorId: id, isPrimary: semPrincipal }) });
-        if (!r.ok) throw new Error();
+        r = await fetch(`/api/contacts`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, tutorId: id, isPrimary: semPrincipal }) });
+      }
+      if (!r.ok) {
+        // Mostra o aviso do backend (ex.: "Esse número já é do cliente X" — trava um número = um cliente).
+        const err = await r.json().catch(() => null);
+        const msg = err?.message ? (Array.isArray(err.message) ? err.message.join(" ") : err.message) : "Erro ao salvar contato";
+        toast.error(msg, { duration: 6000 });
+        return;
       }
       toast.success("Contato salvo");
       resetContato();
       await load();
-    } catch { toast.error("Erro ao salvar contato"); } finally { setSavingContato(false); }
+    } catch { toast.error("Sem conexão — tente de novo"); } finally { setSavingContato(false); }
   };
 
   const editarContato = (c: any) => { setEditContatoId(c.id); setContatoForm({ number: c.number || "", type: c.type || "MOBILE", isWhatsApp: !!c.isWhatsApp, observations: c.observations || "" }); setAddingContato(true); };
@@ -491,6 +497,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const status = STATUS_BADGE(tutor.status);
   const phone = tutor.contacts?.find((c) => c.isPrimary)?.number;
   const pets = tutor.pets || [];
+  const petsResp2 = (tutor as any).petsResp2 || []; // pets em que ESTE cliente é 2º responsável (co-tutor)
   const compras = tutor.appointments || [];
   const porMarca: { marca: string; valor: number; pct: number }[] = stats?.porMarca || [];
   const money = (v?: number | null) =>
@@ -502,7 +509,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const nivelProg = Math.round(((Math.min(100, Math.max(0, scoreTotal)) - nivel.min) / (nivel.max - nivel.min)) * 100);
   const faltamPts = Math.max(0, nivel.max - Math.round(scoreTotal));
   // Compras agrupadas por pet (o pet é o centro de tudo)
-  const comprasPorPet: Record<string, ApptLite[]> = {};
+  const comprasPorPet: Record<string, any[]> = {};
   for (const a of compras) {
     const k = a.pet?.name || "Sem pet";
     (comprasPorPet[k] = comprasPorPet[k] || []).push(a);
@@ -714,6 +721,21 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                   <span className="text-[#374151] text-[16px]">›</span>
                 </Link>
               ))}
+              {petsResp2.length > 0 && (
+                <div className="mt-2 pt-2" style={{ borderTop: pets.length ? "1px solid #F0EBE0" : "none" }}>
+                  <div className="text-[10.5px] uppercase tracking-wide text-[#8A857A] mb-1">👥 Também acompanha (2º responsável)</div>
+                  {petsResp2.map((p: any) => (
+                    <Link key={p.id} href={`/dashboard/erp/pets/${p.id}`} className="flex items-center gap-3 py-2 hover:bg-[#FBF9F4] rounded-[9px]">
+                      <div className="w-[38px] h-[38px] rounded-[12px] bg-[#F1EDFB] flex items-center justify-center text-[19px] shrink-0">{PET_EMOJI(p.species)}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13.5px] text-[#014D5E] font-medium truncate">{p.name} <span className="text-[10px] font-bold px-1.5 py-[1px] rounded-full align-middle" style={{ background: "#EDE9FE", color: "#6D28D9" }}>co-responsável</span></div>
+                        <div className="text-[12px] text-[#5C6B70] truncate">{[ESPECIE_LABEL(p.species), p.breed].filter(Boolean).join(" · ")}{p.tutor?.name ? ` · dono: ${p.tutor.name}` : ""}</div>
+                      </div>
+                      <span className="text-[#374151] text-[16px]">›</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

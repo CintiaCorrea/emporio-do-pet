@@ -15,7 +15,8 @@ import PetComandaRail from "@/components/pets/PetComandaRail";
 import ConsultationRecorder from "@/components/protected/dashboard/clinical-documents/ConsultationRecorder";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { assignFollowUp } from "@/lib/followup";
-import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
+import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda } from "@/lib/catalogoVendavel";
+import { imprimirDocumento } from "@/lib/print";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -276,24 +277,22 @@ export default function NovoAtendimentoPage() {
     lancarExameNaComanda(ex); // → entra na comanda automaticamente
   }
 
+  // Receita / Solicitação de exames — TIMBRADO OFICIAL (o mesmo dos documentos/orçamentos/vendas)
+  // via imprimirDocumento; mantém a assinatura-imagem + nome/CRMV do profissional no rodapé.
   function imprimirFolha(titulo: string, corpo: string) {
-    const w = window.open("", "_blank", "width=800,height=900");
-    if (!w) { toast.error("Permita pop-ups para imprimir"); return; }
     const esc = (t: string) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const dt = new Date().toLocaleDateString("pt-BR");
     const vetObj: any = vets.find((u) => u.id === form.userId);
     const vetNome = vetObj?.name || "";
-    // 🖋️ Assinatura-imagem do profissional (perfil) + nome/CRMV no rodapé da receita/solicitação
     const vsig = vetObj?.signatureUrl || "";
     const vcrmv = vetObj?.crmv || vetObj?.profissional?.crmv || "";
-    const sigBlock = vetNome
+    const sigBlock = (vetNome && /receita/i.test(titulo)) // assinatura SÓ na receita (não na solicitação de exames)
       ? '<div style="margin-top:' + (vsig ? 40 : 56) + 'px;text-align:left">'
         + (vsig ? '<div><img src="' + vsig + '" alt="assinatura" style="max-height:72px;max-width:260px;object-fit:contain;mix-blend-mode:multiply" /></div>' : '')
         + '<div style="display:inline-block;min-width:240px;border-top:1px solid #14253a;padding-top:6px;font-size:13px"><b>' + esc(vetNome) + '</b>'
         + (vcrmv ? '<div style="font-size:12px;color:#475569;margin-top:2px">' + esc(vcrmv) + '</div>' : '') + '</div></div>'
       : '';
-    w.document.write('<html><head><title>' + esc(titulo) + '</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto}h1{color:#014D5E;font-size:20px;margin:0 0 4px}.sub{color:#6B7280;font-size:12px;margin-bottom:18px}.who{font-size:13px;color:#475569;margin-bottom:14px}.box{white-space:pre-wrap;font-size:14px;line-height:1.6;border-top:2px solid #009AAC;padding-top:16px}.ft{margin-top:48px;font-size:12px;color:#6B7280;border-top:1px solid #ddd;padding-top:10px}</style></head><body><h1>Empório do Pet</h1><div class="sub">' + esc(titulo) + ' — ' + esc(dt) + '</div><div class="who">Pet: <b>' + esc(pet?.name || "") + '</b>' + (pet?.tutor?.name ? ' · Tutor: ' + esc(pet.tutor.name) : '') + (vetNome ? ' · Profissional: ' + esc(vetNome) : '') + '</div><div class="box">' + esc(corpo) + '</div>' + sigBlock + '<div class="ft">Documento gerado pelo sistema Empório do Pet</div></body></html>');
-    w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+    const body = '<div style="white-space:pre-wrap;font-size:14px;line-height:1.6">' + esc(corpo) + '</div>' + sigBlock;
+    imprimirDocumento(titulo, body, undefined, { pet, tutor: (pet as any)?.tutor });
   }
   function imprimirReceita() { const t = prescricaoTexto(); if (!t) { toast.error("Escreva a prescrição primeiro"); return; } imprimirFolha("Receita", t); }
   function imprimirSolicitacao() {
@@ -354,14 +353,10 @@ export default function NovoAtendimentoPage() {
       const itensValidos = itens.filter((it) => it.descricao || it.servicoId);
       if (itensValidos.length) {
         payload.items = itensValidos.map((it) => ({
-          ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}),
-          ...(it.descricao ? { descricao: it.descricao } : {}),
+          // NÚCLEO ÚNICO `itemParaVenda` (identidade: servicoId/productId | catalogoItemId+fornecedor | exame + custo).
+          ...itemParaVenda(it as any),
           ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}),
           quantidade: Number(it.quantidade) || 1,
-          valorUnitario: Number(it.valorUnitario) || 0,
-          custoUnitario: Number(it.custoUnitario) || 0,
-          ...(it.fornecedorId ? { fornecedorId: it.fornecedorId } : {}),
-          ...(it._exame ? { tipoItem: "EXAME", catalogoExameId: it.catalogoExameId } : {}),
           valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0),
           ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}),
         }));

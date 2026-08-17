@@ -34,6 +34,7 @@ type ListFilter = "todos" | "leads" | "clientes";
 interface Conversation {
   id: string;
   contactName: string | null;
+  contactPushName?: string | null; // nome que a pessoa usa NO WhatsApp (perfil) — quem está digitando
   contactNumber: string;
   lastMessageAt: string;
   unreadCount: number;
@@ -194,6 +195,9 @@ export default function InboxUnificadoPage() {
   const [convError, setConvError] = useState<string | null>(null);
   const [sessaoExpirada, setSessaoExpirada] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null); // âncora p/ rolar até a última mensagem
+  const msgScrollRef = useRef<HTMLDivElement>(null); // container rolável das mensagens (p/ saber se está no fim)
+  const stickBottomRef = useRef(true); // true = usuário está no fim → pode rolar; false = subiu pra ler → NÃO puxa
+  const prevSelRef = useRef<string | null>(null); // detecta TROCA de conversa (aí sim rola pro fim ao abrir)
   const internasEndRef = useRef<HTMLDivElement>(null); // idem, nas mensagens internas
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -609,6 +613,7 @@ export default function InboxUnificadoPage() {
         const safe = raw.map((c: any) => ({
           id: c?.id || Math.random().toString(),
           contactName: c?.contactName || null,
+          contactPushName: c?.contactPushName || null,
           contactNumber: c?.contactPhone || c?.contactNumber || "",
           lastMessageAt: c?.lastMessageAt || c?.createdAt || new Date().toISOString(),
           unreadCount: typeof c?.unreadCount === "number" ? c.unreadCount : 0,
@@ -670,7 +675,7 @@ export default function InboxUnificadoPage() {
         const list = Array.isArray(data?.data) ? data.data
                     : Array.isArray(data?.messages) ? data.messages
                     : Array.isArray(data) ? data : [];
-        if (!cancel) setMessages(list.map((m: any) => ({
+        const next = list.map((m: any) => ({
           id: m?.id || Math.random().toString(),
           direction: m?.direction === "OUTBOUND" ? "OUTBOUND" : "INBOUND",
           content: typeof m?.content === "string" ? m.content : null,
@@ -679,7 +684,11 @@ export default function InboxUnificadoPage() {
           fromAgent: !!m?.metadata?.fromAgent || !!m?.fromAgent, mediaType: m?.mediaType || null, hasMedia: !!(m?.mediaCloudUrl || m?.mediaUrl), status: m?.status || null, encaminhado: !!m?.metadata?.encaminhado,
           waMessageId: m?.waMessageId || null,
           reaction: m?.reaction ?? null, myReaction: m?.myReaction ?? null,
-          replyToWaMessageId: m?.metadata?.replyToWaMessageId || null, metadata: m?.metadata || null})));
+          replyToWaMessageId: m?.metadata?.replyToWaMessageId || null, metadata: m?.metadata || null }));
+        // Só troca o array se ALGO mudou (id/status/reação) — senão mantém a MESMA referência.
+        // Sem isso, o poll de 8s recriava tudo e o efeito de scroll te jogava pro fim toda vez ("pulo").
+        const sig = (arr: any[]) => arr.map((m) => `${m.id}:${m.status || ""}:${m.myReaction || ""}:${m.reaction || ""}:${m.hasMedia ? 1 : 0}`).join("|");
+        if (!cancel) setMessages((prev) => (sig(prev) === sig(next) ? prev : next));
       } catch { /* tropeço: mantém as mensagens que já estão na tela */ }
     };
     // Abrir a conversa já zera o unreadCount no servidor (getMessages) — avisa o menu p/ sumir o badge na hora.
@@ -703,8 +712,13 @@ export default function InboxUnificadoPage() {
     return () => { cancel = true; };
   }, [selTutorId]);
 
-  // Ao abrir uma conversa ou chegar mensagem nova, rola até a última mensagem.
+  // Rola até a última mensagem SÓ quando faz sentido: (a) você abriu/trocou de conversa, ou
+  // (b) você já está no fim (acompanhando). Se subiu pra ler o histórico, NÃO puxa mais → fim do "pulo".
   useEffect(() => {
+    const trocouConversa = prevSelRef.current !== selectedId;
+    prevSelRef.current = selectedId;
+    if (trocouConversa) stickBottomRef.current = true; // abrir conversa sempre começa no fim
+    if (!stickBottomRef.current) return; // usuário subiu pra ler → preserva a posição
     const t = setTimeout(() => msgEndRef.current?.scrollIntoView({ block: "end" }), 60);
     return () => clearTimeout(t);
   }, [messages, selectedId]);
@@ -1030,6 +1044,15 @@ export default function InboxUnificadoPage() {
   // Trocar de conversa fecha a busca.
   useEffect(() => { setBuscaChatOpen(false); setBuscaChat(""); }, [selectedId]);
   const primaryPhone = tutor?.contacts?.find((c) => c.isPrimary)?.number || tutor?.contacts?.[0]?.number || selectedConv?.contactNumber;
+
+  // ⏱️ Janela de 24h do WhatsApp: só dá pra mandar TEXTO LIVRE se o cliente respondeu nas últimas 24h.
+  // Fora disso o Meta EXIGE um MODELO (template) aprovado. Avisamos ANTES de a pessoa tentar (e recebe erro).
+  const janelaAberta = useMemo(() => {
+    const ins = messages.filter((m) => m.direction === "INBOUND" && m.createdAt);
+    if (!ins.length) return false; // cliente nunca respondeu → precisa de modelo
+    const ult = Math.max(...ins.map((m) => new Date(m.createdAt).getTime()));
+    return Date.now() - ult < 24 * 60 * 60 * 1000;
+  }, [messages]);
 
   const sendMessage = async (textOverride?: string) => {
     const raw = (textOverride ?? messageInput).trim();
@@ -1632,7 +1655,8 @@ export default function InboxUnificadoPage() {
                 const isSel = c.id === selectedId;
                 const isBC = c.source === "BOTCONVERSA" || c.metadata?.source === "BOTCONVERSA";
                 const naoLida = (c.unreadCount || 0) > 0 || !!c.manualUnread;
-                const nome = c.tutor?.name || c.contactName || c.contactNumber;
+                // Mostra o nome da PESSOA do número (perfil do WhatsApp) — não o do cliente cadastrado.
+                const nome = c.contactPushName || c.contactName || c.tutor?.name || c.contactNumber;
                 // Prévia: "Você: ..." quando a última foi nossa; mídia vira rótulo amigável.
                 const lm = c.lastMessage;
                 const previa = (() => {
@@ -1660,7 +1684,7 @@ export default function InboxUnificadoPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className={`text-[12.5px] truncate ${naoLida ? "font-bold text-[#0E2244]" : "font-medium text-[#0E2244]"}`}
-                          title={c.tutor?.name && c.contactName && c.contactName !== c.tutor.name ? `No WhatsApp: ${c.contactName}` : undefined}>{nome}</span>
+                          title={c.tutor?.name && c.tutor.name !== nome ? `Cliente cadastrado: ${c.tutor.name}` : undefined}>{nome}</span>
                         {atrasada
                           ? <span title={`Cliente esperando resposta há ${esperaLbl}`} className="ml-auto text-[10px] font-bold text-white bg-[#CC3366] rounded-full px-1.5 py-0.5 animate-pulse whitespace-nowrap flex-shrink-0">⏰ {esperaLbl}</span>
                           : <span className="ml-auto text-[10px] text-[#A7ADA8] whitespace-nowrap flex-shrink-0">{c.lastMessageAt ? timeAgo(c.lastMessageAt) : ""}</span>}
@@ -1710,11 +1734,11 @@ export default function InboxUnificadoPage() {
                   <div className="flex items-center gap-2.5">
                     <button onClick={() => setSelectedId(null)} title="Voltar para a lista" className="md:hidden -ml-1 mr-0.5 w-8 h-8 rounded-lg text-[#5F5E5A] hover:bg-gray-100 flex items-center justify-center text-lg shrink-0">‹</button>
                     <div className="w-8 h-8 rounded-full bg-[#009AAC] text-white flex items-center justify-center text-[11px] font-medium">
-                      {getInitials(selectedConv?.tutor?.name || selectedConv?.contactName)}
+                      {getInitials(selectedConv?.contactPushName || selectedConv?.contactName || selectedConv?.tutor?.name)}
                     </div>
                     <div>
                       <div className="text-xs text-[#0E2244] font-medium flex items-center gap-1.5">
-                        {selectedConv?.tutor?.name || selectedConv?.contactName || selectedConv?.contactNumber || "Sem nome"}
+                        {selectedConv?.contactPushName || selectedConv?.contactName || selectedConv?.tutor?.name || selectedConv?.contactNumber || "Sem nome"}
                         {selectedConv?.tutor?.id && (
                           <button onClick={() => window.open(`/dashboard/erp/tutores/${selectedConv.tutor!.id}`, "_blank")}
                             title="Editar ficha do cliente (abre a ficha completa)" className="text-[#c8d0d4] hover:text-[#009AAC] text-[11px]">✏️</button>
@@ -1722,8 +1746,8 @@ export default function InboxUnificadoPage() {
                       </div>
                       <div className="text-[10px] text-[#888780]">
                         📞 {selectedConv?.contactNumber || "—"}
-                        {selectedConv?.tutor?.name && selectedConv?.contactName && selectedConv.contactName !== selectedConv.tutor.name ? (
-                          <span className="text-[#A8A69C]"> · no WhatsApp: {selectedConv.contactName}</span>
+                        {selectedConv?.tutor?.name && selectedConv.tutor.name !== (selectedConv?.contactPushName || selectedConv?.contactName) ? (
+                          <span className="text-[#A8A69C]"> · cliente: {selectedConv.tutor.name}</span>
                         ) : null}
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5 flex-wrap">
@@ -1828,7 +1852,7 @@ export default function InboxUnificadoPage() {
                   </div>
                 )}
 
-                <div className="flex-1 overflow-y-auto p-4 bg-white flex flex-col gap-2">
+                <div ref={msgScrollRef} onScroll={(e) => { const el = e.currentTarget; stickBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120; }} className="flex-1 overflow-y-auto p-4 bg-white flex flex-col gap-2">
                   {buscaChatOpen && buscaChat.trim() && buscaMatches.length === 0 && (
                     <p className="text-center text-[11px] text-[#888780] py-2">Nada encontrado para “{buscaChat.trim()}” nesta conversa</p>
                   )}
@@ -2037,6 +2061,13 @@ export default function InboxUnificadoPage() {
                       </div>
                     </div>
                   )}
+                  {selectedId && !janelaAberta && (
+                    <div className="mb-2 flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "#FBF0DD", border: "1px solid #E7C888" }}>
+                      <span style={{ fontSize: 15 }}>⏱️</span>
+                      <span className="text-[11.5px] flex-1" style={{ color: "#8A5A0B" }}>Faz mais de 24h que o cliente não responde. O WhatsApp só entrega um <b>modelo (template) aprovado</b> agora — mensagem normal vai ser recusada.</span>
+                      <button onClick={() => abrirNovaConversa({ phone: selectedConv?.contactNumber, busca: selectedConv?.tutor?.name || selectedConv?.contactName || selectedConv?.contactNumber })} className="text-[11px] font-bold text-white px-2.5 py-1 rounded-md shrink-0 whitespace-nowrap" style={{ background: "#B45309" }}>Usar modelo</button>
+                    </div>
+                  )}
                   <div className="flex gap-2 items-center">
                     <button onClick={() => setAcoesOpen((v) => !v)} title="Ações rápidas — cadastro, agendar, boletim, PIX, endereço, mensagens prontas…"
                       className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 transition text-white ${acoesOpen ? "bg-[#007E8D]" : "bg-[#009AAC] hover:bg-[#008395]"}`}
@@ -2104,9 +2135,9 @@ export default function InboxUnificadoPage() {
                       <>
                         <textarea value={messageInput} onChange={(e) => setMessageInput(e.target.value)}
                           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                          rows={1}
+                          rows={2}
                           placeholder="Digite sua mensagem…  (Enter envia · Shift+Enter pula linha)"
-                          className="flex-1 px-3.5 py-2.5 border border-[#e8e1d2] rounded-lg text-[13.5px] focus:outline-none focus:border-[#009AAC] resize-none leading-snug" style={{ maxHeight: 160 }} />
+                          className="flex-1 px-3.5 py-2.5 border border-[#e8e1d2] rounded-lg text-[13.5px] focus:outline-none focus:border-[#009AAC] resize-none leading-snug" style={{ maxHeight: 160, minHeight: 58 }} />
                         <EmojiPicker onPick={(em) => setMessageInput((v) => v + em)} />
                         {messageInput.trim() ? (
                           <button onClick={() => sendMessage()} className="bg-[#009AAC] text-white w-8 h-8 rounded-lg flex items-center justify-center shrink-0" title="Enviar">

@@ -425,11 +425,14 @@ export default function PetDetailPage() {
   }
 
   // === 2º responsável (co-tutor) — info LEVE (nome + telefone), guardada em listaItem `pet_resp2` ===
-  const [resp2, setResp2] = useState<{ nome: string; telefone: string } | null>(null);
+  const [resp2, setResp2] = useState<{ nome: string; telefone: string; tutorId?: string | null } | null>(null);
   const [resp2ItemId, setResp2ItemId] = useState<string | null>(null);
   const [resp2Open, setResp2Open] = useState(false);
   const [resp2Form, setResp2Form] = useState<{ nome: string; telefone: string }>({ nome: "", telefone: "" });
   const [resp2Saving, setResp2Saving] = useState(false);
+  const [resp2TutorId, setResp2TutorId] = useState<string | null>(null); // cliente cadastrado vinculado (→ pet aparece nos dois)
+  const [resp2Busca, setResp2Busca] = useState("");
+  const [resp2Results, setResp2Results] = useState<any[]>([]);
   async function carregarResp2() {
     try {
       const r = await fetch(`/api/listas?lista=pet_resp2`, { cache: "no-store" });
@@ -437,26 +440,39 @@ export default function PetDetailPage() {
       const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
       let found: any = null;
       for (const it of arr) { try { const v = JSON.parse(it.valor); if (v.petId === petId) { found = { id: it.id, ...v }; break; } } catch { /* ignora */ } }
-      if (found) { setResp2({ nome: found.nome || "", telefone: found.telefone || "" }); setResp2ItemId(found.id); }
-      else { setResp2(null); setResp2ItemId(null); }
-    } catch { setResp2(null); setResp2ItemId(null); }
+      if (found) { setResp2({ nome: found.nome || "", telefone: found.telefone || "", tutorId: found.tutorId || null }); setResp2ItemId(found.id); setResp2TutorId(found.tutorId || null); }
+      else { setResp2(null); setResp2ItemId(null); setResp2TutorId(null); }
+    } catch { setResp2(null); setResp2ItemId(null); setResp2TutorId(null); }
+  }
+  async function buscarResp2Clientes(q: string) {
+    setResp2Busca(q); setResp2TutorId(null); // digitar de novo desfaz o vínculo até escolher
+    if (q.trim().length < 2) { setResp2Results([]); return; }
+    try { const r = await fetch(`/api/tutors?search=${encodeURIComponent(q.trim())}&limit=8`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.tutors || d.data || []); setResp2Results(a.slice(0, 8)); } catch { setResp2Results([]); }
+  }
+  function escolherResp2Cliente(t: any) {
+    setResp2TutorId(t.id);
+    const tel = (t.contacts || []).find((c: any) => c.isPrimary)?.number || (t.contacts || [])[0]?.number || t.phone || "";
+    setResp2Form({ nome: t.name || "", telefone: tel });
+    setResp2Busca(t.name || ""); setResp2Results([]);
   }
   async function salvarResp2() {
     const nome = resp2Form.nome.trim();
-    if (!nome) { toast.error("Informe ao menos o nome."); return; }
+    if (!nome) { toast.error("Escolha um cliente ou informe o nome."); return; }
     setResp2Saving(true);
     try {
       if (resp2ItemId) await fetch(`/api/listas/${resp2ItemId}`, { method: "DELETE" }).catch(() => null);
-      await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "pet_resp2", valor: JSON.stringify({ petId, nome, telefone: resp2Form.telefone.trim() }) }) });
-      toast.success("2º responsável salvo");
-      setResp2Open(false); await carregarResp2();
+      await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: "pet_resp2", valor: JSON.stringify({ petId, nome, telefone: resp2Form.telefone.trim(), ...(resp2TutorId ? { tutorId: resp2TutorId } : {}) }) }) });
+      // Vínculo REAL: grava o 2º responsável no pet → ele passa a aparecer na ficha e no inbox do cliente escolhido.
+      await patchPet({ secondaryTutorId: resp2TutorId || null });
+      toast.success(resp2TutorId ? "Vinculado — o pet passa a aparecer na ficha dele também ✓" : "2º responsável salvo");
+      setResp2Open(false); setResp2Busca(""); setResp2Results([]); await carregarResp2();
     } catch { toast.error("Não consegui salvar."); } finally { setResp2Saving(false); }
   }
   async function removerResp2() {
     if (!resp2ItemId) return;
     if (!window.confirm("Remover o 2º responsável?")) return;
     setResp2Saving(true);
-    try { await fetch(`/api/listas/${resp2ItemId}`, { method: "DELETE" }).catch(() => null); toast.success("Removido"); await carregarResp2(); }
+    try { await fetch(`/api/listas/${resp2ItemId}`, { method: "DELETE" }).catch(() => null); await patchPet({ secondaryTutorId: null }); setResp2TutorId(null); toast.success("Removido"); await carregarResp2(); }
     catch { toast.error("Não consegui remover."); } finally { setResp2Saving(false); }
   }
   // Convênio Petlife: reaproveita o campo insurancePlan (texto "Petlife" = conveniado).
@@ -723,7 +739,7 @@ export default function PetDetailPage() {
     return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
   }
   // Imprime o documento/receita com o timbrado (cabeçalho + quadro de dados) montado dos dados reais
-  function imprimirComTimbrado(titulo: string, corpo: string, vetId?: string) {
+  function imprimirComTimbrado(titulo: string, corpo: string, vetId?: string, assinar?: boolean) {
     const cab = montarTimbradoHtml({ titulo, clinica, pet, tutor: (pet as any)?.tutor });
     let corpoFinal = corpoParaImpressao(corpo);
     // Receituário de CONTROLE ESPECIAL: já é um formulário A4 completo (assinaturas do emitente e
@@ -732,7 +748,9 @@ export default function PetDetailPage() {
     // 🖋️ Assinatura ÚNICA do veterinário — do lado DIREITO (padrão de receita).
     // O próprio modelo já escreve "Cidade, UF, data … Nome CRMV" no rodapé; pra NÃO
     // duplicar, removemos esse rodapé do corpo e montamos UMA assinatura só aqui.
-    const vet: any = vetId ? vets.find((u: any) => u.id === vetId) : null;
+    // 🖊️ Assinatura do vet SÓ na RECEITA (pedido Cintia 17/08). Documento/Patologia/Solicitação
+    // não saem assinados. `assinar` vem true só do botão Imprimir da RECEITA.
+    const vet: any = (vetId && assinar) ? vets.find((u: any) => u.id === vetId) : null;
     if (vet && !especial) {
       const vnome = vet.nomeExibicao || vet.name || "";
       const vcrmv = vet.crmv || (vet.profissional && vet.profissional.crmv) || "";
@@ -1685,7 +1703,7 @@ export default function PetDetailPage() {
                     </span>
                     <span className="flex items-center gap-2 shrink-0">
                       {resp2?.nome && <button onClick={removerResp2} disabled={resp2Saving} className="text-[10.5px] text-[#A32D2D] hover:underline disabled:opacity-50">remover</button>}
-                      <button onClick={() => { setResp2Form({ nome: resp2?.nome || "", telefone: resp2?.telefone || "" }); setResp2Open(true); }} className="text-[10.5px] text-[#00798A] font-medium hover:underline">{resp2?.nome ? "editar" : "+ adicionar"}</button>
+                      <button onClick={() => { setResp2Form({ nome: resp2?.nome || "", telefone: resp2?.telefone || "" }); setResp2Busca(resp2?.tutorId ? (resp2?.nome || "") : ""); setResp2TutorId(resp2?.tutorId || null); setResp2Results([]); setResp2Open(true); }} className="text-[10.5px] text-[#00798A] font-medium hover:underline">{resp2?.nome ? "editar" : "+ adicionar"}</button>
                     </span>
                   </div>
                 </div>
@@ -2041,7 +2059,7 @@ export default function PetDetailPage() {
                     <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
                       <h3 className="text-sm font-semibold" style={{ color: "#0E2244" }}>Receita</h3>
                       <div className="flex gap-2">
-                        <button onClick={() => imprimirComTimbrado(recModeloNome || "Receita", recCorpo, recVetId)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
+                        <button onClick={() => imprimirComTimbrado(recModeloNome || "Receita", recCorpo, recVetId, true)} className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1" style={{ borderColor: "#E8DFC8", color: "#475569" }}><LuPrinter size={13} /> Imprimir</button>
                         <label className="px-3 py-1.5 rounded-lg text-xs border flex items-center gap-1 cursor-pointer" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 Anexar arquivo<input type="file" accept="application/pdf,image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) anexarArquivoDoc(f, "RECEITA"); (e.target as HTMLInputElement).value = ""; }} /></label>
                         <button onClick={salvarReceita} disabled={savingArt} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingArt ? "..." : "Salvar"}</button>
                         <button onClick={() => setArtefato(null)} title="Fechar" aria-label="Fechar" className="w-7 h-7 flex items-center justify-center rounded-lg text-lg leading-none border hover:bg-[#F6F2EA] transition-colors" style={{ borderColor: "#E8DFC8", color: "#64748B" }}>×</button>
@@ -2597,9 +2615,21 @@ export default function PetDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => !resp2Saving && setResp2Open(false)}>
           <div className="bg-white rounded-[16px] w-full max-w-[380px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">👥 2º responsável pelo pet</h3>
-            <p className="text-[12px] text-[#5C6B70] mb-3">O outro tutor/responsável por {pet.name}. Não precisa cadastrar cliente inteiro — só o nome (e o telefone, se quiser).</p>
+            <p className="text-[12px] text-[#5C6B70] mb-3">Outra pessoa que também cuida de {pet.name}. Se ela <b>tiver cadastro</b>, escolha abaixo — o pet passa a aparecer na ficha e no WhatsApp dela também.</p>
+            <label className="text-[11px] text-[#5C6B70]">Cliente cadastrado</label>
+            <input autoFocus value={resp2Busca} onChange={(e) => buscarResp2Clientes(e.target.value)} placeholder="🔍 Buscar cliente pelo nome…"
+              className="w-full mt-0.5 px-3 py-2 border rounded-[9px] text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+            {resp2Results.length > 0 && (
+              <div className="border rounded-[9px] mt-1 max-h-40 overflow-auto" style={{ borderColor: "#E8E2D6" }}>
+                {resp2Results.map((t) => (
+                  <button key={t.id} onClick={() => escolherResp2Cliente(t)} className="w-full text-left px-3 py-1.5 text-[12.5px] hover:bg-[#F0FBFC] border-b last:border-b-0" style={{ borderColor: "#F5F1E8" }}>{t.name}</button>
+                ))}
+              </div>
+            )}
+            {resp2TutorId && <div className="mt-1.5 text-[11.5px] font-medium px-2.5 py-1.5 rounded-[8px]" style={{ background: "#E7F6EF", color: "#0F6E56" }}>✓ Vinculado ao cadastro — o pet vai aparecer na ficha e no inbox dele.</div>}
+            <div className="text-[10.5px] text-[#9aa0a8] text-center my-2.5">— ou, se não tiver cadastro, preencha só nome + telefone —</div>
             <label className="text-[11px] text-[#5C6B70]">Nome *</label>
-            <input autoFocus value={resp2Form.nome} onChange={(e) => setResp2Form({ ...resp2Form, nome: e.target.value })} placeholder="Ex.: Sergio (esposo)"
+            <input value={resp2Form.nome} onChange={(e) => { setResp2Form({ ...resp2Form, nome: e.target.value }); setResp2TutorId(null); }} placeholder="Ex.: Sergio (esposo)"
               className="w-full mt-0.5 mb-2 px-3 py-2 border rounded-[9px] text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
             <label className="text-[11px] text-[#5C6B70]">Telefone (opcional)</label>
             <input value={resp2Form.telefone} onChange={(e) => setResp2Form({ ...resp2Form, telefone: e.target.value })} placeholder="(85) 9....."

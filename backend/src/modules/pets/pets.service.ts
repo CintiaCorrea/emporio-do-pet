@@ -122,8 +122,9 @@ export class PetsService {
     limit?: number;
     skip?: number;
     take?: number;
+    incluirResp2?: boolean;
   }) {
-    const { tutorId, search, species, status, page = 1, limit = 10, skip, take } = params || {};
+    const { tutorId, search, species, status, page = 1, limit = 10, skip, take, incluirResp2 } = params || {};
 
     const resolvedTake = Number.isFinite(take as any) ? (take as number) : limit;
     const resolvedSkip = Number.isFinite(skip as any)
@@ -131,7 +132,10 @@ export class PetsService {
       : Math.max(0, (page - 1) * resolvedTake);
 
     const where: any = {};
-    if (tutorId) where.tutorId = tutorId;
+    // Com incluirResp2, traz também os pets em que o cliente é 2º responsável (secondaryTutorId) —
+    // pra o pet aparecer na ficha/inbox dos DOIS. Opt-in (só quem pede), pra não afetar as outras telas.
+    if (tutorId && incluirResp2) where.OR = [{ tutorId }, { secondaryTutorId: tutorId }];
+    else if (tutorId) where.tutorId = tutorId;
     if (species) where.species = species;
     if (status) where.status = status;
 

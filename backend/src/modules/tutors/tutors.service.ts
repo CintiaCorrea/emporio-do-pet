@@ -18,7 +18,10 @@ export class TutorsService {
 
   async create(createTutorDto: CreateTutorDto) {
 // === Normalize + dedupe por ultimos 9 digitos ===
-    const phones = (createTutorDto.contacts || []).map(c => last9(c.number)).filter(p => p && p.length >= 8);
+    // IMPORTANTE (15/08): normaliza ANTES de comparar. Sem isso, número do WhatsApp que chega SEM o
+    // 9º dígito (ex.: 558588290696) não casava com o cadastro que tem COM o 9 (5585988290696) → criava
+    // cliente DUPLICADO. normalizePhone insere o 9 → o last9 passa a casar. Ver [[inbox-cliente-vs-lead-raiz]].
+    const phones = (createTutorDto.contacts || []).map(c => last9(normalizePhone(c.number))).filter(p => p && p.length >= 8);
     if (phones.length > 0) {
       const existing = await this.prisma.tutor.findFirst({
         where: {
@@ -282,7 +285,14 @@ export class TutorsService {
       throw new NotFoundException('Tutor não encontrado');
     }
 
-    return tutor;
+    // 👥 Pets em que este cliente é 2º RESPONSÁVEL (co-tutor) — aparecem na ficha/inbox dele TAMBÉM,
+    // sem ser dono principal. `secondaryTutorId` é campo simples (sem relação), então buscamos à parte.
+    const petsResp2 = await this.prisma.pet.findMany({
+      where: { secondaryTutorId: id },
+      select: { id: true, name: true, species: true, breed: true, birthDate: true, tutorId: true, tutor: { select: { id: true, name: true } } },
+    });
+
+    return { ...tutor, petsResp2 };
   }
 
   async update(id: string, updateTutorDto: UpdateTutorDto) {

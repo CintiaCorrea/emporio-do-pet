@@ -6,8 +6,20 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
 import BoletimModal from "@/components/pets/BoletimModal";
+import Link from "next/link";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import toast from "react-hot-toast";
+
+// Nome do pet/tutor CLICÁVEL no card da agenda → abre a ficha. stopPropagation pra não abrir o menu do card.
+function NomeClicavel({ a, tutor = true }: { a: any; tutor?: boolean }) {
+  const petId = a?.pet?.id || a?.petId; const petName = a?.pet?.name;
+  const tutorId = a?.tutor?.id || a?.tutorId; const tutorName = a?.tutor?.name;
+  const Pet = petName ? (petId ? <Link href={`/dashboard/erp/pets/${petId}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{petName}</Link> : <>{petName}</>) : null;
+  const Tut = tutorName ? (tutorId ? <Link href={`/dashboard/erp/tutores/${tutorId}`} onClick={(e) => e.stopPropagation()} className="hover:underline">{tutorName}</Link> : <>{tutorName}</>) : null;
+  if (!Pet && !Tut) return <>Agendamento</>;
+  if (!Pet) return <>{Tut}</>;
+  return <>{Pet}{tutor && Tut ? <> · {Tut}</> : null}</>;
+}
 // Lógica pura da grade (testada em lib/agenda.blindagem.test.ts) — a tela usa o MESMO código dos testes.
 import { corServico, corConfirmacao, ESTAGIOS, PREV_STATUS, estagioIdx, ehArtefato, layoutSobreposicao, posicaoCard, agendaDoDia as agendaDoDiaLib } from "@/lib/agenda";
 
@@ -438,8 +450,8 @@ export default function AgendaPage() {
             </button>
             {filasOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setFilasOpen(false)} />
-                <div className="absolute right-0 mt-1 z-20 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 w-[320px]" style={{ borderColor: "#E8E2D6" }}>
+                <div className="fixed inset-0 z-40" onClick={() => setFilasOpen(false)} />
+                <div className="absolute right-0 mt-1 z-50 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 w-[320px]" style={{ borderColor: "#E8E2D6" }}>
                   {profsAtende.map((p: any) => { const on = !hidden.has(p.id); return (
                     <span key={p.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#374151", borderColor: "#E8E2D6" }}>
                       <button onClick={() => toggleFila(p.id)} className="inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1"><span className="w-2 h-2 rounded-full" style={{ background: p.corAvatar || "#009AAC" }} />{nomeCurto(p)}{on ? <span className="text-[11px]">✓</span> : null}</button>
@@ -467,8 +479,8 @@ export default function AgendaPage() {
             <button onClick={() => setIncluirOpen((v) => !v)} className="text-[13px] px-3 py-1.5 rounded-lg border flex items-center gap-1.5" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#fff" }}>➕ Incluir profissional</button>
             {incluirOpen && (
               <>
-                <div className="fixed inset-0 z-10" onClick={() => setIncluirOpen(false)} />
-                <div className="absolute right-0 mt-1 z-20 bg-white border rounded-xl shadow-lg py-1 min-w-[220px]" style={{ borderColor: "#E8E2D6" }}>
+                <div className="fixed inset-0 z-40" onClick={() => setIncluirOpen(false)} />
+                <div className="absolute right-0 mt-1 z-50 bg-white border rounded-xl shadow-lg py-1 min-w-[220px]" style={{ borderColor: "#E8E2D6" }}>
                   <div className="px-3 py-1.5 text-[11px] text-gray-400">Não estão na agenda hoje</div>
                   {foraHoje.map((p: any) => { const ext = escDe(p)?.sobDemanda; return (
                     <button key={p.id} onClick={() => incluirExterno(p.id)} className="w-full text-left px-3 py-2 hover:bg-[#F6FDFD] text-[13px] flex items-center gap-2">
@@ -506,7 +518,7 @@ export default function AgendaPage() {
               return (
                 <div key={a.id} className="rounded-lg px-2.5 py-2 shrink-0" style={{ background: bg, minWidth: 186, maxWidth: 230 }}>
                   <div className="flex items-center justify-between gap-1">
-                    <span className="text-[12px] font-medium truncate" style={{ color: "#014D5E" }}>{a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "—")}</span>
+                    <span className="text-[12px] font-medium truncate" style={{ color: "#014D5E" }}><NomeClicavel a={a} /></span>
                     <span className="text-[10px] font-semibold whitespace-nowrap" style={{ color: cor }}>{emAtend ? "🩺 atendendo" : atrasado ? `⚠ atrasado ${diff} min` : diff > 0 ? `⏱ há ${diff} min` : "⏱ na hora"}</span>
                   </div>
                   <div className="text-[10px] flex items-center gap-1.5 mt-0.5" style={{ color: cor }}>
@@ -571,7 +583,7 @@ export default function AgendaPage() {
                       <div className="flex-1 min-w-0">
                         <div className="text-[14px] font-semibold text-[#1F2A2E] flex items-center gap-1.5 truncate">
                           {petlife && <span style={{ fontSize: "8.5px", fontWeight: 700, background: "#EDE7F6", color: "#5E35B1", borderRadius: 4, padding: "1px 5px" }}>🩺 Petlife</span>}
-                          <span className="truncate">{quem}</span>
+                          <span className="truncate"><NomeClicavel a={a} /></span>
                         </div>
                         <div className="text-[12px] text-[#5C6B70] mt-0.5 flex items-center gap-1.5 truncate"><span className="w-2 h-2 rounded-full shrink-0" style={{ background: profCor }} /><span className="truncate">{profNome} · {a.type || "Atendimento"}</span></div>
                         <div className="mt-1.5 flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
@@ -672,7 +684,7 @@ export default function AgendaPage() {
                               <span className="text-[10.5px] font-bold flex items-center gap-1" style={{ color: cor.c }}>{hm(d)}<span className="font-normal" style={{ opacity: .75 }}>· {dur}min</span>{a.confirmacaoStatus && CONF_BADGE[a.confirmacaoStatus] ? <span title={CONF_BADGE[a.confirmacaoStatus].nome}>{CONF_BADGE[a.confirmacaoStatus].t}</span> : null}</span>
                               {mostrarValores && v > 0 ? <span className="text-[10px] font-semibold" style={{ color: "#0F6E56" }}>{brl(v)}</span> : (travaSala(a) ? <span title="Ocupa a sala inteira">🔒</span> : null)}
                             </div>
-                            <div className="text-[13px] font-semibold truncate" style={{ color: "#013D4A" }}>{/petlife/i.test(a.pet?.insurancePlan || "") && <span title="Petlife" style={{ fontSize: "8px", fontWeight: 700, background: "#EDE7F6", color: "#5E35B1", borderRadius: 4, padding: "0 4px", marginRight: 3 }}>🩺</span>}{quem}</div>
+                            <div className="text-[13px] font-semibold truncate" style={{ color: "#013D4A" }}>{/petlife/i.test(a.pet?.insurancePlan || "") && <span title="Petlife" style={{ fontSize: "8px", fontWeight: 700, background: "#EDE7F6", color: "#5E35B1", borderRadius: 4, padding: "0 4px", marginRight: 3 }}>🩺</span>}<NomeClicavel a={a} /></div>
                             {height > 44 && <div className="text-[10.5px] truncate" style={{ color: cor.c }}>{a.type || "Atendimento"}{terc?.nome ? ` · 🤝 ${terc.nome}` : ""}</div>}
                             {height > 58 && !espelho && (
                               <div className="inline-flex items-center rounded-md overflow-hidden border" style={{ borderColor: "#00000012" }} onClick={(e) => e.stopPropagation()}>
@@ -714,7 +726,7 @@ export default function AgendaPage() {
                     {list.length === 0 ? <div className="text-[10px] text-gray-300 text-center py-3">—</div> : list.map((a: any) => { const cor = corDe(a.status, cfg?.cores); return (
                       <div key={a.id} onClick={(e) => cardMenu(e, a)} title="Clique para ações" className="rounded-r-md px-1.5 py-1 cursor-pointer" style={{ borderLeft: `3px solid ${cor.c}`, background: cor.bg }}>
                         <div className="text-[10px] font-medium" style={{ color: cor.c }}>{hm(new Date(a.date))}</div>
-                        <div className="text-[11px] truncate" style={{ color: "#014D5E" }}>{a.pet?.name || a.tutor?.name || "Agendamento"}</div>
+                        <div className="text-[11px] truncate" style={{ color: "#014D5E" }}><NomeClicavel a={a} tutor={false} /></div>
                       </div>
                     ); })}
                   </div>

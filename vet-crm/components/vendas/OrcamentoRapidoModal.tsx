@@ -87,6 +87,30 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
     } catch { toast.error("Erro ao salvar orçamento"); return false; }
   }
 
+  // Itens no formato de VENDA (mesma fonte única do PDV/ficha: itemParaVenda → leva id/fornecedor/exame).
+  const itensVendaBody = () => itensValidos().map((it) => {
+    const s = cat.find((c) => c.nome === it.descricao);
+    const extra = s ? itemParaVenda(linhaDoItem(s)) : {};
+    const q = Number(it.qtd) || 1; const vu = parseVal(it.valor);
+    return { ...extra, descricao: ((extra as any).descricao ?? it.descricao.trim()), quantidade: q, valorUnitario: vu, valorTotal: q * vu };
+  });
+
+  // 🧾 Cria a COMANDA direto no caixa (venda em aberto → aparece no PDV "Não pago", a receber).
+  async function mandarProCaixa() {
+    const vs = itensValidos();
+    if (!vs.length) { toast.error("Adicione ao menos um item."); return; }
+    if (!pet?.id) { toast.error("Selecione o pet."); return; }
+    if (!tutor?.id) { toast.error("Cliente sem ficha — a comanda precisa de um cliente cadastrado."); return; }
+    setSaving(true);
+    try {
+      const body = { petId: pet.id, tutorId: tutor.id, date: new Date().toISOString(), type: "Venda", status: "COMPLETED", value: total, items: itensVendaBody() };
+      const r = await fetch(`/api/appointments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error();
+      toast.success("Comanda criada — está no Caixa (a receber) 🧾");
+      onClose();
+    } catch { toast.error("Erro ao criar comanda"); } finally { setSaving(false); }
+  }
+
   function montarTexto(): string {
     const hoje = new Date().toLocaleDateString("pt-BR");
     const linhas = itensValidos().map((it) => {
@@ -132,7 +156,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-md p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>💲 Orçamento rápido — {pet?.name || "pet"}</h3>
+          <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>💲 Orçamento / Comanda — {pet?.name || "pet"}</h3>
           <button onClick={onClose} className="text-[#94a3b8] text-lg leading-none">×</button>
         </div>
 
@@ -169,9 +193,10 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
         </div>
         <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observação (opcional)" className="w-full mt-2" style={inp} />
 
-        <div className="flex gap-2 mt-3 justify-end">
+        <div className="flex gap-2 mt-3 justify-end flex-wrap">
           <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8E2D6", color: "#64748b" }}>Cancelar</button>
-          <button onClick={enviar} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#009AAC" }}><LuMessageSquare size={13} /> {saving ? "..." : "Enviar pelo WhatsApp"}</button>
+          <button onClick={mandarProCaixa} disabled={saving} title="Cria a comanda no caixa (a receber) — sem precisar converter" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#014D5E" }}>🧾 {saving ? "..." : "Mandar pro caixa"}</button>
+          <button onClick={enviar} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#009AAC" }}><LuMessageSquare size={13} /> {saving ? "..." : "Enviar orçamento"}</button>
         </div>
       </div>
     </div>

@@ -283,6 +283,15 @@ export class AppointmentsService {
     const finalStatus = createAppointmentDto.status || 'SCHEDULED';
 
     const dto = createAppointmentDto as any;
+    // 🧾 Fatia 0 (13/08): se a venda vier SEM total mas COM itens, calcula o total pela SOMA dos itens.
+    // Sem isso, a comanda da ficha do pet (que envia só `items`, sem `value`) nascia com value=0 e
+    // SUMIA do Caixa/PDV (que listam só vendas com value>0). Mesma fórmula do item (createMany, ~L413).
+    const _itensDto = ((createAppointmentDto as any).items || []) as any[];
+    const _somaItens = _itensDto.reduce((s: number, it: any) => {
+      const qtd = Number(it.quantidade ?? 1); const unit = Number(it.valorUnitario ?? 0); const desc = Number(it.desconto ?? 0);
+      const total = Number.isFinite(it.valorTotal) ? Number(it.valorTotal) : (qtd * unit - desc);
+      return s + (Number.isFinite(total) ? total : 0);
+    }, 0);
     const appointmentData: any = {
       tutorId: createAppointmentDto.tutorId,
       petId: finalPetId,
@@ -292,7 +301,7 @@ export class AppointmentsService {
       duration: createAppointmentDto.duration || 30,
       description: createAppointmentDto.description ?? null,
       notes: createAppointmentDto.notes ?? null,
-      value: createAppointmentDto.value || 0,
+      value: Number(createAppointmentDto.value) || _somaItens || 0,
       status: finalStatus,
       paymentStatus: createAppointmentDto.paymentStatus || 'PENDING',
       // Campos clínicos

@@ -77,6 +77,27 @@ export class ContactsService {
     return contact;
   }
 
+  /**
+   * REGRA "um número = um cliente" (13/08): recusa cadastrar/editar um telefone que já
+   * pertence a OUTRO cliente. Compara pelos ÚLTIMOS 8 dígitos — a MESMA chave que o inbox
+   * usa pra juntar a conversa (whatsapp.service.acharOuCriarConversa). Se dois clientes
+   * dividem o número, a mensagem automática de um cai na ficha do outro (caso Minnie→Ana
+   * Lúcia, 13/08). Bloquear a duplicata na origem é o que evita o problema se repetir.
+   */
+  private async assertNumeroLivre(numero: string, tutorIdAtual: string) {
+    const tail = String(numero || '').replace(/\D/g, '').slice(-8);
+    if (tail.length < 8) return; // número curto/incompleto: não trava (ex.: fixo em digitação)
+    const conflito = await this.prisma.contact.findFirst({
+      where: { number: { endsWith: tail }, tutorId: { not: tutorIdAtual } },
+      include: { tutor: { select: { name: true } } },
+    });
+    if (conflito) {
+      throw new BadRequestException(
+        `Esse número já é do cliente "${conflito.tutor?.name || 'outro cliente'}". Um número pertence a um único cliente — remova de lá primeiro ou use outro número.`,
+      );
+    }
+  }
+
   async create(dto: CreateContactDto) {
     const tutor = await this.prisma.tutor.findUnique({ where: { id: dto.tutorId } });
     if (!tutor) throw new NotFoundException('Tutor não encontrado');
@@ -87,6 +108,9 @@ export class ContactsService {
     if (existingContact) {
       throw new BadRequestException('Já existe um contato com este número para este tutor');
     }
+
+    // Trava "um número = um cliente": não deixa duplicar em silêncio.
+    await this.assertNumeroLivre(dto.number, dto.tutorId);
 
     if (dto.isPrimary) {
       await this.prisma.contact.updateMany({
@@ -148,6 +172,13 @@ export class ContactsService {
       if (!tutor) throw new NotFoundException('Novo tutor não encontrado');
     }
 
+    // Trava "um número = um cliente": se mudou o número (ou o dono), recusa se já for de outro.
+    const numeroFinal = dto.number ?? existing.number;
+    const donoFinal = dto.tutorId ?? existing.tutorId;
+    if ((dto.number !== undefined && dto.number !== existing.number) || (dto.tutorId && dto.tutorId !== existing.tutorId)) {
+      await this.assertNumeroLivre(numeroFinal, donoFinal);
+    }
+
     const data: any = {};
     if (dto.type !== undefined) data.type = dto.type as any;
     if (dto.number !== undefined) data.number = dto.number;
@@ -156,11 +187,40 @@ export class ContactsService {
     if (dto.isPrimary !== undefined) data.isPrimary = dto.isPrimary;
     if (dto.tutorId !== undefined) data.tutorId = dto.tutorId;
 
-    return this.prisma.contact.update({
+    const atualizado = await this.prisma.contact.update({
       where: { id },
       data,
       include: { tutor: { select: { id: true, name: true, cpf: true } } },
     });
+    // Mudou o número (ou o dono) → a conversa antiga daquele número não pode ficar no cliente errado.
+    if ((dto.number !== undefined && dto.number !== existing.number) || (dto.tutorId && dto.tutorId !== existing.tutorId)) {
+      await this.reavaliarConversasDoNumero(existing.number, existing.tutorId).catch(() => undefined);
+    }
+    return atualizado;
+  }
+
+  /**
+   * Quando um número é TIRADO/CORRIGIDO de um cliente, a conversa antiga daquele número não pode
+   * continuar apontando pro cliente errado (caso Fátima→Maria Tereza, 15/08). Reavalia: se o número
+   * agora é de UM único cliente, religa a conversa pra ele; se não é de ninguém (ou é ambíguo),
+   * DESVINCULA (tutorId null) — melhor sem dono do que no dono errado. Só mexe nas conversas que
+   * estavam no tutor de origem; se o número ainda é dele (outro contato), não toca.
+   */
+  private async reavaliarConversasDoNumero(numero: string, tutorIdOrigem: string) {
+    const tail = String(numero || '').replace(/\D/g, '').slice(-8);
+    if (tail.length < 8 || !tutorIdOrigem) return;
+    const convs = await this.prisma.whatsAppConversation.findMany({
+      where: { contactPhone: { endsWith: tail }, tutorId: tutorIdOrigem },
+      select: { id: true },
+    });
+    if (!convs.length) return;
+    const donos = await this.prisma.contact.findMany({ where: { number: { endsWith: tail } }, select: { tutorId: true } });
+    const tutores = Array.from(new Set(donos.map((d) => d.tutorId)));
+    if (tutores.includes(tutorIdOrigem)) return; // ainda é dele (outro contato) → não mexe
+    const novoTutorId = tutores.length === 1 ? tutores[0] : null; // 1 dono → religa; 0/ambíguo → desvincula
+    await this.prisma.whatsAppConversation
+      .updateMany({ where: { id: { in: convs.map((c) => c.id) } }, data: { tutorId: novoTutorId } })
+      .catch(() => undefined);
   }
 
   async remove(id: string) {
@@ -168,6 +228,8 @@ export class ContactsService {
     if (!existing) throw new NotFoundException('Contato não encontrado');
 
     await this.prisma.contact.delete({ where: { id } });
+    // Número saiu do cliente → reavalia a conversa daquele número (não deixar grudada no antigo dono).
+    await this.reavaliarConversasDoNumero(existing.number, existing.tutorId).catch(() => undefined);
     return { message: 'Contato excluído com sucesso' };
   }
 }
