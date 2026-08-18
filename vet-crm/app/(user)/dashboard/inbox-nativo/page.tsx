@@ -749,12 +749,12 @@ export default function InboxUnificadoPage() {
   }, [conversations, filter, search, viewResp, meId, filtroTag]);
 
   // Encaminhadas pra mim e ainda não abertas — vira o badge da aba Encaminhadas.
-  const encaminhadasCount = useMemo(() => conversations.filter((c) => c.assignedUser?.id === meId && (c.unreadCount || 0) > 0).length, [conversations, meId]);
+  const encaminhadasCount = useMemo(() => conversations.filter((c) => c.assignedUser?.id === meId && ((c.unreadCount || 0) > 0 || (c as any).manualUnread)).length, [conversations, meId]);
   // TODAS as conversas atribuídas a mim — uma conversa transferida SEM mensagem nova também
   // precisa aparecer, senão quem recebeu a transferência não vê nada.
   // Encaminhadas = passadas PRA MIM e ainda NÃO respondidas (última msg do cliente OU não lida).
   // Assim que respondo (última msg vira minha), some da aba. (Cintia 23/07: antes ficavam as já atendidas.)
-  const minhasAtribuidas = useMemo(() => conversations.filter((c) => c.assignedUser?.id === meId && ((c as any).lastMessage?.direction === "INBOUND" || (c.unreadCount || 0) > 0)), [conversations, meId]);
+  const minhasAtribuidas = useMemo(() => conversations.filter((c) => c.assignedUser?.id === meId && ((c as any).lastMessage?.direction === "INBOUND" || (c.unreadCount || 0) > 0 || (c as any).manualUnread)), [conversations, meId]);
   const internasNaoLidas = useMemo(() => internasRecebidas.filter((n: any) => n.toUserId === meId && !n.readAt).length, [internasRecebidas, meId]);
 
   // Transferir pra outro atendente. Usa o MESMO endpoint do "assumir" (assign-user),

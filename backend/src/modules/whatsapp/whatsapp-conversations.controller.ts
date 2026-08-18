@@ -130,7 +130,11 @@ export class WhatsAppConversationsController {
     @Param('id') id: string,
     @Body() body: { userId: string },
   ) {
-    const updated = await this.whatsAppService.updateConversation(id, { assignedUserId: body.userId } as any);
+    // Handoff pra OUTRA pessoa: marca como não-lida pra ela, senão a conversa não
+    // aparece na aba "Encaminhadas" dela (a aba precisava de mensagem do cliente pendente).
+    // Some da aba dela quando ela abrir/ler (marcar-lida limpa o manualUnread).
+    const handoff = !!body.userId && body.userId !== user.id;
+    const updated = await this.whatsAppService.updateConversation(id, { assignedUserId: body.userId, ...(handoff ? { manualUnread: true } : {}) } as any);
 
     // Popup em tempo real p/ quem RECEBEU a conversa (nunca p/ si mesmo). Best-effort.
     if (body.userId && body.userId !== user.id) {

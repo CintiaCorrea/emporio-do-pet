@@ -1476,6 +1476,7 @@ export class WhatsAppService {
       humanTakeoverAt?: Date | null;
       tutorId?: string | null;
       isAutoReplyEnabled?: boolean;
+      manualUnread?: boolean;
     },
   ) {
     // Ao (des)atribuir a conversa a um humano pelo inbox, carimba QUANDO isso aconteceu.
