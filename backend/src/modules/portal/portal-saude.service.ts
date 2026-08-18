@@ -16,6 +16,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PortalEscopoService } from './portal-escopo.service';
 import { CloudStorageService } from '../media/cloud-storage.service';
+import { montarTextoBoletim } from './boletim-texto.util';
 
 export interface ItemVacina {
   nome: string;
@@ -108,7 +109,8 @@ export class PortalSaudeService {
         try {
           const o = JSON.parse(it.valor);
           if (!o?.enviadoAt) return null;
-          const texto = String(o.texto || o.resumo || o.evolucao || o.observacoes || '').trim();
+          // Texto pronto (boletins novos) ou montado dos campos salvos (todos os antigos têm os dados).
+          const texto = (o.texto && String(o.texto).trim()) || montarTextoBoletim(o);
           return { id: it.id, data: String(o.sessaoData || o.enviadoAt || o.createdAt).slice(0, 10), texto };
         } catch {
           return null;
