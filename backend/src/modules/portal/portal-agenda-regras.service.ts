@@ -12,6 +12,7 @@
  *                (as colunas "Sala MAP", parceiros etc.)
  */
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 const ID_UNICO = 'unico';
@@ -195,6 +196,7 @@ export class PortalAgendaRegrasService {
         agendas?: string[];
         restricao?: string;
         responsavelUserId?: string | null;
+        responsavelPorDia?: Record<string, string> | null;
       }>;
     },
     quem?: string,
@@ -269,10 +271,19 @@ export class PortalAgendaRegrasService {
         responsavelUserId = existe?.id ?? null;
       }
 
+      // Responsável por dia (sala/fisio): grava quando a tela mandar o campo; senão preserva.
+      // Campo JSON no Prisma: null vira Prisma.JsonNull.
+      const temPorDia = Object.prototype.hasOwnProperty.call(s, 'responsavelPorDia');
+      const porDiaVal: Prisma.InputJsonValue | typeof Prisma.JsonNull | undefined = !temPorDia
+        ? undefined
+        : (s.responsavelPorDia && typeof s.responsavelPorDia === 'object'
+            ? (s.responsavelPorDia as Prisma.InputJsonValue)
+            : Prisma.JsonNull);
+
       await this.prisma.portalAgendaServico.upsert({
         where: { tipo: s.tipo },
-        create: { tipo: s.tipo, ativo, duracaoMin: duracao, agendas, restricao, responsavelUserId },
-        update: { ativo, duracaoMin: duracao, agendas, restricao, responsavelUserId },
+        create: { tipo: s.tipo, ativo, duracaoMin: duracao, agendas, restricao, responsavelUserId, ...(porDiaVal !== undefined ? { responsavelPorDia: porDiaVal } : {}) },
+        update: { ativo, duracaoMin: duracao, agendas, restricao, responsavelUserId, ...(porDiaVal !== undefined ? { responsavelPorDia: porDiaVal } : {}) },
       });
     }
 

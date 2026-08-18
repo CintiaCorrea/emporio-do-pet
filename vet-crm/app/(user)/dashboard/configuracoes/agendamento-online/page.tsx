@@ -34,6 +34,7 @@ interface Servico {
   agendas: string[];
   restricao: Restricao;
   responsavelUserId: string | null;
+  responsavelPorDia?: Record<string, string> | null;
 }
 
 interface OpcaoAgenda {
@@ -215,6 +216,19 @@ export default function AgendamentoOnlinePage() {
     setAviso(null);
     setServicos((lista) =>
       lista.map((s) => (s.tipo === tipo ? { ...s, [campo]: valor } : s)),
+    );
+  }
+
+  // Responsável por dia da semana (sala/fisio): dow "1".."6" (seg..sáb) → userId. Vazio remove o dia.
+  function mudarRespDia(tipo: string, dow: string, userId: string) {
+    setAviso(null);
+    setServicos((lista) =>
+      lista.map((s) => {
+        if (s.tipo !== tipo) return s;
+        const m: Record<string, string> = { ...(s.responsavelPorDia || {}) };
+        if (userId) m[dow] = userId; else delete m[dow];
+        return { ...s, responsavelPorDia: Object.keys(m).length ? m : null };
+      }),
     );
   }
 
@@ -418,6 +432,7 @@ export default function AgendamentoOnlinePage() {
         <div className="text-[12.5px] -mt-1 mb-2" style={{ color: B44.text2 }}>
           Só o que estiver ligado aparece pro cliente. O resto continua sendo marcado por vocês.
           A lista vem dos Tipos de atendimento — tipo novo aparece aqui sozinho, desligado.
+          Dica: você também liga cada profissional/sala pela ficha dele (Equipe · Config da agenda) — é a mesma agenda.
         </div>
 
         {servicos.length === 0 && (
@@ -508,31 +523,48 @@ export default function AgendamentoOnlinePage() {
                     </div>
                   )}
 
-                  {/* Sala escolhida: o CRM exige um responsável no agendamento. */}
+                  {/* Sala escolhida: o CRM exige um responsável. Aqui você define por DIA da semana
+                      (ex.: fisio Victoria seg-qua / Nayana qui-sáb) + um padrão de fallback. */}
                   {s.agendas.some(
                     (id) => agendas.find((a) => a.id === id)?.origem === "sala",
                   ) && (
                     <div className="mt-2.5">
                       <div className="text-[11.5px] mb-1.5" style={{ color: B44.text2 }}>
-                        quem assina o atendimento na sala
+                        quem assina na sala, por dia da semana
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {([["1", "Seg"], ["2", "Ter"], ["3", "Qua"], ["4", "Qui"], ["5", "Sex"], ["6", "Sáb"]] as [string, string][]).map(([dow, lbl]) => (
+                          <label key={dow} className="flex flex-col gap-0.5">
+                            <span className="text-[10.5px] font-semibold text-center" style={{ color: B44.text2 }}>{lbl}</span>
+                            <Select
+                              value={(s.responsavelPorDia || {})[dow] || ""}
+                              onChange={(e) => mudarRespDia(s.tipo, dow, e.target.value)}
+                              style={{ width: 116, fontSize: 11.5 }}
+                            >
+                              <option value="">— padrão —</option>
+                              {responsaveis.map((r) => (
+                                <option key={r.userId} value={r.userId}>{r.nome}</option>
+                              ))}
+                            </Select>
+                          </label>
+                        ))}
+                      </div>
+                      <div className="text-[11.5px] mt-2 mb-1" style={{ color: B44.text2 }}>
+                        padrão (para os dias marcados como “— padrão —” acima)
                       </div>
                       <Select
                         value={s.responsavelUserId || ""}
-                        onChange={(e) =>
-                          mudarServico(s.tipo, "responsavelUserId", e.target.value || null)
-                        }
+                        onChange={(e) => mudarServico(s.tipo, "responsavelUserId", e.target.value || null)}
                         style={{ width: 220 }}
                       >
                         <option value="">— escolher profissional —</option>
                         {responsaveis.map((r) => (
-                          <option key={r.userId} value={r.userId}>
-                            {r.nome}
-                          </option>
+                          <option key={r.userId} value={r.userId}>{r.nome}</option>
                         ))}
                       </Select>
-                      {!s.responsavelUserId && (
+                      {(!s.responsavelUserId && Object.keys(s.responsavelPorDia || {}).length === 0) && (
                         <div className="text-[11.5px] mt-1" style={{ color: "#b23b39" }}>
-                          Sem responsável, a sala não é oferecida ao cliente.
+                          Sem responsável (por dia nem padrão), a sala não é oferecida ao cliente.
                         </div>
                       )}
                     </div>
