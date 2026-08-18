@@ -115,7 +115,10 @@ export const PTL_CSS = `
 /* Muitos pets: dois por linha (card menor). Um pet sozinho ocupa a linha toda. */
 .ptl-pets-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .ptl-pets-grid > .ptl-pet-row:only-child { grid-column:1 / -1; }
-.ptl-pets-grid .ptl-pet-row { padding:11px 12px; gap:9px; }
+.ptl-pets-grid .ptl-pet-row { padding:10px 11px; gap:8px; min-width:0; overflow:hidden; }
+.ptl-pets-grid .ptl-pet-row .av { width:40px; height:40px; font-size:21px; }
+.ptl-pets-grid .ptl-pet-row b { font-size:14px; }
+.ptl-pets-grid .ptl-pet-row small { font-size:10.5px; }
 .ptl-pet-row > span:not(.ptl-avatar-wrap) { min-width:0; }
 .ptl-pet-row b, .ptl-pet-row small { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
@@ -161,7 +164,7 @@ export const PTL_CSS = `
 .ptl-menu-item em { font-size:22px; font-style:normal; margin-bottom:2px; line-height:1; }
 .ptl-menu-item span { font-size:13px; font-weight:700; }
 .ptl-menu-item small { font-size:10px; color:var(--cinza-claro); }
-.ptl-menu-item.contato { background:var(--turquesa); border-color:var(--turquesa); grid-column:1 / -1; flex-direction:row; gap:8px; }
+.ptl-menu-item.contato { background:var(--turquesa); border-color:var(--turquesa); grid-column:1 / -1; flex-direction:row; gap:8px; justify-content:center; align-items:center; text-align:center; }
 .ptl-menu-item.contato span { color:#fff; }
 .ptl-menu-item.embreve { opacity:.62; cursor:default; }
 .ptl-menu-item.embreve:active { transform:none; }
