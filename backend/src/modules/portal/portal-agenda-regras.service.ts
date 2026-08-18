@@ -27,6 +27,8 @@ export interface ServicoDaTela {
   restricao: Restricao;
   /** Quem assina o agendamento quando o servico e marcado numa SALA. */
   responsavelUserId: string | null;
+  /** Responsavel por dia da semana (sala): { "1": userId, ..., "6": userId } (1=seg..6=sab). Prioritario. */
+  responsavelPorDia: Record<string, string> | null;
 }
 
 export interface OpcaoAgenda {
@@ -175,6 +177,7 @@ export class PortalAgendaRegrasService {
         agendas: s?.agendas ?? [],
         restricao: (s?.restricao as Restricao) ?? 'TODOS',
         responsavelUserId: s?.responsavelUserId ?? null,
+        responsavelPorDia: (s?.responsavelPorDia as Record<string, string>) ?? null,
         ordem: s?.ordem ?? i,
       } as ServicoDaTela;
     });

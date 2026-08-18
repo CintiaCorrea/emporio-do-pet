@@ -175,7 +175,7 @@ export class PortalAgendarService {
     }
 
     // Quem é o responsável no CRM (todo agendamento exige um).
-    const responsavel = await this.responsavelDaAgenda(vaga.agendaId, servico.responsavelUserId);
+    const responsavel = await this.responsavelDaAgenda(vaga.agendaId, servico, inicio);
     if (!responsavel) {
       throw new BadRequestException(
         'Não há profissional responsável configurado para esse atendimento. Fale com a recepção.',
@@ -240,7 +240,8 @@ export class PortalAgendarService {
   /** Profissional que assina o agendamento; e se a agenda é sala. */
   private async responsavelDaAgenda(
     agendaId: string,
-    responsavelConfigurado?: string | null,
+    servico: { responsavelUserId?: string | null; responsavelPorDia?: Record<string, string> | null },
+    inicio: Date,
   ): Promise<{ userId: string; ehSala: boolean } | null> {
     const prof = await this.prisma.profissional.findFirst({
       where: { id: agendaId, ativo: true },
@@ -248,10 +249,15 @@ export class PortalAgendarService {
     });
     if (prof?.userId) return { userId: prof.userId, ehSala: false };
 
-    // Sala/parceiro: usa o responsável escolhido na regra do serviço.
-    if (responsavelConfigurado) {
+    // Sala/parceiro: o responsável POR DIA (1=seg..6=sáb, no fuso de Fortaleza) tem
+    // prioridade; sem regra do dia, cai no responsável fixo do serviço.
+    const [ay, am, ad] = ymdLocal(inicio).split('-').map(Number);
+    const diaSemana = new Date(Date.UTC(ay, am - 1, ad)).getUTCDay(); // 0=dom..6=sáb
+    const doDia = servico.responsavelPorDia?.[String(diaSemana)] || null;
+    const alvo = doDia || servico.responsavelUserId || null;
+    if (alvo) {
       const existe = await this.prisma.user.findUnique({
-        where: { id: responsavelConfigurado },
+        where: { id: alvo },
         select: { id: true },
       });
       if (existe) return { userId: existe.id, ehSala: true };

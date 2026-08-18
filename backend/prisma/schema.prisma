@@ -3663,6 +3663,9 @@ model PortalAgendaServico {
   ordem      Int      @default(0)
   /// Responsavel quando o servico e marcado numa SALA (o CRM exige um em todo agendamento).
   responsavelUserId String? @map("responsavel_user_id")
+  /// Responsavel por dia da semana (sala): { "1": userId, ..., "6": userId } (1=seg..6=sab).
+  /// Tem prioridade sobre responsavelUserId. Ex.: fisio nos MAP com Victoria seg-qua / Nayana qui-sab.
+  responsavelPorDia Json? @map("responsavel_por_dia")
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at")
 
   @@index([ativo])
