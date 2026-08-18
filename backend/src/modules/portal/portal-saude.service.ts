@@ -336,42 +336,47 @@ export class PortalSaudeService {
   }
 
   // ---------------------------------------------------------------- FISIO
+  // Os planos de fisio (vendidos no caixa OU pacote manual da ficha/inbox) vivem em
+  // `petpac_<pet>` (ListaItem) — NÃO na tabela Pacote (legada). É de lá que a ficha
+  // mostra "1/3 sessões". O histórico por sessão o tutor vê pelos boletins (petboletim_).
   async fisio(petId: string): Promise<PacoteFisio[]> {
-    const pacotes = await this.prisma.pacote.findMany({
-      where: { petId },
-      select: {
-        id: true,
-        servico: true,
-        descricao: true,
-        totalSessoes: true,
-        sessoesUsadas: true,
-        validade: true,
-        status: true,
-        sessoes: {
-          select: { numero: true, data: true, profissional: true, observacao: true },
-          orderBy: { numero: 'desc' },
-          take: 20,
-        },
-      },
-      orderBy: [{ status: 'asc' }, { createdAt: 'desc' }],
-      take: 10,
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: `petpac_${petId}` },
+      select: { id: true, valor: true, createdAt: true },
     });
 
-    return pacotes.map((p) => ({
-      id: p.id,
-      servico: p.servico,
-      descricao: p.descricao,
-      sessaoAtual: p.sessoesUsadas,
-      totalSessoes: p.totalSessoes,
-      restantes: Math.max(0, p.totalSessoes - p.sessoesUsadas),
-      validade: p.validade,
-      status: String(p.status),
-      sessoes: p.sessoes.map((s) => ({
-        numero: s.numero,
-        data: s.data,
-        profissional: s.profissional,
-        observacao: s.observacao,
-      })),
-    }));
+    const planos = itens
+      .map((it) => {
+        try {
+          return { id: it.id, createdAt: it.createdAt, ...(JSON.parse(it.valor) as any) };
+        } catch {
+          return null;
+        }
+      })
+      .filter((x): x is any => !!x && Number(x.total) > 0);
+
+    // Ativos primeiro; dentro de cada grupo, os mais recentes no topo.
+    planos.sort(
+      (a, b) =>
+        Number(!!a.concluido) - Number(!!b.concluido) ||
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+
+    return planos.map((p) => {
+      const total = Number(p.total) || 0;
+      const used = Math.min(Number(p.used) || 0, total);
+      const concluido = !!p.concluido || (total > 0 && used >= total);
+      return {
+        id: p.id,
+        servico: p.nome || 'Fisioterapia',
+        descricao: p.nome || null,
+        sessaoAtual: used,
+        totalSessoes: total,
+        restantes: Math.max(0, total - used),
+        validade: p.validade || null,
+        status: concluido ? 'CONCLUIDO' : 'ATIVO',
+        sessoes: [],
+      } as PacoteFisio;
+    });
   }
 }
