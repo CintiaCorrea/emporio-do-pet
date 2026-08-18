@@ -44,6 +44,9 @@ export interface EquipVal { on?: boolean; livre?: string; exercicios?: string[];
 export const EQUIPAMENTOS_FISIO = EQUIP_DEFS.map((e) => e.key);
 
 export interface BoletimData {
+  // Texto pronto do boletim (renderizado por montarTextoBoletim) — guardado ao salvar
+  // pra o Portal do Tutor exibir o boletim sem re-renderizar no backend.
+  texto?: string;
   // Paciente
   animal?: string; raca?: string; sexo?: string; idade?: string; tutor?: string;
   encaminhado?: string; diagnostico?: string; cirurgias?: string; examesData?: string;

@@ -69,6 +69,41 @@ export async function chamarPortal(
 }
 
 /**
+ * Repassa um ARQUIVO binário do backend (ex.: PDF de receita/exame) levando só a
+ * sessão do tutor. O proxy JSON acima faz `.text()` e quebraria o binário — por isso
+ * este é separado. O porteiro (dono do documento) fica no backend.
+ */
+export async function chamarPortalArquivo(request: NextRequest, caminho: string): Promise<NextResponse> {
+  const base = baseDoBackend();
+  if (!base) return NextResponse.json({ error: 'Backend nao configurado' }, { status: 500 });
+  const token = request.cookies.get(COOKIE_SESSAO)?.value;
+  try {
+    const upstream = await fetch(`${apiBase(base)}${caminho}`, {
+      method: 'GET',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        'x-forwarded-for': request.headers.get('x-forwarded-for') || '',
+      },
+      cache: 'no-store',
+    });
+    if (!upstream.ok) {
+      return NextResponse.json({ error: 'Arquivo não encontrado' }, { status: upstream.status });
+    }
+    const buffer = await upstream.arrayBuffer();
+    return new NextResponse(buffer, {
+      status: 200,
+      headers: {
+        'Content-Type': upstream.headers.get('content-type') || 'application/octet-stream',
+        'Content-Disposition': upstream.headers.get('content-disposition') || 'inline',
+        'Cache-Control': 'private, no-store',
+      },
+    });
+  } catch {
+    return NextResponse.json({ error: 'Falha ao conectar ao backend' }, { status: 502 });
+  }
+}
+
+/**
  * Guarda a sessao no cookie e TIRA o token do corpo da resposta — o navegador
  * nunca precisa ver o token, e assim ele nao sobra em log nem em cache.
  */

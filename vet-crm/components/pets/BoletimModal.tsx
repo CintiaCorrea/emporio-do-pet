@@ -133,7 +133,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
   });
 
   async function persistir(enviado: boolean): Promise<boolean> {
-    const payload: BoletimData = { ...b, enviadoAt: enviado ? new Date().toISOString() : (b.enviadoAt || null), createdAt: b.createdAt || new Date().toISOString() };
+    const payload: BoletimData = { ...b, texto: textoPreview, enviadoAt: enviado ? new Date().toISOString() : (b.enviadoAt || null), createdAt: b.createdAt || new Date().toISOString() };
     // desconto da sessão: via agenda (quando o tutor chega/entra na sala de espera) — não descontamos aqui.
     try {
       if (boletimId) {

@@ -8,13 +8,17 @@ import {
   Body,
   Controller,
   Get,
+  NotFoundException,
   Param,
   Patch,
   Post,
   Query,
   Req,
+  Res,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { PortalAuthService } from './portal-auth.service';
 import { PortalEscopoService } from './portal-escopo.service';
 import { PortalFichaService, FichaPayload } from './portal-ficha.service';
@@ -151,7 +155,28 @@ export class PortalMeController {
   @Get('pets/:petId/fisio')
   async telaFisio(@Req() req: RequestDoPortal, @Param('petId') petId: string) {
     await this.escopo.assertPetDoTutor(req.portalTutorId!, petId);
-    return { pacotes: await this.saude.fisio(petId) };
+    const [pacotes, boletins] = await Promise.all([
+      this.saude.fisio(petId),
+      this.saude.boletinsFisio(petId),
+    ]);
+    return { pacotes, boletins };
+  }
+
+  /** Abre um documento do tutor (receita/exame). O porteiro está DENTRO do serviço. */
+  @Get('documento/:id')
+  async abrirDocumento(
+    @Req() req: RequestDoPortal,
+    @Param('id') id: string,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<StreamableFile> {
+    const f = await this.saude.arquivo(req.portalTutorId!, id);
+    if (!f) throw new NotFoundException('Arquivo não encontrado');
+    res.set({
+      'Content-Type': f.contentType,
+      'Content-Disposition': `inline; filename="${encodeURIComponent(f.nome)}"`,
+      'Cache-Control': 'private, no-store',
+    });
+    return new StreamableFile(f.buffer);
   }
 
   @Get('pets/:petId/dieta')

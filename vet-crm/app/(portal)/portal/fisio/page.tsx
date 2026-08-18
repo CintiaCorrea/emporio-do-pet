@@ -36,6 +36,12 @@ interface Pacote {
   sessoes: Sessao[];
 }
 
+interface Boletim {
+  id: string;
+  data: string;
+  texto: string;
+}
+
 const ROTULO_STATUS: Record<string, string> = {
   ATIVO: '',
   CONCLUIDO: 'pacote concluído',
@@ -46,6 +52,8 @@ const ROTULO_STATUS: Record<string, string> = {
 export default function TelaFisio() {
   const { pets, petId, pet, selecionar, carregando: carregandoPets } = usePetSelecionado();
   const [pacotes, setPacotes] = useState<Pacote[]>([]);
+  const [boletins, setBoletins] = useState<Boletim[]>([]);
+  const [boletimAberto, setBoletimAberto] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
@@ -56,7 +64,10 @@ export default function TelaFisio() {
       try {
         const r = await fetch(`/api/portal/pets/${petId}/fisio`, { cache: 'no-store' });
         const d = await r.json();
-        if (vivo) setPacotes(r.ok ? d.pacotes || [] : []);
+        if (vivo) {
+          setPacotes(r.ok ? d.pacotes || [] : []);
+          setBoletins(r.ok ? d.boletins || [] : []);
+        }
       } finally {
         if (vivo) setCarregando(false);
       }
@@ -77,7 +88,7 @@ export default function TelaFisio() {
 
         {ocupado && <div className="ptl-vazio">Carregando…</div>}
 
-        {!ocupado && pacotes.length === 0 && (
+        {!ocupado && pacotes.length === 0 && boletins.length === 0 && (
           <div className="ptl-card" style={{ marginTop: 8 }}>
             <p className="ptl-vazio" style={{ padding: '6px 0' }}>
               {pet ? `O ${pet.nome} não tem` : 'Não há'} pacote de fisioterapia.
@@ -141,6 +152,52 @@ export default function TelaFisio() {
               </div>
             );
           })}
+
+        {!ocupado && boletins.length > 0 && (
+          <div className="ptl-stack" style={{ marginTop: 6 }}>
+            <div className="ptl-label">boletins da fisioterapia</div>
+            <div className="ptl-card-lista">
+              {boletins.map((b) => {
+                const aberto = boletimAberto === b.id;
+                return (
+                  <div key={b.id}>
+                    <button
+                      type="button"
+                      className="ptl-row"
+                      style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer' }}
+                      onClick={() => setBoletimAberto(aberto ? null : b.id)}
+                    >
+                      <span className="ico" aria-hidden="true">🌿</span>
+                      <span className="grow">
+                        <span className="rt" style={{ display: 'block' }}>Boletim de {dataBr(b.data)}</span>
+                        <span className="rs">{aberto ? 'toque pra fechar' : 'toque pra ler'}</span>
+                      </span>
+                      <span aria-hidden="true">{aberto ? '▲' : '▼'}</span>
+                    </button>
+                    {aberto && (
+                      <pre
+                        style={{
+                          whiteSpace: 'pre-wrap',
+                          fontFamily: 'inherit',
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                          margin: '2px 6px 10px',
+                          padding: '10px 12px',
+                          background: '#F6FBFA',
+                          border: '1px solid #DCECEA',
+                          borderRadius: 10,
+                          color: '#0E2244',
+                        }}
+                      >
+                        {b.texto || 'Boletim sem texto salvo.'}
+                      </pre>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

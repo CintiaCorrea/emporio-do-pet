@@ -139,7 +139,7 @@ export default function TelaSaude() {
                           {r.detalhe ? ` · ${r.detalhe}` : ''}
                         </span>
                       </span>
-                      {r.temArquivo && <span className="acao">em breve</span>}
+                      {r.temArquivo && <a className="acao" href={`/api/portal/documento/${r.id}`} target="_blank" rel="noreferrer">abrir</a>}
                     </div>
                   ))}
                 </div>
@@ -170,7 +170,7 @@ export default function TelaSaude() {
                           {e.detalhe ? ` · ${e.detalhe}` : ''}
                         </span>
                       </span>
-                      {e.temArquivo && <span className="acao">em breve</span>}
+                      {e.temArquivo && <a className="acao" href={`/api/portal/documento/${e.id}`} target="_blank" rel="noreferrer">abrir</a>}
                     </div>
                   ))}
                 </div>

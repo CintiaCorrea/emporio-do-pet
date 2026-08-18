@@ -14,6 +14,8 @@
  */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { PortalEscopoService } from './portal-escopo.service';
+import { CloudStorageService } from '../media/cloud-storage.service';
 
 export interface ItemVacina {
   nome: string;
@@ -59,7 +61,63 @@ export interface PacoteFisio {
 
 @Injectable()
 export class PortalSaudeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly escopo: PortalEscopoService,
+    private readonly storage: CloudStorageService,
+  ) {}
+
+  /**
+   * Abre um documento (receita/exame) do tutor. O id pode ser de ClinicalDocument
+   * (gerado no sistema, pdfUrl) ou de HistoricoClinico (importado, arquivoKey). SEMPRE
+   * confere o dono pelo porteiro antes de servir o arquivo do bucket privado (Tigris).
+   */
+  async arquivo(
+    tutorId: string,
+    docId: string,
+  ): Promise<{ buffer: Buffer; contentType: string; nome: string } | null> {
+    const doc = await this.prisma.clinicalDocument.findUnique({
+      where: { id: docId },
+      select: { petId: true, pdfUrl: true, title: true },
+    });
+    if (doc?.pdfUrl && doc.petId) {
+      await this.escopo.assertPetDoTutor(tutorId, doc.petId);
+      const f = await this.storage.baixarPorUrl(doc.pdfUrl);
+      return f ? { ...f, nome: `${doc.title || 'documento'}.pdf` } : null;
+    }
+    const hist = await this.prisma.historicoClinico.findUnique({
+      where: { id: docId },
+      select: { petId: true, arquivoKey: true, arquivoNome: true, titulo: true },
+    });
+    if (hist?.arquivoKey && hist.petId) {
+      await this.escopo.assertPetDoTutor(tutorId, hist.petId);
+      const f = await this.storage.baixarPorChave(hist.arquivoKey);
+      return f ? { ...f, nome: hist.arquivoNome || hist.titulo || 'documento' } : null;
+    }
+    return null;
+  }
+
+  /** Boletins de fisioterapia ENVIADOS ao tutor (lista `petboletim_<petId>`), mais novos primeiro. */
+  async boletinsFisio(petId: string): Promise<Array<{ id: string; data: string; texto: string }>> {
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: `petboletim_${petId}` },
+      select: { id: true, valor: true },
+    });
+    const boletins = itens
+      .map((it) => {
+        try {
+          const o = JSON.parse(it.valor);
+          if (!o?.enviadoAt) return null;
+          const texto = String(o.texto || o.resumo || o.evolucao || o.observacoes || '').trim();
+          return { id: it.id, data: String(o.sessaoData || o.enviadoAt || o.createdAt).slice(0, 10), texto };
+        } catch {
+          return null;
+        }
+      })
+      .filter((b): b is { id: string; data: string; texto: string } => !!b)
+      .sort((a, b) => (a.data < b.data ? 1 : -1));
+    return boletins;
+  }
 
   // ---------------------------------------------------------------- SAUDE
   async vacinas(petId: string): Promise<ItemVacina[]> {

@@ -371,6 +371,13 @@ export class CloudStorageService {
     }
   }
 
+  /** Baixa um objeto pela CHAVE (pasta/arquivo no bucket) — monta a URL e reusa a versão assinada. */
+  async baixarPorChave(key: string): Promise<{ buffer: Buffer; contentType: string } | null> {
+    if (!key || !this.config.s3Bucket) return null;
+    const endpoint = this.config.s3Endpoint || `https://s3.${this.config.s3Region}.amazonaws.com`;
+    return this.baixarPorUrl(`${endpoint}/${this.config.s3Bucket}/${key.replace(/^\/+/, '')}`);
+  }
+
   /**
    * Apaga um objeto a partir da URL completa (deriva a "chave" pasta/arquivo do bucket).
    * Usado pela limpeza automática de áudios antigos de consulta.
