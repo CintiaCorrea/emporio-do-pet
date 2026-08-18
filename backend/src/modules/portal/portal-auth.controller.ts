@@ -221,11 +221,12 @@ export class PortalMeController {
     @Req() req: RequestDoPortal,
     @Query('petId') petId: string,
     @Query('tipo') tipo: string,
+    @Query('agenda') agenda?: string,
   ) {
     const tutorId = req.portalTutorId!;
     await this.escopo.assertPetDoTutor(tutorId, petId);
     try {
-      return { dias: await this.horarios.proximosDias(tutorId, petId, tipo) };
+      return { dias: await this.horarios.proximosDias(tutorId, petId, tipo, 14, agenda || undefined) };
     } catch (e) {
       // Motivo de regra vira resposta explicável, não erro seco.
       if (e instanceof SemHorarios) return { dias: [], motivo: e.motivo };
@@ -237,13 +238,13 @@ export class PortalMeController {
   @Post('agendar')
   async criarAgendamento(
     @Req() req: ReqComRede,
-    @Body() corpo: { petId?: string; tipo?: string; inicio?: string },
+    @Body() corpo: { petId?: string; tipo?: string; inicio?: string; agenda?: string },
   ) {
     const tutorId = req.portalTutorId!;
     await this.escopo.assertPetDoTutor(tutorId, corpo?.petId || '');
     return this.agendar.agendar(
       tutorId,
-      { petId: corpo!.petId!, tipo: corpo?.tipo || '', inicio: corpo?.inicio || '' },
+      { petId: corpo!.petId!, tipo: corpo?.tipo || '', inicio: corpo?.inicio || '', agenda: corpo?.agenda },
       ipDoRequest(req),
     );
   }

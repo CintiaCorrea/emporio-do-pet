@@ -256,6 +256,7 @@ export class PortalAgendaHorariosService {
     petId: string,
     tipo: string,
     ymd: string,
+    agendaFiltro?: string,
   ): Promise<DiaComHorarios> {
     const { config, servicos } = await this.regras.paraTela();
     if (!config.ativo) throw new SemHorarios('AGENDAMENTO_DESLIGADO');
@@ -296,8 +297,12 @@ export class PortalAgendaHorariosService {
     const minimo = agora + config.antecedenciaMinHoras * 60 * 60_000;
     const maximo = agora + config.janelaDias * 24 * 60 * 60_000;
 
+    // Se o cliente escolheu um profissional específico (e ele é uma das agendas
+    // do serviço), só olhamos a agenda dele. Sem escolha, junta todas ("tanto faz").
+    const idsAgenda =
+      agendaFiltro && servico.agendas.includes(agendaFiltro) ? [agendaFiltro] : servico.agendas;
     const [agendas, travam, pet] = await Promise.all([
-      this.agendasPorId(servico.agendas),
+      this.agendasPorId(idsAgenda),
       this.temperamentosQueTravam(),
       this.prisma.pet.findUnique({ where: { id: petId }, select: { temperament: true } }),
     ]);
@@ -380,6 +385,7 @@ export class PortalAgendaHorariosService {
     petId: string,
     tipo: string,
     quantosDias = 14,
+    agendaFiltro?: string,
   ): Promise<DiaComHorarios[]> {
     const dias: DiaComHorarios[] = [];
     const hoje = new Date();
@@ -388,7 +394,7 @@ export class PortalAgendaHorariosService {
       const d = new Date(hoje.getTime() + i * 24 * 60 * 60_000);
       const ymd = ymdLocal(d);
       try {
-        const dia = await this.horariosDoDia(tutorId, petId, tipo, ymd);
+        const dia = await this.horariosDoDia(tutorId, petId, tipo, ymd, agendaFiltro);
         if (dia.horarios.length) dias.push(dia);
       } catch (e) {
         // Motivo de regra (serviço desligado, sem pacote...) vale para todos os

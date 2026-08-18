@@ -22,12 +22,14 @@ import {
   usePetSelecionado,
 } from '../ptl-ui';
 
-type Passo = 'escolher' | 'quando' | 'conferir' | 'pronto';
+type Passo = 'escolher' | 'profissional' | 'quando' | 'conferir' | 'pronto';
 
 interface Servico {
   tipo: string;
   rotulo: string;
   duracaoMin: number;
+  /** Profissionais que o cliente pode escolher (vazio = sala/fisio, sem escolha). */
+  profissionais: { id: string; nome: string }[];
 }
 
 interface Bloqueio {
@@ -100,6 +102,7 @@ export default function TelaAgendar() {
   const [bloqueio, setBloqueio] = useState<Bloqueio | null>(null);
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [servico, setServico] = useState<Servico | null>(null);
+  const [agendaSel, setAgendaSel] = useState<string | null>(null); // profissional escolhido (null = tanto faz)
   const [dias, setDias] = useState<Dia[]>([]);
   const [motivo, setMotivo] = useState<string | null>(null);
   const [diaSel, setDiaSel] = useState<string | null>(null);
@@ -135,17 +138,29 @@ export default function TelaAgendar() {
     };
   }, [carregarBase]);
 
-  async function verHorarios(s: Servico) {
+  /** Do passo "escolher": se o serviço tem 2+ profissionais, pergunta com quem; senão vai direto. */
+  function escolherServico(s: Servico) {
+    setServico(s);
+    setAgendaSel(null);
+    setErro('');
+    if ((s.profissionais?.length ?? 0) >= 2) {
+      setPasso('profissional');
+    } else {
+      verHorarios(s, null);
+    }
+  }
+
+  async function verHorarios(s: Servico, agenda: string | null = agendaSel) {
     if (!petId) return;
     setServico(s);
     setErro('');
     setMotivo(null);
     setOcupado(true);
     try {
-      const r = await fetch(
-        `/api/portal/agendar/dias?petId=${petId}&tipo=${encodeURIComponent(s.tipo)}`,
-        { cache: 'no-store' },
-      );
+      const qs =
+        `petId=${petId}&tipo=${encodeURIComponent(s.tipo)}` +
+        (agenda ? `&agenda=${encodeURIComponent(agenda)}` : '');
+      const r = await fetch(`/api/portal/agendar/dias?${qs}`, { cache: 'no-store' });
       const d = await r.json();
       setDias(d?.dias || []);
       setMotivo(d?.motivo || null);
@@ -171,7 +186,7 @@ export default function TelaAgendar() {
         body: JSON.stringify(
           remarcando
             ? { inicio: horaSel.inicioUtc }
-            : { petId, tipo: servico.tipo, inicio: horaSel.inicioUtc },
+            : { petId, tipo: servico.tipo, inicio: horaSel.inicioUtc, agenda: agendaSel || undefined },
         ),
       });
       const d = await r.json();
@@ -289,8 +304,9 @@ export default function TelaAgendar() {
                           disabled={ocupado}
                           onClick={() => {
                             setRemarcando(m);
+                            setAgendaSel(null);
                             const s = servicos.find((x) => x.rotulo === m.rotulo);
-                            if (s) verHorarios(s);
+                            if (s) verHorarios(s, null);
                           }}
                         >
                           Remarcar
@@ -346,7 +362,7 @@ export default function TelaAgendar() {
                           key={s.tipo}
                           className="ptl-menu-item"
                           disabled={ocupado || !petId}
-                          onClick={() => verHorarios(s)}
+                          onClick={() => escolherServico(s)}
                           style={{ minHeight: 0 }}
                         >
                           <span>{s.rotulo}</span>
@@ -359,6 +375,53 @@ export default function TelaAgendar() {
               </div>
             )}
 
+            {/* ------------------------------------- 1b. com qual profissional */}
+            {passo === 'profissional' && servico && (
+              <div className="ptl-stack" style={{ marginTop: 4 }}>
+                <div className="ptl-label">
+                  {servico.rotulo}
+                  {pet ? ` do ${pet.nome}` : ''} · com qual profissional?
+                </div>
+                <div className="ptl-menu">
+                  {servico.profissionais.map((p) => (
+                    <button
+                      key={p.id}
+                      className="ptl-menu-item"
+                      disabled={ocupado}
+                      onClick={() => {
+                        setAgendaSel(p.id);
+                        verHorarios(servico, p.id);
+                      }}
+                      style={{ minHeight: 0 }}
+                    >
+                      <span>{p.nome}</span>
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="ptl-btn ghost"
+                  disabled={ocupado}
+                  onClick={() => {
+                    setAgendaSel(null);
+                    verHorarios(servico, null);
+                  }}
+                >
+                  Tanto faz — primeiro horário livre
+                </button>
+                <button
+                  className="ptl-btn ghost"
+                  disabled={ocupado}
+                  style={{ opacity: 0.7 }}
+                  onClick={() => {
+                    setPasso('escolher');
+                    setServico(null);
+                  }}
+                >
+                  ‹ voltar
+                </button>
+              </div>
+            )}
+
             {/* ------------------------------------- 2. dia e hora */}
             {passo === 'quando' && servico && (
               <div className="ptl-stack" style={{ marginTop: 4 }}>
@@ -366,6 +429,8 @@ export default function TelaAgendar() {
                   {remarcando ? 'remarcar · ' : ''}
                   {servico.rotulo}
                   {pet ? ` do ${pet.nome}` : ''} · {servico.duracaoMin} min
+                  {agendaSel &&
+                    ` · com ${servico.profissionais.find((p) => p.id === agendaSel)?.nome ?? ''}`}
                 </div>
 
                 {motivo && (

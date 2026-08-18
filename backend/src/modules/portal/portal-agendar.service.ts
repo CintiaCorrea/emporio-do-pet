@@ -126,10 +126,11 @@ export class PortalAgendarService {
   // O que a tela Agendar mostra
   // ---------------------------------------------------------------------------
   async opcoes(tutorId: string) {
-    const [{ config, servicos }, bloqueio] = await Promise.all([
+    const [{ config, servicos, agendas }, bloqueio] = await Promise.all([
       this.regras.paraTela(),
       this.bloqueio(tutorId),
     ]);
+    const porId = new Map(agendas.map((a) => [a.id, a]));
 
     return {
       ativo: config.ativo,
@@ -137,7 +138,15 @@ export class PortalAgendarService {
       prazoCancelarHoras: config.prazoCancelarHoras,
       servicos: servicos
         .filter((s) => s.ativo)
-        .map((s) => ({ tipo: s.tipo, rotulo: s.rotulo, duracaoMin: s.duracaoMin })),
+        .map((s) => {
+          // Só PROFISSIONAIS (não salas/MAP) podem ser escolhidos pelo cliente.
+          // Serviço de sala (fisio) volta com lista vazia → a tela não pergunta.
+          const profissionais = s.agendas
+            .map((id) => porId.get(id))
+            .filter((a): a is NonNullable<typeof a> => !!a && a.origem === 'profissional')
+            .map((a) => ({ id: a.id, nome: a.nome }));
+          return { tipo: s.tipo, rotulo: s.rotulo, duracaoMin: s.duracaoMin, profissionais };
+        }),
     };
   }
 
@@ -150,7 +159,7 @@ export class PortalAgendarService {
    */
   async agendar(
     tutorId: string,
-    dados: { petId: string; tipo: string; inicio: string },
+    dados: { petId: string; tipo: string; inicio: string; agenda?: string },
     ip?: string,
   ) {
     const bloqueio = await this.bloqueio(tutorId);
@@ -167,8 +176,16 @@ export class PortalAgendarService {
     const servico = servicos.find((s) => s.tipo === dados.tipo);
     if (!servico?.ativo) throw new BadRequestException('Esse atendimento não está disponível.');
 
-    // Reconferência: o horário ainda tem que estar na lista de livres.
-    const dia = await this.horarios.horariosDoDia(tutorId, dados.petId, dados.tipo, ymdLocal(inicio));
+    // Reconferência: o horário ainda tem que estar na lista de livres. Se o cliente
+    // escolheu um profissional, filtramos por ele — assim a vaga reservada é a DELE,
+    // não a "primeira livre" no mesmo horário.
+    const dia = await this.horarios.horariosDoDia(
+      tutorId,
+      dados.petId,
+      dados.tipo,
+      ymdLocal(inicio),
+      dados.agenda,
+    );
     const vaga = dia.horarios.find((h) => h.inicioUtc.getTime() === inicio.getTime());
     if (!vaga) {
       throw new ConflictException('Esse horário acabou de ser preenchido. Escolha outro, por favor.');
