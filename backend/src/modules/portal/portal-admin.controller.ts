@@ -33,6 +33,13 @@ export class PortalAdminController {
     return this.regras.salvar(corpo, req?.user?.name || req?.user?.email);
   }
 
+  /** Botão "Aparece no portal" na ficha do item: liga/desliga quais serviços esse
+   *  profissional/sala atende (escreve na MESMA tabela de agendas por serviço). */
+  @Post('item-servicos')
+  async setItemServicos(@Body() corpo: { itemId?: string; servicos?: string[] }) {
+    return this.regras.setItemServicos(corpo?.itemId || '', corpo?.servicos || []);
+  }
+
   /** Clientes travados por desmarcacoes — a lista que a equipe ve na tela. */
   @Get('travados')
   async travados() {

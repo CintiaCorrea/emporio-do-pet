@@ -278,4 +278,48 @@ export class PortalAgendaRegrasService {
 
     return { salvo: true, config };
   }
+
+  /**
+   * Edita, pela ótica de UM item (profissional ou sala), quais serviços ele atende no
+   * portal. Escreve na MESMA tabela ptl_agenda_servico (agendas por serviço) — o motor
+   * continua igual. É o backend do botão "Aparece no portal" na ficha do item.
+   */
+  async setItemServicos(itemId: string, tiposMarcados: string[]) {
+    if (!itemId) throw new BadRequestException('Item inválido');
+    const opcoes = new Set((await this.opcoesDeAgenda()).map((o) => o.id));
+    if (!opcoes.has(itemId)) throw new BadRequestException('Esse item não é uma agenda válida do portal');
+
+    const tiposValidos = (await this.tiposDeAtendimento()).map((t) => t.v);
+    const marcar = new Set((tiposMarcados || []).filter((t) => tiposValidos.includes(t)));
+
+    const salvos = await this.prisma.portalAgendaServico.findMany();
+    const porTipo = new Map(salvos.map((s) => [s.tipo, s]));
+
+    for (const tipo of tiposValidos) {
+      const existente = porTipo.get(tipo);
+      const jaTem = !!existente && existente.agendas.includes(itemId);
+      if (marcar.has(tipo) && !jaTem) {
+        if (existente) {
+          await this.prisma.portalAgendaServico.update({
+            where: { tipo },
+            data: { ativo: true, agendas: [...existente.agendas, itemId] },
+          });
+        } else {
+          // Serviço ainda não configurado: cria com padrões. Duração/restrição/responsável
+          // por dia ficam pra tela de Agendamento online (Fase 2).
+          await this.prisma.portalAgendaServico.create({
+            data: { tipo, ativo: true, agendas: [itemId], duracaoMin: 30, restricao: 'TODOS' },
+          });
+        }
+      } else if (!marcar.has(tipo) && jaTem && existente) {
+        const restante = existente.agendas.filter((a) => a !== itemId);
+        await this.prisma.portalAgendaServico.update({
+          where: { tipo },
+          // Sem nenhuma agenda o serviço não tem como ser oferecido — desliga junto.
+          data: { agendas: restante, ...(restante.length === 0 ? { ativo: false } : {}) },
+        });
+      }
+    }
+    return { ok: true };
+  }
 }

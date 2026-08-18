@@ -37,6 +37,11 @@ export default function ProfissionaisPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<any>(EMPTY);
   const [importOpen, setImportOpen] = useState(false);
+  // 🌐 Portal do Tutor: serviços que este profissional atende (escreve na mesma tabela de agendas por serviço)
+  const [portalTipos, setPortalTipos] = useState<{ v: string; l: string }[]>([]);
+  const [portalSel, setPortalSel] = useState<Set<string>>(new Set());
+  const [portalOn, setPortalOn] = useState(false);
+  const [portalCarregando, setPortalCarregando] = useState(false);
 
   async function load() {
     if (!jaCarregou.current) setLoading(true);
@@ -60,11 +65,24 @@ export default function ProfissionaisPage() {
     return arr;
   }, [list, filterTipo, search]);
 
-  function openNew() { setEditId(null); setForm({ ...EMPTY, tipo: filterTipo !== "ALL" ? filterTipo : "VETERINARIO" }); setModalOpen(true); }
+  async function carregarPortal(profId: string) {
+    setPortalCarregando(true);
+    try {
+      const r = await fetch("/api/portal-admin/agenda/regras", { cache: "no-store" });
+      const d = await r.json();
+      const servs = (d?.servicos || []) as any[];
+      setPortalTipos(servs.map((s) => ({ v: s.tipo, l: s.rotulo })));
+      const sel = new Set<string>(servs.filter((s) => (s.agendas || []).includes(profId)).map((s) => s.tipo));
+      setPortalSel(sel); setPortalOn(sel.size > 0);
+    } catch { setPortalTipos([]); setPortalSel(new Set()); setPortalOn(false); }
+    finally { setPortalCarregando(false); }
+  }
+  function openNew() { setEditId(null); setForm({ ...EMPTY, tipo: filterTipo !== "ALL" ? filterTipo : "VETERINARIO" }); setPortalSel(new Set()); setPortalOn(false); setPortalTipos([]); setModalOpen(true); }
   function openEdit(p: Profissional) {
     setEditId(p.id);
     setForm({ ...p, criarAcesso: !!p.user, role: p.user?.role || "RECEPTIONIST", password: "" });
     setModalOpen(true);
+    carregarPortal(p.id);
   }
   async function save() {
     try {
@@ -75,6 +93,10 @@ export default function ProfissionaisPage() {
       const method = editId ? "PATCH" : "POST";
       const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) { const err = await res.json().catch(() => null); alert(`Erro: ${err?.message ? (Array.isArray(err.message) ? err.message.join("\n") : err.message) : res.status}`); return; }
+      // 🌐 Salva o "aparece no portal" (só ao editar um existente — precisa do id). Não bloqueia o salvar.
+      if (editId) {
+        try { await fetch("/api/portal-admin/agenda/item-servicos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId: editId, servicos: portalOn ? [...portalSel] : [] }) }); } catch { /* best-effort */ }
+      }
       setModalOpen(false); await load();
     } catch (e) { alert(`Erro: ${e}`); }
   }
@@ -244,6 +266,35 @@ export default function ProfissionaisPage() {
                 <p className="text-[12.5px] mb-2" style={{ color: "#6B7A80" }}>A escala de trabalho agora fica num lugar só: em <b>Agenda › Escala</b> (junto com acesso por horário e plantão).</p>
                 <a href="/dashboard/erp/agendamentos/escala" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#009AAC", textDecoration: "none" }}>✏️ Editar escala da equipe →</a>
               </div>
+
+              {/* 🌐 Portal do Tutor — liga/desliga + serviços que este profissional atende no portal */}
+              {editId ? (
+                <div className="md:col-span-2 mt-2 pt-3 border-t" style={{ borderColor: "#E8DFC8" }}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium flex items-center gap-1.5" style={{ color: "#0E2244" }}>🌐 Portal do Tutor</p>
+                    <button type="button" onClick={() => { const nv = !portalOn; setPortalOn(nv); if (!nv) setPortalSel(new Set()); }} aria-pressed={portalOn} title={portalOn ? "Aparece no portal" : "Não aparece no portal"} className="inline-flex items-center w-11 h-6 rounded-full transition shrink-0" style={{ background: portalOn ? "#009AAC" : "#CBD5E0" }}>
+                      <span className="block w-5 h-5 rounded-full bg-white shadow transition" style={{ marginLeft: portalOn ? 22 : 2 }} />
+                    </button>
+                  </div>
+                  <p className="text-[12.5px] mt-1" style={{ color: "#6B7A80" }}>Ligado = pode ser oferecido pro cliente marcar. Marque os serviços que atende.</p>
+                  {portalOn && (portalCarregando ? (
+                    <p className="text-[12.5px] mt-2" style={{ color: "#9AA6AB" }}>Carregando serviços…</p>
+                  ) : portalTipos.length === 0 ? (
+                    <p className="text-[12.5px] mt-2" style={{ color: "#9AA6AB" }}>Nenhum tipo de atendimento cadastrado ainda.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                      {portalTipos.map((t) => { const on = portalSel.has(t.v); return (
+                        <label key={t.v} className="flex items-center gap-2 text-sm cursor-pointer rounded-lg border px-3 py-2" style={{ borderColor: on ? "#009AAC" : "#E8DFC8", background: on ? "#E1F5EE" : "#fff" }}>
+                          <input type="checkbox" checked={on} onChange={(e) => { const n = new Set(portalSel); if (e.target.checked) n.add(t.v); else n.delete(t.v); setPortalSel(n); }} />
+                          <span style={{ color: on ? "#014D5E" : "#374151", fontWeight: on ? 600 : 500 }}>{t.l}</span>
+                        </label>
+                      ); })}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="md:col-span-2 mt-2 pt-3 border-t text-[12.5px]" style={{ borderColor: "#E8DFC8", color: "#6B7A80" }}>🌐 <b>Portal do Tutor:</b> salve primeiro pra escolher os serviços que aparecem no portal.</div>
+              )}
             </div>
             <div className="flex justify-end gap-2 mt-5">
               <button onClick={() => setModalOpen(false)} className="px-4 py-2 rounded-lg text-sm border" style={{ borderColor: "#E8DFC8" }}>Cancelar</button>
