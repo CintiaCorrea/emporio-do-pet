@@ -123,7 +123,11 @@ export class RemindersScheduler {
     const fim = new Date(); fim.setDate(fim.getDate() + 17);
     const doses = await this.prisma.protocoloDose.findMany({
       // Pet FALECIDO ou em CUIDADOS PALIATIVOS não recebe lembrete de vacina/vermífugo (seria insensível).
-      where: { status: 'PENDENTE', dataPrevista: { gte: ini, lte: fim }, protocolo: { pet: { status: { not: 'DECEASED' }, cuidadoPaliativo: false } } },
+      // ⚠️ TRAVA 18/08: a importação do SimplesVet criou ~1.635 protocolos genéricos "Vacina"
+      // NUNCA aplicados (fantasmas em ~467 pets) — eles disparavam "venceu (sem proteção)" errado.
+      // Não avisar por eles enquanto os dados não forem corrigidos/reimportados. Protocolo real
+      // tem nome específico (ex.: "V10 - Filhote", "Antirrábica"); só o import usou o nome cru "Vacina".
+      where: { status: 'PENDENTE', dataPrevista: { gte: ini, lte: fim }, protocolo: { nomeProtocolo: { not: 'Vacina' }, pet: { status: { not: 'DECEASED' }, cuidadoPaliativo: false } } },
       include: { protocolo: { select: { nomeProtocolo: true, pet: { select: { name: true, tutor: { select: { id: true, name: true, acceptsWhatsApp: true, contacts: true } } } }, tutor: { select: { id: true, name: true, acceptsWhatsApp: true, contacts: true } } } } },
       take: 1000,
     });
