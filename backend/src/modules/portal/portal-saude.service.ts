@@ -302,14 +302,21 @@ export class PortalSaudeService {
         temArquivo: !!d.pdfUrl,
         texto: textoLimpo(d.htmlContent || d.content),
       })),
-      ...importados.map((h) => ({
-        id: h.id,
-        titulo: h.titulo || h.arquivoNome || 'Exame',
-        data: h.data,
-        detalhe: detalheLimpo(h.resumo),
-        temArquivo: !!h.arquivoKey,
-        texto: textoLimpo(h.texto),
-      })),
+      ...importados.map((h) => {
+        // Muitos exames importados são STUBS: o `texto` é só "LAB; data" (igual ao resumo),
+        // não o resultado. Nesse caso não oferecemos "ver" (abriria algo inútil) — o resultado
+        // de verdade só existe quando o arquivo/valores forem trazidos. Texto real (≠ resumo) mostra.
+        const t = textoLimpo(h.texto);
+        const stub = t && t.trim() === detalheLimpo(h.resumo)?.trim();
+        return {
+          id: h.id,
+          titulo: h.titulo || h.arquivoNome || 'Exame',
+          data: h.data,
+          detalhe: detalheLimpo(h.resumo),
+          temArquivo: !!h.arquivoKey,
+          texto: stub ? null : t,
+        };
+      }),
       ...kanban.map((it) => {
         let o: any = {};
         try { o = JSON.parse(it.valor); } catch { /* item fora do formato */ }
