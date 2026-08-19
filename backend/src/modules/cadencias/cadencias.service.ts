@@ -537,16 +537,23 @@ export class CadenciasService implements OnModuleInit {
   @Cron(CronExpression.EVERY_6_HOURS)
   async varrerPacotesProximosDoFim() {
     if (!(await this.temCadAtiva('PACOTE_PROXIMO_DO_FIM'))) return;
-    const ativos = await this.prisma.pacote.findMany({
-      where: { status: 'ATIVO' as any, sessoesUsadas: { gt: 0 } },
-      take: 300,
+    // Fonte viva do pacote = `petpac_<pet>` (ListaItem), não a tabela Pacote (legada).
+    // (Unificação fatia 2 — antes lia a tabela vazia e nunca disparava.)
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: { startsWith: 'petpac_' } },
+      select: { id: true, lista: true, valor: true },
+      take: 1000,
     });
-    for (const pac of ativos) {
+    for (const it of itens) {
       try {
-        // "próximo do fim" = falta 1 sessão (ou já usou todas mas o pacote segue ATIVO)
-        if (!(pac.totalSessoes > 0 && pac.sessoesUsadas >= pac.totalSessoes - 1)) continue;
+        const o = JSON.parse(it.valor);
+        const total = Number(o.total) || 0;
+        const used = Number(o.used) || 0;
+        // "próximo do fim" = falta 1 sessão (ou já usou todas), com pelo menos 1 usada e não concluído.
+        if (o.concluido || !(total > 0 && used > 0 && used >= total - 1)) continue;
+        const petId = (it.lista || '').replace('petpac_', '');
         const pet = await this.prisma.pet.findUnique({
-          where: { id: pac.petId },
+          where: { id: petId },
           include: { tutor: { include: { contacts: true } } },
         });
         if (!pet) continue;
@@ -555,14 +562,14 @@ export class CadenciasService implements OnModuleInit {
         const phone = this.bestPhone((pet as any).tutor?.contacts || []);
         if (!phone) continue;
         await this.dispararGatilho('PACOTE_PROXIMO_DO_FIM', {
-          tutorId: pac.tutorId || pet.tutorId,
-          petId: pac.petId,
+          tutorId: pet.tutorId,
+          petId,
           phone,
-          vars: { tutor: (pet as any).tutor?.name || '', pet: pet.name || 'seu pet', servico: pac.servico || 'pacote' },
-          origemId: `pacotefim:${pac.id}`,
+          vars: { tutor: (pet as any).tutor?.name || '', pet: pet.name || 'seu pet', servico: o.nome || 'pacote' },
+          origemId: `pacotefim:${it.id}`,
         });
       } catch (e: any) {
-        this.logger.warn(`varrerPacotesProximosDoFim ${pac.id}: ${e?.message || e}`);
+        this.logger.warn(`varrerPacotesProximosDoFim ${it.id}: ${e?.message || e}`);
       }
     }
   }
