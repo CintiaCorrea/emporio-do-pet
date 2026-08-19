@@ -1,12 +1,37 @@
 "use client";
 import { useMemo, useState } from "react";
-import { LuPencil, LuTrash2, LuCalendar, LuRotateCcw, LuStethoscope, LuActivity, LuSyringe, LuFileText, LuFlaskConical, LuVideo } from "react-icons/lu";
+import { LuPencil, LuTrash2, LuCalendar, LuRotateCcw, LuStethoscope, LuActivity, LuSyringe, LuFileText, LuFlaskConical, LuVideo, LuPrinter } from "react-icons/lu";
 
 const ATD_LBL = (t?: string) => (({ CONSULTA: "Consulta", RETORNO: "Retorno", AVALIACAO: "Avaliação", EMERGENCIA: "Emergência", PROCEDIMENTO: "Procedimento", VACINACAO: "Vacinação", SESSAO_FISIO: "Sessão de fisio", CIRURGIA: "Cirurgia", Receitas: "Receita", Documento: "Documento", Video: "Vídeo", OUTRO: "Outro" } as any)[t || ""] || t || "Atendimento");
 const DOC_LBL = (t?: string) => (({ ANAMNESIS: "Anamnese", PRESCRIPTION: "Receita", DIAGNOSIS: "Diagnóstico", TUTOR_REPORT: "Relatório", MEDICAL_CERTIFICATE: "Atestado", EXAM_REQUEST: "Solicitação de exame", SURGICAL_REPORT: "Relatório cirúrgico", DISCHARGE_SUMMARY: "Alta", VACCINATION_CARD: "Carteira de vacina", GENERAL: "Documento" } as any)[t || ""] || "Documento");
 const COLOR = (k?: string) => (({ CONSULTA: "#2f80c4", RETORNO: "#2f80c4", AVALIACAO: "#2f80c4", EMERGENCIA: "#2f80c4", PROCEDIMENTO: "#2f80c4", SESSAO_FISIO: "#2f80c4", CIRURGIA: "#9b2c3a", Receitas: "#9333ea", PRESCRIPTION: "#9333ea", Documento: "#2e9e5b", GENERAL: "#2e9e5b", MEDICAL_CERTIFICATE: "#2e9e5b", Video: "#0f7a52", VACINACAO: "#e08a1e", VACCINATION_CARD: "#e08a1e", EXAM_REQUEST: "#e0556b", Exame: "#e0556b", ATENDIMENTO: "#017E8C", PESO: "#8A6D3B", RECEITA: "#6A4FB0", OBSERVACAO: "#6B6A63", EXAME: "#B0416B", VACINA: "#9A6E1E" } as any)[k || ""] || "#64748b");
 const TIPO_HIST = (t?: string) => (({ ATENDIMENTO: "Atendimento", PESO: "Peso", RECEITA: "Receita", OBSERVACAO: "Observação", EXAME: "Exame", VACINA: "Vacina" } as any)[t || ""] || t || "Registro");
 const stripHtml = (s?: string) => (s || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&[a-z]+;/gi, " ").replace(/\s+/g, " ").trim();
+// Texto legível de uma receita (HTML às vezes duplo-escapado, ex.: &amp;nbsp;) — 2 passadas.
+const limparReceita = (s?: string) => {
+  if (!s) return "";
+  let t = String(s);
+  for (let i = 0; i < 2; i++) t = t.replace(/&nbsp;/gi, " ").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"').replace(/&#39;/gi, "'").replace(/&amp;/gi, "&");
+  t = t.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n").replace(/<li[^>]*>/gi, "• ").replace(/<[^>]+>/g, "");
+  return t.replace(/[ \t]+\n/g, "\n").replace(/[ \t]{2,}/g, " ").replace(/\n{3,}/g, "\n\n").trim();
+};
+const textoReceitaDe = (it: any): string => limparReceita(it?.raw?.texto || it?.raw?.prescription || it?.raw?.htmlContent || it?.raw?.content || "");
+// Abre janela limpa e chama a impressão do navegador (também salva em PDF).
+function imprimirReceita(titulo: string, data: any, texto: string) {
+  const w = window.open("", "_blank", "width=720,height=900");
+  if (!w) return;
+  const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => (({ "&": "&amp;", "<": "&lt;", ">": "&gt;" } as any)[c]));
+  const dt = new Date(data).toLocaleDateString("pt-BR");
+  w.document.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${esc(titulo)}</title>` +
+    `<style>body{font-family:system-ui,-apple-system,Arial,sans-serif;padding:36px;color:#1f2a2e;line-height:1.6}` +
+    `h1{font-size:19px;margin:0 0 2px;color:#014D5E}.data{color:#6b7280;font-size:13px;margin:0 0 20px}` +
+    `pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;margin:0}</style></head>` +
+    `<body><h1>${esc(titulo)}</h1><div class="data">${esc(dt)}</div><pre>${esc(texto)}</pre>` +
+    `<script>window.onload=function(){setTimeout(function(){window.print();},150);};<\/script></body></html>`,
+  );
+  w.document.close();
+}
 const INITIALS = (n?: string) => ((n || "").split(" ").filter(Boolean).slice(0, 2).map((x: string) => x[0]).join("").toUpperCase() || "—");
 const FMT = (d: any) => { const x = new Date(d); const p = (n: number) => String(n).padStart(2, "0"); return `${p(x.getDate())}/${p(x.getMonth() + 1)} às ${p(x.getHours())}:${p(x.getMinutes())}`; };
 const LEGENDA: { n: string; c: string; I: any }[] = [
@@ -97,6 +122,7 @@ export default function FeedTimeline({ atendimentos = [], clinDocs = [], histori
                     {it.summary ? <div className="text-[12px] text-gray-500 truncate">{it.summary}</div> : null}
                   </div>
                   <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition">
+                    {it.cat === "RECEITA" && textoReceitaDe(it) ? <button onClick={(e) => { e.stopPropagation(); imprimirReceita(it.title, it.date, textoReceitaDe(it)); }} title="Imprimir receita" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#009AAC] hover:bg-white"><LuPrinter size={13} /></button> : null}
                     {onEditar && (it.src === "atd" || (it.src === "doc" && !it.temArquivo)) ? <button onClick={(e) => { e.stopPropagation(); onEditar(it); }} title="Editar" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#009AAC] hover:bg-white"><LuPencil size={13} /></button> : null}
                     {onExcluir && it.src !== "hist" ? <button onClick={(e) => { e.stopPropagation(); onExcluir(it); }} title="Excluir" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#E24B4A] hover:bg-white"><LuTrash2 size={13} /></button> : null}
                   </div>
