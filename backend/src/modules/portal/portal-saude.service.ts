@@ -42,18 +42,29 @@ export interface ItemDocumento {
  * Deixa legível um conteúdo que veio como HTML (às vezes escapado, ex.: `&lt;p&gt;`).
  * Decodifica as entidades, vira quebras de linha nos blocos e tira as tags — o tutor lê texto puro.
  */
+function decodeEntidades(s: string): string {
+  return s
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&amp;/gi, '&');
+}
+
 function textoLimpo(bruto: string | null | undefined): string | null {
   if (!bruto) return null;
   let s = String(bruto);
-  // Muitos registros vieram com o HTML escapado ("&lt;p&gt;"); desescapa antes de tratar as tags.
-  s = s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  // Muitos registros vieram com o HTML escapado ("&lt;p&gt;") — e vários DUPLO-escapados
+  // ("&amp;lt;", "&amp;nbsp;"). Duas passadas de decode resolvem os dois casos antes das tags.
+  s = decodeEntidades(decodeEntidades(s));
   s = s
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n')
     .replace(/<li[^>]*>/gi, '• ')
     .replace(/<[^>]+>/g, '');
-  s = s.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
-  s = s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  s = decodeEntidades(s); // varredura final do que sobrou
+  s = s.replace(/[ \t]+\n/g, '\n').replace(/[ \t]{2,}/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
   return s || null;
 }
 
