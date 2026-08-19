@@ -34,6 +34,34 @@ export interface ItemDocumento {
   detalhe: string | null;
   /** Existe arquivo para abrir? (PDF de exame, receita assinada...) */
   temArquivo: boolean;
+  /** Conteúdo em texto (a receita/exame escrito), quando não há PDF. O tutor lê aqui mesmo. */
+  texto?: string | null;
+}
+
+/**
+ * Deixa legível um conteúdo que veio como HTML (às vezes escapado, ex.: `&lt;p&gt;`).
+ * Decodifica as entidades, vira quebras de linha nos blocos e tira as tags — o tutor lê texto puro.
+ */
+function textoLimpo(bruto: string | null | undefined): string | null {
+  if (!bruto) return null;
+  let s = String(bruto);
+  // Muitos registros vieram com o HTML escapado ("&lt;p&gt;"); desescapa antes de tratar as tags.
+  s = s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  s = s
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n')
+    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<[^>]+>/g, '');
+  s = s.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+  s = s.replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return s || null;
+}
+
+/** Resumo importado às vezes é o literal "NULL"/"null" — não serve de detalhe. */
+function detalheLimpo(v: string | null | undefined): string | null {
+  const s = (v ?? '').trim();
+  if (!s || s.toUpperCase() === 'NULL') return null;
+  return s;
 }
 
 export interface PontoPeso {
@@ -186,14 +214,14 @@ export class PortalSaudeService {
   async receitas(petId: string): Promise<ItemDocumento[]> {
     const docs = await this.prisma.clinicalDocument.findMany({
       where: { petId, type: 'PRESCRIPTION' },
-      select: { id: true, title: true, createdAt: true, pdfUrl: true, signedBy: true, appointmentId: true },
+      select: { id: true, title: true, createdAt: true, pdfUrl: true, signedBy: true, appointmentId: true, content: true, htmlContent: true },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
 
     const importadas = await this.prisma.historicoClinico.findMany({
       where: { petId, tipo: 'RECEITA' },
-      select: { id: true, titulo: true, data: true, resumo: true, arquivoKey: true },
+      select: { id: true, titulo: true, data: true, resumo: true, arquivoKey: true, texto: true },
       orderBy: { data: 'desc' },
       take: 20,
     });
@@ -204,7 +232,7 @@ export class PortalSaudeService {
     const apptComDoc = new Set(docs.map((d) => d.appointmentId).filter(Boolean) as string[]);
     const appts = await this.prisma.appointment.findMany({
       where: { petId, type: { in: ['Receitas', 'Receita'] }, prescription: { not: null } },
-      select: { id: true, date: true },
+      select: { id: true, date: true, prescription: true },
       orderBy: { date: 'desc' },
       take: 20,
     });
@@ -216,31 +244,33 @@ export class PortalSaudeService {
         data: d.createdAt,
         detalhe: d.signedBy ? `por ${d.signedBy}` : null,
         temArquivo: !!d.pdfUrl,
+        texto: textoLimpo(d.htmlContent || d.content),
       })),
       ...importadas.map((h) => ({
         id: h.id,
         titulo: h.titulo || 'Receita',
         data: h.data,
-        detalhe: h.resumo || null,
+        detalhe: detalheLimpo(h.resumo),
         temArquivo: !!h.arquivoKey,
+        texto: textoLimpo(h.texto),
       })),
       ...appts
         .filter((a) => !apptComDoc.has(a.id))
-        .map((a) => ({ id: a.id, titulo: 'Receita', data: a.date, detalhe: null, temArquivo: false })),
+        .map((a) => ({ id: a.id, titulo: 'Receita', data: a.date, detalhe: null, temArquivo: false, texto: textoLimpo(a.prescription) })),
     ].sort((a, b) => b.data.getTime() - a.data.getTime());
   }
 
   async exames(petId: string): Promise<ItemDocumento[]> {
     const docs = await this.prisma.clinicalDocument.findMany({
       where: { petId, type: 'EXAM_REQUEST' },
-      select: { id: true, title: true, createdAt: true, pdfUrl: true },
+      select: { id: true, title: true, createdAt: true, pdfUrl: true, content: true, htmlContent: true },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
 
     const importados = await this.prisma.historicoClinico.findMany({
       where: { petId, tipo: 'EXAME' },
-      select: { id: true, titulo: true, data: true, resumo: true, arquivoKey: true, arquivoNome: true },
+      select: { id: true, titulo: true, data: true, resumo: true, arquivoKey: true, arquivoNome: true, texto: true },
       orderBy: { data: 'desc' },
       take: 30,
     });
@@ -259,13 +289,15 @@ export class PortalSaudeService {
         data: d.createdAt,
         detalhe: null,
         temArquivo: !!d.pdfUrl,
+        texto: textoLimpo(d.htmlContent || d.content),
       })),
       ...importados.map((h) => ({
         id: h.id,
         titulo: h.titulo || h.arquivoNome || 'Exame',
         data: h.data,
-        detalhe: h.resumo || null,
+        detalhe: detalheLimpo(h.resumo),
         temArquivo: !!h.arquivoKey,
+        texto: textoLimpo(h.texto),
       })),
       ...kanban.map((it) => {
         let o: any = {};
@@ -276,6 +308,7 @@ export class PortalSaudeService {
           data: o.date ? new Date(o.date) : new Date(),
           detalhe: o.status ? String(o.status) : null,
           temArquivo: false, // o resultado (PDF) chega depois, via HistoricoClinico
+          texto: null,
         };
       }),
     ].sort((a, b) => b.data.getTime() - a.data.getTime());

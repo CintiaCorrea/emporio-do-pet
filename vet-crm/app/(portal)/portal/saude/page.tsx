@@ -31,6 +31,8 @@ interface Documento {
   data: string;
   detalhe: string | null;
   temArquivo: boolean;
+  /** Conteúdo escrito da receita/exame (quando não há PDF) — abre aqui mesmo. */
+  texto?: string | null;
 }
 
 interface Saude {
@@ -46,6 +48,69 @@ function linhaVacina(v: Vacina) {
   if (v.aplicadaEm) partes.push(`aplicada ${dataBr(v.aplicadaEm)}`);
   if (v.reforcoEm) partes.push(`reforço ${dataBr(v.reforcoEm)}`);
   return partes.join(' · ') || 'sem data registrada';
+}
+
+/**
+ * Linha de receita/exame. Se tem PDF, abre o arquivo ("abrir"). Se não tem PDF mas tem
+ * o texto escrito, o tutor lê aqui mesmo tocando ("ver"). Se não tem nada, é só o registro.
+ */
+function DocRow({ doc, icone }: { doc: Documento; icone: string }) {
+  const [aberto, setAberto] = useState(false);
+  const podeVerTexto = !doc.temArquivo && !!doc.texto;
+  return (
+    <div>
+      <div
+        className="ptl-row"
+        style={podeVerTexto ? { cursor: 'pointer' } : undefined}
+        onClick={podeVerTexto ? () => setAberto((v) => !v) : undefined}
+        role={podeVerTexto ? 'button' : undefined}
+      >
+        <span className="ico" aria-hidden="true">
+          {icone}
+        </span>
+        <span className="grow">
+          <span className="rt" style={{ display: 'block' }}>
+            {doc.titulo}
+          </span>
+          <span className="rs">
+            {dataBr(doc.data)}
+            {doc.detalhe ? ` · ${doc.detalhe}` : ''}
+          </span>
+        </span>
+        {doc.temArquivo ? (
+          <a
+            className="acao"
+            href={`/api/portal/documento/${doc.id}`}
+            target="_blank"
+            rel="noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            abrir
+          </a>
+        ) : podeVerTexto ? (
+          <span className="acao">{aberto ? 'fechar' : 'ver'}</span>
+        ) : null}
+      </div>
+      {aberto && doc.texto && (
+        <pre
+          style={{
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            fontFamily: 'inherit',
+            fontSize: 13.5,
+            lineHeight: 1.55,
+            margin: '2px 6px 8px',
+            padding: '11px 13px',
+            background: 'rgba(0,0,0,0.035)',
+            borderRadius: 12,
+            color: '#374151',
+          }}
+        >
+          {doc.texto}
+        </pre>
+      )}
+    </div>
+  );
 }
 
 export default function TelaSaude() {
@@ -126,21 +191,7 @@ export default function TelaSaude() {
               ) : (
                 <div className="ptl-card-lista">
                   {dados.receitas.map((r) => (
-                    <div className="ptl-row" key={r.id}>
-                      <span className="ico" aria-hidden="true">
-                        💊
-                      </span>
-                      <span className="grow">
-                        <span className="rt" style={{ display: 'block' }}>
-                          {r.titulo}
-                        </span>
-                        <span className="rs">
-                          {dataBr(r.data)}
-                          {r.detalhe ? ` · ${r.detalhe}` : ''}
-                        </span>
-                      </span>
-                      {r.temArquivo && <a className="acao" href={`/api/portal/documento/${r.id}`} target="_blank" rel="noreferrer">abrir</a>}
-                    </div>
+                    <DocRow key={r.id} doc={r} icone="💊" />
                   ))}
                 </div>
               )}
@@ -157,27 +208,10 @@ export default function TelaSaude() {
               ) : (
                 <div className="ptl-card-lista">
                   {dados.exames.map((e) => (
-                    <div className="ptl-row" key={e.id}>
-                      <span className="ico" aria-hidden="true">
-                        🔬
-                      </span>
-                      <span className="grow">
-                        <span className="rt" style={{ display: 'block' }}>
-                          {e.titulo}
-                        </span>
-                        <span className="rs">
-                          {dataBr(e.data)}
-                          {e.detalhe ? ` · ${e.detalhe}` : ''}
-                        </span>
-                      </span>
-                      {e.temArquivo && <a className="acao" href={`/api/portal/documento/${e.id}`} target="_blank" rel="noreferrer">abrir</a>}
-                    </div>
+                    <DocRow key={e.id} doc={e} icone="🔬" />
                   ))}
                 </div>
               )}
-              <p className="ptl-aviso" style={{ margin: '7px 2px 0' }}>
-                Abrir o PDF dos exames e receitas entra junto com o armazenamento de arquivos.
-              </p>
             </div>
           </div>
         )}
