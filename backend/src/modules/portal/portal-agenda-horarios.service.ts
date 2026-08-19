@@ -251,6 +251,24 @@ export class PortalAgendaHorariosService {
    * (serviço desligado, cliente sem pacote...) — a tela mostra a explicação
    * certa em vez de "nenhum horário".
    */
+  /** True se o pet tem um pacote VIVO (petpac_) com sessão sobrando — a fonte real. */
+  private async temPacoteAtivo(petId: string): Promise<boolean> {
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: `petpac_${petId}` },
+      select: { valor: true },
+    });
+    return itens.some((it) => {
+      try {
+        const o = JSON.parse(it.valor);
+        const total = Number(o.total) || 0;
+        const used = Number(o.used) || 0;
+        return !o.concluido && total > 0 && used < total;
+      } catch {
+        return false;
+      }
+    });
+  }
+
   async horariosDoDia(
     tutorId: string,
     petId: string,
@@ -267,11 +285,9 @@ export class PortalAgendaHorariosService {
 
     // --- restrições do serviço ---------------------------------------------
     if (servico.restricao === 'TEM_PACOTE') {
-      const pacote = await this.prisma.pacote.findFirst({
-        where: { petId, status: 'ATIVO' },
-        select: { id: true, totalSessoes: true, sessoesUsadas: true },
-      });
-      if (!pacote || pacote.sessoesUsadas >= pacote.totalSessoes) {
+      // Pacote vivo mora em `petpac_<pet>` (ListaItem) — NÃO na tabela Pacote (legada,
+      // vazia). Antes checava a tabela vazia e a trava NUNCA passava. (Unificação fatia 1.)
+      if (!(await this.temPacoteAtivo(petId))) {
         throw new SemHorarios('PRECISA_TER_PACOTE');
       }
     }
