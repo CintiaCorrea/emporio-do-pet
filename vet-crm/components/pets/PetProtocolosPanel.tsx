@@ -297,7 +297,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
                       <th className={th}>Programação</th><th className={th}>Aplicação</th><th className={th}>Vacina / Fabricante</th><th className={th}>Lote</th><th className={th}>Status</th><th className={th}></th>
                     </tr></thead>
                     <tbody>
-                      {sel.doses.slice().sort((a, b) => new Date(a.dataPrevista).getTime() - new Date(b.dataPrevista).getTime()).map((d) => {
+                      {sel.doses.slice().sort((a, b) => new Date(b.dataPrevista).getTime() - new Date(a.dataPrevista).getTime()).map((d) => {
                         const b = DOSE_BADGE[d.status] || DOSE_BADGE.PENDENTE; const aplicada = d.status === "APLICADA";
                         return (
                           <tr key={d.id} style={{ borderBottom: "1px solid #F0EBE0" }}>
