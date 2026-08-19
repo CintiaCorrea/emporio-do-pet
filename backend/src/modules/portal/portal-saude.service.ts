@@ -186,7 +186,7 @@ export class PortalSaudeService {
   async receitas(petId: string): Promise<ItemDocumento[]> {
     const docs = await this.prisma.clinicalDocument.findMany({
       where: { petId, type: 'PRESCRIPTION' },
-      select: { id: true, title: true, createdAt: true, pdfUrl: true, signedBy: true },
+      select: { id: true, title: true, createdAt: true, pdfUrl: true, signedBy: true, appointmentId: true },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
@@ -195,6 +195,17 @@ export class PortalSaudeService {
       where: { petId, tipo: 'RECEITA' },
       select: { id: true, titulo: true, data: true, resumo: true, arquivoKey: true },
       orderBy: { data: 'desc' },
+      take: 20,
+    });
+
+    // Receitas que ficaram só como atendimento (Appointment type "Receitas", texto em
+    // `prescription`) SEM ClinicalDocument — o portal lia só o CD e as perdia. Dedup pelo
+    // appointmentId que já tem doc, pra não mostrar a mesma receita duas vezes.
+    const apptComDoc = new Set(docs.map((d) => d.appointmentId).filter(Boolean) as string[]);
+    const appts = await this.prisma.appointment.findMany({
+      where: { petId, type: { in: ['Receitas', 'Receita'] }, prescription: { not: null } },
+      select: { id: true, date: true },
+      orderBy: { date: 'desc' },
       take: 20,
     });
 
@@ -213,6 +224,9 @@ export class PortalSaudeService {
         detalhe: h.resumo || null,
         temArquivo: !!h.arquivoKey,
       })),
+      ...appts
+        .filter((a) => !apptComDoc.has(a.id))
+        .map((a) => ({ id: a.id, titulo: 'Receita', data: a.date, detalhe: null, temArquivo: false })),
     ].sort((a, b) => b.data.getTime() - a.data.getTime());
   }
 
@@ -231,6 +245,13 @@ export class PortalSaudeService {
       take: 30,
     });
 
+    // 🔬 Exames do Kanban (`petexa_<pet>`) — a fonte VIVA dos exames pedidos/em andamento.
+    // O portal lia só ClinicalDocument/HistoricoClinico e perdia esses. (Mesma unificação do pacote.)
+    const kanban = await this.prisma.listaItem.findMany({
+      where: { lista: `petexa_${petId}` },
+      select: { id: true, valor: true },
+    });
+
     return [
       ...docs.map((d) => ({
         id: d.id,
@@ -246,6 +267,17 @@ export class PortalSaudeService {
         detalhe: h.resumo || null,
         temArquivo: !!h.arquivoKey,
       })),
+      ...kanban.map((it) => {
+        let o: any = {};
+        try { o = JSON.parse(it.valor); } catch { /* item fora do formato */ }
+        return {
+          id: it.id,
+          titulo: String(o.nome || 'Exame'),
+          data: o.date ? new Date(o.date) : new Date(),
+          detalhe: o.status ? String(o.status) : null,
+          temArquivo: false, // o resultado (PDF) chega depois, via HistoricoClinico
+        };
+      }),
     ].sort((a, b) => b.data.getTime() - a.data.getTime());
   }
 
