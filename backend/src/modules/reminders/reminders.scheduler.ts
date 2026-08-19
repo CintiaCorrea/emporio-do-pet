@@ -119,6 +119,13 @@ export class RemindersScheduler {
 
   // ---------- protocolos (vacina etc.) ----------
   async protocolos(): Promise<void> {
+    // ⏸️ Interruptor de segurança: durante a reimportação das vacinas (backup SimplesVet), a Cintia
+    // pode SEGURAR os lembretes de vacina até revisar. Lista `lembrete_vacina_pausado`='1' pausa tudo.
+    const pausa = await this.prisma.listaItem.findFirst({ where: { lista: 'lembrete_vacina_pausado' } });
+    if (pausa && ['1', 'true', 'sim', 'on'].includes(String(pausa.valor || '').toLowerCase().trim())) {
+      this.logger?.log?.('Lembretes de protocolo/vacina PAUSADOS (lembrete_vacina_pausado).');
+      return;
+    }
     const ini = new Date(); ini.setDate(ini.getDate() - 17);
     const fim = new Date(); fim.setDate(fim.getDate() + 17);
     const doses = await this.prisma.protocoloDose.findMany({

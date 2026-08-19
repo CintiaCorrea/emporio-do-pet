@@ -151,6 +151,15 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
     if (!r.ok) { toast.error(`Erro: ${r.status}`); return; }
     await load(); onChanged?.();
   }
+  // Exclui UMA dose (item), sem apagar o protocolo inteiro.
+  async function removeDose(d: Dose, nomeProto: string) {
+    const quando = d.status === "APLICADA" ? fmt(d.dataAplicada) : fmt(d.dataPrevista);
+    if (!(await confirmDelete({ entityLabel: "dose", itemName: `${nomeProto} — ${quando}` }))) return;
+    const r = await fetch(`/api/protocolos/doses/${d.id}`, { method: "DELETE" });
+    if (!r.ok) { toast.error(`Erro: ${r.status}`); return; }
+    toast.success("Dose excluída");
+    await load(); onChanged?.();
+  }
   function openDose(d: Dose, nomeProto?: string) {
     const pv = precoDe(nomeProto || "");
     setDoseModal({ dose: d, nomeProto: nomeProto || "", lote: d.lote || "", fabricante: d.fabricante || "", dataAplicada: d.dataAplicada ? String(d.dataAplicada).slice(0, 10) : hojeLocalISO(), observacao: "", lancarComanda: pv > 0, comandaValor: pv ? String(pv) : "" });
@@ -298,9 +307,12 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
                             <td className={td + " tabular-nums"} style={{ color: d.lote ? "#5C6B70" : "#c9c6bd" }}>{d.lote || "—"}</td>
                             <td className={td}><span className="px-2 py-0.5 rounded-md text-[11px] font-semibold" style={{ background: b.bg, color: b.fg }}>{b.label}</span></td>
                             <td className={td + " text-right whitespace-nowrap"}>
-                              {aplicada
-                                ? <button onClick={() => openDose(d, sel.nomeProtocolo)} className="text-[#009AAC] p-1" title="Editar aplicação"><LuPencil size={13} /></button>
-                                : <button onClick={() => openDose(d, sel.nomeProtocolo)} className="px-2.5 py-1 rounded-lg text-xs font-medium text-white" style={{ background: "#009AAC" }}>Registrar</button>}
+                              <div className="inline-flex items-center gap-1 justify-end">
+                                {aplicada
+                                  ? <button onClick={() => openDose(d, sel.nomeProtocolo)} className="text-[#009AAC] p-1" title="Editar aplicação"><LuPencil size={13} /></button>
+                                  : <button onClick={() => openDose(d, sel.nomeProtocolo)} className="px-2.5 py-1 rounded-lg text-xs font-medium text-white" style={{ background: "#009AAC" }}>Registrar</button>}
+                                <button onClick={() => removeDose(d, sel.nomeProtocolo)} className="text-red-400 hover:text-red-600 p-1" title="Excluir esta dose"><LuTrash size={13} /></button>
+                              </div>
                             </td>
                           </tr>
                         );

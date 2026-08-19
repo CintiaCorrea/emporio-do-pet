@@ -5,3 +5,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const body = await request.text();
   return backendProxy(request, `/protocolos/doses/${doseId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body });
 }
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ doseId: string }> }) {
+  const { doseId } = await params;
+  return backendProxy(request, `/protocolos/doses/${doseId}`, { method: 'DELETE' });
+}

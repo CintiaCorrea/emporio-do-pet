@@ -101,4 +101,10 @@ export class ProtocolosController {
   registrarDose(@Param('doseId') doseId: string, @Body() dto: RegistrarDoseDto) {
     return this.service.registrarDose(doseId, dto);
   }
+
+  @Delete('doses/:doseId')
+  @ApiOperation({ summary: 'Excluir UMA dose do protocolo (por item, sem apagar o protocolo)' })
+  removerDose(@Param('doseId') doseId: string) {
+    return this.service.removerDose(doseId);
+  }
 }

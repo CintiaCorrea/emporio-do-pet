@@ -166,6 +166,14 @@ export class ProtocolosService {
     return { ok: true };
   }
 
+  // Exclui UMA dose (item) do protocolo, sem apagar o protocolo inteiro.
+  async removerDose(doseId: string) {
+    const dose = await this.prisma.protocoloDose.findUnique({ where: { id: doseId } });
+    if (!dose) throw new NotFoundException('Dose nao encontrada');
+    await this.prisma.protocoloDose.delete({ where: { id: doseId } });
+    return { ok: true };
+  }
+
   // ----- Doses -----
   async dosesPendentes(dias = 7) {
     const limite = new Date();
