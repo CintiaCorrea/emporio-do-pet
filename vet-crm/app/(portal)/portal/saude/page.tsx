@@ -39,6 +39,7 @@ interface Saude {
   vacinas: Vacina[];
   receitas: Documento[];
   exames: Documento[];
+  documentos?: Documento[];
 }
 
 const ICONE_SITUACAO = { aplicada: '✅', agendada: '🗓️', atrasada: '⚠️' } as const;
@@ -54,6 +55,23 @@ function linhaVacina(v: Vacina) {
  * Linha de receita/exame. Se tem PDF, abre o arquivo ("abrir"). Se não tem PDF mas tem
  * o texto escrito, o tutor lê aqui mesmo tocando ("ver"). Se não tem nada, é só o registro.
  */
+// Abre uma janela limpa com o texto da receita/exame e chama a impressão do navegador
+// (que também permite "Salvar como PDF"). Tutor consegue imprimir a receita.
+function imprimirDoc(titulo: string, data: string, texto: string) {
+  const w = window.open('', '_blank', 'width=720,height=900');
+  if (!w) return;
+  const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+  w.document.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${esc(titulo)}</title>` +
+    `<style>body{font-family:system-ui,-apple-system,Arial,sans-serif;padding:36px;color:#1f2a2e;line-height:1.6}` +
+    `h1{font-size:19px;margin:0 0 2px;color:#014D5E}.data{color:#6b7280;font-size:13px;margin:0 0 20px}` +
+    `pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;margin:0}</style></head>` +
+    `<body><h1>${esc(titulo)}</h1><div class="data">${esc(dataBr(data))}</div><pre>${esc(texto)}</pre>` +
+    `<script>window.onload=function(){setTimeout(function(){window.print();},150);};<\/script></body></html>`,
+  );
+  w.document.close();
+}
+
 function DocRow({ doc, icone }: { doc: Documento; icone: string }) {
   const [aberto, setAberto] = useState(false);
   const podeVerTexto = !doc.temArquivo && !!doc.texto;
@@ -77,19 +95,30 @@ function DocRow({ doc, icone }: { doc: Documento; icone: string }) {
             {doc.detalhe ? ` · ${doc.detalhe}` : ''}
           </span>
         </span>
-        {doc.temArquivo ? (
-          <a
-            className="acao"
-            href={`/api/portal/documento/${doc.id}`}
-            target="_blank"
-            rel="noreferrer"
-            onClick={(e) => e.stopPropagation()}
-          >
-            abrir
-          </a>
-        ) : podeVerTexto ? (
-          <span className="acao">{aberto ? 'fechar' : 'ver'}</span>
-        ) : null}
+        <span style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}>
+          {podeVerTexto && (
+            <button
+              className="acao"
+              onClick={(e) => { e.stopPropagation(); imprimirDoc(doc.titulo, doc.data, doc.texto!); }}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+            >
+              imprimir
+            </button>
+          )}
+          {doc.temArquivo ? (
+            <a
+              className="acao"
+              href={`/api/portal/documento/${doc.id}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              abrir
+            </a>
+          ) : podeVerTexto ? (
+            <span className="acao">{aberto ? 'fechar' : 'ver'}</span>
+          ) : null}
+        </span>
       </div>
       {aberto && doc.texto && (
         <pre
@@ -213,6 +242,17 @@ export default function TelaSaude() {
                 </div>
               )}
             </div>
+
+            {dados.documentos && dados.documentos.length > 0 && (
+              <div>
+                <div className="ptl-label">documentos</div>
+                <div className="ptl-card-lista">
+                  {dados.documentos.map((d) => (
+                    <DocRow key={d.id} doc={d} icone="📎" />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>

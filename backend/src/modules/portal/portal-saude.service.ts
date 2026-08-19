@@ -332,13 +332,33 @@ export class PortalSaudeService {
     ].sort((a, b) => b.data.getTime() - a.data.getTime());
   }
 
+  // 📎 Documentos do pet: anexos importados do SimplesVet (laudos, RX, guias, imagens…),
+  // gravados como HistoricoClinico tipo=DOCUMENTO com o arquivo no storage (arquivoKey).
+  // Só entram os que TÊM arquivo (senão não há o que abrir).
+  async documentos(petId: string): Promise<ItemDocumento[]> {
+    const docs = await this.prisma.historicoClinico.findMany({
+      where: { petId, tipo: 'DOCUMENTO', arquivoKey: { not: null } },
+      select: { id: true, titulo: true, arquivoNome: true, data: true },
+      orderBy: { data: 'desc' },
+      take: 200,
+    });
+    return docs.map((d) => ({
+      id: d.id,
+      titulo: d.titulo || d.arquivoNome || 'Documento',
+      data: d.data,
+      detalhe: null,
+      temArquivo: true,
+    }));
+  }
+
   async saude(petId: string) {
-    const [vacinas, receitas, exames] = await Promise.all([
+    const [vacinas, receitas, exames, documentos] = await Promise.all([
       this.vacinas(petId),
       this.receitas(petId),
       this.exames(petId),
+      this.documentos(petId),
     ]);
-    return { vacinas, receitas, exames };
+    return { vacinas, receitas, exames, documentos };
   }
 
   // ---------------------------------------------------------------- PESO
