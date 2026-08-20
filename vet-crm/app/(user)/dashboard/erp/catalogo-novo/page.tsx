@@ -119,11 +119,41 @@ export default function CatalogoNovoPage() {
   }
 
   const up = (patch: any) => setForm((f: any) => ({ ...f, ...patch }));
+  // Custo-base pro markup: o próprio custo; no exame, cai pro custo do lab quando o custo está vazio.
+  const custoBase = (f: any): number => {
+    const c = Number(f?.custo);
+    if (c > 0) return c;
+    if (f?.tipo === "EXAME") { const cl = Number(f?.exame?.custoLab); if (cl > 0) return cl; }
+    return 0;
+  };
+  // Muda custo/markup e RECALCULA o preço = custo × (1 + markup%). (Editar o preço na mão continua valendo.)
+  const comMarkup = (patch: any) => setForm((f: any) => {
+    const nf = { ...f, ...patch };
+    const base = custoBase(nf);
+    const mk = Number(nf.markup);
+    if (base > 0 && String(nf.markup).trim() !== "" && !Number.isNaN(mk)) {
+      nf.preco = String(Math.round(base * (1 + mk / 100) * 100) / 100);
+    }
+    return nf;
+  });
   const markupReal = useMemo(() => {
-    const c = Number(form?.custo), p = Number(form?.preco);
+    const c = custoBase(form), p = Number(form?.preco);
     if (!form || !c || c <= 0 || !p) return null;
     return Math.round(((p - c) / c) * 100);
   }, [form]);
+
+  async function criarGrupoInline() {
+    const nome = window.prompt("Nome do novo grupo (ex.: Consultas, Vacinas, Exames):");
+    if (!nome || !nome.trim()) return;
+    try {
+      const r = await fetch("/api/catalogo/grupos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: nome.trim() }) });
+      const g = await r.json().catch(() => null);
+      if (!r.ok) throw new Error(g?.message);
+      await carregarApoio();
+      if (g?.id) up({ grupoId: g.id });
+      toast.success("Grupo criado");
+    } catch (e: any) { toast.error(String(e?.message || "Erro ao criar grupo").slice(0, 100)); }
+  }
 
   async function salvar() {
     if (!form?.nome?.trim()) { toast.error("Informe o nome"); return; }
@@ -230,7 +260,12 @@ export default function CatalogoNovoPage() {
               {/* dados básicos */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="col-span-2"><label style={lbl}>Nome *</label><input value={form.nome} onChange={(e) => up({ nome: e.target.value })} style={inp} placeholder="Nome do item" /></div>
-                <div><label style={lbl}>Grupo *</label><select value={form.grupoId} onChange={(e) => up({ grupoId: e.target.value })} style={inp}><option value="">— escolher —</option>{gruposFolha.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}</select></div>
+                <div><label style={lbl}>Grupo *</label>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <select value={form.grupoId} onChange={(e) => up({ grupoId: e.target.value })} style={{ ...inp, flex: 1 }}><option value="">— escolher —</option>{gruposFolha.map((g) => <option key={g.id} value={g.id}>{g.nome}</option>)}</select>
+                    <button type="button" onClick={criarGrupoInline} title="Criar novo grupo" style={{ border: `1px solid ${T}`, color: T, background: "#fff", borderRadius: 9, padding: "0 13px", fontSize: 18, fontWeight: 700, cursor: "pointer", lineHeight: 1 }}>＋</button>
+                  </div>
+                </div>
                 {(form.tipo === "PRODUTO" || form.tipo === "VACINA") && (
                   <div><label style={lbl}>Marca</label><div className="flex gap-1"><select value={form.marcaId} onChange={(e) => up({ marcaId: e.target.value })} style={inp}><option value="">—</option>{marcas.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}</select><button onClick={novaMarca} className="text-[16px] px-2 rounded-lg border shrink-0" style={{ borderColor: LINE, color: T }}>＋</button></div></div>
                 )}
@@ -245,8 +280,8 @@ export default function CatalogoNovoPage() {
               <div className="rounded-xl border p-3" style={{ borderColor: LINE, background: "#FBFAF7" }}>
                 <div style={lbl}>💲 Preço</div>
                 <div className="grid grid-cols-3 gap-3">
-                  <div><label style={lbl}>Custo</label><input value={form.custo} onChange={(e) => up({ custo: e.target.value.replace(",", ".") })} inputMode="decimal" style={inp} /></div>
-                  <div><label style={lbl}>Markup %</label><input value={form.markup} onChange={(e) => up({ markup: e.target.value.replace(",", ".") })} inputMode="decimal" style={inp} /></div>
+                  <div><label style={lbl}>Custo</label><input value={form.custo} onChange={(e) => comMarkup({ custo: e.target.value.replace(",", ".") })} inputMode="decimal" style={inp} /></div>
+                  <div><label style={lbl}>Markup %</label><input value={form.markup} onChange={(e) => comMarkup({ markup: e.target.value.replace(",", ".") })} inputMode="decimal" style={inp} placeholder="ex.: 100" /></div>
                   <div><label style={lbl}>Preço venda *</label><input value={form.preco} onChange={(e) => up({ preco: e.target.value.replace(",", ".") })} inputMode="decimal" style={inp} /></div>
                 </div>
                 {markupReal != null && <div className="text-[11.5px] mt-1.5" style={{ color: markupReal < 0 ? "#A32D2D" : "#0F6E56" }}>Markup real: <b>{markupReal}%</b> {markupReal < 0 && "⚠️ preço abaixo do custo"}</div>}
@@ -278,7 +313,7 @@ export default function CatalogoNovoPage() {
                   <div style={lbl}>🔬 Laboratório</div>
                   <div className="grid grid-cols-2 gap-3">
                     <div><label style={lbl}>Laboratório</label><select value={form.exame.fornecedorId} onChange={(e) => up({ exame: { ...form.exame, fornecedorId: e.target.value } })} style={inp}><option value="">—</option>{labs.map((l) => <option key={l.id} value={l.id}>{l.nome}{/veter/i.test(l.nome) ? " ⭐" : ""}</option>)}</select></div>
-                    <div><label style={lbl}>Custo do lab</label><input value={form.exame.custoLab} onChange={(e) => up({ exame: { ...form.exame, custoLab: e.target.value.replace(",", ".") } })} inputMode="decimal" style={inp} /></div>
+                    <div><label style={lbl}>Custo do lab</label><input value={form.exame.custoLab} onChange={(e) => comMarkup({ exame: { ...form.exame, custoLab: e.target.value.replace(",", ".") } })} inputMode="decimal" style={inp} /></div>
                     <div><label style={lbl}>Prazo resultado (dias)</label><input value={form.exame.prazoResultadoDias} onChange={(e) => up({ exame: { ...form.exame, prazoResultadoDias: e.target.value.replace(/\D/g, "") } })} style={inp} /></div>
                     <div><label style={lbl}>Categoria</label><input value={form.exame.categoria} onChange={(e) => up({ exame: { ...form.exame, categoria: e.target.value } })} style={inp} placeholder="Hematologia, Imagem…" /></div>
                   </div>
