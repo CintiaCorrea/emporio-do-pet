@@ -142,6 +142,20 @@ export default function CatalogoNovoPage() {
     return Math.round(((p - c) / c) * 100);
   }, [form]);
 
+  // Pacote/Kit: soma dos itens da composição (preço × quantidade).
+  const precoItem = (id: string) => Number(itens.find((x) => x.id === id)?.preco) || 0;
+  const somaComposicao = useMemo(
+    () => (form?.composicao || []).reduce((s: number, c: any) => s + precoItem(c.itemId) * (Number(c.quantidade) || 0), 0),
+    [form?.composicao, itens], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  // Muda a composição e, se o preço ainda estiver zerado, já sugere a soma dos itens.
+  const setComp = (arr: any[]) => setForm((f: any) => {
+    const soma = (arr || []).reduce((s: number, c: any) => s + precoItem(c.itemId) * (Number(c.quantidade) || 0), 0);
+    const nf = { ...f, composicao: arr };
+    if (!(Number(nf.preco) > 0) && soma > 0) nf.preco = String(Math.round(soma * 100) / 100);
+    return nf;
+  });
+
   async function criarGrupoInline() {
     const nome = window.prompt("Nome do novo grupo (ex.: Consultas, Vacinas, Exames):");
     if (!nome || !nome.trim()) return;
@@ -333,14 +347,27 @@ export default function CatalogoNovoPage() {
               {temComposicao(form.tipo) && (
                 <div className="rounded-xl border p-3" style={{ borderColor: LINE }}>
                   <div style={lbl}>🎁 Composição (o que compõe)</div>
-                  {(form.composicao || []).map((c: any, i: number) => (
-                    <div key={i} className="flex gap-2 items-center mb-1.5">
-                      <select value={c.itemId} onChange={(e) => { const arr = [...form.composicao]; arr[i] = { ...arr[i], itemId: e.target.value }; up({ composicao: arr }); }} style={{ ...inp, flex: 1 }}><option value="">— item —</option>{itens.filter((x) => x.id !== form.id).map((x) => <option key={x.id} value={x.id}>{x.nome}</option>)}</select>
-                      <input value={c.quantidade} onChange={(e) => { const arr = [...form.composicao]; arr[i] = { ...arr[i], quantidade: e.target.value.replace(/\D/g, "") }; up({ composicao: arr }); }} style={{ ...inp, width: 64 }} placeholder="qtd" />
-                      <button onClick={() => up({ composicao: form.composicao.filter((_: any, j: number) => j !== i) })} className="text-[#b23b39] text-[15px] px-1">🗑</button>
-                    </div>
-                  ))}
+                  {(form.composicao || []).map((c: any, i: number) => {
+                    const sub = precoItem(c.itemId) * (Number(c.quantidade) || 0);
+                    return (
+                      <div key={i} className="flex gap-2 items-center mb-1.5">
+                        <select value={c.itemId} onChange={(e) => { const arr = [...form.composicao]; arr[i] = { ...arr[i], itemId: e.target.value }; setComp(arr); }} style={{ ...inp, flex: 1 }}><option value="">— item —</option>{itens.filter((x) => x.id !== form.id).map((x) => <option key={x.id} value={x.id}>{x.nome} · {brl(x.preco)}</option>)}</select>
+                        <input value={c.quantidade} onChange={(e) => { const arr = [...form.composicao]; arr[i] = { ...arr[i], quantidade: e.target.value.replace(/\D/g, "") }; setComp(arr); }} style={{ ...inp, width: 56 }} placeholder="qtd" />
+                        <span className="tabular-nums text-[12px]" style={{ width: 78, textAlign: "right", color: MUT }}>{brl(sub)}</span>
+                        <button onClick={() => setComp(form.composicao.filter((_: any, j: number) => j !== i))} className="text-[#b23b39] text-[15px] px-1">🗑</button>
+                      </div>
+                    );
+                  })}
                   <button onClick={() => up({ composicao: [...(form.composicao || []), { itemId: "", quantidade: "1" }] })} className="text-[12px] font-semibold" style={{ color: T }}>＋ adicionar item</button>
+                  {(form.composicao || []).length > 0 && (
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t" style={{ borderColor: LINE }}>
+                      <span className="text-[12.5px]" style={{ color: INK }}>Soma dos itens: <b style={{ color: B }}>{brl(somaComposicao)}</b></span>
+                      <button type="button" onClick={() => up({ preco: String(Math.round(somaComposicao * 100) / 100) })} className="text-[12px] font-semibold px-2.5 py-1 rounded-lg border" style={{ borderColor: T, color: T, background: "#fff" }}>usar como preço</button>
+                    </div>
+                  )}
+                  {Number(form.preco) > 0 && somaComposicao > 0 && Number(form.preco) < somaComposicao && (
+                    <div className="text-[11.5px] mt-1" style={{ color: "#0F6E56" }}>Desconto do pacote: {brl(somaComposicao - Number(form.preco))} ({Math.round((1 - Number(form.preco) / somaComposicao) * 100)}% off)</div>
+                  )}
                 </div>
               )}
 
