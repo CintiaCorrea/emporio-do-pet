@@ -147,9 +147,10 @@ export class PortalSaudeService {
       .map((it) => {
         try {
           const o = JSON.parse(it.valor);
-          if (!o?.enviadoAt) return null;
-          // Texto pronto (boletins novos) ou montado dos campos salvos (todos os antigos têm os dados).
+          // Decisão 20/08 (Cintia): o boletim aparece no app AO SALVAR (não precisa mais enviar por
+          // WhatsApp). Mostra todo boletim com conteúdo — o envio por WhatsApp fica opcional.
           const texto = (o.texto && String(o.texto).trim()) || montarTextoBoletim(o);
+          if (!texto || !texto.trim()) return null; // boletim sem nenhum conteúdo não entra
           return { id: it.id, data: String(o.sessaoData || o.enviadoAt || o.createdAt).slice(0, 10), texto };
         } catch {
           return null;
