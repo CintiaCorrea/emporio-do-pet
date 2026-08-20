@@ -7,6 +7,7 @@ import { PortalAgendaRegrasService } from './portal-agenda-regras.service';
 import { PortalAuthController, PortalMeController } from './portal-auth.controller';
 import { PortalAuthService } from './portal-auth.service';
 import { PortalEscopoService } from './portal-escopo.service';
+import { PortalFeedbackService } from './portal-feedback.service';
 import { PortalFichaService } from './portal-ficha.service';
 import { PortalInicioService } from './portal-inicio.service';
 import { PortalInternacaoService } from './portal-internacao.service';
@@ -36,6 +37,7 @@ import { PortalTutorGuard } from './portal-tutor.guard';
     PortalEscopoService,
     PortalInicioService,
     PortalFichaService,
+    PortalFeedbackService,
     PortalSaudeService,
     PortalInternacaoService,
     PortalAgendaRegrasService,

@@ -25,6 +25,7 @@ import { PortalFichaService, FichaPayload } from './portal-ficha.service';
 import { PortalInicioService } from './portal-inicio.service';
 import { PortalAgendaHorariosService, SemHorarios } from './portal-agenda-horarios.service';
 import { PortalAgendarService } from './portal-agendar.service';
+import { PortalFeedbackService } from './portal-feedback.service';
 import { PortalInternacaoService } from './portal-internacao.service';
 import { PortalPetsService, NovoPet } from './portal-pets.service';
 import { PortalPushService } from './portal-push.service';
@@ -103,6 +104,7 @@ export class PortalMeController {
     private readonly horarios: PortalAgendaHorariosService,
     private readonly pets: PortalPetsService,
     private readonly push: PortalPushService,
+    private readonly feedback: PortalFeedbackService,
   ) {}
 
   /** Quem sou eu + meus pets. O front nunca manda tutorId — ele vem do guard. */
@@ -132,6 +134,18 @@ export class PortalMeController {
   @Get('clinica')
   async dadosClinica() {
     return this.saude.clinica();
+  }
+
+  /** Avaliação da clínica (estrelas) → entra no NPS do sistema. */
+  @Post('avaliacao')
+  async avaliar(@Req() req: RequestDoPortal, @Body() corpo: { estrelas?: number; comentario?: string }) {
+    return this.feedback.avaliar(req.portalTutorId!, corpo || {});
+  }
+
+  /** Sugestão livre → lista lida pela equipe. */
+  @Post('sugestao')
+  async sugerir(@Req() req: RequestDoPortal, @Body() corpo: { texto?: string }) {
+    return this.feedback.sugerir(req.portalTutorId!, corpo || {});
   }
 
   /** Salvar a ficha. Entra direto no cadastro e fica no histórico. */

@@ -45,6 +45,7 @@ const MENU: Array<{ emoji: string; titulo: string; sub: string; rota: string | n
   { emoji: '🏥', titulo: 'Internação', sub: 'boletins do dia', rota: '/portal/internacao' },
   { emoji: '📅', titulo: 'Agendar', sub: 'marcar um horário', rota: '/portal/agendar' },
   { emoji: '🪪', titulo: 'Minha ficha', sub: 'manter dados em dia', rota: '/portal/ficha' },
+  { emoji: '⭐', titulo: 'Sugestões e avaliações', sub: 'avalie e nos ajude a melhorar', rota: '/portal/avaliar' },
 ];
 
 /** 26/07 — data curta, do jeito que se fala. */

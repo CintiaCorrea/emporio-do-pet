@@ -152,6 +152,7 @@ const NAV: Entry[] = [
       { href: "/dashboard/marketing/google-ads", label: "Google Ads", emoji: "🔍", roles: ["ADMIN"] },
       { href: "/dashboard/marketing/meta-ads", label: "Meta Ads", emoji: "📣", roles: ["ADMIN"] },
       { href: "/dashboard/marketing/nps", label: "NPS", emoji: "⭐", roles: ["ADMIN"] },
+      { href: "/dashboard/marketing/sugestoes", label: "Sugestões", emoji: "💬", roles: ["ADMIN"] },
       { href: "/dashboard/marketing/avaliacoes-google", label: "Aval. Google", emoji: "🌟", roles: ["ADMIN"] },
       { href: "/dashboard/marketing/campanhas", label: "Campanhas", emoji: "🎯", roles: ["ADMIN"] },
       { href: "/dashboard/marketing/midia", label: "Mídia", emoji: "🎬", roles: ["ADMIN"] },

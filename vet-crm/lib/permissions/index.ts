@@ -108,6 +108,7 @@ export const PERM_SECTIONS: PermSection[] = [
           { key: "/dashboard/marketing/google-ads", label: "Google Ads", emoji: "🔍" },
           { key: "/dashboard/marketing/meta-ads", label: "Meta Ads", emoji: "📣" },
           { key: "/dashboard/marketing/nps", label: "NPS", emoji: "⭐" },
+          { key: "/dashboard/marketing/sugestoes", label: "Sugestões", emoji: "💬" },
           { key: "/dashboard/marketing/avaliacoes-google", label: "Aval. Google", emoji: "🌟" },
           { key: "/dashboard/marketing/campanhas", label: "Campanhas", emoji: "🎯" },
           { key: "/dashboard/marketing/midia", label: "Mídia", emoji: "🎬" },
