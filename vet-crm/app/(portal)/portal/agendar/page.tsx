@@ -648,7 +648,7 @@ export default function TelaAgendar() {
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ background: '#fff', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', borderRadius: 16, padding: '18px 16px 16px', boxShadow: '0 12px 40px rgba(1,77,94,0.25)' }}
+              style={{ background: '#fff', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', overflowX: 'hidden', borderRadius: 16, padding: '18px 16px 16px', boxShadow: '0 12px 40px rgba(1,77,94,0.25)' }}
             >
               <div style={{ fontSize: 17, fontWeight: 800, color: '#014D5E', marginBottom: 8 }}>🌿 Medicina Veterinária Integrativa</div>
               <p style={{ whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.55, color: '#374151', margin: '0 0 14px' }}>{INTEGRATIVA_INTRO}</p>
@@ -673,11 +673,11 @@ export default function TelaAgendar() {
                 })}
               </div>
               <p style={{ fontSize: 12, color: '#6B7B7E', fontStyle: 'italic', margin: '0 0 15px' }}>{INTEGRATIVA_RODAPE}</p>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="ptl-btn quiet" style={{ flex: '0 0 auto' }} onClick={() => setModalIntegrativa(null)}>Cancelar</button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button className="ptl-btn quiet" style={{ flex: 1, width: 'auto', minWidth: 0 }} onClick={() => setModalIntegrativa(null)}>Cancelar</button>
                 <button
                   className="ptl-btn"
-                  style={{ flex: 1 }}
+                  style={{ flex: 1, width: 'auto', minWidth: 0 }}
                   onClick={() => { const s = modalIntegrativa; setModalIntegrativa(null); if (s) prosseguir(s); }}
                 >
                   Continuar{terapias.length ? ` · ${terapias.length}` : ''}
