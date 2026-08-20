@@ -41,6 +41,7 @@ interface Saude {
   receitas: Documento[];
   exames: Documento[];
   documentos?: Documento[];
+  paciente?: { pet?: any; tutor?: any } | null;
 }
 
 const ICONE_SITUACAO = { aplicada: '✅', agendada: '🗓️', atrasada: '⚠️' } as const;
@@ -58,14 +59,14 @@ function linhaVacina(v: Vacina) {
  */
 // Imprime a receita no PAPEL TIMBRADO da clínica (mesmo cabeçalho dos documentos do sistema).
 // Busca os dados da clínica no portal e monta o timbrado; o texto vai no miolo.
-async function imprimirDoc(titulo: string, data: string, texto: string) {
+async function imprimirDoc(titulo: string, data: string, texto: string, paciente?: { pet?: any; tutor?: any } | null) {
   let clinica: any = {};
   try {
     const r = await fetch('/api/portal/clinica', { cache: 'no-store' });
     if (r.ok) clinica = await r.json();
   } catch { /* sem dados da clínica: imprime só com o título */ }
   const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
-  const cab = montarTimbradoHtml({ titulo: 'Receita', clinica });
+  const cab = montarTimbradoHtml({ titulo: 'Receita', clinica, pet: paciente?.pet, tutor: paciente?.tutor || paciente?.pet?.tutor });
   const w = window.open('', '_blank', 'width=840,height=1000');
   if (!w) return;
   w.document.write(
@@ -79,7 +80,7 @@ async function imprimirDoc(titulo: string, data: string, texto: string) {
   w.document.close();
 }
 
-function DocRow({ doc, icone }: { doc: Documento; icone: string }) {
+function DocRow({ doc, icone, paciente }: { doc: Documento; icone: string; paciente?: { pet?: any; tutor?: any } | null }) {
   const [aberto, setAberto] = useState(false);
   const podeVerTexto = !doc.temArquivo && !!doc.texto;
   return (
@@ -106,7 +107,7 @@ function DocRow({ doc, icone }: { doc: Documento; icone: string }) {
           {podeVerTexto && (
             <button
               className="acao"
-              onClick={(e) => { e.stopPropagation(); imprimirDoc(doc.titulo, doc.data, doc.texto!); }}
+              onClick={(e) => { e.stopPropagation(); imprimirDoc(doc.titulo, doc.data, doc.texto!, paciente); }}
               style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
             >
               imprimir
@@ -227,7 +228,7 @@ export default function TelaSaude() {
               ) : (
                 <div className="ptl-card-lista">
                   {dados.receitas.map((r) => (
-                    <DocRow key={r.id} doc={r} icone="💊" />
+                    <DocRow key={r.id} doc={r} icone="💊" paciente={dados.paciente} />
                   ))}
                 </div>
               )}

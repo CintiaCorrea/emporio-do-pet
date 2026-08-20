@@ -358,14 +358,21 @@ export class PortalSaudeService {
     try { return item?.valor ? JSON.parse(item.valor) : {}; } catch { return {}; }
   }
 
+  // Pet + tutor pro QUADRO de dados do timbrado da receita (impressão no portal).
+  async pacienteParaImpressao(petId: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId }, include: { tutor: true } });
+    return pet ? { pet, tutor: (pet as any).tutor || null } : null;
+  }
+
   async saude(petId: string) {
-    const [vacinas, receitas, exames, documentos] = await Promise.all([
+    const [vacinas, receitas, exames, documentos, paciente] = await Promise.all([
       this.vacinas(petId),
       this.receitas(petId),
       this.exames(petId),
       this.documentos(petId),
+      this.pacienteParaImpressao(petId),
     ]);
-    return { vacinas, receitas, exames, documentos };
+    return { vacinas, receitas, exames, documentos, paciente };
   }
 
   // ---------------------------------------------------------------- PESO

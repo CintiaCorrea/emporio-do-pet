@@ -24,11 +24,12 @@ const htmlReceitaDe = (it: any): string => {
   // se não tiver tag nenhuma, preserva quebras de linha
   return /<[a-z][\s\S]*>/i.test(s) ? s : `<pre>${s.replace(/[&<>]/g, (c) => (({ "&": "&amp;", "<": "&lt;", ">": "&gt;" } as any)[c]))}</pre>`;
 };
-// Imprime a receita no PAPEL TIMBRADO da clínica (mesmo motor dos documentos do sistema).
-function imprimirReceita(it: any) {
+// Imprime a receita no PAPEL TIMBRADO da clínica (cabeçalho + QUADRO do pet/tutor),
+// mesmo motor dos documentos do sistema.
+function imprimirReceita(it: any, pet?: any, tutor?: any) {
   const dt = new Date(it.date).toLocaleDateString("pt-BR");
-  const corpo = `<h2>Receita</h2><div style="color:#6b7280;font-size:12px;margin:-2px 0 12px">${dt}</div>${htmlReceitaDe(it)}`;
-  void imprimirDocumento("Receita", corpo);
+  const corpo = `<h3 style="margin-top:14px">Receita</h3><div style="color:#6b7280;font-size:12px;margin:-2px 0 12px">${dt}</div>${htmlReceitaDe(it)}`;
+  void imprimirDocumento("Receita", corpo, undefined, { pet, tutor: tutor || pet?.tutor });
 }
 const INITIALS = (n?: string) => ((n || "").split(" ").filter(Boolean).slice(0, 2).map((x: string) => x[0]).join("").toUpperCase() || "—");
 const FMT = (d: any) => { const x = new Date(d); const p = (n: number) => String(n).padStart(2, "0"); return `${p(x.getDate())}/${p(x.getMonth() + 1)} às ${p(x.getHours())}:${p(x.getMinutes())}`; };
@@ -42,7 +43,7 @@ const LEGENDA: { n: string; c: string; I: any }[] = [
   { n: "Vídeo", c: "#0f7a52", I: LuVideo },
 ];
 
-export default function FeedTimeline({ atendimentos = [], clinDocs = [], historico = [], exames = [], onEditar, onExcluir, onDetalhe }: { atendimentos?: any[]; clinDocs?: any[]; historico?: any[]; exames?: any[]; onEditar?: (it: any) => void; onExcluir?: (it: any) => void; onDetalhe?: (id: string) => void }) {
+export default function FeedTimeline({ atendimentos = [], clinDocs = [], historico = [], exames = [], pet, tutor, onEditar, onExcluir, onDetalhe }: { atendimentos?: any[]; clinDocs?: any[]; historico?: any[]; exames?: any[]; pet?: any; tutor?: any; onEditar?: (it: any) => void; onExcluir?: (it: any) => void; onDetalhe?: (id: string) => void }) {
   const [pOpen, setPOpen] = useState(false);
   const [pIni, setPIni] = useState("");
   const [pFim, setPFim] = useState("");
@@ -120,7 +121,7 @@ export default function FeedTimeline({ atendimentos = [], clinDocs = [], histori
                     {it.summary ? <div className="text-[12px] text-gray-500 truncate">{it.summary}</div> : null}
                   </div>
                   <div className="flex items-start gap-1 opacity-0 group-hover:opacity-100 transition">
-                    {it.cat === "RECEITA" && textoReceitaDe(it) ? <button onClick={(e) => { e.stopPropagation(); imprimirReceita(it); }} title="Imprimir receita (timbrado)" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#009AAC] hover:bg-white"><LuPrinter size={13} /></button> : null}
+                    {it.cat === "RECEITA" && textoReceitaDe(it) ? <button onClick={(e) => { e.stopPropagation(); imprimirReceita(it, pet, tutor); }} title="Imprimir receita (timbrado)" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#009AAC] hover:bg-white"><LuPrinter size={13} /></button> : null}
                     {onEditar && (it.src === "atd" || (it.src === "doc" && !it.temArquivo)) ? <button onClick={(e) => { e.stopPropagation(); onEditar(it); }} title="Editar" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#009AAC] hover:bg-white"><LuPencil size={13} /></button> : null}
                     {onExcluir && it.src !== "hist" ? <button onClick={(e) => { e.stopPropagation(); onExcluir(it); }} title="Excluir" className="w-6 h-6 rounded flex items-center justify-center text-gray-400 hover:text-[#E24B4A] hover:bg-white"><LuTrash2 size={13} /></button> : null}
                   </div>

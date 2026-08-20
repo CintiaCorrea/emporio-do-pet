@@ -2008,7 +2008,7 @@ export default function PetDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
               <div className="lg:order-1">
                 <div style={{ maxHeight: "72vh", overflowY: "auto" }} className="pr-1">
-                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
+                  <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} pet={pet} tutor={pet?.tutor} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
                 </div>
                 {detalheHist && (
                   <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.3)" }} onClick={() => setDetalheHist(null)}>
@@ -2290,7 +2290,7 @@ export default function PetDetailPage() {
             </div>
           </div>
         )}
-        {tab === "TIMELINE" && <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} onDetalhe={abrirDetalheHist} /></div>}
+        {tab === "TIMELINE" && <div className="p-5"><FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} pet={pet} tutor={pet?.tutor} onDetalhe={abrirDetalheHist} /></div>}
         {tab === "EXAMES" && (
           <div className="p-5">
             {/* Adicionar exame do catálogo */}
