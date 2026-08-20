@@ -351,6 +351,13 @@ export class PortalSaudeService {
     }));
   }
 
+  // Dados da clínica (Configurações › Dados da clínica) — pro tutor imprimir a receita
+  // no PAPEL TIMBRADO, igual ao sistema. Informação pública da clínica (nome/endereço/telefones).
+  async clinica(): Promise<any> {
+    const item = await this.prisma.listaItem.findFirst({ where: { lista: 'dadosclinica' } });
+    try { return item?.valor ? JSON.parse(item.valor) : {}; } catch { return {}; }
+  }
+
   async saude(petId: string) {
     const [vacinas, receitas, exames, documentos] = await Promise.all([
       this.vacinas(petId),

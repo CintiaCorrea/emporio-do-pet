@@ -17,6 +17,7 @@ import {
   dataBr,
   usePetSelecionado,
 } from '../ptl-ui';
+import { montarTimbradoHtml } from '@/lib/documentos/timbrado';
 
 interface Vacina {
   nome: string;
@@ -55,19 +56,25 @@ function linhaVacina(v: Vacina) {
  * Linha de receita/exame. Se tem PDF, abre o arquivo ("abrir"). Se não tem PDF mas tem
  * o texto escrito, o tutor lê aqui mesmo tocando ("ver"). Se não tem nada, é só o registro.
  */
-// Abre uma janela limpa com o texto da receita/exame e chama a impressão do navegador
-// (que também permite "Salvar como PDF"). Tutor consegue imprimir a receita.
-function imprimirDoc(titulo: string, data: string, texto: string) {
-  const w = window.open('', '_blank', 'width=720,height=900');
-  if (!w) return;
+// Imprime a receita no PAPEL TIMBRADO da clínica (mesmo cabeçalho dos documentos do sistema).
+// Busca os dados da clínica no portal e monta o timbrado; o texto vai no miolo.
+async function imprimirDoc(titulo: string, data: string, texto: string) {
+  let clinica: any = {};
+  try {
+    const r = await fetch('/api/portal/clinica', { cache: 'no-store' });
+    if (r.ok) clinica = await r.json();
+  } catch { /* sem dados da clínica: imprime só com o título */ }
   const esc = (s: string) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c] as string));
+  const cab = montarTimbradoHtml({ titulo: 'Receita', clinica });
+  const w = window.open('', '_blank', 'width=840,height=1000');
+  if (!w) return;
   w.document.write(
-    `<!doctype html><html><head><meta charset="utf-8"><title>${esc(titulo)}</title>` +
-    `<style>body{font-family:system-ui,-apple-system,Arial,sans-serif;padding:36px;color:#1f2a2e;line-height:1.6}` +
-    `h1{font-size:19px;margin:0 0 2px;color:#014D5E}.data{color:#6b7280;font-size:13px;margin:0 0 20px}` +
+    `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${esc(titulo)}</title>` +
+    `<style>@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#14253a;font-size:13px;line-height:1.5}` +
+    `.conteudo{padding:16mm 16mm 18mm}.data{color:#6b7280;font-size:12px;margin:14px 0 12px}` +
     `pre{white-space:pre-wrap;word-break:break-word;font-family:inherit;font-size:14px;margin:0}</style></head>` +
-    `<body><h1>${esc(titulo)}</h1><div class="data">${esc(dataBr(data))}</div><pre>${esc(texto)}</pre>` +
-    `<script>window.onload=function(){setTimeout(function(){window.print();},150);};<\/script></body></html>`,
+    `<body><div class="conteudo">${cab}<div class="data">${esc(dataBr(data))}</div><pre>${esc(texto)}</pre></div>` +
+    `<script>window.onload=function(){setTimeout(function(){window.print();},600);};<\/script></body></html>`,
   );
   w.document.close();
 }

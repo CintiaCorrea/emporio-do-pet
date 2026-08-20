@@ -128,6 +128,12 @@ export class PortalMeController {
     return this.ficha.ficha(req.portalTutorId!);
   }
 
+  /** Dados da clínica (pro tutor imprimir a receita no papel timbrado). */
+  @Get('clinica')
+  async dadosClinica() {
+    return this.saude.clinica();
+  }
+
   /** Salvar a ficha. Entra direto no cadastro e fica no histórico. */
   @Patch('ficha')
   async salvarFicha(@Req() req: ReqComRede, @Body() corpo: FichaPayload) {
