@@ -192,7 +192,7 @@ export default function PortalInicio() {
             <div className="ptl-menu">
               {MENU.map((m) =>
                 m.rota ? (
-                  <Link key={m.titulo} href={m.rota} className="ptl-menu-item" style={m.full ? { gridColumn: '1 / -1' } : undefined}>
+                  <Link key={m.titulo} href={m.rota} className="ptl-menu-item" style={m.full ? { gridColumn: '1 / -1', alignItems: 'center', textAlign: 'center' } : undefined}>
                     <em aria-hidden="true">{m.emoji}</em>
                     <span>{m.titulo}</span>
                     <small>{m.sub}</small>
