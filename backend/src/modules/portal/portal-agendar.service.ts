@@ -159,7 +159,7 @@ export class PortalAgendarService {
    */
   async agendar(
     tutorId: string,
-    dados: { petId: string; tipo: string; inicio: string; agenda?: string },
+    dados: { petId: string; tipo: string; inicio: string; agenda?: string; terapias?: string[] },
     ip?: string,
   ) {
     const bloqueio = await this.bloqueio(tutorId);
@@ -221,6 +221,10 @@ export class PortalAgendarService {
         },
       });
 
+      // Terapias que o tutor escolheu (consulta integrativa) → observação, pra equipe já saber o foco.
+      const terapias = Array.isArray(dados.terapias) ? dados.terapias.filter((t) => typeof t === 'string' && t.trim()) : [];
+      const notes = terapias.length ? `Terapias de interesse (escolhidas pelo tutor no app): ${terapias.join(', ')}` : undefined;
+
       await this.prisma.appointment.create({
         data: {
           id: appointmentId,
@@ -232,6 +236,7 @@ export class PortalAgendarService {
           type: dados.tipo,
           status: 'Agendado',
           origem: 'PORTAL', // ⭐ a marquinha na agenda da equipe
+          ...(notes ? { notes } : {}),
           ...(ehSala ? { agendaAvulsa: vaga.agendaId } : {}),
         },
       });

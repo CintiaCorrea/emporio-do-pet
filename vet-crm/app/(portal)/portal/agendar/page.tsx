@@ -22,6 +22,26 @@ import {
   usePetSelecionado,
 } from '../ptl-ui';
 
+// 🌿 Consulta integrativa: texto explicativo + terapias que o tutor pode escolher.
+const INTEGRATIVA_INTRO =
+  'A medicina integrativa não substitui a medicina convencional — ela a complementa. Em vez de tratar apenas o sintoma, buscamos a causa raiz, considerando o pet como um todo: rotina, comportamento, alimentação, ambiente e a relação com seu tutor.\n\nO objetivo é fortalecer os mecanismos naturais de cura do organismo, com terapias menos invasivas, geralmente indolores e com pouca ou nenhuma contraindicação — trazendo mais qualidade de vida, principalmente em casos crônicos e degenerativos.';
+const INTEGRATIVA_RODAPE =
+  'A consulta segue os mesmos princípios da medicina convencional: exame clínico completo e exames laboratoriais quando necessários.';
+const TERAPIAS: { nome: string; desc: string }[] = [
+  { nome: 'Acupuntura', desc: 'agulhas finas estimulam pontos que atuam no sistema nervoso' },
+  { nome: 'Homeopatia', desc: 'tratamento individualizado por substâncias dinamizadas' },
+  { nome: 'Fitoterapia', desc: 'uso de plantas medicinais' },
+  { nome: 'Ozonioterapia', desc: 'ozônio no tratamento de feridas e infecções' },
+  { nome: 'Aromaterapia', desc: 'óleos essenciais para saúde e bem-estar' },
+  { nome: 'Florais', desc: 'essências de Bach e St. Germain' },
+  { nome: 'Fisioterapia', desc: 'recuperação de disfunções motoras' },
+  { nome: 'Nutrição', desc: 'o alimento como remédio, com plano personalizado' },
+  { nome: 'Terapia Neural', desc: 'reequilíbrio do sistema nervoso' },
+  { nome: 'Terapia Cannábica', desc: 'tratamento com óleos de Cannabis' },
+];
+const ehIntegrativa = (s: { tipo?: string; rotulo?: string } | null) =>
+  !!s && /integrativ/i.test(`${s.rotulo || ''} ${s.tipo || ''}`);
+
 type Passo = 'escolher' | 'profissional' | 'quando' | 'conferir' | 'pronto';
 
 interface Servico {
@@ -103,6 +123,8 @@ export default function TelaAgendar() {
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [servico, setServico] = useState<Servico | null>(null);
   const [agendaSel, setAgendaSel] = useState<string | null>(null); // profissional escolhido (null = tanto faz)
+  const [modalIntegrativa, setModalIntegrativa] = useState<Servico | null>(null); // pop-up da consulta integrativa
+  const [terapias, setTerapias] = useState<string[]>([]); // terapias que o tutor marcou
   const [dias, setDias] = useState<Dia[]>([]);
   const [motivo, setMotivo] = useState<string | null>(null);
   const [diaSel, setDiaSel] = useState<string | null>(null);
@@ -143,6 +165,16 @@ export default function TelaAgendar() {
     setServico(s);
     setAgendaSel(null);
     setErro('');
+    // 🌿 Consulta integrativa: abre o pop-up (explicação + terapias) ANTES de seguir.
+    if (ehIntegrativa(s)) {
+      setTerapias([]);
+      setModalIntegrativa(s);
+      return;
+    }
+    prosseguir(s);
+  }
+  /** Continua o fluxo do serviço escolhido (com quem, ou direto pros horários). */
+  function prosseguir(s: Servico) {
     if ((s.profissionais?.length ?? 0) >= 2) {
       setPasso('profissional');
     } else {
@@ -186,7 +218,7 @@ export default function TelaAgendar() {
         body: JSON.stringify(
           remarcando
             ? { inicio: horaSel.inicioUtc }
-            : { petId, tipo: servico.tipo, inicio: horaSel.inicioUtc, agenda: agendaSel || undefined },
+            : { petId, tipo: servico.tipo, inicio: horaSel.inicioUtc, agenda: agendaSel || undefined, terapias: terapias.length ? terapias : undefined },
         ),
       });
       const d = await r.json();
@@ -606,6 +638,53 @@ export default function TelaAgendar() {
               </div>
             )}
           </>
+        )}
+
+        {/* 🌿 Pop-up da consulta integrativa: explica + deixa o tutor marcar as terapias */}
+        {modalIntegrativa && (
+          <div
+            style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(3,20,30,0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+            onClick={() => setModalIntegrativa(null)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ background: '#fff', width: '100%', maxWidth: 520, maxHeight: '92vh', overflowY: 'auto', borderRadius: '18px 18px 0 0', padding: '20px 18px 18px' }}
+            >
+              <div style={{ fontSize: 17, fontWeight: 800, color: '#014D5E', marginBottom: 8 }}>🌿 Medicina Veterinária Integrativa</div>
+              <p style={{ whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.55, color: '#374151', margin: '0 0 14px' }}>{INTEGRATIVA_INTRO}</p>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#014D5E', margin: '2px 0 7px' }}>Marque as terapias que te interessam (opcional):</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                {TERAPIAS.map((t) => {
+                  const on = terapias.includes(t.nome);
+                  return (
+                    <button
+                      key={t.nome}
+                      type="button"
+                      onClick={() => setTerapias((cur) => (cur.includes(t.nome) ? cur.filter((x) => x !== t.nome) : [...cur, t.nome]))}
+                      style={{ textAlign: 'left', display: 'flex', gap: 9, alignItems: 'flex-start', border: `1.5px solid ${on ? '#00A1AE' : '#E3ECEC'}`, background: on ? '#F0FBFC' : '#fff', borderRadius: 12, padding: '9px 11px', cursor: 'pointer' }}
+                    >
+                      <span style={{ marginTop: 1, fontSize: 15 }} aria-hidden="true">{on ? '✅' : '⬜'}</span>
+                      <span>
+                        <span style={{ fontWeight: 700, color: '#0E2244', fontSize: 13.5 }}>{t.nome}</span>
+                        <span style={{ display: 'block', color: '#6B7B7E', fontSize: 12 }}>{t.desc}</span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: 12, color: '#6B7B7E', fontStyle: 'italic', margin: '0 0 15px' }}>{INTEGRATIVA_RODAPE}</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="ptl-btn quiet" style={{ flex: '0 0 auto' }} onClick={() => setModalIntegrativa(null)}>Cancelar</button>
+                <button
+                  className="ptl-btn"
+                  style={{ flex: 1 }}
+                  onClick={() => { const s = modalIntegrativa; setModalIntegrativa(null); if (s) prosseguir(s); }}
+                >
+                  Continuar{terapias.length ? ` · ${terapias.length}` : ''}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

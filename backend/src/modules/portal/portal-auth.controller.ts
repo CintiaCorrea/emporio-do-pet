@@ -269,13 +269,13 @@ export class PortalMeController {
   @Post('agendar')
   async criarAgendamento(
     @Req() req: ReqComRede,
-    @Body() corpo: { petId?: string; tipo?: string; inicio?: string; agenda?: string },
+    @Body() corpo: { petId?: string; tipo?: string; inicio?: string; agenda?: string; terapias?: string[] },
   ) {
     const tutorId = req.portalTutorId!;
     await this.escopo.assertPetDoTutor(tutorId, corpo?.petId || '');
     return this.agendar.agendar(
       tutorId,
-      { petId: corpo!.petId!, tipo: corpo?.tipo || '', inicio: corpo?.inicio || '', agenda: corpo?.agenda },
+      { petId: corpo!.petId!, tipo: corpo?.tipo || '', inicio: corpo?.inicio || '', agenda: corpo?.agenda, terapias: corpo?.terapias },
       ipDoRequest(req),
     );
   }
