@@ -38,14 +38,14 @@ interface Home {
 }
 
 /** Itens do menu, na ordem do protótipo. `rota: null` = ainda não construída. */
-const MENU: Array<{ emoji: string; titulo: string; sub: string; rota: string | null }> = [
+const MENU: Array<{ emoji: string; titulo: string; sub: string; rota: string | null; full?: boolean }> = [
   { emoji: '💚', titulo: 'Saúde', sub: 'vacinas · exames · receitas', rota: '/portal/saude' },
   { emoji: '⚖️', titulo: 'Peso', sub: 'evolução', rota: '/portal/peso' },
   { emoji: '🤸', titulo: 'Fisioterapia', sub: 'pacote e sessões', rota: '/portal/fisio' },
   { emoji: '🏥', titulo: 'Internação', sub: 'boletins do dia', rota: '/portal/internacao' },
   { emoji: '📅', titulo: 'Agendar', sub: 'marcar um horário', rota: '/portal/agendar' },
   { emoji: '🪪', titulo: 'Minha ficha', sub: 'manter dados em dia', rota: '/portal/ficha' },
-  { emoji: '⭐', titulo: 'Sugestões e avaliações', sub: 'avalie e nos ajude a melhorar', rota: '/portal/avaliar' },
+  { emoji: '⭐', titulo: 'Sugestões e avaliações', sub: 'avalie e nos ajude a melhorar', rota: '/portal/avaliar', full: true },
 ];
 
 /** 26/07 — data curta, do jeito que se fala. */
@@ -192,7 +192,7 @@ export default function PortalInicio() {
             <div className="ptl-menu">
               {MENU.map((m) =>
                 m.rota ? (
-                  <Link key={m.titulo} href={m.rota} className="ptl-menu-item">
+                  <Link key={m.titulo} href={m.rota} className="ptl-menu-item" style={m.full ? { gridColumn: '1 / -1' } : undefined}>
                     <em aria-hidden="true">{m.emoji}</em>
                     <span>{m.titulo}</span>
                     <small>{m.sub}</small>

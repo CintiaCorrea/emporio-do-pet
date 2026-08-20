@@ -13,13 +13,13 @@ const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','P
 
 type Cfg = {
   nomeFantasia: string; razaoSocial: string; cnpj: string;
-  telefone: string; whatsapp: string; email: string; site: string; instagram: string;
+  telefone: string; whatsapp: string; email: string; site: string; instagram: string; googleReview: string;
   cep: string; rua: string; numero: string; complemento: string; bairro: string; cidade: string; uf: string;
   logoUrl: string; observacoes: string;
 };
 const DEFAULTS: Cfg = {
   nomeFantasia: '', razaoSocial: '', cnpj: '',
-  telefone: '', whatsapp: '', email: '', site: '', instagram: '',
+  telefone: '', whatsapp: '', email: '', site: '', instagram: '', googleReview: '',
   cep: '', rua: '', numero: '', complemento: '', bairro: '', cidade: '', uf: '',
   logoUrl: '', observacoes: '',
 };
@@ -155,6 +155,7 @@ export default function DadosClinicaPage() {
               <Field label="E-mail"><Input value={cfg.email} onChange={set('email')} /></Field>
               <Field label="Site" span={2}><Input value={cfg.site} onChange={set('site')} placeholder="https://" /></Field>
               <Field label="Instagram" span={2}><Input value={cfg.instagram} onChange={set('instagram')} placeholder="@emporiodopet" /></Field>
+              <Field label="Link de avaliação no Google" span={4}><Input value={cfg.googleReview} onChange={set('googleReview')} placeholder="https://g.page/r/... (o app manda o cliente pra cá quando a nota é boa)" /></Field>
             </div>
           </Card>
 

@@ -4,12 +4,22 @@
  */
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PtlCabecalho, PtlEstilos } from '../ptl-ui';
 
 export default function TelaAvaliar() {
   const [estrelas, setEstrelas] = useState(0);
   const [comentario, setComentario] = useState('');
+  const [googleUrl, setGoogleUrl] = useState('');
+
+  // Link de avaliação no Google (Dados da clínica) — pra mandar quem gostou pro Google.
+  useEffect(() => {
+    fetch('/api/portal/clinica', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setGoogleUrl((d?.googleReview || '').trim()))
+      .catch(() => {});
+  }, []);
+
   const [texto, setTexto] = useState('');
   const [enviandoA, setEnviandoA] = useState(false);
   const [enviandoS, setEnviandoS] = useState(false);
@@ -71,7 +81,17 @@ export default function TelaAvaliar() {
           <div className="ptl-card">
             <div className="ptl-label">avalie a clínica</div>
             {okA ? (
-              <p style={{ padding: '10px 0', color: '#0F6E56', fontWeight: 600 }}>💚 Obrigado pela sua avaliação!</p>
+              <div>
+                <p style={{ padding: '10px 0 2px', color: '#0F6E56', fontWeight: 600 }}>💚 Obrigado pela sua avaliação!</p>
+                {estrelas >= 4 && googleUrl && (
+                  <>
+                    <p style={{ fontSize: 13.5, color: '#374151', margin: '4px 0 10px', lineHeight: 1.5 }}>
+                      Que bom que você gostou! 🌟 Poderia deixar essa nota no Google também? Ajuda outros tutores a encontrarem a gente.
+                    </p>
+                    <a className="ptl-btn" href={googleUrl} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>⭐ Avaliar no Google</a>
+                  </>
+                )}
+              </div>
             ) : (
               <>
                 <div style={{ display: 'flex', gap: 4, justifyContent: 'center', margin: '10px 0 8px' }}>
