@@ -643,12 +643,12 @@ export default function TelaAgendar() {
         {/* 🌿 Pop-up da consulta integrativa: explica + deixa o tutor marcar as terapias */}
         {modalIntegrativa && (
           <div
-            style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(3,20,30,0.45)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+            style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'rgba(3,20,30,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
             onClick={() => setModalIntegrativa(null)}
           >
             <div
               onClick={(e) => e.stopPropagation()}
-              style={{ background: '#fff', width: '100%', maxWidth: 520, maxHeight: '92vh', overflowY: 'auto', borderRadius: '18px 18px 0 0', padding: '20px 18px 18px' }}
+              style={{ background: '#fff', width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', borderRadius: 16, padding: '18px 16px 16px', boxShadow: '0 12px 40px rgba(1,77,94,0.25)' }}
             >
               <div style={{ fontSize: 17, fontWeight: 800, color: '#014D5E', marginBottom: 8 }}>🌿 Medicina Veterinária Integrativa</div>
               <p style={{ whiteSpace: 'pre-wrap', fontSize: 13.5, lineHeight: 1.55, color: '#374151', margin: '0 0 14px' }}>{INTEGRATIVA_INTRO}</p>
