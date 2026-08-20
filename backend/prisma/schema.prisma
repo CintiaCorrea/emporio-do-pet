@@ -4020,6 +4020,10 @@ model ItemCatalogo {
   descontoLimite      Float?
   // vacina: liga ao protocolo clínico (ProtocoloTemplate) — FK string simples
   protocoloTemplateId String?
+  // pacote/kit: o que a VENDA cria (a "ponte" com o controle de sessões/doses)
+  controlePlano       String? // SESSOES (petpac_) | DOSES (protocolo programado) | null = kit sem controle
+  planoUnidades       Int?    // nº de sessões/doses por unidade vendida
+  planoIntervaloDias  Int?    // dias entre doses (DOSES)
   // status
   ativo               Boolean   @default(true)
   arquivado           Boolean   @default(false) // soft delete (≠ excluir)

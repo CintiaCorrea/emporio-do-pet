@@ -23,6 +23,7 @@ const FORM0: any = {
   controlaEstoque: false, estoqueAtual: "", estoqueMin: "", estoqueMax: "", controlaValidade: false,
   comissionado: false, comissaoTipo: "PERCENTUAL", comissaoValor: "", descontoModo: "LIMITE_GERAL", descontoLimite: "",
   protocoloTemplateId: "", ativo: true,
+  controlePlano: "", planoUnidades: "", planoIntervaloDias: "", // pacote/kit: o que a venda cria
   exame: { fornecedorId: "", custoLab: "", prazoResultadoDias: "", categoria: "", externo: false },
   composicao: [] as any[],
 };
@@ -116,6 +117,7 @@ export default function CatalogoNovoPage() {
         estoqueAtual: it.estoqueAtual ?? "", estoqueMin: it.estoqueMin ?? "", estoqueMax: it.estoqueMax ?? "",
         comissaoValor: it.comissaoValor ?? "", descontoLimite: it.descontoLimite ?? "",
         grupoId: it.grupoId || "", marcaId: it.marcaId || "", protocoloTemplateId: it.protocoloTemplateId || "",
+        controlePlano: it.controlePlano || "", planoUnidades: it.planoUnidades ?? "", planoIntervaloDias: it.planoIntervaloDias ?? "",
         exame: it.exame ? { fornecedorId: it.exame.fornecedorId || "", custoLab: it.exame.custoLab ?? "", prazoResultadoDias: it.exame.prazoResultadoDias ?? "", categoria: it.exame.categoria || "", externo: !!it.exame.externo } : { ...FORM0.exame },
         composicao: (it.composicao || []).map((c: any) => ({ itemId: c.itemId, nome: c.item?.nome, quantidade: c.quantidade })),
       });
@@ -152,6 +154,8 @@ export default function CatalogoNovoPage() {
     () => (form?.composicao || []).reduce((s: number, c: any) => s + precoItem(c.itemId) * (Number(c.quantidade) || 0), 0),
     [form?.composicao, todosItens], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  // soma das QUANTIDADES da composição — sugere o nº de sessões/doses do pacote
+  const somaQtdComposicao = useMemo(() => (form?.composicao || []).reduce((s: number, c: any) => s + (Number(c.quantidade) || 0), 0), [form?.composicao]);
   // Muda a composição e, se o preço ainda estiver zerado, já sugere a soma dos itens.
   const setComp = (arr: any[]) => setForm((f: any) => {
     const soma = (arr || []).reduce((s: number, c: any) => s + precoItem(c.itemId) * (Number(c.quantidade) || 0), 0);
@@ -372,6 +376,35 @@ export default function CatalogoNovoPage() {
                   {Number(form.preco) > 0 && somaComposicao > 0 && Number(form.preco) < somaComposicao && (
                     <div className="text-[11.5px] mt-1" style={{ color: "#0F6E56" }}>Desconto do pacote: {brl(somaComposicao - Number(form.preco))} ({Math.round((1 - Number(form.preco) / somaComposicao) * 100)}% off)</div>
                   )}
+
+                  {/* 🔗 O que a venda cria (a ponte com o controle de sessões/doses) */}
+                  <div className="mt-3 pt-3 border-t" style={{ borderColor: LINE }}>
+                    <div style={lbl}>🔗 O que a venda cria</div>
+                    <div className="flex gap-2 flex-wrap items-end">
+                      <div style={{ flex: 1, minWidth: 220 }}>
+                        <label style={lbl}>Controle</label>
+                        <select value={form.controlePlano} onChange={(e) => { const v = e.target.value; up({ controlePlano: v, ...((v && !form.planoUnidades && somaQtdComposicao > 0) ? { planoUnidades: String(somaQtdComposicao) } : {}) }); }} style={inp}>
+                          <option value="">Kit — só vende junto (sem controle)</option>
+                          <option value="SESSOES">Sessões — fisio, banhos, "N usos" (patinhas 🐾)</option>
+                          <option value="DOSES">Doses programadas — medicação (agenda + lembrete 💉)</option>
+                        </select>
+                      </div>
+                      {form.controlePlano && (
+                        <div style={{ width: 104 }}>
+                          <label style={lbl}>{form.controlePlano === "DOSES" ? "Nº doses" : "Nº sessões"}</label>
+                          <input value={form.planoUnidades} onChange={(e) => up({ planoUnidades: e.target.value.replace(/\D/g, "") })} inputMode="numeric" style={inp} placeholder={String(somaQtdComposicao || "")} />
+                        </div>
+                      )}
+                      {form.controlePlano === "DOSES" && (
+                        <div style={{ width: 118 }}>
+                          <label style={lbl}>A cada (dias)</label>
+                          <input value={form.planoIntervaloDias} onChange={(e) => up({ planoIntervaloDias: e.target.value.replace(/\D/g, "") })} inputMode="numeric" style={inp} placeholder="30" />
+                        </div>
+                      )}
+                    </div>
+                    {form.controlePlano === "SESSOES" && <div className="text-[11px] mt-1" style={{ color: MUT }}>Ao vender, cria o controle de sessões do pet (aparece nas patinhas e baixa na agenda).</div>}
+                    {form.controlePlano === "DOSES" && <div className="text-[11px] mt-1" style={{ color: MUT }}>Ao vender, agenda as doses no intervalo e dispara o lembrete de cada uma.</div>}
+                  </div>
                 </div>
               )}
 

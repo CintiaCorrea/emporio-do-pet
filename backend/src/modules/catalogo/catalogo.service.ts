@@ -113,6 +113,10 @@ export class CatalogoService {
       descontoModo: dto.descontoModo || 'LIMITE_GERAL',
       descontoLimite: dto.descontoLimite != null ? Number(dto.descontoLimite) : null,
       protocoloTemplateId: dto.protocoloTemplateId || null,
+      // pacote/kit: o que a venda cria (ponte com o controle de sessões/doses)
+      controlePlano: dto.controlePlano || null,
+      planoUnidades: dto.planoUnidades != null && dto.planoUnidades !== '' ? Number(dto.planoUnidades) : null,
+      planoIntervaloDias: dto.planoIntervaloDias != null && dto.planoIntervaloDias !== '' ? Number(dto.planoIntervaloDias) : null,
       ativo: dto.ativo ?? true,
     };
     return d;

@@ -958,6 +958,36 @@ export class CaixaService {
           }).catch((e: any) => console.error('criarPlano medicamento:', e?.message));
         }
       }
+
+      // 🔗 PONTE do CATÁLOGO NOVO: itens vendidos com catalogoItemId + controlePlano criam o MESMO
+      // controle do antigo — SESSOES → petpac_ (patinhas/agenda), DOSES → protocolo programado (lembrete).
+      const itensNovo = await this.prisma.appointmentItem.findMany({ where: { appointmentId, catalogoItemId: { not: null } }, select: { catalogoItemId: true, quantidade: true } });
+      for (const it of itensNovo) {
+        if (!it.catalogoItemId) continue;
+        const item = await this.prisma.itemCatalogo.findUnique({ where: { id: it.catalogoItemId }, select: { nome: true, controlePlano: true, planoUnidades: true, planoIntervaloDias: true } });
+        if (!item?.controlePlano) continue;
+        const qtd = Math.max(1, Math.round(Number(it.quantidade) || 1));
+        const unidades = Math.max(1, (Number(item.planoUnidades) || 1) * qtd);
+        if (item.controlePlano === 'SESSOES') {
+          const origemVenda = `venda:${appointmentId}:${it.catalogoItemId}`;
+          const jaExiste = await this.prisma.listaItem.findFirst({ where: { lista: `petpac_${ap.petId}`, valor: { contains: origemVenda } } });
+          if (!jaExiste) {
+            await this.prisma.listaItem.create({
+              data: { lista: `petpac_${ap.petId}`, valor: JSON.stringify({ serviceId: it.catalogoItemId, nome: item.nome || 'Pacote', total: unidades, used: 0, createdAt: new Date().toISOString(), baixas: [], origem: 'venda', origemVenda }) },
+            }).catch((e: any) => console.error('criarPlano SESSOES (novo):', e?.message));
+          }
+        } else if (item.controlePlano === 'DOSES') {
+          const jaDose = await this.prisma.protocoloAplicado.findFirst({ where: { appointmentId, nomeProtocolo: item.nome || 'Plano de doses' } });
+          if (!jaDose) {
+            const intervalo = Math.max(1, Number(item.planoIntervaloDias) || 30);
+            const inicio = new Date();
+            const dosesData = Array.from({ length: unidades }, (_, k) => ({ numero: k + 1, dataPrevista: new Date(inicio.getTime() + k * intervalo * 86400000), status: 'PENDENTE' }));
+            await this.prisma.protocoloAplicado.create({
+              data: { petId: ap.petId, tutorId: ap.tutorId ?? null, tipo: 'OUTRO', nomeProtocolo: item.nome || 'Plano de doses', dataInicial: inicio, appointmentId, doses: { create: dosesData } },
+            }).catch((e: any) => console.error('criarPlano DOSES (novo):', e?.message));
+          }
+        }
+      }
     } catch (e: any) {
       console.error('criarPlanosDaVenda erro:', e?.message);
     }
