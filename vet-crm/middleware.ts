@@ -30,6 +30,16 @@ const publicRoutes = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // 🐾 Domínio do CLIENTE (meu.emporiodopet.com.br): abre DIRETO no portal do tutor.
+  // A raiz e a área da equipe (/dashboard) redirecionam pro portal — o cliente nunca
+  // cai no login da equipe. As rotas /portal e /api passam normalmente.
+  const host = request.nextUrl.hostname
+  if (host.startsWith('meu.')) {
+    if (pathname === '/' || pathname.startsWith('/dashboard')) {
+      return NextResponse.redirect(new URL('/portal', request.url))
+    }
+  }
+
   // Permitir todas as rotas de API de autenticação sem verificação
   if (pathname.startsWith('/api/auth')) {
     return NextResponse.next()
