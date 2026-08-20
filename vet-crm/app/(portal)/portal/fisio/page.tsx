@@ -100,9 +100,6 @@ export default function TelaFisio() {
 
         {!ocupado &&
           pacotes.map((p) => {
-            const porcento = p.totalSessoes
-              ? Math.min(100, Math.round((p.sessaoAtual / p.totalSessoes) * 100))
-              : 0;
             const rotulo = ROTULO_STATUS[p.status] ?? '';
 
             return (
@@ -112,8 +109,11 @@ export default function TelaFisio() {
                   <div className="big">
                     sessão {p.sessaoAtual} <small>de {p.totalSessoes}</small>
                   </div>
-                  <div className="ptl-barra">
-                    <div style={{ width: `${porcento}%` }} />
+                  {/* Patinhas: 1 pata por sessão — cheia = feita, vazia = a fazer (igual ao sistema) */}
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, margin: '9px 0 5px' }} aria-hidden="true">
+                    {Array.from({ length: Math.min(p.totalSessoes || 0, 40) }).map((_, i) => (
+                      <span key={i} style={{ fontSize: 17, lineHeight: 1 }}>{i < p.sessaoAtual ? '🐾' : '⚪'}</span>
+                    ))}
                   </div>
                   <div className="meta">
                     {rotulo
