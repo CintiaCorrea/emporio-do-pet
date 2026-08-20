@@ -30,6 +30,7 @@ const FORM0: any = {
 export default function CatalogoNovoPage() {
   usePageTitle("Catálogo (novo)", "Cadastro único — produto, serviço, exame, vacina, pacote e kit.");
   const [itens, setItens] = useState<any[]>([]);
+  const [todosItens, setTodosItens] = useState<any[]>([]); // lista COMPLETA p/ o seletor de composição
   const [grupos, setGrupos] = useState<any[]>([]);
   const [marcas, setMarcas] = useState<any[]>([]);
   const [labs, setLabs] = useState<any[]>([]);
@@ -63,17 +64,20 @@ export default function CatalogoNovoPage() {
 
   const carregarApoio = useCallback(async () => {
     try {
-      const [g, m, f, pr] = await Promise.all([
+      const [g, m, f, pr, ti] = await Promise.all([
         fetch("/api/catalogo/grupos", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
         fetch("/api/catalogo/marcas", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/fornecedores", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         fetch("/api/protocolos/templates", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+        // Lista COMPLETA (sem o filtro da tela) — pro seletor de composição do pacote/kit.
+        fetch("/api/catalogo/itens?situacao=ATIVO", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
       ]);
       setGrupos(Array.isArray(g?.flat) ? g.flat : []);
       setMarcas(Array.isArray(m) ? m : (m?.data || []));
       const fArr = Array.isArray(f) ? f : (f?.data || f?.itens || []);
       setLabs(fArr.filter((x: any) => !x.tipo || /LABORATORIO|PROFISSIONAL/i.test(x.tipo)));
       setProtocolos(Array.isArray(pr) ? pr : (pr?.data || pr?.templates || []));
+      setTodosItens(Array.isArray(ti?.itens) ? ti.itens : []);
     } catch {}
   }, []);
 
@@ -143,10 +147,10 @@ export default function CatalogoNovoPage() {
   }, [form]);
 
   // Pacote/Kit: soma dos itens da composição (preço × quantidade).
-  const precoItem = (id: string) => Number(itens.find((x) => x.id === id)?.preco) || 0;
+  const precoItem = (id: string) => Number(todosItens.find((x) => x.id === id)?.preco) || 0;
   const somaComposicao = useMemo(
     () => (form?.composicao || []).reduce((s: number, c: any) => s + precoItem(c.itemId) * (Number(c.quantidade) || 0), 0),
-    [form?.composicao, itens], // eslint-disable-line react-hooks/exhaustive-deps
+    [form?.composicao, todosItens], // eslint-disable-line react-hooks/exhaustive-deps
   );
   // Muda a composição e, se o preço ainda estiver zerado, já sugere a soma dos itens.
   const setComp = (arr: any[]) => setForm((f: any) => {
@@ -351,7 +355,7 @@ export default function CatalogoNovoPage() {
                     const sub = precoItem(c.itemId) * (Number(c.quantidade) || 0);
                     return (
                       <div key={i} className="flex gap-2 items-center mb-1.5">
-                        <select value={c.itemId} onChange={(e) => { const arr = [...form.composicao]; arr[i] = { ...arr[i], itemId: e.target.value }; setComp(arr); }} style={{ ...inp, flex: 1 }}><option value="">— item —</option>{itens.filter((x) => x.id !== form.id).map((x) => <option key={x.id} value={x.id}>{x.nome} · {brl(x.preco)}</option>)}</select>
+                        <select value={c.itemId} onChange={(e) => { const arr = [...form.composicao]; arr[i] = { ...arr[i], itemId: e.target.value }; setComp(arr); }} style={{ ...inp, flex: 1 }}><option value="">— item —</option>{todosItens.filter((x) => x.id !== form.id).map((x) => <option key={x.id} value={x.id}>{x.nome} · {brl(x.preco)}</option>)}</select>
                         <input value={c.quantidade} onChange={(e) => { const arr = [...form.composicao]; arr[i] = { ...arr[i], quantidade: e.target.value.replace(/\D/g, "") }; setComp(arr); }} style={{ ...inp, width: 56 }} placeholder="qtd" />
                         <span className="tabular-nums text-[12px]" style={{ width: 78, textAlign: "right", color: MUT }}>{brl(sub)}</span>
                         <button onClick={() => setComp(form.composicao.filter((_: any, j: number) => j !== i))} className="text-[#b23b39] text-[15px] px-1">🗑</button>
