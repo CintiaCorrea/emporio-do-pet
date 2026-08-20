@@ -42,6 +42,21 @@ interface Boletim {
   texto: string;
 }
 
+// Patinha desenhada (SVG) na cor do app — turquesa = sessão feita, cinza claro = a fazer.
+// (O emoji 🐾 sai marrom escuro e não dá pra recolorir.)
+function Patinha({ feita }: { feita: boolean }) {
+  const cor = feita ? '#00A1AE' : '#D4DEDF';
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" fill={cor} aria-hidden="true" style={{ flex: '0 0 auto' }}>
+      <ellipse cx="6" cy="12.6" rx="2.1" ry="2.7" />
+      <ellipse cx="10.3" cy="8.5" rx="2.1" ry="2.9" />
+      <ellipse cx="14.7" cy="8.5" rx="2.1" ry="2.9" />
+      <ellipse cx="19" cy="12.6" rx="2.1" ry="2.7" />
+      <path d="M12.5 12.8c-3.1 0-5.4 2.2-5.4 4.5 0 1.7 1.3 2.5 2.8 2.1.9-.2 1.7-.6 2.6-.6s1.7.4 2.6.6c1.5.4 2.8-.4 2.8-2.1 0-2.3-2.3-4.5-5.4-4.5z" />
+    </svg>
+  );
+}
+
 const ROTULO_STATUS: Record<string, string> = {
   ATIVO: '',
   CONCLUIDO: 'pacote concluído',
@@ -110,9 +125,9 @@ export default function TelaFisio() {
                     sessão {p.sessaoAtual} <small>de {p.totalSessoes}</small>
                   </div>
                   {/* Patinhas: 1 pata por sessão — cheia = feita, vazia = a fazer (igual ao sistema) */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, margin: '9px 0 5px' }} aria-hidden="true">
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, margin: '9px 0 5px' }} aria-hidden="true">
                     {Array.from({ length: Math.min(p.totalSessoes || 0, 40) }).map((_, i) => (
-                      <span key={i} style={{ fontSize: 17, lineHeight: 1 }}>{i < p.sessaoAtual ? '🐾' : '⚪'}</span>
+                      <Patinha key={i} feita={i < p.sessaoAtual} />
                     ))}
                   </div>
                   <div className="meta">
