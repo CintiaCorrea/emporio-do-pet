@@ -33,7 +33,8 @@ export async function middleware(request: NextRequest) {
   // 🐾 Domínio do CLIENTE (meu.emporiodopet.com.br): abre DIRETO no portal do tutor.
   // A raiz e a área da equipe (/dashboard) redirecionam pro portal — o cliente nunca
   // cai no login da equipe. As rotas /portal e /api passam normalmente.
-  const host = request.nextUrl.hostname
+  // Atrás do proxy da Fly, nextUrl.hostname vem interno — o host público está no header 'host'.
+  const host = (request.headers.get('host') || '').toLowerCase()
   if (host.startsWith('meu.')) {
     if (pathname === '/' || pathname.startsWith('/dashboard')) {
       return NextResponse.redirect(new URL('/portal', request.url))
