@@ -1079,7 +1079,7 @@ export class CaixaService {
       const desconto = Number(it.desconto || 0);
       const valorTotal = Math.max(0, quantidade * valorUnitario - desconto);
       // fornecedorId + custoUnitario (custo do lab) seguem pro AppointmentItem → alimentam o a-pagar ao laboratório.
-      return { servicoId: it.servicoId ?? undefined, productId: it.productId ?? undefined, descricao: it.descricao ?? undefined, quantidade, valorUnitario, custoUnitario: it.custoUnitario != null ? Number(it.custoUnitario) : undefined, desconto, valorTotal, executorUserId: it.executorUserId ?? undefined, fornecedorId: it.fornecedorId ?? undefined };
+      return { servicoId: it.servicoId ?? undefined, productId: it.productId ?? undefined, catalogoItemId: it.catalogoItemId ?? undefined, descricao: it.descricao ?? undefined, quantidade, valorUnitario, custoUnitario: it.custoUnitario != null ? Number(it.custoUnitario) : undefined, desconto, valorTotal, executorUserId: it.executorUserId ?? undefined, fornecedorId: it.fornecedorId ?? undefined };
     });
     // Config de vendas: obrigar profissional (vendedor) em cada item
     const cfgVenda = await this.getConfigVendas();
