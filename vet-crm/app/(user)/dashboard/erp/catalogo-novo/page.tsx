@@ -254,7 +254,7 @@ export default function CatalogoNovoPage() {
             <div className="p-5 flex flex-col gap-4">
               {/* tipo */}
               <div className="flex gap-1.5 flex-wrap">
-                {TIPOS.map((t) => <button key={t.k} disabled={!!form.id} onClick={() => up({ tipo: t.k })} className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border disabled:opacity-50" style={form.tipo === t.k ? { background: T, color: "#fff", borderColor: T } : { background: "#fff", color: MUT, borderColor: LINE }}>{t.emoji} {t.lbl}</button>)}
+                {TIPOS.map((t) => <button key={t.k} onClick={() => up({ tipo: t.k })} className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={form.tipo === t.k ? { background: T, color: "#fff", borderColor: T } : { background: "#fff", color: MUT, borderColor: LINE }}>{t.emoji} {t.lbl}</button>)}
               </div>
 
               {/* dados básicos */}
