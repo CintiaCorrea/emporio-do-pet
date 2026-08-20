@@ -80,19 +80,20 @@ export class PortalAgendaRegrasService {
     });
   }
 
-  /** Tipos de atendimento cadastrados pela equipe (a fonte da lista de servicos). */
-  private async tiposDeAtendimento(): Promise<Array<{ v: string; l: string }>> {
+  /** Tipos de atendimento cadastrados pela equipe (a fonte da lista de servicos + a DURAÇÃO). */
+  private async tiposDeAtendimento(): Promise<Array<{ v: string; l: string; duracaoMin?: number }>> {
     const itens = await this.prisma.listaItem.findMany({
       where: { lista: 'atendimento_tipo', ativo: true },
       select: { valor: true, ordem: true },
       orderBy: { ordem: 'asc' },
     });
 
-    const tipos: Array<{ v: string; l: string }> = [];
+    const tipos: Array<{ v: string; l: string; duracaoMin?: number }> = [];
     for (const item of itens) {
       try {
         const t = JSON.parse(item.valor);
-        if (t?.v) tipos.push({ v: String(t.v), l: String(t.l || t.v) });
+        // A duração é FONTE ÚNICA no tipo (Config › Atendimento). Quando definida, manda na agenda.
+        if (t?.v) tipos.push({ v: String(t.v), l: String(t.l || t.v), duracaoMin: Number(t.duracaoMin) > 0 ? Number(t.duracaoMin) : undefined });
       } catch {
         // tipos antigos podiam ser texto puro
         if (item.valor) tipos.push({ v: item.valor, l: item.valor });
@@ -174,7 +175,8 @@ export class PortalAgendaRegrasService {
         tipo: t.v,
         rotulo: t.l,
         ativo: s?.ativo ?? false,
-        duracaoMin: s?.duracaoMin ?? 30,
+        // Duração vem do TIPO (fonte única). Fallback: o que já estava salvo no online → 30.
+        duracaoMin: t.duracaoMin ?? s?.duracaoMin ?? 30,
         agendas: s?.agendas ?? [],
         restricao: (s?.restricao as Restricao) ?? 'TODOS',
         responsavelUserId: s?.responsavelUserId ?? null,

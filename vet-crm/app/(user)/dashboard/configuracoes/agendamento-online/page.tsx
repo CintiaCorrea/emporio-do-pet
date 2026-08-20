@@ -461,16 +461,15 @@ export default function AgendamentoOnlinePage() {
                   {s.rotulo}
                 </div>
 
-                <span className="flex items-center gap-1.5">
-                  <Input
-                    type="number"
-                    min={5}
-                    value={String(s.duracaoMin)}
-                    onChange={(e) => mudarServico(s.tipo, "duracaoMin", Number(e.target.value))}
-                    style={{ width: 68, textAlign: "center", fontVariantNumeric: "tabular-nums" }}
-                  />
-                  <span className="text-[12px]" style={{ color: B44.text2 }}>
-                    min
+                <span
+                  className="flex items-center gap-1.5"
+                  title="A duração é definida por serviço em Configurações › Atendimento (vale aqui e na agenda da equipe)."
+                >
+                  <span
+                    className="text-[13px] font-semibold tabular-nums"
+                    style={{ color: B44.navy, minWidth: 52, textAlign: "center" }}
+                  >
+                    {s.duracaoMin} min
                   </span>
                 </span>
 

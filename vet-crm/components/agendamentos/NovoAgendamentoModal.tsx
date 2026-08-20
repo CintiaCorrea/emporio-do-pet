@@ -27,6 +27,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   const [step, setStep] = useState(1);
   const [profs, setProfs] = useState<any[]>([]);
   const [tipos, setTipos] = useState<string[]>([]);
+  const [tipoDur, setTipoDur] = useState<Record<string, number>>({}); // duração por tipo (fonte única, Config › Atendimento)
   const [busca, setBusca] = useState("");
   const [tutor, setTutor] = useState<any>(null);
   const [pets, setPets] = useState<any[]>([]);
@@ -71,7 +72,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
       // 🛡️ blip de rede NÃO zera a lista de profissionais (senão trava o salvar) — só troca se veio válido.
       const pl = Array.isArray(p) ? p : (p?.data || null);
       if (pl) setProfs(pl.filter((x: any) => x.ativo !== false && x.userId && !["RECEPCIONISTA", "GERENTE"].includes(x.tipo)));
-      try { const r = await fetch("/api/listas?lista=atendimento_tipo", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); const ts = arr.map((i: any) => { try { const o = JSON.parse(i.valor); return o.l || o.nome || o.v || i.valor; } catch { return i.valor; } }).filter(Boolean); setTipos(ts.length ? ts : TIPOS_FALLBACK); } catch { setTipos(TIPOS_FALLBACK); }
+      try { const r = await fetch("/api/listas?lista=atendimento_tipo", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); const ts: string[] = []; const durMap: Record<string, number> = {}; for (const i of arr) { let lbl: string = i.valor; try { const o = JSON.parse(i.valor); lbl = o.l || o.nome || o.v || i.valor; if (Number(o.duracaoMin) > 0) durMap[lbl] = Number(o.duracaoMin); } catch { /* valor cru */ } if (lbl) ts.push(lbl); } setTipos(ts.length ? ts : TIPOS_FALLBACK); setTipoDur(durMap); } catch { setTipos(TIPOS_FALLBACK); }
       try { const r = await fetch("/api/servicos/itens?limit=1000", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.servicos || d.itens || d.data || []); setServicos(arr); } catch {}
       try { const r = await fetch("/api/listas?lista=agenda_avulsa", { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setAvulsas(arr.map((i: any) => { try { return JSON.parse(i.valor); } catch { return null; } }).filter((a: any) => a && a.ativo !== false)); } catch {}
       // Parceiros/terceirizados (fornecedores tipo Profissional/Parceiro) — fonte do "quem atende".
@@ -391,7 +392,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
               </div>
               )}
               <div><label className={lbl}>Tipo de atendimento *</label>
-                <input list="ag-tipos" value={type} onChange={(e) => setType(e.target.value)} placeholder="Selecione…" className={inp} />
+                <input list="ag-tipos" value={type} onChange={(e) => { const v = e.target.value; setType(v); const dm = tipoDur[v]; if (dm) setDuration(dm); }} placeholder="Selecione…" className={inp} />
                 <datalist id="ag-tipos">{tipos.map((t) => <option key={t} value={t} />)}</datalist>
               </div>
             </div>
