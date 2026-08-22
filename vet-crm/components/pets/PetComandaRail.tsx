@@ -35,14 +35,10 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const [sub, setSub] = useState<"VENDA" | "ORC">("VENDA");
   const [itens, setItens] = useState<Item[]>([]);
   const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
-  const [frequentes, setFrequentes] = useState<{ id: string; nome: string; valorPadrao: number; custoPadrao: number }[]>([]);
-  // ⭐ Itens mais vendidos — quick-add de 1 clique (padrão SimplesVet).
-  useEffect(() => { (async () => { try { const r = await fetch("/api/caixa/itens-frequentes?limit=8", { cache: "no-store" }); const d = await r.json(); setFrequentes(Array.isArray(d) ? d : (d.data || [])); } catch {} })(); }, []);
   const addDoCatalogo = (c: any) => {
     const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? c.valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome });
     addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 });
   };
-  const addFrequente = (f: { id: string; nome: string; valorPadrao: number; custoPadrao: number }) => addDoCatalogo(f);
   // 📷 Leitura de código de barras: o scanner USB digita o código + Enter. No Enter, se casar com um
   // código de barras (ou o código do item), lança direto e limpa o campo.
   function tentarCodigoBarras(q: string): boolean {
@@ -281,20 +277,8 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
             <button onClick={() => { setAddOpen((v) => !v); setBusca(""); }} className="w-full text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#009AAC" }}>➕ Adicionar item {addOpen ? "▲" : "▾"}</button>
             {addOpen && (
               <div className="mt-2">
-                {frequentes.length > 0 && !busca.trim() && (
-                  <div className="mb-2">
-                    <div className="text-[10px] font-semibold text-[#8A857A] uppercase tracking-wide mb-1">⭐ Mais vendidos</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {frequentes.map((f) => (
-                        <button key={f.id} onClick={() => addFrequente(f)} title={`Adicionar ${f.nome}`} className="text-[11px] rounded-full border px-2.5 py-1 hover:bg-[#F0FBFC] flex items-center gap-1.5" style={{ borderColor: "#BEE3E8", background: "#F7FCFD", color: "#0E5560" }}>
-                          <span className="truncate max-w-[130px]">{f.nome}</span>
-                          <span className="font-semibold text-[#0F6E56]">{BRL(f.valorPadrao)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 <input value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!tentarCodigoBarras(busca) && matches.length === 1) { addDoCatalogo(matches[0]); setBusca(""); } } }} autoFocus placeholder="🔍 Buscar ou ler código de barras…" className="w-full border rounded-lg px-2 py-1.5 text-[12.5px]" style={{ borderColor: "#E8DFC8" }} />
+                {busca.trim() && (
                 <div className="border rounded-lg mt-1 max-h-44 overflow-auto" style={{ borderColor: "#F0EBE0" }}>
                   {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
                     matches.map((c) => (
@@ -303,6 +287,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                       </button>
                     ))}
                 </div>
+                )}
               </div>
             )}
           </div>

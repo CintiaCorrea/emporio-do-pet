@@ -104,6 +104,7 @@ export default function PDVPage() {
   const buscaTimer = useRef<any>(null);
   const [vendaDia, setVendaDia] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [vendaAbertas, setVendaAbertas] = useState(false); // ver abertas de TODOS os dias
+  const vendaDiaRef = useRef<HTMLInputElement>(null);       // date picker escondido do navegador de dia
   const [detVenda, setDetVenda] = useState<any>(null);      // venda aberta no modal de detalhe
   const [detLoad, setDetLoad] = useState(false);
   const [detExcluindo, setDetExcluindo] = useState(false);
@@ -737,8 +738,25 @@ export default function PDVPage() {
               <button onClick={() => { loadVendas(); loadOrcamentos(); }} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 14 }} aria-label="Atualizar">🔄</button>
             </div>
             <div style={{ padding: '2px 13px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <input type="date" value={vendaDia} disabled={vendaAbertas} onChange={(e) => setVendaDia(e.target.value)}
-                style={{ padding: '5px 8px', border: `1px solid ${LINE}`, borderRadius: 8, fontSize: 12, color: INK, opacity: vendaAbertas ? 0.5 : 1 }} />
+              {(() => {
+                const ehHoje = vendaDia === hoje();
+                const fmtBR = (s: string) => { const [y, m, d] = s.split('-'); return `${d}/${m}/${y}`; };
+                const shiftDia = (delta: number) => { const dt = new Date(vendaDia + 'T12:00:00'); dt.setDate(dt.getDate() + delta); setVendaDia(dt.toISOString().slice(0, 10)); };
+                const btn = { width: 28, height: 28, borderRadius: 8, border: `1px solid ${LINE}`, background: '#fff', color: MUT, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, lineHeight: 1 } as const;
+                return (
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, opacity: vendaAbertas ? 0.5 : 1, pointerEvents: vendaAbertas ? 'none' : 'auto' }}>
+                    <button onClick={() => shiftDia(-1)} aria-label="Dia anterior" style={btn}>‹</button>
+                    <button
+                      onClick={() => { const el = vendaDiaRef.current; if (!el) return; if ((el as any).showPicker) (el as any).showPicker(); else el.click(); }}
+                      style={{ position: 'relative', height: 28, padding: '0 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: 'pointer', fontSize: 12.5, fontWeight: 500, whiteSpace: 'nowrap' }}
+                    >
+                      {ehHoje ? 'Hoje · ' : ''}{fmtBR(vendaDia)}
+                      <input ref={vendaDiaRef} type="date" value={vendaDia} onChange={(e) => e.target.value && setVendaDia(e.target.value)} tabIndex={-1} style={{ position: 'absolute', left: 0, bottom: 0, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }} />
+                    </button>
+                    <button onClick={() => shiftDia(1)} aria-label="Próximo dia" style={btn}>›</button>
+                  </div>
+                );
+              })()}
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: MUT, cursor: 'pointer' }}>
                 <input type="checkbox" checked={vendaAbertas} onChange={(e) => setVendaAbertas(e.target.checked)} />
                 Abertas (todos os dias)
