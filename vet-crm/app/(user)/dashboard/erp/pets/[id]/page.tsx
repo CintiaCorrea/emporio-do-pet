@@ -1463,7 +1463,7 @@ export default function PetDetailPage() {
       <div className="text-[12px] text-[#374151] mb-2 px-1">
         <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <b className="text-[#009AAC] font-medium">{pet.name}</b>
       </div>
-      <div className="bg-white border border-[#E8E2D6] rounded-[14px] mb-3" style={{ padding: "14px 16px" }}>
+      <div className="bg-white border border-[#E8E2D6] rounded-[14px] mb-3" style={{ padding: "10px 14px" }}>
         <div className="flex justify-between items-start flex-wrap gap-3">
           <div className="flex items-start gap-3 flex-1" style={{ minWidth: "220px" }}>
             <div className="w-[50px] h-[50px] rounded-[13px] bg-[#FBF3E3] flex items-center justify-center text-[26px] shrink-0">{emoji}</div>
@@ -1488,17 +1488,12 @@ export default function PetDetailPage() {
                 {/petlife/i.test(pet.insurancePlan || "") && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E6F0FF", color: "#0C447C" }}>🩺 Petlife</span>}
                 <button onClick={() => { setNotaVal(pet.medicalNotes || ""); setNotaOpen(true); }} title={pet.medicalNotes ? `Nota médica: ${pet.medicalNotes}` : "Adicionar nota médica"} className="text-[15px] leading-none">{(pet.medicalNotes || pet.observations) ? "❤️" : "🤍"}</button>
               </div>
-              <p className="text-[12.5px] text-[#5C6B70] mt-0.5">
-                {[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null, sterilLabel(pet.sterilization)].filter((x) => x && x !== "—").join(" · ")}
-                {pesoRecente && <> · <b className="text-[#0E2244]">⚖️ {pesoRecente.w} kg</b>{pesoRecente.date ? <span className="text-[#8A938F]"> ({fmtDataBR(pesoRecente.date).slice(0, 10)})</span> : null}</>}
-              </p>
-              {pet.tutor && (
-                <p className="text-[12.5px] text-[#5C6B70] mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span>🧑 Tutor(a): <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="text-[#009AAC] hover:underline">{pet.tutor.name} →</Link></span>
-                  {tutorWhats && <span>📞 {tutorWhats}</span>}
-                  {(pet as any)?.tutor?.email && <span>✉️ {(pet as any).tutor.email}</span>}
-                </p>
-              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0.5 mt-1 text-[12.5px] text-[#5C6B70]" style={{ maxWidth: 560 }}>
+                <span>{[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null, sterilLabel(pet.sterilization)].filter((x) => x && x !== "—").join(" · ")}</span>
+                {pet.tutor && <span>🧑 Tutor(a): <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="text-[#009AAC] hover:underline">{pet.tutor.name} →</Link></span>}
+                {pesoRecente && <span><b className="text-[#0E2244]">⚖️ {pesoRecente.w} kg</b>{pesoRecente.date ? <span className="text-[#8A938F]"> ({fmtDataBR(pesoRecente.date).slice(0, 10)})</span> : null}</span>}
+                {tutorWhats && <span>📞 {tutorWhats}</span>}
+              </div>
               {/* Etiquetas (chips + tag) */}
               <div className="flex flex-wrap gap-1.5 items-center mt-2">
                 <span className="text-[11.5px] text-[#374151]">🏷️</span>
@@ -1529,18 +1524,18 @@ export default function PetDetailPage() {
               )}
             </div>
           </div>
-          <div className="flex gap-1.5 flex-wrap items-center">
-            <button onClick={iniciarConsulta} className="bg-[#014D5E] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:opacity-90 flex items-center gap-1.5">🩺 Iniciar consulta</button>
-            {pet.status !== "DECEASED" && <button onClick={togglePaliativo} title="Cuidados paliativos (silencia cobranças + apoio à família)" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={(pet as any).cuidadoPaliativo ? { borderColor: "#6B4E9E", color: "#6B4E9E", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>{(pet as any).cuidadoPaliativo ? "↩️ Sair de paliativos" : "🕊️ Cuidados paliativos"}</button>}
-            <button onClick={toggleObito} title="Registrar óbito / marcar vivo" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={pet.status === "DECEASED" ? { borderColor: "#0F6E56", color: "#0F6E56", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>{pet.status === "DECEASED" ? "↩️ Marcar vivo" : "🕊️ Óbito"}</button>
-            <button onClick={togglePetlife} title="Convênio Petlife" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={/petlife/i.test(pet.insurancePlan || "") ? { borderColor: "#0C447C", color: "#0C447C", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>🩺 {/petlife/i.test(pet.insurancePlan || "") ? "Petlife ✓" : "Marcar Petlife"}</button>
-            <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
-            <button onClick={() => { setTutorPicker("transferir"); setTutorBusca(""); setTutorRes([]); }} title="Transferir pet para outro tutor" className="border rounded-[9px] px-3 py-2 text-[12.5px] flex items-center gap-1.5" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>↔ Transferir tutor</button>
-            <button onClick={() => openWhatsAppMeta(tutorWhats || undefined, { nome: pet.tutor?.name, pet: pet.name })} className="bg-[#009AAC] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:bg-[#00808f] flex items-center gap-1.5">💬 WhatsApp</button>
+          <div className="flex gap-1.5 flex-wrap items-center justify-end self-start" style={{ maxWidth: 360 }}>
+            <button onClick={iniciarConsulta} className="bg-[#014D5E] text-white rounded-lg px-2.5 py-1.5 text-[11.5px] hover:opacity-90 flex items-center gap-1">🩺 Iniciar consulta</button>
+            <button onClick={() => openWhatsAppMeta(tutorWhats || undefined, { nome: pet.tutor?.name, pet: pet.name })} className="bg-[#009AAC] text-white rounded-lg px-2.5 py-1.5 text-[11.5px] hover:bg-[#00808f] flex items-center gap-1">💬 WhatsApp</button>
+            <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-lg px-2.5 py-1.5 text-[11.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1">{showValues ? "🙈 Valores" : "👁️ Valores"}</button>
+            <button onClick={togglePetlife} title="Convênio Petlife" className="border rounded-lg px-2.5 py-1.5 text-[11.5px] flex items-center gap-1" style={/petlife/i.test(pet.insurancePlan || "") ? { borderColor: "#0C447C", color: "#0C447C", background: "#fff" } : { borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>🩺 {/petlife/i.test(pet.insurancePlan || "") ? "Petlife ✓" : "Petlife"}</button>
+            <button onClick={() => { setTutorPicker("transferir"); setTutorBusca(""); setTutorRes([]); }} title="Transferir pet para outro tutor" className="border rounded-lg px-2.5 py-1.5 text-[11.5px] flex items-center gap-1" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>↔ Transferir</button>
             <div className="relative">
-              <button onClick={() => setMoreOpen((v) => !v)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">⋯ Mais</button>
+              <button onClick={() => setMoreOpen((v) => !v)} className="border border-[#E8E2D6] bg-white rounded-lg px-2.5 py-1.5 text-[11.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">⋯ Mais</button>
               {moreOpen && (
-                <div className="absolute right-0 top-[42px] bg-white border border-[#E0DACB] rounded-[11px] shadow-lg p-1.5 z-20 min-w-[200px]" onMouseLeave={() => setMoreOpen(false)}>
+                <div className="absolute right-0 top-[36px] bg-white border border-[#E0DACB] rounded-[11px] shadow-lg p-1.5 z-20 min-w-[230px]" onMouseLeave={() => setMoreOpen(false)}>
+                  {pet.status !== "DECEASED" && <button onClick={() => { togglePaliativo(); setMoreOpen(false); }} title="Silencia cobranças + apoio à família" className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4]" style={{ color: (pet as any).cuidadoPaliativo ? "#6B4E9E" : "#5C6B70" }}>{(pet as any).cuidadoPaliativo ? "↩️ Sair de cuidados paliativos" : "🕊️ Cuidados paliativos"}</button>}
+                  <button onClick={() => { toggleObito(); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4]" style={{ color: pet.status === "DECEASED" ? "#0F6E56" : "#5C6B70" }}>{pet.status === "DECEASED" ? "↩️ Marcar vivo" : "🕊️ Registrar óbito"}</button>
                   <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} onClick={() => setMoreOpen(false)} className="block text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FBF9F4] text-[#5C6B70]">✏️ Editar cadastro do tutor</Link>
                   <div className="px-1.5 py-1"><EncaminharBox tipo="pet" id={petId} nome={pet?.name || ""} onChange={loadInteracoesPet} /></div>
                   <button onClick={() => { setDelOpen(true); setMoreOpen(false); }} className="w-full text-left text-[12.5px] px-3 py-2 rounded-[7px] hover:bg-[#FDECEC] text-[#b23b39] border-t border-[#F0EBE0] mt-1">🗑️ Excluir pet</button>

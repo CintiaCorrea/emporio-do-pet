@@ -1,7 +1,6 @@
-"use client";
-// Compras — entradas de estoque (com custo e fornecedor).
-import MovimentosView from "@/components/estoque/MovimentosView";
+import { redirect } from "next/navigation";
 
-export default function ComprasPage() {
-  return <MovimentosView tipo="IN" />;
+// Tela antiga (lia o catálogo Product, aposentado em ago/2026) — redireciona pro catálogo novo unificado.
+export default function Page() {
+  redirect("/dashboard/erp/catalogo-novo");
 }
