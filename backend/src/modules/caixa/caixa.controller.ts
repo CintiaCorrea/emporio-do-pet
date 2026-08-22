@@ -30,6 +30,11 @@ export class CaixaController {
     return this.service.listMovimentos(query);
   }
 
+  @Get('itens-frequentes')
+  itensFrequentes(@Query('limit') limit?: string) {
+    return this.service.itensFrequentes(limit ? Number(limit) : 8);
+  }
+
   // Ponto de venda: cria a venda (appointment) e o recebimento de uma vez.
   @Get('vendas')
   listVendas(@Query() query: any) {

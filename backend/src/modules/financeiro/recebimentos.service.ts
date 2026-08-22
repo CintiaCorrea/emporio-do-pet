@@ -108,6 +108,12 @@ export class RecebimentosService {
     return c?.id ?? null;
   }
 
+  /** Categoria de dedução "(-) Descontos Concedidos" (P1.1) — desconto global vira dedução visível no DRE. */
+  private async catDescontos(): Promise<string | null> {
+    const c = await this.prisma.categoria.findFirst({ where: { tipo: 'DESPESA' as any, nome: { contains: 'Descontos Concedidos' } }, select: { id: true } });
+    return c?.id ?? null;
+  }
+
   // appointmentId opcional = TEMPO REAL: processa só a venda recém-recebida (gatilho no recebimento).
   // Sem appointmentId = varredura completa (rede de segurança / abrir DRE). Idempotente por externalId.
   async processar(appointmentId?: string): Promise<{ vendas: number; lancamentos: number; atualizados: number; taxas: number; semConta: boolean; semDepara: number }> {
@@ -116,10 +122,10 @@ export class RecebimentosService {
     const itens = await this.prisma.appointmentItem.findMany({
       where: { valorTotal: { gt: 0 }, appointment: { is: { ...(appointmentId ? { id: appointmentId } : {}), recebimentos: { some: {} } } } },
       select: {
-        id: true, quantidade: true, valorUnitario: true, valorTotal: true, grupo: true, marca: true, descricao: true,
+        id: true, quantidade: true, valorUnitario: true, valorTotal: true, grupo: true, marca: true, descricao: true, convenioId: true,
         servico: { select: { nome: true, category: { select: { nome: true } } } },
         product: { select: { name: true, planoTipo: true, category: { select: { nome: true } } } },
-        appointment: { select: { id: true, date: true, tutorId: true, recebimentos: { select: { data: true }, orderBy: { data: 'asc' }, take: 1 } } },
+        appointment: { select: { id: true, date: true, tutorId: true, value: true, recebimentos: { select: { data: true }, orderBy: { data: 'asc' }, take: 1 } } },
       },
       take: 5000,
     });
@@ -128,8 +134,18 @@ export class RecebimentosService {
     // Agrupa por (venda × CATEGORIA) — chave estável.
     type G = { appointmentId: string; catNome: string | null; catKey: string; valorCent: number; data: Date; tutorId: string | null; nomes: Set<string>; marcaVotes: Map<string, number> };
     const groups = new Map<string, G>();
+    // P1.1: bruto do tutor (soma dos itens, INCL pacote — casa com appointment.value) e o value líquido,
+    // por venda → o desconto GLOBAL = bruto − value vira dedução "(-) Descontos Concedidos".
+    const grossPorApp = new Map<string, number>();
+    const valuePorApp = new Map<string, number>();
+    const dataPorApp = new Map<string, Date>();
     for (const it of itens) {
       if (!it.appointment?.id) continue;
+      if (it.convenioId) continue; // 🏥 CONVÊNIO paga → receita vem da fatura mensal do convênio, não do tutor (evita dupla contagem)
+      valuePorApp.set(it.appointment.id, Number(it.appointment.value) || 0);
+      const valorCg = Math.round((it.valorTotal || it.valorUnitario * (it.quantidade || 1)) * 100);
+      grossPorApp.set(it.appointment.id, (grossPorApp.get(it.appointment.id) || 0) + valorCg);
+      if (!dataPorApp.has(it.appointment.id)) dataPorApp.set(it.appointment.id, it.appointment.recebimentos?.[0]?.data ?? it.appointment.date ?? new Date());
       if (it.product?.planoTipo) continue; // 📦 PACOTE pré-pago → receita DIFERIDA (processarPacotes), não entra na venda cheia
       const catNome = it.servico?.category?.nome ?? it.product?.category?.nome ?? it.grupo ?? null;
       const catKey = catNome ? this.norm(catNome) : 'sem';
@@ -236,6 +252,40 @@ export class RecebimentosService {
       } catch (e) { this.logger.warn(`receita ${extId}: ${String((e as any)?.message || e)}`); }
     }
     if (criados || atualizados) this.logger.log(`Receitas de venda: ${criados} criada(s), ${atualizados} reclassificada(s).`);
+
+    // ---- DESCONTO GLOBAL da venda → DESPESA "(-) Descontos Concedidos" (P1.1) ----
+    // A receita entra BRUTA (soma dos itens); o desconto do rodapé (bruto − value) vira dedução visível
+    // no DRE e some do lucro. % já vem convertido em R$ no value da venda, então nunca há ambiguidade.
+    let descontos = 0;
+    try {
+      const catDesc = await this.catDescontos();
+      if (catDesc) {
+        const alvos: { extId: string; cent: number; data: Date; appointmentId: string }[] = [];
+        for (const [appId, gross] of grossPorApp) {
+          const val = Math.round((valuePorApp.get(appId) || 0) * 100);
+          const descCent = gross - val;
+          if (descCent > 0) alvos.push({ extId: `desconto:${appId}`, cent: descCent, data: dataPorApp.get(appId) || new Date(), appointmentId: appId });
+        }
+        if (alvos.length) {
+          const jaDesc = await this.prisma.lancamento.findMany({ where: { origem: 'CRM' as any, externalId: { in: alvos.map((a) => a.extId) } }, select: { externalId: true } });
+          const feitos = new Set(jaDesc.map((e) => e.externalId));
+          for (const a of alvos) {
+            if (feitos.has(a.extId)) continue;
+            try {
+              await this.lancamentos.create({
+                tipo: 'DESPESA' as any, valorCentavos: a.cent,
+                data: a.data.toISOString(), dataPagamento: a.data.toISOString(),
+                descricao: 'Desconto concedido na venda', contaId: contaPadraoId, unidadeId, categoriaId: catDesc,
+                origem: 'CRM' as any, externalId: a.extId, appointmentId: a.appointmentId,
+                status: 'CONFIRMADO' as any, aplicarRegras: false,
+              } as any);
+              descontos++;
+            } catch (e) { this.logger.warn(`desconto ${a.extId}: ${String((e as any)?.message || e)}`); }
+          }
+        }
+      }
+    } catch (e) { this.logger.warn(`descontos: ${String((e as any)?.message || e)}`); }
+    if (descontos) this.logger.log(`Descontos concedidos: ${descontos} dedução(ões) criada(s).`);
 
     // ---- TAXA de cartão/pix → DESPESA em "Deduções de Vendas" (receita fica bruta) ----
     let taxas = 0;

@@ -18,6 +18,8 @@ import { AuditoriaController } from './auditoria.controller';
 import { AuditoriaService } from './auditoria.service';
 import { FornecedoresController } from './fornecedores.controller';
 import { FornecedoresService } from './fornecedores.service';
+import { ConveniosController } from './convenios.controller';
+import { ConveniosService } from './convenios.service';
 import { RecebimentosController } from './recebimentos.controller';
 import { RecebimentosService } from './recebimentos.service';
 import { FinanceiroScheduler } from './financeiro.scheduler';
@@ -43,6 +45,7 @@ import { DevolucaoService } from './devolucao.service';
     EmprestimosController,
     AuditoriaController,
     FornecedoresController,
+    ConveniosController,
     RecebimentosController,
     MapVendasController,
     DevolucaoController,
@@ -57,6 +60,7 @@ import { DevolucaoService } from './devolucao.service';
     ParceriaService,
     AuditoriaService,
     FornecedoresService,
+    ConveniosService,
     RecebimentosService,
     MapVendasService,
     DevolucaoService,

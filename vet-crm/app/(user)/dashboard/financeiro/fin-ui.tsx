@@ -8,7 +8,7 @@ export function FinTabs({
   active,
   right,
 }: {
-  active: 'lancamentos' | 'agenda' | 'fornecedores' | 'regras' | 'conciliacao' | 'dre' | 'parceria' | 'taxas' | 'cadastros';
+  active: 'lancamentos' | 'agenda' | 'fornecedores' | 'convenios' | 'regras' | 'conciliacao' | 'dre' | 'parceria' | 'taxas' | 'cadastros';
   right?: ReactNode;
 }) {
   const tab = (key: string, label: string, href: string) =>
@@ -25,6 +25,7 @@ export function FinTabs({
       {tab('lancamentos', 'Lançamentos', '/dashboard/financeiro')}
       {tab('agenda', 'A pagar/receber', '/dashboard/financeiro/agenda')}
       {tab('fornecedores', 'Fornecedores', '/dashboard/financeiro/fornecedores')}
+      {tab('convenios', 'Convênios', '/dashboard/financeiro/convenios')}
       {tab('regras', 'Regras', '/dashboard/financeiro/regras')}
       {tab('conciliacao', 'Conciliação', '/dashboard/financeiro/conciliacao')}
       {tab('dre', 'DRE', '/dashboard/financeiro/dre')}

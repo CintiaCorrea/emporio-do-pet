@@ -26,6 +26,16 @@ export interface ItemVacina {
   situacao: 'aplicada' | 'agendada' | 'atrasada';
 }
 
+export interface ItemMedicamento {
+  nome: string;
+  feitas: number;
+  total: number;
+  restantes: number;
+  proxima: Date | null;
+  /** em_dia | atrasada | concluida */
+  situacao: 'em_dia' | 'atrasada' | 'concluida';
+}
+
 export interface ItemDocumento {
   id: string;
   titulo: string;
@@ -223,6 +233,41 @@ export class PortalSaudeService {
     return itens;
   }
 
+  // 💊 Medicamentos e planos periódicos em andamento (Artrosan etc.) — ProtocoloAplicado tipo ≠ VACINA
+  // com doses. É a MESMA fonte da ficha/inbox (bloco "Pacotes e doses"). Só leitura pro tutor.
+  async medicamentos(petId: string): Promise<ItemMedicamento[]> {
+    const hoje = new Date();
+    const protocolos = await this.prisma.protocoloAplicado.findMany({
+      where: { petId, tipo: { not: 'VACINA' }, status: { not: 'CANCELADO' } },
+      select: {
+        nomeProtocolo: true,
+        doses: {
+          where: { status: { not: 'CANCELADA' } },
+          select: { dataPrevista: true, status: true },
+          orderBy: { numero: 'asc' },
+        },
+      },
+      orderBy: { dataInicial: 'desc' },
+    });
+    return protocolos
+      .map((p): ItemMedicamento => {
+        const total = p.doses.length;
+        const feitas = p.doses.filter((d) => d.status === 'APLICADA').length;
+        const restantes = Math.max(0, total - feitas);
+        const prox = p.doses.find((d) => d.status !== 'APLICADA');
+        const atrasada = !!prox?.dataPrevista && prox.dataPrevista < hoje;
+        return {
+          nome: p.nomeProtocolo,
+          feitas,
+          total,
+          restantes,
+          proxima: prox?.dataPrevista ?? null,
+          situacao: restantes === 0 ? 'concluida' : atrasada ? 'atrasada' : 'em_dia',
+        };
+      })
+      .filter((m) => m.total > 0);
+  }
+
   async receitas(petId: string): Promise<ItemDocumento[]> {
     const docs = await this.prisma.clinicalDocument.findMany({
       where: { petId, type: 'PRESCRIPTION' },
@@ -366,14 +411,15 @@ export class PortalSaudeService {
   }
 
   async saude(petId: string) {
-    const [vacinas, receitas, exames, documentos, paciente] = await Promise.all([
+    const [vacinas, medicamentos, receitas, exames, documentos, paciente] = await Promise.all([
       this.vacinas(petId),
+      this.medicamentos(petId),
       this.receitas(petId),
       this.exames(petId),
       this.documentos(petId),
       this.pacienteParaImpressao(petId),
     ]);
-    return { vacinas, receitas, exames, documentos, paciente };
+    return { vacinas, medicamentos, receitas, exames, documentos, paciente };
   }
 
   // ---------------------------------------------------------------- PESO

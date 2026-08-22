@@ -26,6 +26,19 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
   const set = (i: number, patch: Partial<PagForma>) => onChange(formas.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const fmtValor = (v: number) => (v ? v.toFixed(2).replace(".", ",") : "");
   const bandeirasDe = (adq: string) => [...new Set(taxas.filter((t) => t.adquirente === adq).map((t) => t.bandeira))];
+  // 💳 Prévia da taxa (só visual) — MESMA chave da taxa oficial (adquirente|bandeira|forma|parcelas),
+  // pra não divergir do lançamento que alimenta a conciliação. Não muda o que é gravado.
+  const brl = (n: number) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const nrm = (s?: string) => String(s || "").trim().toLowerCase();
+  const taxaBpsDe = (f: PagForma, cfg?: FormaCfg): number | null => {
+    if (!ehMaquininha(cfg) || !f.modalidade || !f.bandeira) return null;
+    const adq = adquirenteDe(cfg); const formaTaxa = modalidadeToTaxaForma(f.modalidade);
+    const parc = f.modalidade === "Crédito parcelado" ? (f.parcelas || 2) : 1;
+    const row = taxas.find((t) => nrm(t.adquirente) === nrm(adq) && nrm(t.bandeira) === nrm(f.bandeira) && nrm(t.forma) === nrm(formaTaxa) && Number(t.parcelas) === parc);
+    return row ? Number(row.aliquotaBps) : null;
+  };
+  const taxaTotal = formas.reduce((s, f) => { const bps = taxaBpsDe(f, cfgByNome.get(f.forma)); return s + (bps != null ? (Number(f.valor) || 0) * bps / 10000 : 0); }, 0);
+  const cartaoBruto = formas.reduce((s, f) => s + (taxaBpsDe(f, cfgByNome.get(f.forma)) != null ? (Number(f.valor) || 0) : 0), 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -81,9 +94,16 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
                 </div>
               </div>
             )}
+            {(() => { const bps = taxaBpsDe(f, cfg); if (bps == null) return null; const v = Number(f.valor) || 0; const taxa = v * bps / 10000; return <div style={{ marginTop: 6, fontSize: 11, color: "#9A6C1F" }}>💳 taxa ~{(bps / 100).toFixed(2)}% = {brl(taxa)} · líquido {brl(v - taxa)}</div>; })()}
           </div>
         );
       })}
+      {taxaTotal > 0.001 && (
+        <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6, fontSize: 12, color: "#9A6C1F", background: "#FBF1DA", border: "1px solid #F0D9A6", borderRadius: 9, padding: "7px 11px" }}>
+          <span>💳 Taxa estimada dos cartões: {brl(taxaTotal)}</span>
+          <span>Líquido dos cartões: <b>{brl(cartaoBruto - taxaTotal)}</b></span>
+        </div>
+      )}
       <button onClick={() => onChange([...formas, { forma: formasList[0] || "Dinheiro", valor: 0 }])} style={{ alignSelf: "flex-start", border: `1px dashed ${C.teal}`, background: "none", color: C.teal, fontSize: 12, fontWeight: 600, cursor: "pointer", padding: "6px 11px", borderRadius: 9 }}>➕ outra forma</button>
     </div>
   );

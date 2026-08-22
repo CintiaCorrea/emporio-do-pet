@@ -7,4 +7,5 @@ export class AdicionarCreditoDto {
   @IsNumber() valor!: number;
   @IsOptional() @IsString() descricao?: string;
   @IsOptional() @IsString() caixaSessaoId?: string;
+  @IsOptional() @IsString() forma?: string; // Dinheiro | Pix | Cartão crédito | Cartão débito — como a caução foi paga
 }

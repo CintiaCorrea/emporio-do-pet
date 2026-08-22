@@ -90,7 +90,8 @@ export class DreService {
       : { competencia: this.range(f.competencia) };
     if (f.unidadeId) where.unidadeId = f.unidadeId;
     if (f.marcaId) where.marcaId = f.marcaId;
-    if (f.linhaServicoId) where.linhaServicoId = f.linhaServicoId;
+    if (f.linhaServicoId === '__SEM__') where.linhaServicoId = null; // P2.2: coluna "Sem departamento"
+    else if (f.linhaServicoId) where.linhaServicoId = f.linhaServicoId;
 
     const [lancs, cats] = await Promise.all([
       this.prisma.lancamento.findMany({
@@ -250,7 +251,12 @@ export class DreService {
         })),
       );
       const consolidado = await this.calcular({ ...filtros, linhaServicoId: undefined });
-      return { modo: 'POR_LINHA', competencia: params.competencia, porLinha, consolidado };
+      // P2.2: receita/custo SEM de-para de departamento não aparecia em nenhuma coluna (só no consolidado).
+      // Adiciona a coluna "Sem departamento" pra nada ficar escondido — só quando tem valor.
+      const semDep = await this.calcular({ ...filtros, linhaServicoId: '__SEM__' });
+      const temSemDep = (semDep.receitaBruta || 0) !== 0 || (semDep.receitaLiquida || 0) !== 0 || (semDep.margemContribuicao || 0) !== 0 || (semDep.custosVariaveis || 0) !== 0;
+      const porLinhaFinal = temSemDep ? [...porLinha, { linha: { id: '__SEM__', nome: 'Sem departamento' }, dre: semDep }] : porLinha;
+      return { modo: 'POR_LINHA', competencia: params.competencia, porLinha: porLinhaFinal, consolidado };
     }
 
     const atual = await this.calcular(filtros);

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import BuscaClientePet from "@/components/common/BuscaClientePet";
+import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -46,7 +47,13 @@ export default function InternacoesPage() {
   useEffect(() => { try { const p = new URLSearchParams(window.location.search).get("pet"); if (p) setBusca(p); } catch {} }, []);
 
   const [novoOpen, setNovoOpen] = useState(false);
-  const [form, setForm] = useState<any>({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });
+  const [form, setForm] = useState<any>({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", diariaServicoId: "", diariaCatalogoItemId: "", diariaCusto: undefined, diariaNome: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });
+  // 🗂️ Catálogo (p/ escolher a DIÁRIA como serviço/produto — leva custo pro DRE).
+  const [catServ, setCatServ] = useState<any[]>([]);
+  const [diariaBusca, setDiariaBusca] = useState("");
+  useEffect(() => { (async () => { try { const its = await carregarCatalogoVendavel(); setCatServ(its); } catch {} })(); }, []);
+  const diariaMatches = useMemo(() => { const q = diariaBusca.trim().toLowerCase(); if (!q) return [] as any[]; return catServ.filter((c) => (c.nome || "").toLowerCase().includes(q)).slice(0, 12); }, [catServ, diariaBusca]);
+  const pickDiaria = (c: any) => { const l = linhaDoItem(c); setForm((f: any) => ({ ...f, dailyRate: String(l.valorUnitario || 0), diariaServicoId: l.servicoId || "", diariaCatalogoItemId: l.catalogoItemId || "", diariaCusto: l.custoUnitario != null ? Number(l.custoUnitario) : undefined, diariaNome: l.descricao || c.nome })); setDiariaBusca(""); };
   const [salvando, setSalvando] = useState(false);
   const [selCliente, setSelCliente] = useState<{ id: string; name: string } | null>(null);
   const [selPet, setSelPet] = useState<{ id: string; name: string } | null>(null);
@@ -140,6 +147,9 @@ export default function InternacoesPage() {
       const body = {
         tutorId: form.tutorId, petId: form.petId, userId: form.userId, reason: form.reason.trim(),
         dailyRate: Number(form.dailyRate) || 0, priority: est.prio,
+        ...(form.diariaServicoId ? { diariaServicoId: form.diariaServicoId } : {}),
+        ...(form.diariaCatalogoItemId ? { diariaCatalogoItemId: form.diariaCatalogoItemId } : {}),
+        ...(form.diariaCusto != null ? { diariaCusto: Number(form.diariaCusto) } : {}),
         estimatedDischargeDate: form.estimatedDischargeDate || undefined, notes: form.notes || undefined,
         vitalSigns: { estadoClinico: form.estado, canalTutor: form.canal, boletinsDia: Number(form.boletinsDia) || 0, boletinsHorarios: form.boletinsHorarios },
       };
@@ -152,7 +162,7 @@ export default function InternacoesPage() {
       }
       setNovoOpen(false);
       setSelCliente(null); setSelPet(null);
-      setForm({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });
+      setForm({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", diariaServicoId: "", diariaCatalogoItemId: "", diariaCusto: undefined, diariaNome: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });
       load();
     } catch { alert("Erro ao criar internação."); }
     finally { setSalvando(false); }
@@ -506,8 +516,23 @@ export default function InternacoesPage() {
                     <select value={form.canal} onChange={(e) => setForm({ ...form, canal: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }}>{CANAIS.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
                   <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Boletins/dia</label>
                     <input type="number" min={0} value={form.boletinsDia} onChange={(e) => setForm({ ...form, boletinsDia: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
-                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Valor diária (R$)</label>
-                    <input type="number" min={0} step="0.01" value={form.dailyRate} onChange={(e) => setForm({ ...form, dailyRate: e.target.value })} placeholder="0,00" className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
+                  <div className="col-span-2"><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Diária — buscar no catálogo (leva o custo pro DRE)</label>
+                    <div className="relative">
+                      <input value={diariaBusca} onChange={(e) => setDiariaBusca(e.target.value)} placeholder="🔍 Buscar serviço/produto da diária…" className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} />
+                      {diariaMatches.length > 0 && (
+                        <div className="absolute z-10 left-0 right-0 mt-1 bg-white border rounded-lg max-h-40 overflow-auto shadow-lg" style={{ borderColor: "#E8E2D6" }}>
+                          {diariaMatches.map((c) => (
+                            <button key={c.id} type="button" onClick={() => pickDiaria(c)} className="flex w-full justify-between items-center px-3 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
+                              <span className="truncate pr-2 text-[#1F2A2E]">{c.nome}</span><span className="text-[#0F6E56] font-semibold shrink-0">{fmtBRL(Number(c.valorPadrao) || 0)}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                      {form.diariaNome ? <span className="text-[11px] text-[#0E5560] bg-[#E0F0F2] rounded-full px-2 py-0.5">🗂️ {form.diariaNome}{form.diariaCusto != null ? ` · custo ${fmtBRL(Number(form.diariaCusto))}` : ""}</span> : <span className="text-[11px] text-[#8A857A]">ou digite o valor manual →</span>}
+                      <label className="text-[10.5px] text-[#374151] uppercase tracking-wide">Valor/dia (R$)</label>
+                      <input type="number" min={0} step="0.01" value={form.dailyRate} onChange={(e) => setForm({ ...form, dailyRate: e.target.value })} placeholder="0,00" className="w-28 bg-white border rounded-lg px-3 py-1.5 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div></div>
                   <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Alta prevista</label>
                     <input type="date" value={form.estimatedDischargeDate} onChange={(e) => setForm({ ...form, estimatedDischargeDate: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
                   <div className="col-span-2"><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Horários dos boletins (HH:MM, separados por vírgula)</label>

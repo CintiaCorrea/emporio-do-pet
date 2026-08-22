@@ -2807,6 +2807,7 @@ model AppointmentItem {
   productId String? // catálogo unificado (Fase 1 da unificação; dual-write com servicoId)
   product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
   catalogoItemId String? // catálogo NOVO (cat_itens) — liga a linha ao item novo p/ estoque/comissão
+  convenioId     String? // convênio pagador (cat_convenios) — item faturado ao convênio, não ao tutor (a-receber mensal)
   descricao String?
 
   // Executor: profissional interno OU fornecedor externo (lab)
@@ -4186,8 +4187,51 @@ model CatConvenioPreco {
   convenioId     String
   convenio       CatConvenio @relation(fields: [convenioId], references: [id], onDelete: Cascade)
   itemNome       String      // nome do procedimento/exame/serviço na tabela do convênio
-  valor          Float       // o que o convênio paga
+  valor          Float       // o que o convênio paga (valor padrão/fallback — 1º porte preenchido)
+  precosPorte    String?     // JSON {gato,p,m,g,gg,miniMedio,grande} — preço por porte (null = preço único = valor)
   codigoConvenio String?     // código do procedimento na tabela deles (opcional)
   @@index([convenioId])
   @@map("cat_convenio_precos")
+}
+
+// ── FATURA DO CONVÊNIO (a-receber mensal) — espelho de FaturaFornecedor (a-pagar) ──
+// A venda marca itens com convenioId; o motor acumula numa fatura mensal por (convenioId, competência).
+// Ao FECHAR, a fatura vira UM fin_lancamento RECEITA (a receber), vencimento = dia de fechamento do convênio.
+model FaturaConvenio {
+  id            String    @id @default(uuid())
+  convenioId    String // ref solta -> cat_convenios
+  convenioNome  String // snapshot do nome
+  competencia   DateTime // 1o dia do mês de referência
+  status        String    @default("ABERTA") // ABERTA | FECHADA
+  diaFechamento Int? // dia do mês (do cadastro do convênio)
+  vencimento    DateTime?
+  totalCentavos Int       @default(0)
+  qtdItens      Int       @default(0)
+  lancamentoId  String? // a-receber gerado no fechamento (ref solta)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  itens FaturaConvenioItem[]
+
+  @@unique([convenioId, competencia])
+  @@index([status])
+  @@map("fin_faturas_convenio")
+}
+
+model FaturaConvenioItem {
+  id                String          @id @default(uuid())
+  faturaId          String?
+  fatura            FaturaConvenio? @relation(fields: [faturaId], references: [id], onDelete: SetNull)
+  appointmentItemId String          @unique // dedup: cada item do caixa vira 1 linha da fatura
+  convenioId        String
+  descricao         String
+  dataServico       DateTime
+  valorCentavos     Int // o que o convênio paga (tabela do convênio)
+
+  createdAt DateTime @default(now())
+
+  @@index([convenioId])
+  @@index([faturaId])
+  @@map("fin_fatura_convenio_itens")
 }

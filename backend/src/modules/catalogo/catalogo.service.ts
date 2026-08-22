@@ -207,6 +207,8 @@ export class CatalogoService {
       custoPadrao: (i.tipo === 'EXAME' ? (i.exame?.custoLab ?? i.custo) : i.custo) ?? undefined,
       tipo: i.tipo,
       categoria: i.grupo?.nome ?? null,
+      codigo: i.codigo ?? null,             // p/ leitura de código de barras / busca por código
+      codigoBarras: i.codigoBarras ?? null,
       _novo: true,
       _exame: i.tipo === 'EXAME',
       _fornecedorId: i.exame?.fornecedorId ?? null,
@@ -423,22 +425,66 @@ export class CatalogoService {
     const iItem = col(['item', 'procedimento', 'nome', 'exame', 'servico']);
     const iValor = col(['valor', 'preco', 'valor_convenio']);
     const iCod = col(['codigo', 'codigo_convenio', 'cod']);
-    if (iItem < 0 || iValor < 0) throw new BadRequestException('A planilha precisa das colunas "item" (ou procedimento) e "valor".');
+    // Colunas por PORTE (formato Petlife): Mini Médio, Grande, Gato, P, M, G, GG.
+    const iGato = col(['gato', 'felino']);
+    const iP = col(['p']); const iM = col(['m']); const iG = col(['g']); const iGG = col(['gg']);
+    const iMini = col(['mini medio', 'minimedio', 'mini/med', 'mini medio ', 'mini']);
+    const iGrande = col(['grande']);
+    const temPorte = [iGato, iP, iM, iG, iGG, iMini, iGrande].some((x) => x >= 0);
+    if (iItem < 0) throw new BadRequestException('A planilha precisa da coluna "item" (ou procedimento).');
+    if (iValor < 0 && !temPorte) throw new BadRequestException('A planilha precisa da coluna "valor" ou das colunas por porte (Gato, P, M, G, GG).');
     const rows: any[] = [];
     const vistos = new Set<string>();
     let dup = 0;
+    const valAt = (c: string[], i: number) => (i >= 0 ? this.csvNum(c[i]) : null);
     for (let i = 1; i < linhas.length; i++) {
       const c = this.parseCsvLine(linhas[i], sep);
       const nome = (c[iItem] || '').trim(); if (!nome) continue;
       const k = this.norm(nome);
       if (vistos.has(k)) { dup++; continue; } vistos.add(k);
-      rows.push({ itemNome: nome, valor: this.csvNum(c[iValor]) ?? 0, codigo: iCod >= 0 ? (c[iCod] || '').trim() : '' });
+      let valor = valAt(c, iValor) ?? 0;
+      let precosPorte: string | null = null;
+      if (temPorte) {
+        const porte = { gato: valAt(c, iGato), p: valAt(c, iP), m: valAt(c, iM), g: valAt(c, iG), gg: valAt(c, iGG), miniMedio: valAt(c, iMini), grande: valAt(c, iGrande) };
+        // valor padrão/fallback = 1º porte preenchido (prioriza P, depois M/G/GG, depois Gato/genéricos)
+        const fallback = [porte.p, porte.m, porte.g, porte.gg, porte.gato, porte.miniMedio, porte.grande].find((v) => v != null);
+        if (fallback != null) valor = fallback;
+        precosPorte = JSON.stringify(porte);
+      }
+      rows.push({ itemNome: nome, valor, precosPorte, codigo: iCod >= 0 ? (c[iCod] || '').trim() : '' });
     }
-    const relatorio = { total: rows.length, duplicadosRemovidos: dup, amostra: rows.slice(0, 12) };
+    const relatorio = { total: rows.length, duplicadosRemovidos: dup, porPorte: temPorte, amostra: rows.slice(0, 12) };
     if (opts.dryRun) return { dryRun: true, ...relatorio };
     await this.prisma.catConvenioPreco.deleteMany({ where: { convenioId } }); // substitui a tabela (previsível)
-    if (rows.length) await this.prisma.catConvenioPreco.createMany({ data: rows.map((r) => ({ convenioId, itemNome: r.itemNome, valor: r.valor, codigoConvenio: r.codigo || null })) });
+    if (rows.length) await this.prisma.catConvenioPreco.createMany({ data: rows.map((r) => ({ convenioId, itemNome: r.itemNome, valor: r.valor, precosPorte: r.precosPorte, codigoConvenio: r.codigo || null })) });
     return { dryRun: false, ...relatorio, gravados: rows.length };
+  }
+
+  // 🏥 Buscador da tabela do convênio no atendimento: resolve o convênio DO PET (pela etiqueta
+  // insurancePlan), o preço por PORTE (gato p/ felino; P/M/G/GG p/ cão) e devolve a lista já precificada.
+  async tabelaConvenioPet(petId: string, porte?: string, busca?: string) {
+    const pet = await this.prisma.pet.findUnique({ where: { id: petId }, select: { insurancePlan: true, species: true, weight: true, name: true } });
+    if (!pet?.insurancePlan) return { convenio: null, itens: [] };
+    const convs = await this.prisma.catConvenio.findMany({ where: { ativo: true }, include: { precos: { take: 5000 } } });
+    const alvo = this.norm(pet.insurancePlan);
+    const conv = convs.find((c) => this.norm(c.nome) === alvo) || convs.find((c) => alvo.includes(this.norm(c.nome)) || this.norm(c.nome).includes(alvo));
+    if (!conv) return { convenio: null, itens: [] };
+    const isCat = String(pet.species) === 'FELINE';
+    const w = Number(pet.weight) || 0;
+    const porteSugerido = isCat ? 'gato' : (w > 0 ? (w < 10 ? 'p' : w < 25 ? 'm' : 'g') : 'm');
+    const key = isCat ? 'gato' : (this.norm(porte || '') || porteSugerido);
+    const q = this.norm(busca || '');
+    const itens = conv.precos
+      .filter((p) => !q || this.norm(p.itemNome).includes(q) || this.norm(p.codigoConvenio || '').includes(q))
+      .map((p) => {
+        let preco: number | null = p.valor;
+        if (p.precosPorte) { try { const pp = JSON.parse(p.precosPorte); const v = pp[key]; preco = v != null ? v : (pp.p ?? pp.m ?? pp.g ?? pp.gg ?? pp.gato ?? pp.miniMedio ?? pp.grande ?? p.valor); } catch { /* usa valor */ } }
+        return { precoId: p.id, itemNome: p.itemNome, codigo: p.codigoConvenio, preco };
+      })
+      .filter((p) => p.preco != null)
+      .sort((a, b) => a.itemNome.localeCompare(b.itemNome, 'pt-BR'))
+      .slice(0, 500);
+    return { convenio: { id: conv.id, nome: conv.nome, diaFechamento: conv.diaFechamento }, especie: pet.species, isCat, porteSugerido, porteUsado: key, itens };
   }
 
   // ── IMPORTADOR (CSV) ──────────────────────────────────────────────

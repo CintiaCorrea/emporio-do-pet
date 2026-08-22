@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { CreateHospitalizationDto } from './dto/create-hospitalization.dto';
 import { UpdateHospitalizationDto } from './dto/update-hospitalization.dto';
 import { HospitalizationsService } from './hospitalizations.service';
@@ -49,6 +50,12 @@ export class HospitalizationsController {
   @ApiOperation({ summary: 'Criar internação (cria appointment)' })
   create(@Body() dto: CreateHospitalizationDto) {
     return this.hospitalizationsService.create(dto);
+  }
+
+  @Post(':id/comanda-dia')
+  @ApiOperation({ summary: 'Gera a comanda do dia (diária + itens abertos) como venda no caixa' })
+  gerarComandaDia(@Param('id') id: string, @CurrentUser('id') userId: string) {
+    return this.hospitalizationsService.gerarComandaDia(id, userId);
   }
 
   @Get(':id')

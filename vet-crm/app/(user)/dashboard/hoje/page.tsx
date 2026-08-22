@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from "react";
 import toast from "react-hot-toast";
 import { assignFollowUpFor } from "@/lib/followup";
+import { agendaDoDia as agendaDoDiaLib } from "@/lib/agenda";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import {
   LuRefreshCcw, LuPhone, LuPackage,
-  LuFlaskConical, LuPill, LuCake, LuChevronRight, LuClipboardCheck, LuShare2,
+  LuFlaskConical, LuPill, LuCake, LuChevronRight, LuClipboardCheck, LuShare2, LuFileText,
 } from "react-icons/lu";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
@@ -327,6 +328,10 @@ export default function HojePage() {
   const [pacRisco, setPacRisco] = useState<any[]>([]);
   const [pacOpen, setPacOpen] = useState(false);
   const [entradas, setEntradas] = useState<any[]>([]);
+  // Gaps do plano: orçamentos abertos (tarefa) + funil de leads inline (Recepção) + agendamentos de hoje (KPI).
+  const [orcAbertos, setOrcAbertos] = useState(0);
+  const [agendHoje, setAgendHoje] = useState(0);
+  const [funil, setFunil] = useState<{ novos: number; qualif: number; convertido: number; perdido: number; total: number; convPct: number } | null>(null);
   const [entConf, setEntConf] = useState<Record<string, string>>({});
   const [entConfOpen, setEntConfOpen] = useState(false);
   const [encMine, setEncMine] = useState<any[]>([]);
@@ -553,10 +558,36 @@ export default function HojePage() {
         try { const dz = await safeJson<any>(await fetch("/api/protocolos/doses/pendentes?dias=7"), []); setDosesPend(Array.isArray(dz) ? dz : []); } catch {}
         const tutorArr = Array.isArray(tts) ? tts : (tts.tutors || tts.data || []);
         const leadArr = Array.isArray(lds) ? lds : (lds.leads || lds.data || []);
+        // 🎯 Funil de leads (inline na Recepção) — pelo status do lead.
+        {
+          const st = (l: any) => String(l.status || "").toUpperCase();
+          const novos = leadArr.filter((l: any) => ["NEW", "AGUARDANDO_TRIAGEM", "ENRICHING", "ENRICHED"].includes(st(l))).length;
+          const qualif = leadArr.filter((l: any) => ["QUALIFIED", "CONTACTED"].includes(st(l))).length;
+          const convertido = leadArr.filter((l: any) => st(l) === "CONVERTED").length;
+          const perdido = leadArr.filter((l: any) => st(l) === "LOST").length;
+          const total = leadArr.length;
+          setFunil({ novos, qualif, convertido, perdido, total, convPct: total > 0 ? Math.round((convertido / total) * 100) : 0 });
+        }
+        // 📄 Orçamentos abertos (aguardando resposta) — status não resolvido.
+        try {
+          const oc = await safeJson<any>(await fetch("/api/orcamentos"), []);
+          const ocArr = Array.isArray(oc) ? oc : (oc.orcamentos || oc.data || []);
+          setOrcAbertos(ocArr.filter((o: any) => !["APROVADO", "RECUSADO", "EXPIRADO"].includes(String(o.status || "").toUpperCase())).length);
+        } catch { /* segue sem orçamentos */ }
+        // 📅 Agendamentos de HOJE (mesma regra da agenda: sem cancelado/remarcado/artefato).
+        try {
+          const ap = await safeJson<any>(await fetch("/api/appointments?limit=1000", { cache: "no-store" }), []);
+          const apArr = Array.isArray(ap) ? ap : (ap.appointments || ap.data || []);
+          const hojeISO = new Date().toLocaleDateString("sv-SE"); // YYYY-MM-DD local
+          setAgendHoje(agendaDoDiaLib(apArr, hojeISO).length);
+        } catch { /* segue sem agendamentos */ }
         const tutorMap: Record<string, string> = {};
         tutorArr.forEach((t: any) => { tutorMap[t.id] = t.name; });
         const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
         const endToday = new Date(); endToday.setHours(23, 59, 59, 999);
+        // Janela do cronograma de mensagem: some da lista quem passou de 15 dias de atraso (fim da cadência).
+        const limiteAtraso = new Date(startToday); limiteAtraso.setDate(limiteAtraso.getDate() - 15);
+        const noPrazoFU = (d?: string) => { if (!d) return false; const t = new Date(d); return t <= endToday && t >= limiteAtraso; };
         // 👤 responsável pelo FU (KV fu_responsavel) — mapa petId → {userId,nome}
         const fuRespMap: Record<string, { userId: string; nome: string }> = {};
         const fuRespTutorMap: Record<string, { userId: string; nome: string }> = {};
@@ -572,9 +603,9 @@ export default function HojePage() {
           }
         }
         const fu: any[] = [];
-        for (const t of tutorArr) if (t.proximoFollowupAt && new Date(t.proximoFollowupAt) <= endToday) { const rr = fuRespTutorMap[t.id]; fu.push({ id: "t" + t.id, tipo: "Cliente", nome: t.name || "Cliente", date: t.proximoFollowupAt, href: `/dashboard/erp/tutores/${t.id}`, respUserId: rr?.userId, respNome: rr?.nome }); }
-        for (const p of petArr) if (p.proximoFollowupAt && new Date(p.proximoFollowupAt) <= endToday) { const rr = fuRespMap[p.id]; fu.push({ id: "p" + p.id, tipo: "Pet", nome: p.name || "Pet", date: p.proximoFollowupAt, href: `/dashboard/erp/pets/${p.id}`, respUserId: rr?.userId, respNome: rr?.nome }); }
-        for (const l of leadArr) if (l.proximoFollowupAt && new Date(l.proximoFollowupAt) <= endToday) { const rr = fuRespLeadMap[l.id]; fu.push({ id: "l" + l.id, tipo: "Lead", nome: l.name || "Lead", date: l.proximoFollowupAt, href: `/dashboard/crm/leads/${l.id}`, respUserId: rr?.userId, respNome: rr?.nome }); }
+        for (const t of tutorArr) if (noPrazoFU(t.proximoFollowupAt)) { const rr = fuRespTutorMap[t.id]; fu.push({ id: "t" + t.id, tipo: "Cliente", nome: t.name || "Cliente", date: t.proximoFollowupAt, href: `/dashboard/erp/tutores/${t.id}`, respUserId: rr?.userId, respNome: rr?.nome }); }
+        for (const p of petArr) if (noPrazoFU(p.proximoFollowupAt)) { const rr = fuRespMap[p.id]; fu.push({ id: "p" + p.id, tipo: "Pet", nome: p.name || "Pet", date: p.proximoFollowupAt, href: `/dashboard/erp/pets/${p.id}`, respUserId: rr?.userId, respNome: rr?.nome }); }
+        for (const l of leadArr) if (noPrazoFU(l.proximoFollowupAt)) { const rr = fuRespLeadMap[l.id]; fu.push({ id: "l" + l.id, tipo: "Lead", nome: l.name || "Lead", date: l.proximoFollowupAt, href: `/dashboard/crm/leads/${l.id}`, respUserId: rr?.userId, respNome: rr?.nome }); }
         fu.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setFuDue(fu);
         // Toques de cadencia: passos das cadencias (clientes/pets) que vencem hoje
@@ -688,6 +719,8 @@ export default function HojePage() {
     revisar: fuDue.filter((f: any) => !f.respUserId).length,
     todos: fuDue.length,
   }), [fuDue, meId]);
+  // Admin acompanha a clínica inteira → o FU já abre em "Todos" (os dele seriam quase nenhum).
+  useEffect(() => { if (effectiveRole === "ADMIN") setFuFilter("todos"); }, [effectiveRole]);
   // Encaminhar um follow-up para outra pessoa: grava responsável + avisa (assignFollowUpFor) e move na lista.
   async function encaminharFU(fu: any, userId: string, nome: string) {
     const kind = fu.id?.[0] === "t" ? "tutor" : fu.id?.[0] === "p" ? "pet" : "lead";
@@ -705,7 +738,8 @@ export default function HojePage() {
         key: "retornos",
         title: "Retornos vencidos",
         sub: "Follow-ups vencidos e de hoje (Cliente/Pet/Lead)",
-        count: fuCounts.meus + fuCounts.revisar,
+        // Admin vê TODOS os follow-ups da clínica (não só os dele); recepção/vet veem os seus + a revisar.
+        count: effectiveRole === "ADMIN" ? fuCounts.todos : fuCounts.meus + fuCounts.revisar,
         link: "Follow-up",
         href: "#",
         Icon: LuRefreshCcw,
@@ -752,12 +786,55 @@ export default function HojePage() {
         Icon: LuCake,
         emoji: "🎂",
       },
+      {
+        key: "orcamentos",
+        title: "Orçamentos abertos",
+        sub: "Aguardando resposta do cliente",
+        count: orcAbertos,
+        link: "Orçamentos",
+        href: "/dashboard/erp/orcamentos",
+        Icon: LuFileText,
+        emoji: "📄",
+      },
     ];
-  }, [data, examesPend, dosesView, fuCounts, toques, aniv, pacRisco]);
+  }, [data, examesPend, dosesView, fuCounts, toques, aniv, pacRisco, orcAbertos, effectiveRole]);
 
   const total = items.reduce((s, t) => s + t.count, 0);
 
   const isRecep = effectiveRole === "RECEPTIONIST";
+
+  // Linha de tarefa dos cards "Minhas tarefas" / "Recepção & execução". Para "Retornos vencidos"
+  // (que não tem página própria), abre a LISTA de follow-ups INLINE ali mesmo (antes não abria).
+  function renderTarefaRow(p: Pendencia) {
+    const ehRetornos = p.key === "retornos";
+    const aberto = ehRetornos && fuDueOpen;
+    return (
+      <div key={p.key}>
+        <div className="att" style={ehRetornos ? { cursor: "pointer" } : undefined} onClick={ehRetornos ? () => setFuDueOpen((o) => !o) : undefined}>
+          <div className="ic">{p.emoji}</div>
+          <div className="tx"><b>{p.title}</b><small>{p.sub}</small></div>
+          <span className="cnt">{p.count}</span>
+          {p.href !== "#"
+            ? <Link className="go" href={p.href} onClick={(e) => e.stopPropagation()}>Abrir</Link>
+            : ehRetornos ? <span className="go" style={{ cursor: "pointer" }}>{aberto ? "Fechar" : "Abrir"}</span> : null}
+        </div>
+        {aberto && (
+          <div style={{ background: "#FBF9F4" }}>
+            {fuShown.length === 0
+              ? <div style={{ padding: "10px 15px 10px 58px", fontSize: 12, color: "#8A938F" }}>Nenhum follow-up para hoje neste filtro.</div>
+              : fuShown.slice(0, 40).map((e: any) => (
+                <Link key={e.id} href={e.href} className="flex items-center gap-2 border-b hover:bg-[#E0F4F6]/60 text-xs" style={{ padding: "8px 15px 8px 58px", borderColor: "#F0EBE0", color: "#1F2A2E" }}>
+                  <TipoChip tipo={e.tipo} />
+                  <span className="font-medium truncate">{e.nome}</span>
+                  {e.respNome && <span className="text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: "#E0F4F6", color: "#00798A" }}>👤 {String(e.respNome).split(" ")[0]}</span>}
+                  {e.date && <span className="ml-auto whitespace-nowrap" style={{ color: "#5C6B70" }}>{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+                </Link>
+              ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // 🏠 Painel da RECEPÇÃO — fiel ao mockup cb6015f4 (herói + KPIs + tarefas + meta + gestão).
   function renderPainelRecep() {
@@ -821,8 +898,9 @@ export default function HojePage() {
         </div>
 
         {/* KPIs */}
-        <div className="kpis">
+        <div className="kpis" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))" }}>
           <div className="kpi"><div className="l">📞 Follow-ups hoje</div><div className="n">{fuShown.length}</div><div className="d">a tocar</div></div>
+          <div className="kpi"><div className="l">📅 Agendamentos hoje</div><div className="n">{agendHoje}</div><div className="d">na agenda</div></div>
           <div className="kpi"><div className="l">🧲 Entradas hoje</div><div className="n">{entradas.length}</div><div className="d">leads/clientes</div></div>
           <div className="kpi"><div className="l">🔬 Exames a entregar</div><div className="n">{examesPend.length}</div><div className="d">acompanhar</div></div>
           <div className="kpi"><div className="l">🎂 Aniversariantes</div><div className="n">{aniv.length}</div><div className="d">parabenizar</div></div>
@@ -836,14 +914,7 @@ export default function HojePage() {
           {tarefas.length === 0 && !lotes.length
             ? <div style={{ padding: 18, textAlign: "center", color: "#8A938F", fontSize: 13 }}>Tudo em ordem por aqui. 🎉</div>
             : <>
-              {tarefas.map((p) => (
-                <div className="att" key={p.key}>
-                  <div className="ic">{p.emoji}</div>
-                  <div className="tx"><b>{p.title}</b><small>{p.sub}</small></div>
-                  <span className="cnt">{p.count}</span>
-                  {p.href !== "#" && <Link className="go" href={p.href}>Abrir</Link>}
-                </div>
-              ))}
+              {tarefas.map(renderTarefaRow)}
               {lotes.map(([lab, exs]) => (
                 <button key={lab} className="lote" onClick={() => baixarLoteRetirada(lab, exs as any[])}>🧪 {lab} retirou — dar baixa em lote ({(exs as any[]).length})</button>
               ))}
@@ -871,10 +942,29 @@ export default function HojePage() {
           </div>
         )}
 
-        {/* Gestão & inteligência (atalhos reais; blocos por perfil chegam nas próximas fatias) */}
+        {/* Gestão & inteligência — funil de leads INLINE (do plano) + atalhos dos BIs completos */}
         <div className="sec">📊 Gestão &amp; inteligência</div>
+        {funil && (
+          <>
+            <div className="kpis k3">
+              <div className="kpi"><div className="l">📊 Leads total</div><div className="n">{funil.total}</div></div>
+              <div className="kpi"><div className="l">🎯 Taxa conversão</div><div className="n">{funil.convPct}%</div></div>
+              <div className="kpi"><div className="l">📈 Pipeline aberto</div><div className="n">{funil.novos + funil.qualif}</div></div>
+            </div>
+            {funil.total > 0 && (
+              <div className="card">
+                <div className="card-h"><span>🎯</span><span className="ttl">Funil comercial</span><span className="r">seus leads</span></div>
+                <div className="funil">
+                  {([["Lead novo", funil.novos], ["Em qualificação", funil.qualif], ["Convertido", funil.convertido], ["Perdido", funil.perdido]] as [string, number][]).map(([nm, v]) => (
+                    <div className="fr" key={nm}><span className="fn">{nm}</span><span className="fb"><i style={{ width: `${Math.round((v / Math.max(1, funil.total)) * 100)}%`, background: nm === "Perdido" ? "#B45309" : "#009AAC" }} /></span><span className="fv">{v}</span></div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
         <div className="card">
-          <div className="card-h"><span>💡</span><span className="ttl">Seus painéis</span><span className="r">dados reais</span></div>
+          <div className="card-h"><span>💡</span><span className="ttl">Painéis completos (BI)</span><span className="r">dados reais</span></div>
           <div className="atalhos">
             <Link href="/dashboard/erp/vendas-graficos">📊 BI de Vendas</Link>
             <Link href="/dashboard/erp/relacionamento">💎 Relacionamento (RFM)</Link>
@@ -951,14 +1041,7 @@ export default function HojePage() {
             {tarefasVet.length === 0 && !lotes.length
               ? <div style={{ padding: 16, textAlign: "center", color: "#8A938F", fontSize: 12.5 }}>Tudo em ordem. 🎉</div>
               : <>
-                {tarefasVet.map((p) => (
-                  <div className="att" key={p.key}>
-                    <div className="ic">{p.emoji}</div>
-                    <div className="tx"><b>{p.title}</b><small>{p.sub}</small></div>
-                    <span className="cnt">{p.count}</span>
-                    {p.href !== "#" && <Link className="go ghost" href={p.href}>Ver</Link>}
-                  </div>
-                ))}
+                {tarefasVet.map(renderTarefaRow)}
                 {lotes.map(([lab, exs]) => (
                   <button key={lab} className="lote" onClick={() => baixarLoteRetirada(lab, exs as any[])}>🧪 {lab} retirou — baixa em lote ({(exs as any[]).length})</button>
                 ))}
@@ -1028,14 +1111,7 @@ export default function HojePage() {
           {tarefasAdmin.length === 0 && !lotesAdmin.length
             ? <div style={{ padding: 18, textAlign: "center", color: "#8A938F", fontSize: 13 }}>Tudo em ordem por aqui. 🎉</div>
             : <>
-              {tarefasAdmin.map((p) => (
-                <div className="att" key={p.key}>
-                  <div className="ic">{p.emoji}</div>
-                  <div className="tx"><b>{p.title}</b><small>{p.sub}</small></div>
-                  <span className="cnt">{p.count}</span>
-                  {p.href !== "#" && <Link className="go" href={p.href}>Abrir</Link>}
-                </div>
-              ))}
+              {tarefasAdmin.map(renderTarefaRow)}
               {lotesAdmin.map(([lab, exs]) => (
                 <button key={lab} className="lote" onClick={() => baixarLoteRetirada(lab, exs as any[])}>🧪 {lab} retirou — dar baixa em lote ({(exs as any[]).length})</button>
               ))}

@@ -1018,6 +1018,19 @@ export default function PetDetailPage() {
     await load(); await loadInteracoesPet();
   }
   async function delPacote(id: string) { try { await listasDel(id); toast.success("Pacote removido"); await loadPetColecoes(); } catch { toast.error("Erro"); } }
+  // 💊 Doses (mesmos comandos do pacote de fisio): aplicar/desfazer uma dose e remover o plano inteiro.
+  async function toggleDose(doseId: string, aplicar: boolean) {
+    try {
+      const body = aplicar ? { status: "APLICADA", dataAplicada: new Date().toISOString() } : { status: "PENDENTE", dataAplicada: null };
+      const r = await fetch(`/api/protocolos/doses/${doseId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error();
+      await loadProtocolos();
+    } catch { toast.error("Erro ao atualizar a dose"); }
+  }
+  async function removerPlanoDoses(id: string) {
+    if (!window.confirm("Remover este plano de doses do pet?")) return;
+    try { const r = await fetch(`/api/protocolos/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); toast.success("Plano removido"); await loadProtocolos(); } catch { toast.error("Erro ao remover"); }
+  }
   async function addExame() { if (!exPick.trim()) { toast.error("Escolha um exame"); return; } setSavingEx(true); try { const _cat = acharExameNoCatalogo(exCat as any, exPick); await listasAdd(`petexa_${petId}`, JSON.stringify(montarPetExame({ nome: exPick, catalogo: _cat, fases: examFases, externo: false, por: meNome }))); toast.success("Exame solicitado"); setExPick(""); await loadPetColecoes(); } catch (e: any) { toast.error("Não salvou o exame: " + String(e?.message || e).slice(0, 90)); } finally { setSavingEx(false); } }
   async function updExameStatus(id: string, data: any, novoStatus: string) { try { const historico = registrarHistoricoFase(data.historico, novoStatus, meNome); const r = await fetch(`/api/listas/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...data, status: novoStatus, historico }) }) }); if (!r.ok) throw new Error(); await loadPetColecoes(); } catch { toast.error("Erro ao atualizar fase"); } }
   async function delExame(id: string) {
@@ -1392,6 +1405,19 @@ export default function PetDetailPage() {
   const pacUsed = pacFisio?.data?.used || 0;
   const pacTotal = pacFisio?.data?.total || 0;
 
+  // 📦 Pacotes e doses EM ANDAMENTO (bloco ÚNICO da Visão geral — o que as vendas abriram).
+  // Lista TODOS (não só o 1º), some de vez o "1 pacote esconde os outros" e a duplicidade.
+  const pacotesAtivosRaw = (pacotes || []).filter((p) => (p.data?.total || 0) > 0 && !p.data?.concluido);
+  const dosesAtivas = (protocolos || [])
+    .filter((p: any) => p.tipo === "OUTRO")
+    .map((p: any) => {
+      const doses = (p.doses || []).slice().sort((a: any, b: any) => new Date(a.dataPrevista || 0).getTime() - new Date(b.dataPrevista || 0).getTime());
+      const feitas = doses.filter((d: any) => d.status === "APLICADA").length;
+      const proxPend = doses.find((d: any) => d.status === "PENDENTE");
+      return { id: p.id, nome: p.nomeProtocolo || "Doses", feitas, total: doses.length, prox: proxPend?.dataPrevista || null, doses: doses.map((d: any) => ({ id: d.id, status: d.status })) };
+    })
+    .filter((d: any) => d.total > 0);
+
   // ── Vacinas (a partir dos protocolos reais) ──
   const vacinasResumo = (protocolos || []).filter((p: any) => p.tipo === "VACINA").map((p: any) => {
     const doses = (p.doses || []).slice().sort((a: any, b: any) => new Date(a.dataPrevista || 0).getTime() - new Date(b.dataPrevista || 0).getTime());
@@ -1587,59 +1613,90 @@ export default function PetDetailPage() {
                 <span key={s.txt} className="text-[11px] px-2 py-0.5 rounded-full" style={s.ok ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F3F1EC", color: "#9a948a" }}>{s.ok ? s.txt : "○ " + s.txt.replace(/^\S+\s/, "")}</span>
               ))}
             </div>
-            {/* Fisioterapia = patinhas (único lugar do pacote) */}
-            {pacFisio ? (
+            {/* 📦 Pacotes e doses em andamento — DENTRO da caixa "Em tratamento" (patinhas 🐾 + doses 💠), lugar único */}
+            {(pacotesAtivosRaw.length > 0 || dosesAtivas.length > 0 || pacForm.open) && (
               <div className="pt-2 border-t border-[#F0EBE0]">
-                <div className="flex justify-between items-center text-[11.5px] mb-1">
-                  <span className="text-[#5C6B70]">🐾 Fisioterapia <span className="text-[#374151]">(ligado à venda)</span></span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-[#014D5E] font-medium">{pacUsed}/{pacTotal}</span>
-                    <span className="text-[10.5px] px-2 py-0.5 rounded-full" style={{ background: pacTotal - pacUsed > 0 ? "#FBF3E3" : "#E1F5EE", color: pacTotal - pacUsed > 0 ? "#8a6400" : "#0F6E56" }}>{Math.max(0, pacTotal - pacUsed)} pendente{pacTotal - pacUsed === 1 ? "" : "s"}</span>
-                    {pacUsed >= pacTotal ? (
-                      <button onClick={() => concluirPacote(pacFisio)} title="Arquivar pacote concluído (vai pros Pacotes fechados)" className="text-[10.5px] px-2 py-0.5 rounded-full border font-medium" style={{ borderColor: "#9FD9C6", color: "#0F6E56", background: "#E1F5EE" }}>🎉 concluir</button>
-                    ) : (
-                      <button onClick={() => usarSessao(pacFisio)} className="text-[10.5px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>usar sessão</button>
-                    )}
-                    <button onClick={() => setPacForm({ open: true, id: pacFisio.id, serviceId: pacFisio.data?.serviceId || "", nome: pacFisio.data?.nome || "", total: String(pacFisio.data?.total ?? ""), jaFeitas: String(pacFisio.data?.used ?? 0) })} title="Editar total e sessões feitas" className="text-[10.5px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#5C6B70" }}>✏️ editar</button>
-                    <button onClick={() => delPacote(pacFisio.id)} title="Remover pacote" className="text-[10.5px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#EAC3C1", color: "#CC3366" }}>🗑️</button>
-                  </span>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11.5px] font-medium text-[#014D5E] flex items-center gap-1">📦 Pacotes e doses</span>
+                  <button onClick={() => setPacForm((f) => ({ ...f, open: !f.open, id: undefined, serviceId: "", nome: "", total: "4", jaFeitas: "0" }))} className="text-[10.5px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>＋ pacote</button>
                 </div>
-                <div className="flex flex-wrap gap-0.5">
-                  {Array.from({ length: Math.min(pacTotal, 30) }).map((_, i) => (
-                    <span key={i} style={{ fontSize: "15px" }} title={`Sessão ${i + 1}`}>{i < pacUsed ? "🐾" : "⚪"}</span>
-                  ))}
-                </div>
-                {pacForm.open && pacForm.id === pacFisio.id && (
-                  <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-wrap items-end gap-2">
-                    <div className="flex-1 min-w-[140px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Nome do pacote</label><input value={pacForm.nome} onChange={(e) => setPacForm((f) => ({ ...f, nome: e.target.value }))} placeholder="Ex.: Fisioterapia" className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" /></div>
-                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Total</label><input inputMode="numeric" maxLength={3} value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
-                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Feitas</label><input inputMode="numeric" maxLength={3} value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
-                    <div className="w-[86px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Pendentes</label><div className="mt-0.5 px-2 py-1 border rounded text-[12px] text-center font-semibold" style={{ borderColor: "#E8E2D6", background: "#FBF9F4", color: "#014D5E" }}>{Math.max(0, (Number(pacForm.total) || 0) - (Number(pacForm.jaFeitas) || 0))}</div></div>
-                    <button onClick={addPacote} disabled={savingPac} className="px-3 py-1 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Salvar"}</button>
-                    <button onClick={() => setPacForm({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" })} className="px-3 py-1 rounded text-[12px]" style={{ color: "#5C6B70", background: "#F1EFE8" }}>Cancelar</button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="pt-2 border-t border-[#F0EBE0]">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11.5px] text-[#374151]">Sem pacote de fisioterapia ativo.</span>
-                  <button onClick={() => setPacForm((f) => ({ ...f, open: !f.open }))} className="text-[10.5px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>＋ pacote</button>
-                </div>
-                {pacForm.open && (
-                  <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-wrap items-end gap-2">
+                {pacForm.open && !pacForm.id && (
+                  <div className="mb-2 pb-2 border-b border-[#F0EBE0] flex flex-wrap items-end gap-2">
                     <div className="flex-1 min-w-[150px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Serviço de fisioterapia</label>
                       <select value={pacForm.serviceId} onChange={(e) => setPacForm((f) => ({ ...f, serviceId: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]">
                         <option value="">— selecionar —</option>
                         {fisioSrv.map((srv: any) => <option key={srv.id} value={srv.id}>{srv.nome || srv.titulo || srv.descricao}</option>)}
                       </select>
                     </div>
-                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Total</label><input inputMode="numeric" maxLength={3} value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
-                    <div className="w-[76px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Feitas</label><input inputMode="numeric" maxLength={3} value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
-                    <div className="w-[86px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Pendentes</label><div className="mt-0.5 px-2 py-1 border rounded text-[12px] text-center font-semibold" style={{ borderColor: "#E8E2D6", background: "#FBF9F4", color: "#014D5E" }}>{Math.max(0, (Number(pacForm.total) || 0) - (Number(pacForm.jaFeitas) || 0))}</div></div>
+                    <div className="w-[70px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Total</label><input inputMode="numeric" maxLength={3} value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                    <div className="w-[70px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Feitas</label><input inputMode="numeric" maxLength={3} value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
                     <button onClick={addPacote} disabled={savingPac} className="px-3 py-1 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Criar"}</button>
+                    <button onClick={() => setPacForm({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" })} className="px-3 py-1 rounded text-[12px]" style={{ color: "#5C6B70", background: "#F1EFE8" }}>Cancelar</button>
                   </div>
                 )}
+                <div className="flex flex-col gap-2">
+                  {pacotesAtivosRaw.map((pk: any) => {
+                    const used = Number(pk.data?.used || 0); const total = Number(pk.data?.total || 0);
+                    const pend = Math.max(0, total - used); const daVenda = !!pk.data?.origemVenda;
+                    return (
+                      <div key={"pac" + pk.id} className="border border-[#E8E2D6] rounded-[11px]" style={{ padding: "9px 11px" }}>
+                        <div className="flex justify-between items-center text-[11.5px] mb-1.5 gap-2 flex-wrap">
+                          <span className="text-[#5C6B70] font-medium flex items-center gap-1">🐾 {pk.data?.nome || "Fisioterapia"}{daVenda ? <span className="text-[9.5px] text-[#2E9C6E] font-normal">(da venda)</span> : null}</span>
+                          <span className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[#014D5E] font-medium">{used}/{total}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: pend > 0 ? "#FBF3E3" : "#E1F5EE", color: pend > 0 ? "#8a6400" : "#0F6E56" }}>{pend} pendente{pend === 1 ? "" : "s"}</span>
+                            {used >= total ? (
+                              <button onClick={() => concluirPacote(pk)} title="Arquivar pacote concluído" className="text-[10px] px-1.5 py-0.5 rounded-full border font-medium" style={{ borderColor: "#9FD9C6", color: "#0F6E56", background: "#E1F5EE" }}>🎉 concluir</button>
+                            ) : (
+                              <button onClick={() => usarSessao(pk)} className="text-[10px] px-1.5 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>usar sessão</button>
+                            )}
+                            <button onClick={() => setPacForm({ open: true, id: pk.id, serviceId: pk.data?.serviceId || "", nome: pk.data?.nome || "", total: String(pk.data?.total ?? ""), jaFeitas: String(pk.data?.used ?? 0) })} title="Editar" className="text-[10px] px-1.5 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#5C6B70" }}>✏️</button>
+                            <button onClick={() => delPacote(pk.id)} title="Remover" className="text-[10px] px-1.5 py-0.5 rounded-full border" style={{ borderColor: "#EAC3C1", color: "#CC3366" }}>🗑️</button>
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-0.5">
+                          {Array.from({ length: Math.min(total, 30) }).map((_, i) => (
+                            <span key={i} style={{ fontSize: "15px" }} title={`Sessão ${i + 1}`}>{i < used ? "🐾" : "⚪"}</span>
+                          ))}
+                        </div>
+                        {pacForm.open && pacForm.id === pk.id && (
+                          <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-wrap items-end gap-2">
+                            <div className="flex-1 min-w-[140px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Nome</label><input value={pacForm.nome} onChange={(e) => setPacForm((f) => ({ ...f, nome: e.target.value }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" /></div>
+                            <div className="w-[70px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Total</label><input inputMode="numeric" maxLength={3} value={pacForm.total} onChange={(e) => setPacForm((f) => ({ ...f, total: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                            <div className="w-[70px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Feitas</label><input inputMode="numeric" maxLength={3} value={pacForm.jaFeitas} onChange={(e) => setPacForm((f) => ({ ...f, jaFeitas: e.target.value.replace(/\D/g, "").slice(0, 3) }))} className="w-full mt-0.5 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] text-center" /></div>
+                            <button onClick={addPacote} disabled={savingPac} className="px-3 py-1 rounded text-[12px] text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{savingPac ? "..." : "Salvar"}</button>
+                            <button onClick={() => setPacForm({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" })} className="px-3 py-1 rounded text-[12px]" style={{ color: "#5C6B70", background: "#F1EFE8" }}>Cancelar</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {dosesAtivas.map((d: any) => {
+                    const rest = Math.max(0, d.total - d.feitas);
+                    const proxPend = (d.doses || []).find((x: any) => x.status !== "APLICADA");
+                    return (
+                      <div key={"dose" + d.id} className="border border-[#E8E2D6] rounded-[11px]" style={{ padding: "9px 11px" }}>
+                        <div className="flex justify-between items-center text-[11.5px] mb-1.5 gap-2 flex-wrap">
+                          <span className="text-[#5C6B70] font-medium flex items-center gap-1">💊 {d.nome}</span>
+                          <span className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[#014D5E] font-medium">{d.feitas}/{d.total}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: rest > 0 ? "#FBF3E3" : "#E1F5EE", color: rest > 0 ? "#8a6400" : "#0F6E56" }}>{rest} pendente{rest === 1 ? "" : "s"}</span>
+                            {proxPend && <button onClick={() => toggleDose(proxPend.id, true)} className="text-[10px] px-1.5 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>aplicar dose</button>}
+                            <button onClick={() => setMainTab("VACINAS")} title="Editar (datas, lote, fabricante) na aba Protocolos" className="text-[10px] px-1.5 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#5C6B70" }}>✏️</button>
+                            <button onClick={() => removerPlanoDoses(d.id)} title="Remover plano" className="text-[10px] px-1.5 py-0.5 rounded-full border" style={{ borderColor: "#EAC3C1", color: "#CC3366" }}>🗑️</button>
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-0.5">
+                          {(d.doses || []).slice(0, 30).map((dose: any, i: number) => {
+                            const ok = dose.status === "APLICADA";
+                            return <button key={dose.id} onClick={() => toggleDose(dose.id, !ok)} title={ok ? `Dose ${i + 1} — aplicada (clique p/ desfazer)` : `Dose ${i + 1} — clique p/ aplicar`} style={{ fontSize: "14px", lineHeight: 1, background: "none", border: "none", padding: 0, cursor: "pointer" }}>{ok ? "💠" : "⚪"}</button>;
+                          })}
+                        </div>
+                        <div className="text-[10.5px] text-[#8a6400] mt-1">{rest > 0 ? <>Faltam {rest}{d.prox ? <> · próxima {new Date(d.prox).toLocaleDateString("pt-BR")}</> : null}</> : "Concluído 🏆"} · clique nas bolinhas p/ aplicar/desfazer</div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -1791,6 +1848,8 @@ export default function PetDetailPage() {
                 })}
               </div>
             </div>
+
+            {/* (o bloco "📦 Pacotes e doses" agora vive DENTRO da caixa "Em tratamento", acima) */}
 
             {/* ⚡ Sequências foram movidas para BAIXO do Follow-up (a pedido da Cintia) */}
 

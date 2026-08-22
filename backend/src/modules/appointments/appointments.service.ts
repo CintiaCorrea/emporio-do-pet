@@ -431,6 +431,7 @@ export class AppointmentsService {
               executorUserId: it.executorUserId ?? null,
               fornecedorId: it.fornecedorId ?? null,
               catalogoItemId: it.catalogoItemId ?? null,
+              convenioId: it.convenioId ?? null,
               quantidade: qtd,
               valorUnitario: unit,
               custoUnitario: Number(it.custoUnitario ?? 0),
@@ -867,6 +868,12 @@ export class AppointmentsService {
       if (itemsUpd !== undefined) {
         await tx.appointmentItem.deleteMany({ where: { appointmentId: id } });
         if (itemsUpd && itemsUpd.length > 0) {
+          // Mesma proteção do CREATE: servicoId/productId inexistentes (ex.: cuid do catálogo novo)
+          // violariam a FK e derrubariam o update inteiro. Guarda só os ids válidos; o resto vira null.
+          const idsServ = Array.from(new Set(itemsUpd.map((it: any) => it.servicoId).filter(Boolean))) as string[];
+          const servValidos = new Set(idsServ.length ? (await tx.servico.findMany({ where: { id: { in: idsServ } }, select: { id: true } })).map((s) => s.id) : []);
+          const idsProd = Array.from(new Set(itemsUpd.map((it: any) => it.productId ?? it.servicoId).filter(Boolean))) as string[];
+          const prodValidos = new Set(idsProd.length ? (await tx.product.findMany({ where: { id: { in: idsProd } }, select: { id: true } })).map((p) => p.id) : []);
           await tx.appointmentItem.createMany({
             data: itemsUpd.map((it: any) => {
               const qtd = Number(it.quantidade ?? 1);
@@ -875,12 +882,13 @@ export class AppointmentsService {
               const total = Number.isFinite(it.valorTotal) ? Number(it.valorTotal) : (qtd * unit - desc);
               return {
                 appointmentId: id,
-                servicoId: it.servicoId ?? null,
-                productId: it.productId ?? null,
+                servicoId: it.servicoId && servValidos.has(it.servicoId) ? it.servicoId : null,
+                productId: (() => { const pid = it.productId ?? it.servicoId ?? null; return pid && prodValidos.has(pid) ? pid : null; })(),
                 descricao: it.descricao ?? null,
                 executorUserId: it.executorUserId ?? null,
                 fornecedorId: it.fornecedorId ?? null,
                 catalogoItemId: it.catalogoItemId ?? null,
+              convenioId: it.convenioId ?? null,
                 quantidade: qtd,
                 valorUnitario: unit,
                 custoUnitario: Number(it.custoUnitario ?? 0),

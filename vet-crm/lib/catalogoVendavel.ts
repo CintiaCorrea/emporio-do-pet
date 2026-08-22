@@ -11,6 +11,8 @@ export type ItemVendavel = {
   custoPadrao?: number;
   tipo?: string;          // SERVICE | MEDICINE | ... (antigo) | PRODUTO/SERVICO/EXAME/... (novo)
   categoria?: string | null;
+  codigo?: number | null;         // código sequencial do item (busca/atalho)
+  codigoBarras?: string | null;   // código de barras (leitura por scanner)
   _exame?: boolean;
   _fornecedorId?: string | null;
   _fornecedorNome?: string | null;

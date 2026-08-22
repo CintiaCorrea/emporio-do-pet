@@ -265,6 +265,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     // Só cria pet novo quando o cliente NÃO tem nenhum pet (evita duplicar a Luna de um cliente existente).
     const criarPetNovo = !!novoPetNome.trim() && pets.length === 0;
     if (!tutor || (!petId && !criarPetNovo) || !userId || !date || !time) { alert("Preencha cliente, pet, profissional, data e horário."); return; }
+    // Recorrência: sem "Repetir até" só criaria 1 agendamento (parece que "não repetiu"). Exige a data.
+    if (recOn && !editId && !ate) { alert("Você marcou Repetir (recorrência): escolha a data em \"Repetir até\" para criar as repetições."); return; }
     setSaving(true);
     try {
       if (editId) {
@@ -274,7 +276,8 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
         if (!res.ok) throw new Error();
         await salvarParceiro(editId);
       } else {
-        for (const d of datasRecorrentes()) {
+        const datas = datasRecorrentes();
+        for (const d of datas) {
           const body: any = { tutorId: tutor.id, userId, date: d.toISOString(), type: type || "Consulta", status, duration: Number(duration) || 30 };
           // Pet: existente (petId) OU cria junto quando é cliente novo (só o nome).
           if (petId) body.petId = petId;
@@ -284,11 +287,12 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
           const its = itens.filter((i) => i.descricao || i.valor).map((i) => ({ descricao: i.descricao || "Item", quantidade: Number(i.qtd) || 1, valorUnitario: Number(i.valor) || 0, ...(i.servicoId ? { servicoId: i.servicoId, productId: i.servicoId } : {}) }));
           if (its.length) body.items = its;
           const res = await fetch("/api/appointments", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
-          if (!res.ok) throw new Error();
+          if (!res.ok) { const er = await res.json().catch(() => null); throw new Error((Array.isArray(er?.message) ? er.message.join("; ") : er?.message) || er?.error || `HTTP ${res.status}`); }
           const dc = await res.json().catch(() => null);
           const nid = dc?.id || dc?.appointment?.id || null;
           if (nid) await salvarParceiro(nid);
         }
+        if (recOn && datas.length > 1) toast.success(`${datas.length} agendamentos criados (recorrência) ✅`);
         // A confirmação NÃO sai mais na hora que salva. Ela é enviada automaticamente no
         // dia anterior (17h/19h) pelo agendador, ou na hora pelo botão "Enviar confirmação"
         // no card da agenda — evita mandar confirmação para agendamento de dias à frente.
@@ -296,7 +300,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
       const petNome = (pets.find((p: any) => p.id === petId)?.name) || novoPetNome.trim() || "";
       // Passa data/hora/pet SEMPRE (novo E remarcação) — quem chama decide se avisa o cliente.
       fechar(); if (onCreated) onCreated({ date, time, petNome });
-    } catch { alert("Erro ao criar agendamento. Tente novamente."); } finally { setSaving(false); }
+    } catch (e: any) { alert("Erro ao criar agendamento: " + (e?.message || e || "desconhecido")); } finally { setSaving(false); }
   };
 
   const excluir = async () => {
@@ -490,7 +494,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
             <div><label className={lbl}>Observações</label><textarea value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Anotações do agendamento…" className={inp} style={{ minHeight: "48px" }} /></div>
 
             <div className="border border-[#e8e3d4] rounded-lg p-3">
-              <label className="flex items-center gap-2 text-[13px] text-[#0E2244] cursor-pointer"><input type="checkbox" checked={recOn} onChange={(e) => setRecOn(e.target.checked)} /> <LuRepeat size={14} className="text-[#009AAC]" /> Repetir (recorrência)</label>
+              <label className="flex items-center gap-2 text-[13px] text-[#0E2244] cursor-pointer"><input type="checkbox" checked={recOn} onChange={(e) => { const on = e.target.checked; setRecOn(on); if (on && !ate) { const d = new Date(`${date || new Date().toISOString().slice(0, 10)}T12:00:00`); d.setMonth(d.getMonth() + 2); setAte(d.toISOString().slice(0, 10)); } }} /> <LuRepeat size={14} className="text-[#009AAC]" /> Repetir (recorrência)</label>
               {recOn ? (
                 <div className="mt-3 space-y-2">
                   <div className="grid grid-cols-2 gap-3">

@@ -37,7 +37,7 @@ interface Pet { id: string; name: string }
 interface Tutor { id: string; name: string; pets?: Pet[] }
 interface Servico { id: string; nome: string; valorPadrao?: number | null; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null }
 interface Prof { id: string; name: string }
-interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null; _novo?: boolean; catalogoItemId?: string; descontoModo?: string; descontoLimite?: number | null }
+interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null; _novo?: boolean; catalogoItemId?: string; descontoModo?: string; descontoLimite?: number | null; _convenio?: boolean; convenioId?: string; _convLabel?: string }
 interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string; tutorId?: string }
 
 const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
@@ -76,6 +76,12 @@ export default function PDVPage() {
   const [itemAberto, setItemAberto] = useState(false);
   const [qtd, setQtd] = useState(1);
   const [carrinho, setCarrinho] = useState<CartItem[]>([]);
+  // 🏥 Convênio do pet (Petlife etc.): buscador da tabela do convênio, precificado por porte.
+  const [convPet, setConvPet] = useState<{ convenio: { id: string; nome: string; diaFechamento: number | null }; isCat: boolean; porteSugerido: string } | null>(null);
+  const [convItens, setConvItens] = useState<{ precoId: string; itemNome: string; codigo: string | null; preco: number }[]>([]);
+  const [convBusca, setConvBusca] = useState('');
+  const [convPorte, setConvPorte] = useState('');
+  const [convOpen, setConvOpen] = useState(false);
   const [descontoGlobal, setDescontoGlobal] = useState('');
   const [descontoGlobalTipo, setDescontoGlobalTipo] = useState<'$' | '%'>('$');
   const [obs, setObs] = useState('');
@@ -106,6 +112,17 @@ export default function PDVPage() {
   const [recOpen, setRecOpen] = useState(false);            // modal de recebimento de venda existente
   const [recFormas, setRecFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]);
   const [recSaving, setRecSaving] = useState(false);
+  // 🔓 Liberação de gerente (desconto acima do limite) — modal com senha mascarada
+  const [libOpen, setLibOpen] = useState(false);
+  const [libEmail, setLibEmail] = useState('');
+  const [libSenha, setLibSenha] = useState('');
+  const libResolver = useRef<((v: { email: string; senha: string } | null) => void) | null>(null);
+  const pedirLiberacao = () => new Promise<{ email: string; senha: string } | null>((resolve) => {
+    libResolver.current = resolve; setLibEmail(''); setLibSenha(''); setLibOpen(true);
+  });
+  const fecharLiberacao = (v: { email: string; senha: string } | null) => {
+    setLibOpen(false); const r = libResolver.current; libResolver.current = null; if (r) r(v);
+  };
 
   const loadVendas = useCallback(async () => {
     try {
@@ -245,7 +262,7 @@ export default function PDVPage() {
       } catch { /* */ }
       try {
         const r = await fetch('/api/caixa', { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []); const ab = arr.find((c: any) => c.status === 'ABERTO'); setCaixaAberto(!!ab); setCaixaAbertoId(ab?.id || null); }
+        if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []); const ab = arr.filter((c: any) => c.status === 'ABERTO').sort((a: any, b: any) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime())[0]; setCaixaAberto(!!ab); setCaixaAbertoId(ab?.id || null); }
         else setCaixaAberto(false);
       } catch { setCaixaAberto(false); }
       try {
@@ -346,6 +363,26 @@ export default function PDVPage() {
   const updItem = (i: number, patch: Partial<CartItem>) => setCarrinho((c) => c.map((x, j) => j === i ? { ...x, ...patch } : x));
   const rmItem = (i: number) => setCarrinho((c) => c.filter((_, j) => j !== i));
 
+  // 🏥 Carrega/atualiza a tabela do convênio DO PET (resolve pela etiqueta do pet + porte).
+  async function carregarConv(petIdArg: string, busca: string, porte: string) {
+    if (!petIdArg) { setConvPet(null); setConvItens([]); return; }
+    try {
+      const qs = new URLSearchParams({ petId: petIdArg }); if (busca) qs.set('busca', busca); if (porte) qs.set('porte', porte);
+      const r = await fetch(`/api/catalogo/convenios/tabela-pet?${qs.toString()}`, { cache: 'no-store' });
+      const d = await r.json();
+      if (d && d.convenio) { setConvPet({ convenio: d.convenio, isCat: !!d.isCat, porteSugerido: d.porteSugerido || 'm' }); setConvItens(Array.isArray(d.itens) ? d.itens : []); }
+      else { setConvPet(null); setConvItens([]); }
+    } catch { setConvPet(null); setConvItens([]); }
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setConvBusca(''); setConvPorte(''); setConvOpen(false); carregarConv(petId, '', ''); }, [petId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (petId && convPet?.convenio) carregarConv(petId, convBusca, convPorte); }, [convBusca, convPorte]);
+  const addConvenioItem = (item: { itemNome: string; preco: number }) => {
+    if (!convPet?.convenio) return;
+    setCarrinho((c) => [...c, { descricao: item.itemNome, quantidade: 1, valorUnitario: Number(item.preco) || 0, desconto: 0, executorUserId: profId || undefined, _convenio: true, convenioId: convPet.convenio.id, _convLabel: convPet.convenio.nome }]);
+  };
+
   // Desconto do item: resolve % → R$ (backend recebe sempre R$)
   const descItemVal = (it: CartItem) => { const bruto = it.quantidade * it.valorUnitario; const d = Number(it.desconto) || 0; return it.descTipo === '%' ? bruto * d / 100 : d; };
   // Política de desconto POR ITEM (catálogo novo): bloqueia/limita o desconto no caixa.
@@ -360,7 +397,9 @@ export default function PDVPage() {
     return valor;
   };
   const itemTotal = (it: CartItem) => Math.max(0, it.quantidade * it.valorUnitario - descItemVal(it));
-  const subtotal = useMemo(() => carrinho.reduce((s, it) => s + itemTotal(it), 0), [carrinho]);
+  const subtotal = useMemo(() => carrinho.reduce((s, it) => s + (it._convenio ? 0 : itemTotal(it)), 0), [carrinho]);
+  // Total faturado ao convênio (não entra no que o tutor paga).
+  const totalConvenio = useMemo(() => carrinho.reduce((s, it) => s + (it._convenio ? itemTotal(it) : 0), 0), [carrinho]);
   // Desconto total: resolve % → R$
   const descGlobalVal = () => descontoGlobalTipo === '%' ? subtotal * num(descontoGlobal) / 100 : num(descontoGlobal);
   const total = useMemo(() => Math.max(0, subtotal - (descontoGlobalTipo === '%' ? subtotal * num(descontoGlobal) / 100 : num(descontoGlobal))), [subtotal, descontoGlobal, descontoGlobalTipo]);
@@ -384,15 +423,23 @@ export default function PDVPage() {
 
   const payload = (extra: any) => ({
     tutorId: cliente!.id, petId, userId: profId || undefined, date: new Date(data + 'T12:00:00').toISOString(),
-    itens: carrinho.map((it) => ({ servicoId: (it._exame || it._novo) ? undefined : it.servicoId, productId: (it._exame || it._novo) ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), executorUserId: it.executorUserId || profId || undefined, ...(it._novo ? { catalogoItemId: it.catalogoItemId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}), ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}) })),
+    itens: carrinho.map((it) => ({ servicoId: (it._exame || it._novo || it._convenio) ? undefined : it.servicoId, productId: (it._exame || it._novo || it._convenio) ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), executorUserId: it.executorUserId || profId || undefined, ...(it._novo ? { catalogoItemId: it.catalogoItemId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}), ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}), ...(it._convenio ? { convenioId: it.convenioId } : {}) })),
     desconto: Number(descGlobalVal().toFixed(2)), observacao: obs || null, ...extra,
   });
 
   const enviar = async (body: any, msg: string) => {
     setSalvando(true);
     try {
-      const r = await fetch('/api/caixa/pdv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      const d = await r.json().catch(() => ({}));
+      let r = await fetch('/api/caixa/pdv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      let d = await r.json().catch(() => ({}));
+      // 🔓 Desconto acima do limite → pede LIBERAÇÃO de um gerente (admin) e reenvia 1 vez.
+      if (!r.ok && /liberação de um gerente|passa do limite/i.test(String(d?.message || ''))) {
+        const lib = await pedirLiberacao();
+        if (lib?.email && lib?.senha) {
+          r = await fetch('/api/caixa/pdv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, liberacaoEmail: lib.email, liberacaoSenha: lib.senha }) });
+          d = await r.json().catch(() => ({}));
+        }
+      }
       if (!r.ok) throw new Error(d.message || 'Erro ao salvar');
       toast.success(msg + (d.troco ? ` · troco ${brl(d.troco)}` : ''));
       setModal(false); reset(); loadVendas();
@@ -421,7 +468,7 @@ export default function PDVPage() {
     try {
       const body = {
         petId, tutorId: cliente.id, observacao: obs || null,
-        itens: carrinho.map((it) => ({ servicoId: (it._exame || it._novo) ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), ...(it._novo ? { catalogoItemId: it.catalogoItemId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}), ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId } : {}) })),
+        itens: carrinho.map((it) => ({ servicoId: (it._exame || it._novo) ? undefined : it.servicoId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: Number(descItemVal(it).toFixed(2)), ...(it._novo ? { catalogoItemId: it.catalogoItemId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}), ...(it._exame ? { tipoItem: 'EXAME', catalogoExameId: it.catalogoExameId, fornecedorId: it.fornecedorId, custoUnitario: it.custoUnitario } : {}) })),
       };
       const r = await fetch('/api/orcamentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
@@ -571,6 +618,37 @@ export default function PDVPage() {
               </div>
             </div>
 
+            {/* 🏥 Convênio do pet (Petlife etc.) — buscador da tabela, precificado por porte */}
+            {convPet?.convenio && (
+              <div style={{ border: '1px solid #CDE8EA', background: '#F3FAFB', borderRadius: 12, padding: '10px 12px', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 700, color: '#0E5560', fontSize: 13 }}>🏥 {convPet.convenio.nome} paga</span>
+                  <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', fontSize: 11.5, color: MUT }}>
+                    Porte:
+                    {/* 🐱 Gato entra como opção selecionável junto com P/M/G/GG. Pré-seleciona pelo porte sugerido
+                        (felino → gato; cão → porte pelo peso), mas dá pra trocar na mão. */}
+                    {['gato', 'p', 'm', 'g', 'gg'].map((pt) => { const on = (convPorte || convPet.porteSugerido) === pt; return <button key={pt} onClick={() => setConvPorte(pt)} style={{ padding: '3px 9px', borderRadius: 999, border: `1px solid ${on ? '#0C93A6' : LINE}`, background: on ? '#0C93A6' : '#fff', color: on ? '#fff' : INK2, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{pt === 'gato' ? '🐱 Gato' : pt.toUpperCase()}</button>; })}
+                  </span>
+                  <button onClick={() => setConvOpen((o) => !o)} style={{ marginLeft: 'auto', fontSize: 12, fontWeight: 600, color: TEAL, border: `1px solid ${LINE}`, background: '#fff', borderRadius: 8, padding: '5px 10px', cursor: 'pointer' }}>{convOpen ? 'fechar' : `＋ item ${convPet.convenio.nome}`}</button>
+                </div>
+                {convOpen && (
+                  <div style={{ marginTop: 8 }}>
+                    <input value={convBusca} onChange={(e) => setConvBusca(e.target.value)} placeholder={`🔍 Buscar na tabela ${convPet.convenio.nome}…`} style={{ ...inp, width: '100%', marginBottom: 6 }} />
+                    <div style={{ maxHeight: 240, overflowY: 'auto', border: `1px solid ${SOFT}`, borderRadius: 9, background: '#fff' }}>
+                      {convItens.length === 0 ? <div style={{ padding: 14, textAlign: 'center', color: MUT, fontSize: 12.5 }}>Nada encontrado nessa tabela.</div> :
+                        convItens.map((it) => (
+                          <button key={it.precoId} onClick={() => addConvenioItem(it)} style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '8px 11px', border: 'none', borderBottom: `1px solid ${SOFT}`, background: '#fff', cursor: 'pointer', fontSize: 12.5, textAlign: 'left' }}>
+                            <span style={{ color: INK, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.itemNome}{it.codigo ? <span style={{ color: '#9aa', fontSize: 10.5, marginLeft: 5 }}>#{it.codigo}</span> : null}</span>
+                            <span style={{ color: '#0F6E56', fontWeight: 600, flexShrink: 0 }}>{brl(Number(it.preco))}</span>
+                          </button>
+                        ))}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: MUT, marginTop: 5 }}>O item escolhido entra marcado <b>“{convPet.convenio.nome} paga”</b> — sai do total do tutor e vira a-receber mensal do convênio.</div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* carrinho */}
             <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden', marginBottom: 20 }}>
               {carrinho.length === 0 && (
@@ -588,6 +666,7 @@ export default function PDVPage() {
                     {/* linha 1: descrição + total + excluir */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <input value={it.descricao} onChange={(e) => updItem(i, { descricao: e.target.value })} placeholder="Descrição do item" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                      {it._convenio ? <span title={`Faturado ao convênio ${it._convLabel}`} style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: '#E0F0F2', color: '#0E5560' }}>🏥 {it._convLabel} paga</span> : null}
                       {(() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span title={`Laboratório: ${lab.nome}`} style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: lab.veter ? '#E1F5EE' : '#EEF2F6', color: lab.veter ? '#0F6E56' : '#4D6A8A' }}>{lab.veter ? '⭐ ' : '🏥 '}{lab.nome}</span> : null; })()}
                       <span style={{ fontSize: 13, fontWeight: 500, color: NAVY, minWidth: 78, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
                       <button onClick={() => rmItem(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
@@ -623,8 +702,14 @@ export default function PDVPage() {
                   </span>
                 </div>
               </div>
+              {totalConvenio > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '9px 14px', background: '#F3FAFB', borderTop: `1px solid ${SOFT}` }}>
+                  <span style={{ color: '#0E5560', fontSize: 12.5, fontWeight: 600 }}>🏥 {convPet?.convenio?.nome || 'Convênio'} paga (a receber)</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#0E5560' }}>{brl(totalConvenio)}</span>
+                </div>
+              )}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '13px 14px', background: SUAVE, borderTop: `1px solid ${SOFT}` }}>
-                <span style={{ color: INK2, fontSize: 13 }}>Total da venda</span>
+                <span style={{ color: INK2, fontSize: 13 }}>{totalConvenio > 0 ? '👤 Tutor paga agora' : 'Total da venda'}</span>
                 <span style={{ fontSize: 21, fontWeight: 500, color: NAVY }}>{brl(total)}</span>
               </div>
             </div>
@@ -708,7 +793,7 @@ export default function PDVPage() {
                     <div style={{ fontSize: 11, color: MUT }}>{o.pet}{o.pet ? ' · ' : ''}<span style={{ color: '#6D28D9', fontWeight: 600 }}>orçamento</span></div>
                   </div>
                   <span style={{ background: '#EDE9FE', color: '#6D28D9', fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(o.valor)}</span>
-                  <button onClick={(e) => { e.stopPropagation(); converterOrcamento(o); }} title="Converter este orçamento em venda" style={{ border: 'none', background: '#6D28D9', color: '#fff', fontSize: 10.5, fontWeight: 600, padding: '5px 8px', borderRadius: 8, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>→ Venda</button>
+                  {/* Converter em venda só ao ABRIR o orçamento (botão no modal de detalhe) — não na lista. */}
                 </div>
               ))}
             </div>
@@ -824,8 +909,9 @@ export default function PDVPage() {
 
       {/* ===== DETALHE DA VENDA ===== */}
       {detVenda && (
-        <div onClick={() => { setDetVenda(null); setEditItens(null); setRecOpen(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16 }}>
+        <div onClick={() => { setDetVenda(null); setEditItens(null); setRecOpen(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
+          <style>{`@keyframes pdvSlideOver{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 460, maxWidth: '100%', height: '100vh', overflowY: 'auto', background: SUAVE, borderLeft: `1px solid ${LINE}`, boxShadow: '-12px 0 30px rgba(0,0,0,.14)', animation: 'pdvSlideOver .18s ease-out' }}>
             <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>🧾 Venda {detVenda.numeroVenda ? `#${detVenda.numeroVenda}` : ''}</span>
               <button onClick={() => { setDetVenda(null); setEditItens(null); setRecOpen(false); }} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
@@ -927,8 +1013,8 @@ export default function PDVPage() {
         const pagoR = Math.max(0, soma - trocoR);
         const restanteR = Math.max(0, aReceber - pagoR);
         return (
-          <div onClick={() => setRecOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: '100%', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden' }}>
+          <div onClick={() => setRecOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 80, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', height: '100vh', overflowY: 'auto', background: SUAVE, borderLeft: `1px solid ${LINE}`, boxShadow: '-12px 0 30px rgba(0,0,0,.14)', animation: 'pdvSlideOver .18s ease-out' }}>
               <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>💰 Registrar recebimento</span>
                 <button onClick={() => setRecOpen(false)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
@@ -952,6 +1038,39 @@ export default function PDVPage() {
           </div>
         );
       })()}
+
+      {/* 🔓 Liberação de gerente — desconto acima do limite (senha mascarada) */}
+      {libOpen && (
+        <div onClick={() => fecharLiberacao(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 90, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={(e) => { e.preventDefault(); if (libEmail.trim() && libSenha) fecharLiberacao({ email: libEmail.trim(), senha: libSenha }); }}
+            style={{ width: 360, maxWidth: '100%', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden' }}
+          >
+            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <b style={{ color: NAVY, fontSize: 15 }}>🔓 Liberação do gerente</b>
+              <button type="button" onClick={() => fecharLiberacao(null)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
+            </div>
+            <div style={{ padding: 18 }}>
+              <p style={{ margin: '0 0 14px', fontSize: 13, color: INK2, lineHeight: 1.5 }}>O desconto passa do limite. Um gerente (admin) precisa autorizar com e-mail e senha.</p>
+              <label style={{ display: 'block', fontSize: 12, color: MUT, marginBottom: 4 }}>E-mail do gerente</label>
+              <input
+                type="email" value={libEmail} onChange={(e) => setLibEmail(e.target.value)} autoFocus autoComplete="off"
+                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 14, background: '#fff', color: INK, marginBottom: 12 }}
+              />
+              <label style={{ display: 'block', fontSize: 12, color: MUT, marginBottom: 4 }}>Senha</label>
+              <input
+                type="password" value={libSenha} onChange={(e) => setLibSenha(e.target.value)} autoComplete="off"
+                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 14, background: '#fff', color: INK }}
+              />
+              <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+                <button type="button" onClick={() => fecharLiberacao(null)} style={{ flex: 1, background: '#fff', color: MUT, border: `1px solid ${LINE}`, fontSize: 14, fontWeight: 500, padding: 11, borderRadius: 9, cursor: 'pointer' }}>Cancelar</button>
+                <button type="submit" disabled={!libEmail.trim() || !libSenha} style={{ flex: 1, background: NAVY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 500, padding: 11, borderRadius: 9, cursor: (!libEmail.trim() || !libSenha) ? 'not-allowed' : 'pointer', opacity: (!libEmail.trim() || !libSenha) ? .6 : 1 }}>Autorizar</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

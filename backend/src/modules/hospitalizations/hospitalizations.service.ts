@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BoardsService } from '../boards/boards.service';
+import { AppointmentsService } from '../appointments/appointments.service';
 import { CreateHospitalizationDto } from './dto/create-hospitalization.dto';
 import { UpdateHospitalizationDto } from './dto/update-hospitalization.dto';
 
@@ -10,6 +11,11 @@ interface HospitalizationMetadata {
   type: 'HOSPITALIZATION';
   roomNumber?: string;
   dailyRate: number;
+  // Diária vinda do catálogo — leva custo/margem pro DRE na comanda do dia.
+  diariaServicoId?: string;
+  diariaCatalogoItemId?: string;
+  diariaCusto?: number;
+  diariasFaturadas?: number;
   priority: Priority;
   estimatedDischargeDate?: string;
   actualDischargeDate?: string;
@@ -23,7 +29,66 @@ export class HospitalizationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly boardsService: BoardsService,
+    private readonly appointmentsService: AppointmentsService,
   ) {}
+
+  // 📅 COMANDA DO DIA (Fatia 1): junta a(s) diária(s) ainda não faturada(s) + os itens abertos da conta
+  // (medicações auto + manuais, exclui Insumo) numa VENDA nova (com número) que cai no "a pagar" do caixa.
+  // 1 diária por dia (controla via metadata.diariasFaturadas). Marca os itens como baixados p/ não repetir.
+  async gerarComandaDia(id: string, userId: string) {
+    const appt = await this.prisma.appointment.findUnique({ where: { id }, select: { id: true, tutorId: true, petId: true, date: true, notes: true } });
+    if (!appt) throw new NotFoundException('Internação não encontrada');
+    const meta: any = this.parseMetadata(appt.notes);
+    if (!meta) throw new BadRequestException('Este atendimento não é uma internação');
+
+    // Diárias ainda não faturadas (1 por dia corrido desde a admissão).
+    const admissao = new Date(appt.date);
+    const diasCorridos = Math.max(1, Math.ceil((Date.now() - admissao.getTime()) / 86400000));
+    const jaFaturadas = Number(meta.diariasFaturadas || 0);
+    const diariasNovas = Math.max(0, diasCorridos - jaFaturadas);
+    const dailyRate = Number(meta.dailyRate) || 0;
+
+    // Itens abertos da conta (intconta_<id>) — não baixados e que não são Insumo.
+    const contaRaw = await this.prisma.listaItem.findMany({ where: { lista: `intconta_${id}` } });
+    const abertos = contaRaw
+      .map((li) => { try { return { li, d: JSON.parse(li.valor) }; } catch { return null; } })
+      .filter((x): x is { li: any; d: any } => !!x && !x.d.baixado && x.d.categoria !== 'Insumo');
+
+    const items: any[] = [];
+    if (diariasNovas > 0 && dailyRate > 0) {
+      // Diária vinda do catálogo quando configurada (leva servicoId/produto + custo → margem no DRE); senão, item livre.
+      items.push({ descricao: `Diária de internação${diariasNovas > 1 ? ` (${diariasNovas} dias)` : ''}`, quantidade: diariasNovas, valorUnitario: dailyRate, valorTotal: diariasNovas * dailyRate,
+        servicoId: meta.diariaServicoId || undefined, catalogoItemId: meta.diariaCatalogoItemId || undefined,
+        custoUnitario: meta.diariaCusto != null ? Number(meta.diariaCusto) : undefined });
+    }
+    for (const x of abertos) {
+      const q = Number(x.d.quantidade) || 1; const vu = Number(x.d.valorUnitario) || 0;
+      items.push({ descricao: x.d.descricao || 'Item', quantidade: q, valorUnitario: vu, valorTotal: q * vu,
+        servicoId: x.d.servicoId || undefined, productId: x.d.productId || undefined,
+        custoUnitario: x.d.custoUnitario != null ? Number(x.d.custoUnitario) : undefined,
+        fornecedorId: x.d.fornecedorId || undefined });
+    }
+    if (!items.length) throw new BadRequestException('Nada novo para faturar hoje (sem diária pendente nem itens abertos).');
+
+    const value = items.reduce((s, i) => s + Number(i.valorTotal), 0);
+    // Reusa o fluxo de venda (numeroVenda + validação de servicoId + itens). type='Venda' e SEM notes de
+    // internação → cai no "a pagar" do caixa (a exclusão de INTERNACAO olha as notes HOSPITALIZATION).
+    const venda: any = await this.appointmentsService.create({
+      tutorId: appt.tutorId, petId: appt.petId || undefined, userId,
+      date: new Date().toISOString(), type: 'Venda', status: 'COMPLETED', value, items,
+    } as any);
+
+    // Marca os itens como faturados (não repetem) + registra as diárias faturadas.
+    for (const x of abertos) {
+      await this.prisma.listaItem.update({ where: { id: x.li.id }, data: { valor: JSON.stringify({ ...x.d, baixado: true, comandaId: venda.id, faturadoEm: new Date().toISOString() }) } }).catch(() => undefined);
+    }
+    meta.diariasFaturadas = jaFaturadas + diariasNovas;
+    (meta as any).totalFaturado = Number((meta as any).totalFaturado || 0) + value; // acumulado da internação (p/ saldo)
+    await this.prisma.appointment.update({ where: { id }, data: { notes: JSON.stringify(meta) } });
+
+    const itensResumo = items.map((i) => ({ descricao: i.descricao, total: Number(i.valorTotal) }));
+    return { ok: true, vendaId: venda.id, numeroVenda: venda.numeroVenda ?? null, diariasFaturadas: diariasNovas, itens: abertos.length, total: value, totalFaturado: (meta as any).totalFaturado, itensResumo };
+  }
 
   private parseMetadata(notes: any): HospitalizationMetadata | null {
     try {
@@ -164,6 +229,9 @@ export class HospitalizationsService {
       type: 'HOSPITALIZATION',
       roomNumber: dto.roomNumber,
       dailyRate: dto.dailyRate,
+      diariaServicoId: (dto as any).diariaServicoId,
+      diariaCatalogoItemId: (dto as any).diariaCatalogoItemId,
+      diariaCusto: (dto as any).diariaCusto,
       priority: (dto.priority as any) || 'MEDIUM',
       estimatedDischargeDate: dto.estimatedDischargeDate,
       diagnosis: dto.diagnosis,

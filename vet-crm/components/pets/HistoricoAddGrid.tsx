@@ -1,18 +1,20 @@
 "use client";
 import { LuStethoscope, LuActivity, LuTriangleAlert, LuFileText, LuFlaskConical, LuCamera, LuSyringe, LuPencil, LuMessageSquare, LuVideo, LuClipboardList } from "react-icons/lu";
+import { corDoTipo } from "@/lib/coresProntuario";
 
-const TIPOS: { k: string; c: string; I: any }[] = [
-  { k: "Atendimento", c: "#2f80c4", I: LuStethoscope },
-  { k: "Peso", c: "#b8860b", I: LuActivity },
-  { k: "Patologia", c: "#7c3aed", I: LuTriangleAlert },
-  { k: "Documento", c: "#2e9e5b", I: LuFileText },
-  { k: "Exame", c: "#e0556b", I: LuFlaskConical },
-  { k: "Fotos", c: "#2b6cb0", I: LuCamera },
-  { k: "Vacina", c: "#e08a1e", I: LuSyringe },
-  { k: "Receita", c: "#9333ea", I: LuPencil },
-  { k: "Observação", c: "#64748b", I: LuMessageSquare },
-  { k: "Vídeo", c: "#0f7a52", I: LuVideo },
-  { k: "Internação", c: "#9b2c3a", I: LuClipboardList },
+// Cor de cada tile = FONTE ÚNICA (lib/coresProntuario) — mesma cor do card na timeline.
+const TIPOS: { k: string; I: any }[] = [
+  { k: "Atendimento", I: LuStethoscope },
+  { k: "Peso", I: LuActivity },
+  { k: "Patologia", I: LuTriangleAlert },
+  { k: "Documento", I: LuFileText },
+  { k: "Exame", I: LuFlaskConical },
+  { k: "Fotos", I: LuCamera },
+  { k: "Vacina", I: LuSyringe },
+  { k: "Receita", I: LuPencil },
+  { k: "Observação", I: LuMessageSquare },
+  { k: "Vídeo", I: LuVideo },
+  { k: "Internação", I: LuClipboardList },
 ];
 
 export default function HistoricoAddGrid({ onPick, ready = [] }: { onPick: (k: string) => void; ready?: string[] }) {
@@ -28,7 +30,7 @@ export default function HistoricoAddGrid({ onPick, ready = [] }: { onPick: (k: s
               onClick={() => onPick(t.k)}
               title={on ? t.k : `${t.k} — em construção`}
               className="flex flex-col items-center justify-center gap-1.5 rounded-xl text-white font-semibold transition hover:opacity-90"
-              style={{ background: t.c, opacity: on ? 1 : 0.55, padding: "16px 6px" }}
+              style={{ background: corDoTipo(t.k), opacity: on ? 1 : 0.55, padding: "16px 6px" }}
             >
               <Icon size={20} />
               <span className="text-[12px]">{t.k}</span>

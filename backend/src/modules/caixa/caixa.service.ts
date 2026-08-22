@@ -5,6 +5,7 @@ import { ExamesService } from '../exames/exames.service';
 import { RecebimentosService } from '../financeiro/recebimentos.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
+import * as bcrypt from 'bcryptjs';
 
 function dayRange(dateStr?: string) {
   const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
@@ -75,6 +76,25 @@ export class CaixaService {
     return this.prisma.caixaMovimento.findMany({ where, orderBy: { data: 'desc' }, take: 500 });
   }
 
+  // ⭐ Itens mais VENDIDOS (por frequência de linhas de venda) — alimenta o quick-add "Frequentes"
+  // da comanda/PDV (1 clique). Devolve no formato do catálogo (id/nome/valorPadrao/custoPadrao).
+  async itensFrequentes(limit = 8) {
+    const grp = await this.prisma.appointmentItem.groupBy({
+      by: ['catalogoItemId'],
+      where: { catalogoItemId: { not: null } },
+      _count: { catalogoItemId: true },
+      orderBy: { _count: { catalogoItemId: 'desc' } },
+      take: Math.min(24, Math.max(1, Number(limit) || 8)),
+    });
+    const ids = grp.map((g) => g.catalogoItemId).filter(Boolean) as string[];
+    if (!ids.length) return [];
+    const itens = await this.prisma.itemCatalogo.findMany({ where: { id: { in: ids } }, select: { id: true, nome: true, preco: true, custo: true } }).catch(() => [] as any[]);
+    const byId = new Map(itens.map((i: any) => [i.id, i]));
+    return grp
+      .map((g) => { const it: any = byId.get(g.catalogoItemId as string); return it ? { id: it.id, nome: it.nome, valorPadrao: Number(it.preco) || 0, custoPadrao: Number(it.custo) || 0, qtd: g._count.catalogoItemId } : null; })
+      .filter(Boolean);
+  }
+
   async listVendas(query: any = {}) {
     const abertas = ['1', 'true', true].includes(query?.abertas);
     const where: any = {};
@@ -86,6 +106,9 @@ export class CaixaService {
     if (abertas) {
       where.paymentStatus = { not: 'PAID' };
       where.value = { gt: 0 };
+      // Só VENDAS entram no "a pagar": consulta/alta clínica (sem numeroVenda) fica de fora.
+      // O numeroVenda é atribuído a todo atendimento que nasce como venda (PDV, comanda, saldo migrado).
+      where.numeroVenda = { not: null };
       // Agendamento FUTURO não é comanda — só é "conta a receber" o atendimento de hoje/passado
       // (venda do PDV nasce com data de hoje; agendamento de outro dia fica de fora).
       const fimHoje = new Date(); fimHoje.setHours(23, 59, 59, 999);
@@ -796,8 +819,10 @@ export class CaixaService {
     if (cfgRec.obrigarNsu && formas.some((f: any) => /cart|maquin/i.test(f.forma || '') && !String(f.nsu || '').trim())) {
       throw new BadRequestException('Informe o NSU do cartão (a configuração de vendas exige).');
     }
+    // Só "Crédito do pet/cliente" debita o saldo do cliente. ⚠️ NÃO usar /crédito/ solto: casaria
+    // com "Cartão crédito" e trataria pagamento no cartão como uso de saldo (mesma regex do DRE).
     const creditoUsado = formas
-      .filter((f: any) => /cr[eé]dito/i.test(f.forma || ''))
+      .filter((f: any) => /cr[eé]dito d[oe] (pet|client)/i.test(f.forma || '') || /cr[eé]dito do cliente/i.test(f.forma || ''))
       .reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
 
     let tutorId: string | null = null;
@@ -1079,15 +1104,37 @@ export class CaixaService {
       const desconto = Number(it.desconto || 0);
       const valorTotal = Math.max(0, quantidade * valorUnitario - desconto);
       // fornecedorId + custoUnitario (custo do lab) seguem pro AppointmentItem → alimentam o a-pagar ao laboratório.
-      return { servicoId: it.servicoId ?? undefined, productId: it.productId ?? undefined, catalogoItemId: it.catalogoItemId ?? undefined, descricao: it.descricao ?? undefined, quantidade, valorUnitario, custoUnitario: it.custoUnitario != null ? Number(it.custoUnitario) : undefined, desconto, valorTotal, executorUserId: it.executorUserId ?? undefined, fornecedorId: it.fornecedorId ?? undefined };
+      // convenioId: item faturado ao CONVÊNIO (não ao tutor) → sai do total à vista e vira a-receber mensal.
+      return { servicoId: it.servicoId ?? undefined, productId: it.productId ?? undefined, catalogoItemId: it.catalogoItemId ?? undefined, convenioId: it.convenioId ?? undefined, descricao: it.descricao ?? undefined, quantidade, valorUnitario, custoUnitario: it.custoUnitario != null ? Number(it.custoUnitario) : undefined, desconto, valorTotal, executorUserId: it.executorUserId ?? undefined, fornecedorId: it.fornecedorId ?? undefined };
     });
     // Config de vendas: obrigar profissional (vendedor) em cada item
     const cfgVenda = await this.getConfigVendas();
     if (cfgVenda.obrigarProfissionalItem && items.some((it: any) => !it.executorUserId)) {
       throw new BadRequestException('Cada item precisa de um profissional/vendedor (a configuração de vendas exige).');
     }
-    const itensTotal = items.reduce((s: number, it: any) => s + it.valorTotal, 0);
+    // Total do TUTOR = só os itens que NÃO são do convênio (os do convênio viram a-receber mensal).
+    const itensTotal = items.reduce((s: number, it: any) => s + (it.convenioId ? 0 : it.valorTotal), 0);
     const descontoGlobal = Number(dto.desconto || 0);
+    // 🚫 Trava de desconto POR PERFIL: ADMIN (gerente) não tem limite; os demais respeitam o limite %
+    // da config, mas podem exceder com LIBERAÇÃO de um gerente (e-mail + senha de um ADMIN).
+    const limitePct = Number(cfgVenda.limiteDesconto) || 0;
+    if (limitePct > 0) {
+      const operador = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+      const ehGerente = String(operador?.role || '').toUpperCase() === 'ADMIN';
+      if (!ehGerente) {
+        const bruto = items.reduce((s: number, it: any) => s + (it.convenioId ? 0 : Number(it.quantidade) * Number(it.valorUnitario)), 0);
+        const descItens = items.reduce((s: number, it: any) => s + (it.convenioId ? 0 : Number(it.desconto || 0)), 0);
+        const pct = bruto > 0 ? ((descItens + descontoGlobal) / bruto) * 100 : 0;
+        if (pct > limitePct + 0.01) {
+          let liberado = false;
+          if (dto.liberacaoEmail && dto.liberacaoSenha) {
+            const g = await this.prisma.user.findUnique({ where: { email: String(dto.liberacaoEmail).toLowerCase().trim() }, select: { password: true, role: true } });
+            if (g?.password && String(g.role || '').toUpperCase() === 'ADMIN' && await bcrypt.compare(String(dto.liberacaoSenha), g.password)) liberado = true;
+          }
+          if (!liberado) throw new BadRequestException(`Desconto de ${pct.toFixed(1)}% passa do limite (${limitePct}%). Precisa de liberação de um gerente (e-mail e senha de um admin).`);
+        }
+      }
+    }
     const valorVenda = Math.max(0, Number((itensTotal - descontoGlobal).toFixed(2)));
 
     const orcamento = String(dto.tipo || 'VENDA').toUpperCase() === 'ORCAMENTO';
@@ -1144,11 +1191,19 @@ export class CaixaService {
     if (!rec || rec.caixaSessaoId !== caixaId) throw new NotFoundException('Recebimento nao encontrado');
     await this.prisma.creditoMovimento.deleteMany({ where: { recebimentoId: itemId } });
     await this.prisma.recebimento.delete({ where: { id: itemId } });
+    // 🧹 Limpa os lançamentos DESTE recebimento no DRE (senão ficam órfãos: taxa de cartão + baixa de crédito).
+    await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: { startsWith: `taxa:${itemId}:` } } }).catch(() => undefined);
+    await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: `credito-uso:${itemId}` } }).catch(() => undefined);
     if (rec.appointmentId) {
       const ap = await this.prisma.appointment.findUnique({ where: { id: rec.appointmentId }, include: { recebimentos: true } });
       if (ap) {
         const pago = ap.recebimentos.reduce((s: number, r: any) => s + Number(r.valorTotal), 0);
         await this.prisma.appointment.update({ where: { id: ap.id }, data: { paymentStatus: pago >= Number(ap.value) - 0.001 ? 'PAID' : 'PENDING' } });
+        // Se a venda ficou SEM nenhum recebimento, a receita não deve ser reconhecida → remove receita e desconto do DRE.
+        if (ap.recebimentos.length === 0) {
+          await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: { startsWith: `venda:${ap.id}:` } } }).catch(() => undefined);
+          await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: `desconto:${ap.id}` } }).catch(() => undefined);
+        }
       }
     }
     return { ok: true };

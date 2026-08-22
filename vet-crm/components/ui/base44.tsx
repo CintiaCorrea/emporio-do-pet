@@ -424,19 +424,35 @@ export function EmptyState({ children, className = "" }: { children: React.React
 
 /* ═══════════════════════════ MODAL ════════════════════════════ */
 export function Modal({
-  open, onClose, title, subtitle, width = 400, children, footer,
+  open, onClose, title, subtitle, width = 400, children, footer, slide = false,
 }: {
   open: boolean; onClose: () => void; title?: string; subtitle?: string;
   width?: number; children?: React.ReactNode; footer?: React.ReactNode;
+  slide?: boolean; // slide=painel deslizante pela direita (mantém o contexto atrás visível)
 }) {
   if (!open) return null;
+  const conteudo = (
+    <>
+      {title && <h3 className="text-[15px] font-medium mb-1" style={{ color: B44.navy }}>{title}</h3>}
+      {subtitle && <p className="text-[12px] mb-3" style={{ color: B44.text3 }}>{subtitle}</p>}
+      {children}
+      {footer && <div className="flex justify-end gap-2 mt-4">{footer}</div>}
+    </>
+  );
+  if (slide) {
+    return (
+      <div className="fixed inset-0 z-50 print:hidden" style={{ background: "rgba(0,0,0,0.45)" }} onClick={onClose}>
+        <style>{`@keyframes b44SlideOver{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+        <div className="fixed top-0 right-0 bottom-0 p-5 overflow-y-auto" style={{ width: "100%", maxWidth: width + 60, background: B44.soft, borderLeft: `1px solid ${B44.line}`, boxShadow: "-12px 0 30px rgba(0,0,0,.14)", animation: "b44SlideOver .18s ease-out" }} onClick={(e) => e.stopPropagation()}>
+          {conteudo}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={onClose}>
       <div className="w-full p-5" style={{ maxWidth: width, background: B44.soft, border: `1px solid ${B44.line}`, borderRadius: B44.rXl }} onClick={(e) => e.stopPropagation()}>
-        {title && <h3 className="text-[15px] font-medium mb-1" style={{ color: B44.navy }}>{title}</h3>}
-        {subtitle && <p className="text-[12px] mb-3" style={{ color: B44.text3 }}>{subtitle}</p>}
-        {children}
-        {footer && <div className="flex justify-end gap-2 mt-4">{footer}</div>}
+        {conteudo}
       </div>
     </div>
   );

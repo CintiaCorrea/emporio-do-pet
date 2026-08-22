@@ -36,8 +36,18 @@ interface Documento {
   texto?: string | null;
 }
 
+interface Medicamento {
+  nome: string;
+  feitas: number;
+  total: number;
+  restantes: number;
+  proxima: string | null;
+  situacao: 'em_dia' | 'atrasada' | 'concluida';
+}
+
 interface Saude {
   vacinas: Vacina[];
+  medicamentos?: Medicamento[];
   receitas: Documento[];
   exames: Documento[];
   documentos?: Documento[];
@@ -216,6 +226,34 @@ export default function TelaSaude() {
                 </div>
               )}
             </div>
+
+            {dados.medicamentos && dados.medicamentos.length > 0 && (
+              <div>
+                <div className="ptl-label">medicamentos e doses</div>
+                <div className="ptl-card-lista">
+                  {dados.medicamentos.map((m, i) => (
+                    <div className="ptl-row" key={`${m.nome}-${i}`}>
+                      <span className="ico" aria-hidden="true">💊</span>
+                      <span className="grow">
+                        <span className="rt" style={{ display: 'block' }}>
+                          {m.nome} <small>({m.feitas}/{m.total})</small>
+                        </span>
+                        <span style={{ display: 'block', letterSpacing: 1, fontSize: 13, margin: '2px 0' }} aria-hidden="true">
+                          {Array.from({ length: Math.min(m.total, 40) }, (_, k) => (k < m.feitas ? '💠' : '⚪')).join('')}
+                        </span>
+                        <span className={`rs${m.situacao === 'atrasada' ? ' alerta' : ''}`}>
+                          {m.situacao === 'concluida'
+                            ? 'plano concluído 🏆'
+                            : m.situacao === 'atrasada'
+                              ? `dose atrasada desde ${dataBr(m.proxima)}`
+                              : `faltam ${m.restantes}${m.proxima ? ` · próxima ${dataBr(m.proxima)}` : ''}`}
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div>
               <div className="ptl-label">receitas</div>

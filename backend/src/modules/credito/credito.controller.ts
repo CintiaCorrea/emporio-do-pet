@@ -18,6 +18,11 @@ export class CreditoController {
     return this.service.listSaldos();
   }
 
+  @Get('tutor/:tutorId/resumo')
+  resumoTutor(@Param('tutorId') tutorId: string) {
+    return this.service.resumoTutor(tutorId);
+  }
+
   @Get('tutor/:tutorId')
   extrato(@Param('tutorId') tutorId: string) {
     return this.service.extrato(tutorId);

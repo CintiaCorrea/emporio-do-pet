@@ -99,13 +99,17 @@ export default function CalendarioClinicoPage() {
 
   const { vencidos, proximos, retornos, aniversarios } = useMemo(() => {
     const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+    // 🗓️ Janela do cronograma de mensagem: a cadência de vacina avisa até 15 dias DEPOIS do vencimento.
+    // Passou disso, ninguém mais é contatado — então some da lista de "vencidos" (não fica lixo antigo).
+    const MAX_ATRASO_DIAS = 15;
+    const limiteAtraso = new Date(startToday); limiteAtraso.setDate(limiteAtraso.getDate() - MAX_ATRASO_DIAS);
     const venc: any[] = [], prox: any[] = [];
     const addFu = (arr: any[], tipo: string, pre: string, sub: (x: any) => string, href: (x: any) => string) => {
       for (const x of arr) {
         if (!x.proximoFollowupAt) continue;
         const dt = new Date(x.proximoFollowupAt);
         const item = { id: pre + x.id, tipo, nome: x.name || tipo, sub: sub(x), date: x.proximoFollowupAt, href: href(x) };
-        if (dt < startToday) venc.push(item);
+        if (dt < startToday) { if (dt >= limiteAtraso) venc.push(item); } // só dentro da janela (≤15d de atraso)
         else if (dt >= periodStart && dt <= periodEnd) prox.push(item);
       }
     };
@@ -117,7 +121,7 @@ export default function CalendarioClinicoPage() {
     for (const a of appts) {
       if (!a.nextReturnDate) continue;
       const dt = new Date(a.nextReturnDate);
-      if (dt < startToday) {
+      if (dt < startToday && dt >= limiteAtraso) { // retornos: só dentro da janela (≤15d de atraso)
         const petName = a.pet?.name; const who = petName || a.tutor?.name || "Retorno";
         ret.push({ id: "a" + a.id, tipo: "Retorno", nome: who, sub: petName ? "Retorno clínico" : "Retorno", date: a.nextReturnDate, href: a.pet?.id ? `/dashboard/erp/pets/${a.pet.id}` : (a.tutor?.id ? `/dashboard/erp/tutores/${a.tutor.id}` : "#") });
       }

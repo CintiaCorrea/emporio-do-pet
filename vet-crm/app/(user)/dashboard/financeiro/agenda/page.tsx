@@ -81,6 +81,8 @@ export default function AgendaPage() {
 
   const [agenda, setAgenda] = useState<Agenda | null>(null);
   const [recs, setRecs] = useState<Recorrencia[]>([]);
+  // P2.1: vendas não pagas (a receber de clientes) — leitura, via /api/credito/saldos.
+  const [aRecCli, setARecCli] = useState<{ total: number; qtd: number }>({ total: 0, qtd: 0 });
   const [carregando, setCarregando] = useState(true);
 
   const [unidades, setUnidades] = useState<Opt[]>([]);
@@ -109,6 +111,12 @@ export default function AgendaPage() {
         setUnidades(u || []); setMarcas(m || []); setLinhas(l || []);
         setCategorias(c || []); setContas(ct || []);
       } catch { /* segue sem cadastros */ }
+      // A receber de clientes (vendas não pagas) — saldo negativo = cliente deve.
+      try {
+        const saldos = await getJSON('/api/credito/saldos');
+        const devem = (Array.isArray(saldos) ? saldos : []).filter((s: any) => Number(s.saldo) < 0);
+        setARecCli({ total: devem.reduce((acc: number, s: any) => acc + Math.abs(Number(s.saldo) || 0), 0), qtd: devem.length });
+      } catch { /* segue sem o a-receber de clientes */ }
     })();
   }, []);
 
@@ -294,6 +302,7 @@ export default function AgendaPage() {
         <div className="agd-kpi alert"><small>Vencem hoje</small><b>{fmtBRL(r?.vencemHoje.valorCentavos ?? 0)}</b><div className="d">{r?.vencemHoje.qtd ?? 0} conta(s)</div></div>
         <div className="agd-kpi info"><small>Próximos 7 dias</small><b>{fmtBRL(r?.proximos7.valorCentavos ?? 0)}</b><div className="d">{r?.proximos7.qtd ?? 0} conta(s) a pagar</div></div>
         <div className="agd-kpi ok"><small>A receber em aberto</small><b>{fmtBRL(r?.aReceber.valorCentavos ?? 0)}</b><div className="d">{r?.aReceber.qtd ?? 0} recebimento(s)</div></div>
+        <Link href="/dashboard/erp/saldo-clientes" className="agd-kpi ok" style={{ textDecoration: 'none', cursor: 'pointer' }} title="Ver detalhe por cliente"><small>A receber de clientes</small><b>{fmtBRL(Math.round(aRecCli.total * 100))}</b><div className="d">{aRecCli.qtd} cliente(s) devendo · ver detalhe →</div></Link>
       </div>
 
       {/* filtros */}

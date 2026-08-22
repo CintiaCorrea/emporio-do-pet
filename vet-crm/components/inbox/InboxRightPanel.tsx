@@ -572,6 +572,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
         const now = new Date(); now.setHours(0, 0, 0, 0);
         const out: { id: string; nome: string; numero: number; dataPrevista: string; vencida: boolean; dias: number }[] = [];
         (Array.isArray(arr) ? arr : []).forEach((a: any) => {
+          if (a.tipo && a.tipo !== "VACINA") return; // 💉 só vacinas aqui — medicamentos/planos (OUTRO) vão no bloco "Medicamentos e planos"
           (a.doses || []).forEach((d: any) => {
             if (d.status !== "PENDENTE") return;
             const dp = new Date(d.dataPrevista); if (Number.isNaN(dp.getTime())) return;
@@ -1180,7 +1181,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
       const r = await fetch(`/api/protocolos?petId=${pid}`, { cache: "no-store" });
       const d = await r.json();
       const arr = Array.isArray(d) ? d : (d.protocolos || d.data || []);
-      const planos = arr.map((p: any) => {
+      const planos = arr.filter((p: any) => p.tipo && p.tipo !== "VACINA").map((p: any) => {
         const validas = (p.doses || []).filter((x: any) => x.status !== "CANCELADA");
         const feitas = validas.filter((x: any) => x.status === "APLICADA").length;
         const pend = validas.filter((x: any) => x.status === "PENDENTE" && x.dataPrevista)

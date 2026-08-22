@@ -21,7 +21,7 @@ function NomeClicavel({ a, tutor = true }: { a: any; tutor?: boolean }) {
   return <>{Pet}{tutor && Tut ? <> · {Tut}</> : null}</>;
 }
 // Lógica pura da grade (testada em lib/agenda.blindagem.test.ts) — a tela usa o MESMO código dos testes.
-import { corServico, corConfirmacao, ESTAGIOS, PREV_STATUS, estagioIdx, ehArtefato, layoutSobreposicao, posicaoCard, agendaDoDia as agendaDoDiaLib } from "@/lib/agenda";
+import { corServico, corConfirmacao, ESTAGIOS, PREV_STATUS, estagioIdx, layoutSobreposicao, posicaoCard, agendaDoDia as agendaDoDiaLib } from "@/lib/agenda";
 
 const STATUS_COR: Record<string, { c: string; bg: string }> = {
   "Agendado": { c: "#185FA5", bg: "#E6F1FB" }, "Confirmado": { c: "#0F6E56", bg: "#E1F5EE" },
@@ -31,16 +31,11 @@ const STATUS_COR: Record<string, { c: string; bg: string }> = {
   "Cancelado": { c: "#5F5E5A", bg: "#F1EFE8" }, "Faltou": { c: "#A32D2D", bg: "#FCEBEB" },
 };
 function corDe(st?: string, cores?: any) { const base = STATUS_COR[st || ""] || { c: "#5F5E5A", bg: "#F1EFE8" }; return { c: base.c, bg: (cores && cores[st || ""]) || base.bg }; }
-// Cor automática por parceiro terceirizado (sempre a mesma pra o mesmo id).
-const CORES_PARCEIRO = ["#0F6E56", "#7C3AED", "#B45309", "#0C447C", "#CC3366", "#00707E", "#8a6400", "#4d5a66"];
-function corParceiro(id?: string): string { const s = String(id || ""); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return CORES_PARCEIRO[h % CORES_PARCEIRO.length]; }
-// Cor por SERVIÇO/tipo de atendimento (mesma cor sempre pro mesmo serviço) — usada no visual novo.
 function ymd(d: Date) { const p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; }
 function hm(d: Date) { const p = (n: number) => String(n).padStart(2, "0"); return `${p(d.getHours())}:${p(d.getMinutes())}`; }
 function brl(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
 function cap(s: string) { return s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : s; }
 function nomeCurto(p: any) { if (p.nomeExibicao && p.nomeExibicao.trim()) return p.nomeExibicao; const w = (p.nomeCompleto || "Profissional").trim().split(/\s+/); return w.slice(0, 2).map(cap).join(" "); }
-function inic(p: any) { if (p.iniciais && p.iniciais.trim()) return p.iniciais.slice(0, 2).toUpperCase(); const w = (p.nomeCompleto || "").trim().split(/\s+/).filter(Boolean); return ((w[0]?.[0] || "") + (w[1]?.[0] || "")).toUpperCase() || "—"; }
 function norm(s?: string) { return (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\b(dra?|dr)\.?\b/g, "").replace(/\s+/g, " ").trim(); }
 function startOfWeek(d: Date) { const x = new Date(d); x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - x.getDay()); return x; }
 function addD(d: Date, n: number) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
@@ -158,7 +153,8 @@ export default function AgendaPage() {
   const diaStr = ymd(dia);
   function normEsc(v: any) { let o: any = v; if (typeof v === "string") { try { o = JSON.parse(v); } catch { o = null; } } return o && typeof o === "object" ? o : null; }
   function escDe(p: any) { return normEsc(p?.escala); }
-  function bloqueadoNoDia(e: any) { return !!(e && Array.isArray(e.bloqueios) && e.bloqueios.some((b: any) => b.inicio && diaStr >= b.inicio && (!b.fim || diaStr <= b.fim))); }
+  // fim vazio = folga de UM dia só (o de início) — NÃO "pra sempre" (senão bloqueia o profissional indefinidamente).
+  function bloqueadoNoDia(e: any) { return !!(e && Array.isArray(e.bloqueios) && e.bloqueios.some((b: any) => b.inicio && (b.fim ? (diaStr >= b.inicio && diaStr <= b.fim) : diaStr === b.inicio))); }
   function temEscala(e: any) { return !!(e && e.semana && Object.keys(e.semana).length > 0); }
   function expedienteNoDia(e: any) { if (!temEscala(e)) return false; if (bloqueadoNoDia(e)) return false; return (e.semana[String(wdAtual)] || []).length > 0; }
 
@@ -567,7 +563,6 @@ export default function AgendaPage() {
                 const showHdr = per !== periodo; periodo = per;
                 const cor = corDe(a.status, cfg?.cores);
                 const v = valorDe(a);
-                const quem = a.pet?.name ? `${a.pet.name}${a.tutor?.name ? ` · ${a.tutor.name}` : ""}` : (a.tutor?.name || "Agendamento");
                 const c = colunas.find((x: any) => x._avulsa ? x.id === a.agendaAvulsa : ehDoProf(a, x));
                 const profNome = c ? (c.nomeExibicao || c.nomeCompleto || c.nome) : (a.user?.name || "—");
                 const profCor = c?.corAvatar || c?.cor || "#009AAC";

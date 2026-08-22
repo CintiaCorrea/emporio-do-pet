@@ -511,12 +511,25 @@ function ConveniosModal({ onClose }: { onClose: () => void }) {
               <div className="text-[12px] font-bold uppercase mb-1.5" style={{ color: MUT }}>O que o convênio paga ({(atual.precos || []).length})</div>
               {(atual.precos || []).length === 0 ? <div className="text-[13px]" style={{ color: MUT }}>Nenhum item ainda — importe a tabela do convênio.</div> : (
                 <div className="flex flex-col gap-0.5 max-h-72 overflow-y-auto">
-                  {atual.precos.map((p: any) => (
-                    <div key={p.id} className="flex items-center gap-2 text-[12.5px] py-1 border-b" style={{ borderColor: "#F0EBE0" }}>
-                      <span className="flex-1 truncate" style={{ color: "#1F2A2E" }}>{p.itemNome}{p.codigoConvenio ? <span className="text-[10.5px] ml-1" style={{ color: "#9aa" }}>#{p.codigoConvenio}</span> : null}</span>
-                      <span className="font-semibold" style={{ color: "#0F6E56" }}>{brl(p.valor)}</span>
-                    </div>
-                  ))}
+                  {atual.precos.map((p: any) => {
+                    let pp: any = null; try { pp = p.precosPorte ? JSON.parse(p.precosPorte) : null; } catch {}
+                    const sizes: [string, any][] = pp ? ([["🐱", pp.gato], ["P", pp.p], ["M", pp.m], ["G", pp.g], ["GG", pp.gg]] as [string, any][]).filter(([, v]) => v != null) : [];
+                    const variavel = sizes.length > 0 && new Set(sizes.map(([, v]) => v)).size > 1;
+                    return (
+                      <div key={p.id} className="flex items-start gap-2 text-[12.5px] py-1.5 border-b" style={{ borderColor: "#F0EBE0" }}>
+                        <span className="flex-1 min-w-0 truncate" style={{ color: "#1F2A2E" }}>{p.itemNome}{p.codigoConvenio ? <span className="text-[10.5px] ml-1" style={{ color: "#9aa" }}>#{p.codigoConvenio}</span> : null}</span>
+                        {variavel ? (
+                          <span className="flex gap-1 flex-wrap justify-end" style={{ maxWidth: "58%" }}>
+                            {sizes.map(([lbl, v]) => (
+                              <span key={lbl} className="text-[10.5px] px-1.5 py-0.5 rounded" style={{ background: lbl === "🐱" ? "#F3E9F6" : "#EAF6F1", color: lbl === "🐱" ? "#8A4F9E" : "#0F6E56", whiteSpace: "nowrap" }}><b>{lbl}</b> {brl(v)}</span>
+                            ))}
+                          </span>
+                        ) : (
+                          <span className="font-semibold" style={{ color: "#0F6E56", whiteSpace: "nowrap" }}>{brl(p.valor)}</span>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </>

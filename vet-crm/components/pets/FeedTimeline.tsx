@@ -2,10 +2,12 @@
 import { useMemo, useState } from "react";
 import { LuPencil, LuTrash2, LuCalendar, LuRotateCcw, LuStethoscope, LuActivity, LuSyringe, LuFileText, LuFlaskConical, LuVideo, LuPrinter } from "react-icons/lu";
 import { imprimirDocumento } from "@/lib/print";
+import { corDoTipo } from "@/lib/coresProntuario";
 
 const ATD_LBL = (t?: string) => (({ CONSULTA: "Consulta", RETORNO: "Retorno", AVALIACAO: "Avaliação", EMERGENCIA: "Emergência", PROCEDIMENTO: "Procedimento", VACINACAO: "Vacinação", SESSAO_FISIO: "Sessão de fisio", CIRURGIA: "Cirurgia", Receitas: "Receita", Documento: "Documento", Video: "Vídeo", OUTRO: "Outro" } as any)[t || ""] || t || "Atendimento");
 const DOC_LBL = (t?: string) => (({ ANAMNESIS: "Anamnese", PRESCRIPTION: "Receita", DIAGNOSIS: "Diagnóstico", TUTOR_REPORT: "Relatório", MEDICAL_CERTIFICATE: "Atestado", EXAM_REQUEST: "Solicitação de exame", SURGICAL_REPORT: "Relatório cirúrgico", DISCHARGE_SUMMARY: "Alta", VACCINATION_CARD: "Carteira de vacina", GENERAL: "Documento" } as any)[t || ""] || "Documento");
-const COLOR = (k?: string) => (({ CONSULTA: "#2f80c4", RETORNO: "#2f80c4", AVALIACAO: "#2f80c4", EMERGENCIA: "#2f80c4", PROCEDIMENTO: "#2f80c4", SESSAO_FISIO: "#2f80c4", CIRURGIA: "#9b2c3a", Receitas: "#9333ea", PRESCRIPTION: "#9333ea", Documento: "#2e9e5b", GENERAL: "#2e9e5b", MEDICAL_CERTIFICATE: "#2e9e5b", Video: "#0f7a52", VACINACAO: "#e08a1e", VACCINATION_CARD: "#e08a1e", EXAM_REQUEST: "#e0556b", Exame: "#e0556b", ATENDIMENTO: "#017E8C", PESO: "#8A6D3B", RECEITA: "#6A4FB0", OBSERVACAO: "#6B6A63", EXAME: "#B0416B", VACINA: "#9A6E1E" } as any)[k || ""] || "#64748b");
+// Cor por tipo = FONTE ÚNICA (lib/coresProntuario). MESMA cor no botão que cria e no card — não diverge mais por fonte.
+const COLOR = corDoTipo;
 const TIPO_HIST = (t?: string) => (({ ATENDIMENTO: "Atendimento", PESO: "Peso", RECEITA: "Receita", OBSERVACAO: "Observação", EXAME: "Exame", VACINA: "Vacina" } as any)[t || ""] || t || "Registro");
 const stripHtml = (s?: string) => (s || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/&[a-z]+;/gi, " ").replace(/\s+/g, " ").trim();
 // Texto legível de uma receita (HTML às vezes duplo-escapado, ex.: &amp;nbsp;) — 2 passadas.

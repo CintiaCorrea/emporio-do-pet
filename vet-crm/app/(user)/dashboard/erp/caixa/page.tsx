@@ -98,13 +98,14 @@ export default function CaixaPage() {
   const [desconto, setDesconto] = useState(0);
   const [obsReceb, setObsReceb] = useState('');
   const [tutorSaldo, setTutorSaldo] = useState<number | null>(null);
+  const [tutorAReceber, setTutorAReceber] = useState<number | null>(null); // total a receber do cliente (todas as vendas)
   const [movOpen, setMovOpen] = useState(false);
   const [movTipo, setMovTipo] = useState('SUPRIMENTO');
   const [movForm, setMovForm] = useState({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '' });
   const [categoriasDespesa, setCategoriasDespesa] = useState<any[]>([]); // categorias de DESPESA (DRE)
   const [contasFin, setContasFin] = useState<any[]>([]); // contas reais (id+nome) p/ transferência
   const [credOpen, setCredOpen] = useState(false);
-  const [credForm, setCredForm] = useState({ appointmentId: '', tipo: 'RECARGA', valor: '', descricao: '' });
+  const [credForm, setCredForm] = useState({ appointmentId: '', tipo: 'RECARGA', valor: '', descricao: '', forma: 'Dinheiro' });
   const [prevCred, setPrevCred] = useState<{ totalCentavos: number; porData: { data: string; liquidoCentavos: number }[] } | null>(null); // item 10 — previsão de crédito das maquininhas (D+1)
   const [fecharOpen, setFecharOpen] = useState(false);
   const [fecharForm, setFecharForm] = useState({ valorContado: '', observacao: '' });
@@ -188,7 +189,7 @@ export default function CaixaPage() {
     if (!detail) return 0;
     const cash = (detail.recebimentos || []).reduce((s, r) => s + (r.formas || []).filter((f) => ehDinheiro(f.forma)).reduce((a, f) => a + Number(f.valor || 0), 0), 0);
     const movs = detail.movimentos || [];
-    const ent = movs.filter((m) => m.tipo === 'SUPRIMENTO').reduce((s, m) => s + Number(m.valor || 0), 0);
+    const ent = movs.filter((m) => m.tipo === 'SUPRIMENTO' && ehDinheiro(m.forma || 'Dinheiro')).reduce((s, m) => s + Number(m.valor || 0), 0);
     const sai = movs.filter((m) => m.tipo !== 'SUPRIMENTO').reduce((s, m) => s + Number(m.valor || 0), 0);
     return Number(detail.suprimento || 0) + cash + ent - sai;
   }, [detail]);
@@ -232,9 +233,9 @@ export default function CaixaPage() {
     catch (e: any) { toast.error(e.message || 'Erro ao reabrir caixa'); }
   };
   const abrirReceber = async (venda: Appointment) => {
-    setVendaSel(venda); setFormas([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]); setDesconto(0); setObsReceb(''); setTutorSaldo(null); setReceberOpen(true);
+    setVendaSel(venda); setFormas([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]); setDesconto(0); setObsReceb(''); setTutorSaldo(null); setTutorAReceber(null); setReceberOpen(true);
     const tid = tutorIdDe(venda);
-    if (tid) { try { const r = await fetch(`/api/credito/tutor/${tid}`, { cache: 'no-store' }); if (r.ok) { const d = await r.json(); setTutorSaldo(Number(d.saldo || 0)); } } catch { /* ignore */ } }
+    if (tid) { try { const r = await fetch(`/api/credito/tutor/${tid}/resumo`, { cache: 'no-store' }); if (r.ok) { const d = await r.json(); setTutorSaldo(Number(d.credito || 0)); setTutorAReceber(Number(d.aReceber || 0)); } } catch { /* ignore */ } }
   };
 
   // ---- exclusoes (apenas com caixa ABERTO) ----
@@ -286,12 +287,12 @@ export default function CaixaPage() {
       toast.success(`${tipoLabel[movTipo]} registrada!`); setMovOpen(false); await fetchDetail(detail.id);
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar movimento'); }
   };
-  const abrirCredito = () => { setCredForm({ appointmentId: appointments[0]?.id || '', tipo: 'RECARGA', valor: '', descricao: '' }); setCredOpen(true); };
+  const abrirCredito = () => { setCredForm({ appointmentId: appointments[0]?.id || '', tipo: 'RECARGA', valor: '', descricao: '', forma: 'Dinheiro' }); setCredOpen(true); };
   const adicionarCredito = async () => {
     if (!detail) return; const valor = Number(String(credForm.valor).replace(',', '.')) || 0;
     if (!credForm.appointmentId) { toast.error('Selecione o cliente'); return; } if (valor <= 0) { toast.error('Informe o valor'); return; }
     try {
-      const r = await fetch('/api/credito', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: credForm.appointmentId, tipo: credForm.tipo, valor, descricao: credForm.descricao || null, caixaSessaoId: detail.id }) });
+      const r = await fetch('/api/credito', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: credForm.appointmentId, tipo: credForm.tipo, valor, descricao: credForm.descricao || null, caixaSessaoId: detail.id, forma: credForm.forma || 'Dinheiro' }) });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao adicionar crédito'); }
       toast.success('Crédito adicionado!'); setCredOpen(false); await fetchDetail(detail.id);
     } catch (e: any) { toast.error(e.message || 'Erro ao adicionar crédito'); }
@@ -650,16 +651,24 @@ export default function CaixaPage() {
             <div style={{ flex: 1 }}><Field label="Tipo"><select value={credForm.tipo} onChange={(e) => setCredForm({ ...credForm, tipo: e.target.value })} style={inp}><option value="RECARGA">Recarga / pré-pago</option><option value="ESTORNO">Devolução / estorno</option></select></Field></div>
             <div style={{ flex: 1 }}><Field label="Valor"><input value={credForm.valor} onChange={(e) => setCredForm({ ...credForm, valor: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field></div>
           </div>
+          {credForm.tipo === 'RECARGA' && (
+            <Field label="Forma (entra no caixa)"><select value={credForm.forma} onChange={(e) => setCredForm({ ...credForm, forma: e.target.value })} style={inp}>{formasList.map((f) => <option key={f} value={f}>{f}</option>)}</select></Field>
+          )}
           <Field label="Descrição"><input value={credForm.descricao} onChange={(e) => setCredForm({ ...credForm, descricao: e.target.value })} style={inp} /></Field>
         </Modal>
       )}
 
       {receberOpen && vendaSel && (
-        <Modal title="Registrar recebimento" onClose={() => setReceberOpen(false)} onConfirm={registrarRecebimento} confirmLabel="Confirmar recebimento" confirmDisabled={creditoExcede}>
+        <Modal title="Registrar recebimento" slide onClose={() => setReceberOpen(false)} onConfirm={registrarRecebimento} confirmLabel="Confirmar recebimento" confirmDisabled={creditoExcede}>
           <div style={{ display: 'flex', justifyContent: 'space-between', background: '#FBF9F4', borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>
             <span style={{ color: '#1F2A2E' }}>{vendaSel.tutor?.name || 'Cliente'} · {vendaSel.pet?.name || 'Pet'}</span>
             <span style={{ color: '#5C6B70', fontSize: 12 }}>Total {brl(Number(vendaSel.value))} · Saldo <b style={{ color: ORANGE }}>{brl(valorDevido)}</b></span>
           </div>
+          {tutorAReceber !== null && tutorAReceber > valorDevido + 0.5 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', background: '#FDF6E9', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
+              <span style={{ color: '#9A6C1F' }}>Total a receber do cliente (todas as vendas)</span><b style={{ color: '#9A6C1F' }}>{brl(tutorAReceber)}</b>
+            </div>
+          )}
           {tutorSaldo !== null && (
             <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e8f7f9', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
               <span style={{ color: '#014D5E' }}>Crédito disponível do cliente</span><b style={{ color: TEAL_DARK }}>{brl(tutorSaldo)}</b>
@@ -693,10 +702,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div><label style={lbl}>{label}</label>{children}</div>;
 }
 
-function Modal({ title, children, onClose, onConfirm, confirmLabel, confirmDisabled, dark }: { title: string; children: React.ReactNode; onClose: () => void; onConfirm: () => void; confirmLabel: string; confirmDisabled?: boolean; dark?: boolean }) {
+function Modal({ title, children, onClose, onConfirm, confirmLabel, confirmDisabled, dark, slide }: { title: string; children: React.ReactNode; onClose: () => void; onConfirm: () => void; confirmLabel: string; confirmDisabled?: boolean; dark?: boolean; slide?: boolean }) {
+  // slide=painel deslizante pela direita (mantém a lista de vendas visível atrás — padrão SimplesVet).
+  const painel: React.CSSProperties = slide
+    ? { background: '#fff', width: '100%', maxWidth: 480, height: '100vh', overflow: 'auto', borderLeft: '1px solid #F0EBE0', boxShadow: '-12px 0 30px rgba(0,0,0,.14)', animation: 'cxSlideOver .18s ease-out' }
+    : { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 430, maxHeight: '92vh', overflow: 'auto' };
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 50 }}>
-      <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 430, maxHeight: '92vh', overflow: 'auto' }}>
+    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', display: 'flex', alignItems: 'center', justifyContent: slide ? 'flex-end' : 'center', padding: slide ? 0 : 16, zIndex: 50 }}>
+      <style>{`@keyframes cxSlideOver{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
+      <div style={painel}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 18px', borderBottom: '1px solid #F0EBE0' }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: '#1F2A2E' }}>{title}</h3>
           <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer' }}><LuX size={18} color="#374151" /></button>

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuSearch, LuPackage } from "react-icons/lu";
+import toast from "react-hot-toast";
 
 type Situacao = "ATIVO" | "CONSUMIDO" | "VENCIDO";
 interface Pac {
@@ -34,15 +35,25 @@ export default function PacotesPage() {
   const [filtro, setFiltro] = useState<"ALL" | Situacao>("ALL");
   const [busca, setBusca] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const d = await safeJson<any>(await fetch("/api/pacotes/vendidos", { cache: "no-store" }), { resumo: null, pacotes: [] });
-      setPacotes(Array.isArray(d?.pacotes) ? d.pacotes : []);
-      if (d?.resumo) setResumo(d.resumo);
-      setLoading(false);
-    })();
-  }, []);
+  async function carregar() {
+    setLoading(true);
+    const d = await safeJson<any>(await fetch("/api/pacotes/vendidos", { cache: "no-store" }), { resumo: null, pacotes: [] });
+    setPacotes(Array.isArray(d?.pacotes) ? d.pacotes : []);
+    if (d?.resumo) setResumo(d.resumo);
+    setLoading(false);
+  }
+  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, []);
+
+  // 🗑️ Remove o pacote (entrada petpac_ da fonte viva). Some da lista, ficha e agenda.
+  async function remover(p: Pac) {
+    if (!window.confirm(`Remover o pacote "${p.nome}" de ${p.cliente} (${p.pet})? Some da lista, da ficha e da agenda.`)) return;
+    try {
+      const r = await fetch(`/api/listas/${p.id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error();
+      toast.success("Pacote removido");
+      await carregar();
+    } catch { toast.error("Erro ao remover o pacote"); }
+  }
 
   const filtrados = useMemo(() => {
     let arr = pacotes;
@@ -96,11 +107,12 @@ export default function PacotesPage() {
                 <th className="text-left px-3 py-2.5 hidden lg:table-cell">Vendido em</th>
                 <th className="text-left px-3 py-2.5 hidden lg:table-cell">Validade</th>
                 <th className="text-left px-3 py-2.5">Situação</th>
+                <th className="text-right px-3 py-2.5">Ação</th>
               </tr>
             </thead>
             <tbody>
-              {loading && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Carregando…</td></tr>}
-              {!loading && filtrados.length === 0 && <tr><td colSpan={7} className="text-center py-8 text-gray-400">Nenhum pacote {filtro !== "ALL" ? "nesta situação" : "ainda"}.</td></tr>}
+              {loading && <tr><td colSpan={8} className="text-center py-8 text-gray-400">Carregando…</td></tr>}
+              {!loading && filtrados.length === 0 && <tr><td colSpan={8} className="text-center py-8 text-gray-400">Nenhum pacote {filtro !== "ALL" ? "nesta situação" : "ainda"}.</td></tr>}
               {filtrados.map((p) => {
                 const pct = p.total > 0 ? Math.min(100, (p.used / p.total) * 100) : 0;
                 const cor = p.situacao === "VENCIDO" ? "#B26A00" : p.situacao === "CONSUMIDO" ? "#009AAC" : "#0F6E56";
@@ -125,6 +137,7 @@ export default function PacotesPage() {
                     <td className="px-3 py-2.5 hidden lg:table-cell text-gray-500 tabular-nums">{fmtD(p.createdAt)}</td>
                     <td className="px-3 py-2.5 hidden lg:table-cell tabular-nums" style={{ color: p.situacao === "VENCIDO" ? "#B26A00" : "#94a3a0" }}>{fmtD(p.validade)}</td>
                     <td className="px-3 py-2.5"><span className="text-[10.5px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: sb.bg, color: sb.fg }}>{sb.label}</span></td>
+                    <td className="px-3 py-2.5 text-right"><button onClick={() => remover(p)} title="Remover pacote" className="text-[13px] px-2 py-1 rounded-lg border transition hover:bg-[#FBE9E9]" style={{ borderColor: "#EAC3C1", color: "#CC3366" }}>🗑️</button></td>
                   </tr>
                 );
               })}

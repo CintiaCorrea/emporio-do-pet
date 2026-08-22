@@ -666,11 +666,21 @@ export class CommissionsService {
       const valor = Number(ex?.comissao || 0);
       if (valor <= 0) continue;
       const nome = ex?.user?.name || ex?.linhas?.nome || 'Equipe';
+      // P2.3: competência = mês DOMINANTE dos itens deste extrato (o mês em que o serviço foi feito),
+      // não o mês do fechamento — casa a despesa de comissão com a receita que a gerou.
+      // Vencimento/data ficam no fechamento (quando é devida/paga).
+      let competencia = quando;
+      try {
+        const itens = await this.prisma.appointmentItem.findMany({ where: { comissaoExtratoId: ex.id }, select: { appointment: { select: { date: true } } } });
+        const meses = new Map<string, number>();
+        for (const it of itens) { const d = it.appointment?.date; if (!d) continue; const k = `${d.getUTCFullYear()}-${d.getUTCMonth()}`; meses.set(k, (meses.get(k) || 0) + 1); }
+        if (meses.size) { const top = [...meses.entries()].sort((a, b) => b[1] - a[1])[0][0]; const [y, m] = top.split('-').map(Number); competencia = new Date(Date.UTC(y, m, 1)); }
+      } catch { /* fallback = mês do fechamento */ }
       try {
         await this.lancamentos.create({
           tipo: 'DESPESA',
           valorCentavos: Math.round(valor * 100),
-          data: quando.toISOString(), vencimento: quando.toISOString(), competencia: quando.toISOString(),
+          data: quando.toISOString(), vencimento: quando.toISOString(), competencia: competencia.toISOString(),
           descricao: `Comissão — ${nome}${dto?.referencia ? ' · ref ' + dto.referencia : ''}`,
           contaId: conta.id, categoriaId: cat.id,
           origem: 'CRM', externalId: `comissao-ext:${ex.id}`,

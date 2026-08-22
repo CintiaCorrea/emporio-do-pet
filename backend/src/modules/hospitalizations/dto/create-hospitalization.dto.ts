@@ -35,6 +35,19 @@ export class CreateHospitalizationDto {
   @Min(0)
   dailyRate: number;
 
+  // Diária vinda do catálogo (serviço/produto) — leva custo pra comanda do dia.
+  @ApiPropertyOptional()
+  @IsOptional() @IsString()
+  diariaServicoId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional() @IsString()
+  diariaCatalogoItemId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional() @IsNumber()
+  diariaCusto?: number;
+
   @ApiProperty({ enum: Priority })
   @IsEnum(Priority)
   priority: Priority;

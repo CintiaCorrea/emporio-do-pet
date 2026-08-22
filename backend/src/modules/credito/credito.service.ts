@@ -61,6 +61,20 @@ export class CreditoService {
     return { saldo: CreditoService.saldoFrom(movimentos as any), movimentos };
   }
 
+  // Resumo p/ o cabeçalho do "Registrar recebimento": crédito/caução do cliente + total a receber
+  // (todas as vendas dele em aberto, exceto internação). Mesma regra do listSaldos.
+  async resumoTutor(tutorId: string) {
+    const credito = await this.saldo(tutorId);
+    const now = new Date();
+    const aps = await this.prisma.appointment.findMany({
+      where: { tutorId, value: { gt: 0 }, paymentStatus: { not: 'PAID' }, NOT: { notes: { contains: 'HOSPITALIZATION' } } },
+      select: { value: true, status: true, date: true },
+    });
+    let aReceber = 0;
+    for (const a of aps) if (realizadaAReceber(a.status, a.date, now)) aReceber += Number(a.value) || 0;
+    return { credito: Number(credito) || 0, aReceber };
+  }
+
   // Saldo consolidado por cliente (tutor): CRÉDITO de loja (+) menos CONTAS A RECEBER (−).
   // Assim a tela "Saldo dos clientes" mostra CREDORES (têm crédito) e DEVEDORES (devem, ex.:
   // saldos em aberto migrados do SimplesVet) na MESMA lista. Retorna só quem tem saldo != 0.
@@ -75,7 +89,9 @@ export class CreditoService {
     // (2) contas A RECEBER = atendimentos realizados NÃO pagos (o cliente DEVE) — mesma regra do "A receber" da ficha.
     const now = new Date();
     const aps = await this.prisma.appointment.findMany({
-      where: { value: { gt: 0 }, paymentStatus: { not: 'PAID' } },
+      // Exclui a INTERNAÇÃO (value = diária) — quem gera o a-receber dela são as comandas diárias (venda),
+      // senão a internação contava 2× no "Saldo dos clientes".
+      where: { value: { gt: 0 }, paymentStatus: { not: 'PAID' }, NOT: { notes: { contains: 'HOSPITALIZATION' } } },
       select: { tutorId: true, value: true, status: true, date: true },
     });
     const receber = new Map<string, number>();
@@ -126,6 +142,21 @@ export class CreditoService {
     });
     // 💳 Reflete no financeiro como ADIANTAMENTO (fire-and-forget, não trava a recarga).
     if (tipo === 'RECARGA' || tipo === 'ESTORNO') this.lancarAdiantamento(mov, tipo).catch(() => undefined);
+    // 💰 Caução/recarga ENTRA NO CAIXA: cria um SUPRIMENTO na sessão (aparece nos movimentos e conta na
+    // gaveta quando é dinheiro). Criação direta = sem lançamento extra (o adiantamento acima já reflete o DRE).
+    if (tipo === 'RECARGA' && dto.caixaSessaoId) {
+      try {
+        const sess = await this.prisma.caixaSessao.findUnique({ where: { id: dto.caixaSessaoId }, select: { abertura: true } });
+        if (sess) await this.prisma.caixaMovimento.create({
+          data: {
+            caixaSessaoId: dto.caixaSessaoId, tipo: 'SUPRIMENTO', valor,
+            forma: dto.forma || 'Dinheiro',
+            descricao: `Caução/crédito${dto.descricao ? ' — ' + dto.descricao : ''}`,
+            data: sess.abertura, createdById: userId,
+          },
+        });
+      } catch (e: any) { console.error('caução → caixaMovimento:', e?.message); }
+    }
     return { mov, saldo: await this.saldo(tutorId) };
   }
 }

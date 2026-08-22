@@ -10,6 +10,8 @@ import { usePageHeader } from "@/lib/ui/PageHeaderContext";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { roleLabel } from "@/lib/ui/role";
 import NotificationBell from "@/components/protected/dashboard/NotificationBell";
+import CommandPalette from "@/components/protected/dashboard/CommandPalette";
+import CaixaPendenteChip from "@/components/protected/dashboard/CaixaPendenteChip";
 
 interface Props {
   sidebarOpen: boolean;
@@ -27,7 +29,6 @@ export default function Header({ sidebarOpen, isMobile = false, onMenu }: Props)
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
-  const [globalQ, setGlobalQ] = useState("");
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -93,16 +94,19 @@ export default function Header({ sidebarOpen, isMobile = false, onMenu }: Props)
           </div>
         )}
 
-        <div className="hidden md:flex items-center gap-2 bg-[#FBF9F4] border border-[#E8E2D6] rounded-full px-4 py-2 w-[260px] focus-within:border-[#009AAC] transition">
+        <CaixaPendenteChip />
+
+        {/* Busca global — abre o command palette (Ctrl/⌘+K). Um clique/foco aqui também abre. */}
+        <button
+          type="button"
+          onClick={() => { try { window.dispatchEvent(new Event("cmdk:open")); } catch {} }}
+          title="Buscar (Ctrl/⌘ + K)"
+          className="hidden md:flex items-center gap-2 bg-[#FBF9F4] border border-[#E8E2D6] rounded-full px-4 py-2 w-[260px] hover:border-[#009AAC] transition text-left"
+        >
           <span style={{ fontSize: "14px" }}>🔎</span>
-          <input
-            value={globalQ}
-            onChange={(e) => setGlobalQ(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && globalQ.trim()) { router.push(`/dashboard/erp/tutores?q=${encodeURIComponent(globalQ.trim())}`); setGlobalQ(""); } }}
-            placeholder="Buscar cliente, pet ou lead..."
-            className="bg-transparent outline-none text-[13px] text-[#1F2A2E] placeholder-[#374151] flex-1"
-          />
-        </div>
+          <span className="flex-1 text-[13px] text-[#374151] truncate">Buscar cliente, pet ou lead...</span>
+          <kbd className="text-[10px] text-[#94a3b8] border rounded px-1.5 py-0.5" style={{ borderColor: "#E8E2D6" }}>⌘K</kbd>
+        </button>
 
         {/* Sino REAL (dropdown + toast em tempo real via useNotifications) */}
         <NotificationBell />
@@ -172,6 +176,7 @@ export default function Header({ sidebarOpen, isMobile = false, onMenu }: Props)
           )}
         </div>
       </div>
+      <CommandPalette />
     </header>
   );
 }

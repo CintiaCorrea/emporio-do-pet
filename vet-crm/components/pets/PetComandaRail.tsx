@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { LuShoppingCart, LuPlus, LuTrash, LuX, LuPrinter, LuArrowRight } from "react-icons/lu";
 import toast from "react-hot-toast";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
@@ -8,7 +8,7 @@ import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem } from "@/lib/catalogoVendavel";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string };
+type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
 
 const ST: any = {
   RASCUNHO: { l: "Rascunho", c: "#64748b", b: "#eef2f4" },
@@ -19,17 +19,47 @@ const ST: any = {
 
 // Serializa um item da comanda p/ o formato de venda do backend — NÚCLEO ÚNICO `itemParaVenda`
 // (mesmo do PDV/atendimento/internação/orçamento). A tela só acrescenta quantidade + total.
-const linhaBody = (it: Item) => ({ ...itemParaVenda(it as any), quantidade: Number(it.quantidade) || 1, valorTotal: (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0) });
+const linhaBody = (it: Item) => it._convenio
+  // Item de convênio (Petlife): vai marcado com convenioId (sai do total do tutor, vira a-receber mensal). Sem servicoId/produto.
+  ? { descricao: it.descricao, valorUnitario: Number(it.valorUnitario) || 0, convenioId: it.convenioId, quantidade: Number(it.quantidade) || 1, valorTotal: (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0) }
+  : ({ ...itemParaVenda(it as any), quantidade: Number(it.quantidade) || 1, valorTotal: (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0) });
 const somaDe = (arr: Item[]) => arr.reduce((s, it) => s + (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0), 0);
+// Total que o TUTOR paga = exclui itens do convênio (esses viram a-receber mensal do convênio).
+const somaTutor = (arr: Item[]) => arr.reduce((s, it) => s + (it._convenio ? 0 : (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0)), 0);
+const somaConvenio = (arr: Item[]) => arr.reduce((s, it) => s + (it._convenio ? (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0) : 0), 0);
 
 export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: { petId: string; tutorId?: string; petNome?: string; tutorNome?: string }) {
-  const router = useRouter();
+  const { data: session } = useSession();
+  const meId = (session?.user as any)?.id || "";
   const [aberto, setAberto] = useState(false);
   const [sub, setSub] = useState<"VENDA" | "ORC">("VENDA");
   const [itens, setItens] = useState<Item[]>([]);
-  const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null }[]>([]);
+  const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
+  const [frequentes, setFrequentes] = useState<{ id: string; nome: string; valorPadrao: number; custoPadrao: number }[]>([]);
+  // ⭐ Itens mais vendidos — quick-add de 1 clique (padrão SimplesVet).
+  useEffect(() => { (async () => { try { const r = await fetch("/api/caixa/itens-frequentes?limit=8", { cache: "no-store" }); const d = await r.json(); setFrequentes(Array.isArray(d) ? d : (d.data || [])); } catch {} })(); }, []);
+  const addDoCatalogo = (c: any) => {
+    const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? c.valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome });
+    addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 });
+  };
+  const addFrequente = (f: { id: string; nome: string; valorPadrao: number; custoPadrao: number }) => addDoCatalogo(f);
+  // 📷 Leitura de código de barras: o scanner USB digita o código + Enter. No Enter, se casar com um
+  // código de barras (ou o código do item), lança direto e limpa o campo.
+  function tentarCodigoBarras(q: string): boolean {
+    const t = q.trim(); if (!t) return false;
+    const c = cat.find((x) => (x.codigoBarras && String(x.codigoBarras) === t) || (x.codigo != null && String(x.codigo) === t));
+    if (!c) return false;
+    addDoCatalogo(c); setBusca(""); toast.success(`${c.nome} lançado`);
+    return true;
+  }
   const [busca, setBusca] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  // 🏥 Convênio do pet (Petlife etc.) — mesma tabela do PDV, precificada por porte.
+  const [convPet, setConvPet] = useState<{ convenio: { id: string; nome: string; diaFechamento: number | null }; isCat: boolean; porteSugerido: string } | null>(null);
+  const [convItens, setConvItens] = useState<{ precoId: string; itemNome: string; preco: number }[]>([]);
+  const [convBusca, setConvBusca] = useState("");
+  const [convPorte, setConvPorte] = useState("");
+  const [convOpen, setConvOpen] = useState(false);
   const [orcs, setOrcs] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   // A comanda é uma VENDA em aberto no servidor (aparece no Caixa). Guardamos o id dela.
@@ -63,16 +93,36 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     (async () => {
       try {
         const its = await carregarCatalogoVendavel();
-        setCat(its.map((i) => ({ id: i.id, nome: i.nome, valor: i.valorPadrao, custoPadrao: i.custoPadrao, _exame: i._exame, _fornecedorId: i._fornecedorId, _fornecedorNome: i._fornecedorNome })));
+        setCat(its.map((i) => ({ id: i.id, nome: i.nome, valor: i.valorPadrao, custoPadrao: i.custoPadrao, _exame: i._exame, _fornecedorId: i._fornecedorId, _fornecedorNome: i._fornecedorNome, codigo: i.codigo ?? null, codigoBarras: i.codigoBarras ?? null })));
       } catch {}
     })();
   }, []);
+
+  // 🏥 Carrega a tabela do convênio DO PET (resolve pela etiqueta do pet + porte) — igual ao PDV.
+  async function carregarConv(pid: string, busca: string, porte: string) {
+    try {
+      const qs = new URLSearchParams({ petId: pid }); if (busca) qs.set("busca", busca); if (porte) qs.set("porte", porte);
+      const r = await fetch(`/api/catalogo/convenios/tabela-pet?${qs.toString()}`, { cache: "no-store" });
+      if (!r.ok) { setConvPet(null); setConvItens([]); return; }
+      const d = await r.json();
+      if (d && d.convenio) { setConvPet({ convenio: d.convenio, isCat: !!d.isCat, porteSugerido: d.porteSugerido || "m" }); setConvItens(Array.isArray(d.itens) ? d.itens : []); }
+      else { setConvPet(null); setConvItens([]); }
+    } catch { setConvPet(null); setConvItens([]); }
+  }
+  useEffect(() => { setConvBusca(""); setConvPorte(""); setConvOpen(false); if (petId) carregarConv(petId, "", ""); /* eslint-disable-next-line */ }, [petId]);
+  useEffect(() => { if (petId && convPet?.convenio) carregarConv(petId, convBusca, convPorte); /* eslint-disable-next-line */ }, [convBusca, convPorte]);
+  function addConvenioItem(item: { itemNome: string; preco: number }) {
+    if (!convPet?.convenio) return;
+    addItem({ descricao: item.itemNome, quantidade: 1, valorUnitario: Number(item.preco) || 0, _convenio: true, convenioId: convPet.convenio.id, _convLabel: convPet.convenio.nome });
+    setAberto(true);
+  }
 
   // 💾 SINCRONIZA a comanda com o servidor (vira venda em aberto → aparece no Caixa).
   // Cria no 1º item, atualiza a cada mudança (sem duplicar), e APAGA quando esvazia.
   async function sincronizar() {
     if (syncingRef.current) { redoRef.current = true; return; }
     if (!tutorId) { setSync("idle"); return; } // sem tutor não dá pra abrir venda
+    if (!meId) { setSync("idle"); return; } // sem usuário logado o backend recusa (userId obrigatório) — espera a sessão carregar
     syncingRef.current = true;
     const arr = pendingRef.current;
     try {
@@ -87,21 +137,21 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
         setSync("idle");
         return;
       }
-      const body: any = { value: somaDe(arr), items: arr.map(linhaBody) };
+      const body: any = { value: somaTutor(arr), items: arr.map(linhaBody) }; // value = só o que o tutor paga (convênio sai do total)
       const eraNovo = !apptIdRef.current;
       let r: Response;
       if (apptIdRef.current) {
         r = await fetch(`/api/appointments/${apptIdRef.current}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       } else {
-        r = await fetch(`/api/appointments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tutorId, date: new Date().toISOString(), type: "Venda", status: "COMPLETED", ...body }) });
+        r = await fetch(`/api/appointments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tutorId, userId: meId, date: new Date().toISOString(), type: "Venda", status: "COMPLETED", ...body }) });
       }
-      if (!r.ok) throw new Error();
+      if (!r.ok) { const e = await r.json().catch(() => null); throw new Error(e?.message || e?.error || `HTTP ${r.status}`); }
       const data = await r.json().catch(() => ({}));
       if (eraNovo && data?.id) { setApptId(data.id); apptIdRef.current = data.id; try { localStorage.setItem(apptKey, data.id); } catch {} }
       if (data?.numeroVenda != null) setNumeroVenda(Number(data.numeroVenda));
       setSync("saved");
       if (eraNovo) { try { window.dispatchEvent(new Event("pet:venda")); } catch {} } // avisa a ficha só ao CRIAR
-    } catch { setSync("error"); }
+    } catch (e: any) { setSync("error"); toast.error("Não consegui salvar a comanda: " + (e?.message || "erro")); }
     finally {
       syncingRef.current = false;
       if (redoRef.current) { redoRef.current = false; setTimeout(sincronizar, 60); }
@@ -121,6 +171,8 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   }, [itens]);
   // Ao sair da tela, garante que a última mudança foi salva.
   useEffect(() => () => { if (timerRef.current) { clearTimeout(timerRef.current); sincronizar(); } /* eslint-disable-next-line */ }, []);
+  // Se o usuário logado só carregou DEPOIS de já ter itens na comanda, salva agora (antes o POST era recusado por falta de userId).
+  useEffect(() => { if (meId && itens.length && !apptIdRef.current) { pendingRef.current = itens; sincronizar(); } /* eslint-disable-next-line */ }, [meId]);
 
   async function loadOrcs() {
     try { const r = await fetch(`/api/orcamentos?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); setOrcs(Array.isArray(d) ? d : (d.data || d.orcamentos || [])); } catch {}
@@ -136,6 +188,8 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   }, []);
 
   const total = useMemo(() => somaDe(itens), [itens]);
+  const totalTutor = useMemo(() => somaTutor(itens), [itens]);
+  const totalConvenio = useMemo(() => somaConvenio(itens), [itens]);
   function addItem(it: Item) { setItens((arr) => [...arr, it]); }
   function setQtd(i: number, q: number) { setItens((arr) => arr.map((x, idx) => idx === i ? { ...x, quantidade: Math.max(1, q) } : x)); }
   function del(i: number) { setItens((arr) => arr.filter((_, idx) => idx !== i)); }
@@ -149,8 +203,22 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     if (!itens.length) { toast.error("Comanda vazia."); return; }
     imprimirVenda({ itens: itens.map(linhaBody), valor: total, petNome, tutorNome, numeroVenda, date: new Date().toISOString() }, { rotulo: "Comanda" });
   }
-  function irAoCaixa() {
-    router.push(`/dashboard/erp/ponto-de-venda?tutorId=${tutorId || ""}&petId=${petId}`);
+  // Comanda = venda (modelo SimplesVet): SALVA a venda, ela vira independente em "A receber" no Caixa
+  // (visível a todos, paga ou não), e a comanda FECHA/LIMPA pra iniciar OUTRA venda na hora.
+  // NÃO abre a tela de venda (princípio da Cintia). Não apaga a venda salva — só "solta" o vínculo local.
+  async function salvarVenda() {
+    if (!itens.length) { toast.error("Comanda vazia."); return; }
+    if (!apptIdRef.current) { pendingRef.current = itens; await sincronizar(); }
+    if (!apptIdRef.current) { toast.error("Não consegui salvar a venda. Tente de novo."); return; }
+    const num = numeroVenda;
+    // Solta a venda salva (detacha ANTES de zerar itens, senão o sync apagaria o appointment).
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setApptId(null); apptIdRef.current = null; setNumeroVenda(null);
+    try { localStorage.removeItem(apptKey); localStorage.removeItem(key); } catch {}
+    pendingRef.current = [];
+    setItens([]);
+    try { window.dispatchEvent(new Event("pet:venda")); } catch {} // ficha recarrega Compras / a-receber
+    toast.success(`Venda${num ? ` nº ${num}` : ""} salva ✅ — está em “A receber” no Caixa. Pode iniciar outra.`);
   }
 
   async function gerarOrcamento() {
@@ -213,7 +281,20 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
             <button onClick={() => { setAddOpen((v) => !v); setBusca(""); }} className="w-full text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#009AAC" }}>➕ Adicionar item {addOpen ? "▲" : "▾"}</button>
             {addOpen && (
               <div className="mt-2">
-                <input value={busca} onChange={(e) => setBusca(e.target.value)} autoFocus placeholder="🔍 Buscar produto ou serviço…" className="w-full border rounded-lg px-2 py-1.5 text-[12.5px]" style={{ borderColor: "#E8DFC8" }} />
+                {frequentes.length > 0 && !busca.trim() && (
+                  <div className="mb-2">
+                    <div className="text-[10px] font-semibold text-[#8A857A] uppercase tracking-wide mb-1">⭐ Mais vendidos</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {frequentes.map((f) => (
+                        <button key={f.id} onClick={() => addFrequente(f)} title={`Adicionar ${f.nome}`} className="text-[11px] rounded-full border px-2.5 py-1 hover:bg-[#F0FBFC] flex items-center gap-1.5" style={{ borderColor: "#BEE3E8", background: "#F7FCFD", color: "#0E5560" }}>
+                          <span className="truncate max-w-[130px]">{f.nome}</span>
+                          <span className="font-semibold text-[#0F6E56]">{BRL(f.valorPadrao)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <input value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!tentarCodigoBarras(busca) && matches.length === 1) { addDoCatalogo(matches[0]); setBusca(""); } } }} autoFocus placeholder="🔍 Buscar ou ler código de barras…" className="w-full border rounded-lg px-2 py-1.5 text-[12.5px]" style={{ borderColor: "#E8DFC8" }} />
                 <div className="border rounded-lg mt-1 max-h-44 overflow-auto" style={{ borderColor: "#F0EBE0" }}>
                   {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
                     matches.map((c) => (
@@ -226,6 +307,34 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
             )}
           </div>
 
+          {convPet?.convenio && (
+            <div className="px-3 pt-2">
+              <div className="rounded-lg border px-2.5 py-2" style={{ borderColor: "#BEE3E8", background: "#F0FBFC" }}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[12px] font-bold" style={{ color: "#0E5560" }}>🏥 {convPet.convenio.nome} paga</span>
+                  <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: "#5C6B70" }}>Porte:
+                    {["gato", "p", "m", "g", "gg"].map((pt) => { const on = (convPorte || convPet.porteSugerido) === pt; return <button key={pt} onClick={() => setConvPorte(pt)} className="rounded-full font-semibold" style={{ padding: "2px 8px", fontSize: 10.5, border: `1px solid ${on ? "#0C93A6" : "#D9D2C0"}`, background: on ? "#0C93A6" : "#fff", color: on ? "#fff" : "#5C6B70", cursor: "pointer" }}>{pt === "gato" ? "🐱" : pt.toUpperCase()}</button>; })}
+                  </span>
+                  <button onClick={() => setConvOpen((o) => !o)} className="ml-auto text-[11.5px] font-semibold rounded-lg" style={{ color: "#009AAC", border: "1px solid #E8DFC8", background: "#fff", padding: "4px 9px", cursor: "pointer" }}>{convOpen ? "fechar" : "＋ item convênio"}</button>
+                </div>
+                {convOpen && (
+                  <div className="mt-2">
+                    <input value={convBusca} onChange={(e) => setConvBusca(e.target.value)} placeholder={`🔍 Buscar na tabela ${convPet.convenio.nome}…`} className="w-full border rounded-lg px-2 py-1.5 text-[12px]" style={{ borderColor: "#E8DFC8" }} />
+                    <div className="border rounded-lg mt-1 max-h-40 overflow-auto bg-white" style={{ borderColor: "#F0EBE0" }}>
+                      {convItens.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado nessa tabela.</div> :
+                        convItens.map((it) => (
+                          <button key={it.precoId} onClick={() => addConvenioItem(it)} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
+                            <span className="text-[#1F2A2E] truncate pr-2">{it.itemNome}</span><span className="text-[#0E5560] font-semibold shrink-0">{BRL(it.preco)}</span>
+                          </button>
+                        ))}
+                    </div>
+                    <div className="text-[10px] text-gray-400 mt-1">O item entra marcado “{convPet.convenio.nome} paga” — sai do total do tutor e vira a-receber mensal do convênio.</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 overflow-auto px-3 py-2">
             {itens.length === 0 ? (
               <div className="text-center text-[12px] text-gray-400 py-8">Nada lançado ainda.<br />Use “Adicionar item”.</div>
@@ -234,7 +343,8 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                 <div className="flex-1 min-w-0">
                   <div className="text-[12.5px] text-[#1F2A2E] truncate flex items-center gap-1.5">
                     <span className="truncate">{it.descricao}</span>
-                    {(() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}
+                    {it._convenio ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: "#E0F0F2", color: "#0E5560" }}>🏥 {it._convLabel} paga</span>
+                      : (() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}
                   </div>
                   <div className="text-[11px] text-gray-400">{BRL(it.valorUnitario)} cada</div>
                 </div>
@@ -246,14 +356,20 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
           </div>
 
           <div className="border-t px-4 py-3" style={{ borderColor: "#F0EBE0" }}>
+            {totalConvenio > 0 && (
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-[11.5px] font-semibold" style={{ color: "#0E5560" }}>🏥 {convPet?.convenio?.nome || "Convênio"} paga (a receber)</span>
+                <span className="text-[13px] font-semibold tabular-nums" style={{ color: "#0E5560" }}>{BRL(totalConvenio)}</span>
+              </div>
+            )}
             <div className="flex justify-between items-center">
-              <span className="text-[13px] font-semibold text-[#014D5E]">Total</span>
-              <span className="text-[16px] font-bold text-[#014D5E] tabular-nums">{BRL(total)}</span>
+              <span className="text-[13px] font-semibold text-[#014D5E]">{totalConvenio > 0 ? "👤 Tutor paga" : "Total"}</span>
+              <span className="text-[16px] font-bold text-[#014D5E] tabular-nums">{BRL(totalTutor)}</span>
             </div>
             <div className="text-[10.5px] mb-2 mt-0.5" style={{ color: statusCor }}>{statusTxt}</div>
             <div className="flex gap-2">
               <button onClick={imprimirComanda} disabled={!itens.length} className="flex-1 border-2 rounded-lg py-2 text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={13} /> Imprimir comanda</button>
-              <button onClick={irAoCaixa} disabled={!itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }}>💰 Receber no Caixa</button>
+              <button onClick={salvarVenda} disabled={!itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salva a venda (vai pra ‘A receber’ no Caixa) e limpa a comanda pra iniciar outra.">💰 Salvar a venda</button>
             </div>
             <button onClick={gerarOrcamento} disabled={saving || !itens.length} className="w-full mt-2 border-2 rounded-lg py-1.5 text-[12px] font-semibold disabled:opacity-50" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#F0FBFC" }}>📄 Salvar como orçamento</button>
             {itens.length > 0 && <button onClick={limpar} className="w-full text-[11px] text-gray-400 mt-2">limpar comanda</button>}

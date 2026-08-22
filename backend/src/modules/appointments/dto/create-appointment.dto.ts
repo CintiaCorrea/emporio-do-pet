@@ -196,8 +196,10 @@ export class CreateAppointmentTreatmentDto {
 
 
 export class CreateAppointmentItemDto {
+  // Aceita UUID (serviço legado) OU cuid (catálogo novo). O serviço valida contra a tabela
+  // `servicos` e ignora id inválido — então @IsString é seguro e evita recusar a venda inteira.
   @ApiPropertyOptional({ description: 'ID do serviço (catálogo)' })
-  @IsOptional() @IsUUID()
+  @IsOptional() @IsString()
   servicoId?: string;
 
   @ApiPropertyOptional({ description: 'ID do produto (catálogo) — usado p/ baixa de estoque' })
@@ -219,6 +221,10 @@ export class CreateAppointmentItemDto {
   @ApiPropertyOptional({ description: 'ID do item no catálogo NOVO (cat_itens)' })
   @IsOptional() @IsString()
   catalogoItemId?: string;
+
+  @ApiPropertyOptional({ description: 'ID do convênio que paga este item (Petlife etc.) — sai do total do tutor e vira a-receber mensal' })
+  @IsOptional() @IsString()
+  convenioId?: string;
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional() @IsNumber()

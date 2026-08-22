@@ -4,10 +4,15 @@ import { Type } from 'class-transformer';
 
 export class OrcamentoItemDto {
   @ApiPropertyOptional() @IsOptional() @IsString() servicoId?: string;
+  // Catálogo unificado (PDV/comanda mandam estes) — sem declarar, o forbidNonWhitelisted derruba o orçamento.
+  @ApiPropertyOptional() @IsOptional() @IsString() productId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() catalogoItemId?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() descricao?: string;
   @ApiPropertyOptional() @IsOptional() @IsNumber() quantidade?: number;
   @ApiPropertyOptional() @IsOptional() @IsNumber() valorUnitario?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() custoUnitario?: number;
   @ApiPropertyOptional() @IsOptional() @IsNumber() desconto?: number;
+  @ApiPropertyOptional() @IsOptional() @IsNumber() valorTotal?: number;
   // Exame vendável: identidade guardada num registro-companheiro (orcexa_) pra iniciar o ciclo na conversão.
   @ApiPropertyOptional() @IsOptional() @IsString() tipoItem?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() catalogoExameId?: string;

@@ -139,6 +139,7 @@ export default function FichaInternacaoPage() {
   const [doses, setDoses] = useState<any[]>([]);
   const [prescOpen, setPrescOpen] = useState(false);
   const [prescForm, setPrescForm] = useState<any>({ id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "", cobrarTipo: "", cobrarId: "", cobrarNome: "", cobrarValor: 0 });
+  const [cobrancaBusca, setCobrancaBusca] = useState(""); // busca por digitação no vínculo de cobrança da medicação
   const [prescSaving, setPrescSaving] = useState(false);
 
   // Sinais vitais & fluidos (F4)
@@ -165,7 +166,7 @@ export default function FichaInternacaoPage() {
   const [itemForm, setItemForm] = useState<any>({ id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "" });
   const [itemSaving, setItemSaving] = useState(false);
   const [caucaoOpen, setCaucaoOpen] = useState(false);
-  const [caucaoForm, setCaucaoForm] = useState<any>({ valor: "", descricao: "Caução de internação" });
+  const [caucaoForm, setCaucaoForm] = useState<any>({ valor: "", descricao: "Caução de internação", forma: "Dinheiro" });
   const [finBusy, setFinBusy] = useState("");
 
   // Opções de frequência: vêm de Config › Listas (lista `internacao_frequencia`), com as
@@ -507,9 +508,14 @@ export default function FichaInternacaoPage() {
     if (!valor || valor <= 0) { alert("Informe o valor da caução."); return; }
     setFinBusy("caucao");
     try {
-      const res = await fetch("/api/credito", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, appointmentId: id, tipo: "RECARGA", valor, descricao: caucaoForm.descricao || "Caução de internação" }) });
+      // Caixa aberto: a caução ENTRA no caixa (vira suprimento, conta na gaveta se dinheiro) — igual à do Caixa.
+      let caixaId: string | null = null;
+      try { const rc = await fetch("/api/caixa", { cache: "no-store" }); const dc = await rc.json(); const arr = Array.isArray(dc) ? dc : (dc.data || []); caixaId = (arr.filter((c: any) => c.status === "ABERTO").sort((a: any, b: any) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime())[0])?.id || null; } catch {}
+      const res = await fetch("/api/credito", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, appointmentId: id, tipo: "RECARGA", valor, descricao: caucaoForm.descricao || "Caução de internação", forma: caucaoForm.forma || "Dinheiro", ...(caixaId ? { caixaSessaoId: caixaId } : {}) }) });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.message || ""); }
-      setCaucaoOpen(false); setCaucaoForm({ valor: "", descricao: "Caução de internação" }); load();
+      setCaucaoOpen(false); setCaucaoForm({ valor: "", descricao: "Caução de internação", forma: "Dinheiro" });
+      alert(caixaId ? "Caução adicionada — entrou no caixa ✅" : "Caução adicionada. ⚠️ Não há caixa aberto, então ela NÃO entrou na gaveta — abra o caixa e registre lá se precisar conferir.");
+      load();
     } catch (e: any) { alert(e?.message || "Erro ao adicionar caução."); }
     finally { setFinBusy(""); }
   };
@@ -539,6 +545,38 @@ export default function FichaInternacaoPage() {
       alert("Venda enviada pro Caixa! ✅");
       setCaucaoAplicada(0); load();
     } catch (e: any) { alert((e?.message || "Erro ao enviar pro Caixa.") + "\nConfira se há um caixa aberto."); }
+    finally { setFinBusy(""); }
+  };
+
+  // 📅 Comanda do dia: diária(s) não faturada(s) + itens abertos → uma VENDA no "a pagar" do caixa.
+  // Não precisa de caixa aberto (é venda a receber). 1 diária por dia é controlada no backend.
+  const gerarComandaDia = async () => {
+    if (!confirm("Gerar a comanda do dia (diária de hoje + itens abertos ainda não faturados) e mandar pro 'a pagar' do caixa?")) return;
+    setFinBusy("comanda");
+    try {
+      const res = await fetch(`/api/hospitalizations/${id}/comanda-dia`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: "{}" });
+      const dd = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(dd?.message || "Erro ao gerar a comanda do dia");
+      load();
+      // 🧾 Fatia 2 — resumo do dia + saldo (crédito/débito) pro tutor acompanhar, junto com o boletim.
+      const saldo = Number(caucaoSaldo) - Number(dd.totalFaturado || 0); // +: crédito a favor · −: a pagar
+      const linhas = [
+        `🧾 *Conta do dia — ${h?.pet?.name || "seu pet"}* (${new Date().toLocaleDateString("pt-BR")})`,
+        ...(dd.itensResumo || []).map((i: any) => `• ${i.descricao}: ${fmtBRL(Number(i.total) || 0)}`),
+        `*Total do dia: ${fmtBRL(Number(dd.total) || 0)}*`,
+        `━━━━━━━━━━`,
+        `Internação até agora: ${fmtBRL(Number(dd.totalFaturado) || 0)}`,
+        caucaoSaldo > 0 ? `Caução em conta: ${fmtBRL(caucaoSaldo)}` : null,
+        saldo >= 0 ? `✅ Saldo a favor: ${fmtBRL(saldo)}` : `Saldo a pagar: ${fmtBRL(Math.abs(saldo))}`,
+      ].filter(Boolean);
+      const texto = linhas.join("\n");
+      if (confirm(`Comanda do dia gerada! ✅${dd.numeroVenda ? ` (venda nº ${dd.numeroVenda})` : ""}\nTotal do dia ${fmtBRL(Number(dd.total) || 0)} — está no “a pagar” do caixa.\n\nEnviar o resumo do dia + saldo pro tutor no WhatsApp (junto com o boletim)?`)) {
+        try {
+          const r2 = await fetch("/api/survey-avaliacao/mensagem-tutor", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, texto }) });
+          alert(r2.ok ? "Resumo do dia enviado pro tutor ✅" : "Comanda gerada, mas não consegui enviar o resumo (confira a conversa do WhatsApp).");
+        } catch { alert("Comanda gerada, mas não consegui enviar o resumo."); }
+      }
+    } catch (e: any) { alert(e?.message || "Erro ao gerar a comanda do dia."); }
     finally { setFinBusy(""); }
   };
 
@@ -1635,7 +1673,7 @@ export default function FichaInternacaoPage() {
               <div className="px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}><h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">📤 Fechamento</h3></div>
               <div className="p-4">
                 <div className="flex gap-2 flex-wrap">
-                  {!alta && <button onClick={enviarCaixa} disabled={!!finBusy} className="text-[13px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg disabled:opacity-60">{finBusy === "caixa" ? "Enviando..." : "📤 Enviar pro Caixa"}</button>}
+                  {!alta && <button onClick={gerarComandaDia} disabled={!!finBusy} className="text-[13px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg disabled:opacity-60">{finBusy === "comanda" ? "Gerando..." : "📅 Gerar comanda do dia"}</button>}
                   {!alta && <button onClick={baixarInsumos} disabled={!!finBusy} className="text-[13px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg disabled:opacity-60" style={{ borderColor: "#E8E2D6" }}>{finBusy === "estoque" ? "Baixando..." : "📦 Baixar insumos"}</button>}
                   <button onClick={boletimFinanceiro} disabled={!!finBusy} className="text-[13px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg disabled:opacity-60" style={{ borderColor: "#E8E2D6" }}>{finBusy === "boletim" ? "Enviando..." : "🧾 Boletim financeiro"}</button>
                   <button onClick={() => window.print()} className="text-[13px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️ Imprimir</button>
@@ -1647,7 +1685,7 @@ export default function FichaInternacaoPage() {
                     ))}
                   </div>
                 )}
-                <div className="text-[10.5px] text-[#374151] mt-2.5">“Enviar pro Caixa” cria a venda (a receber) com os itens faturáveis e aplica a caução como pagamento. “Baixar insumos” dá saída no estoque dos itens vinculados a produto.</div>
+                <div className="text-[10.5px] text-[#374151] mt-2.5">“Gerar comanda do dia” fatura a diária de hoje + os itens abertos numa venda (a receber) no caixa — 1 diária por dia, sem repetir. A caução do cliente é aplicada quando a recepção recebe a comanda no caixa. “Baixar insumos” dá saída no estoque dos itens vinculados a produto.</div>
               </div>
             </div>
           </div>
@@ -1747,16 +1785,32 @@ export default function FichaInternacaoPage() {
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Medicação *</label>
                 <input value={prescForm.medicamento} onChange={(e) => setPrescForm({ ...prescForm, medicamento: e.target.value })} placeholder="Ex.: Tramadol" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">💰 Cobrar na conta a cada aplicação <span className="text-[#94a3b8]">(opcional)</span></label>
-                <select
-                  value={prescForm.cobrarId ? `${prescForm.cobrarTipo === "servico" ? "s" : "p"}:${prescForm.cobrarId}` : ""}
-                  onChange={(e) => pickPrescCobranca(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]"
-                  style={{ borderColor: "#E8E2D6" }}
-                >
-                  <option value="">— não cobrar (sem vínculo) —</option>
-                  {servicos.length > 0 && <optgroup label="🏷️ Serviços">{servicos.map((s) => <option key={`s${s.id}`} value={`s:${s.id}`}>{s.nome}{s.valorPadrao != null ? ` · ${fmtBRL(s.valorPadrao)}` : ""}</option>)}</optgroup>}
-                  {produtos.length > 0 && <optgroup label="📦 Produtos">{produtos.map((p) => <option key={`p${p.id}`} value={`p:${p.id}`}>{p.name}{(p.price ?? p.valorPadrao) != null ? ` · ${fmtBRL(p.price ?? p.valorPadrao)}` : ""}</option>)}</optgroup>}
-                </select>
+                {prescForm.cobrarId ? (
+                  <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-[#F0FBF9]" style={{ borderColor: "#BEE3E8" }}>
+                    <span className="text-[13px] text-[#0F6E56] font-medium flex-1 truncate">💊 {prescForm.cobrarNome} · {fmtBRL(precoAtualCobranca(prescForm))}</span>
+                    <button type="button" onClick={() => { pickPrescCobranca(""); setCobrancaBusca(""); }} className="text-[#b23b39] text-[12px] shrink-0">trocar/remover</button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input value={cobrancaBusca} onChange={(e) => setCobrancaBusca(e.target.value)} placeholder="🔍 Digite as primeiras letras do serviço/produto…" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                    {cobrancaBusca.trim() && (() => {
+                      const q = cobrancaBusca.trim().toLowerCase();
+                      const svc = servicos.filter((s: any) => (s.nome || "").toLowerCase().includes(q)).slice(0, 10).map((s: any) => ({ val: `s:${s.id}`, nome: s.nome, preco: s.valorPadrao }));
+                      const prd = produtos.filter((p: any) => (p.name || "").toLowerCase().includes(q)).slice(0, 10).map((p: any) => ({ val: `p:${p.id}`, nome: p.name, preco: p.price ?? p.valorPadrao }));
+                      const ops = [...svc, ...prd].slice(0, 16);
+                      return (
+                        <div className="absolute z-10 left-0 right-0 mt-1 bg-white border rounded-lg max-h-44 overflow-auto shadow-lg" style={{ borderColor: "#E8E2D6" }}>
+                          {ops.length === 0 ? <div className="px-3 py-2 text-[12px] text-[#94a3b8]">Nada encontrado.</div> :
+                            ops.map((o) => (
+                              <button key={o.val} type="button" onClick={() => { pickPrescCobranca(o.val); setCobrancaBusca(""); }} className="flex w-full justify-between items-center px-3 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
+                                <span className="truncate pr-2 text-[#1F2A2E]">{o.nome}</span><span className="text-[#0F6E56] font-semibold shrink-0">{o.preco != null ? fmtBRL(o.preco) : ""}</span>
+                              </button>
+                            ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
                 {prescForm.cobrarId ? (
                   <p className="text-[10.5px] text-[#0F6E56] mt-1">✓ Cada ✓ no plantão lança <b>1× {prescForm.cobrarNome}</b> ({fmtBRL(precoAtualCobranca(prescForm))}) na conta. Desmarcar o ✓ remove o lançamento.</p>
                 ) : (
@@ -1925,8 +1979,12 @@ export default function FichaInternacaoPage() {
               <button onClick={() => setCaucaoOpen(false)} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 space-y-3 text-[13px]">
-              <div><label className="text-[11px] text-[#374151] block mb-1">Valor (R$) *</label>
-                <input type="number" min={0} step="0.01" value={caucaoForm.valor} onChange={(e) => setCaucaoForm({ ...caucaoForm, valor: e.target.value })} placeholder="0,00" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div className="flex gap-2">
+                <div className="flex-1"><label className="text-[11px] text-[#374151] block mb-1">Valor (R$) *</label>
+                  <input type="number" min={0} step="0.01" value={caucaoForm.valor} onChange={(e) => setCaucaoForm({ ...caucaoForm, valor: e.target.value })} placeholder="0,00" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+                <div className="flex-1"><label className="text-[11px] text-[#374151] block mb-1">Forma (entra no caixa)</label>
+                  <select value={caucaoForm.forma} onChange={(e) => setCaucaoForm({ ...caucaoForm, forma: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{["Dinheiro", "Pix", "Cartão crédito", "Cartão débito"].map((fx) => <option key={fx} value={fx}>{fx}</option>)}</select></div>
+              </div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Descrição</label>
                 <input value={caucaoForm.descricao} onChange={(e) => setCaucaoForm({ ...caucaoForm, descricao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div className="text-[10.5px] text-[#374151]">Adiciona crédito ao tutor {h.tutor?.name}. Fica como saldo e pode abater da conta.</div>

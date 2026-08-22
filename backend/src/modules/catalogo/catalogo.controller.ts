@@ -49,6 +49,8 @@ export class CatalogoController {
 
   // Convênios
   @Get('convenios') listConvenios() { return this.service.listConvenios(); }
+  // 🏥 Buscador da tabela do convênio no atendimento (resolve pelo pet + porte) — ANTES de convenios/:id.
+  @Get('convenios/tabela-pet') tabelaPet(@Query() q: any) { return this.service.tabelaConvenioPet(q?.petId, q?.porte, q?.busca); }
   @Post('convenios') criarConvenio(@Body() b: any) { return this.service.criarConvenio(b); }
   @Get('convenios/:id') getConvenio(@Param('id') id: string) { return this.service.getConvenio(id); }
   @Patch('convenios/:id') atualizarConvenio(@Param('id') id: string, @Body() b: any) { return this.service.atualizarConvenio(id, b); }
