@@ -171,9 +171,9 @@ export default function RecebimentosPage() {
         <button className="rc-icon pri" title="Consultar período" onClick={load}>🔍</button>
         <button className={`rc-icon funnel ${advOpen ? "on" : ""}`} title="Filtros avançados" onClick={() => setAdvOpen((v) => !v)}>🔻</button>
         <button className="rc-icon" title="Limpar filtros" onClick={limpar}>↺</button>
+        <button className="rc-icon" title={olho ? "Ocultar valores" : "Mostrar valores"} onClick={() => setOlho((v) => !v)}>{olho ? "🙈" : "👁️"}</button>
+        <button className="rc-icon" title="Imprimir" onClick={() => window.print()}>🖨️</button>
         <div style={{ flex: 1 }} />
-        <button className="rc-btn" onClick={() => setOlho((v) => !v)}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
-        <button className="rc-btn" onClick={() => window.print()}>🖨️ Imprimir</button>
       </div>
 
       {/* filtros avançados */}

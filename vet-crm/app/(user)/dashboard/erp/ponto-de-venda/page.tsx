@@ -957,10 +957,11 @@ export default function PDVPage() {
                       <div style={{ color: MUT, fontSize: 13, padding: '8px 0' }}>Carregando…</div>
                     ) : editItens !== null ? (
                       <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, overflow: 'hidden', marginBottom: 12, background: '#fff' }}>
+                        <datalist id="pdv-editcat">{servicos.slice(0, 2000).map((s: any) => <option key={s.id} value={s.nome} />)}</datalist>
                         {editItens.map((it: any, i: number) => (
                           <div key={i} style={{ borderBottom: `1px solid ${SOFT}`, padding: '8px 10px' }}>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5 }}>
-                              <input value={it.descricao} onChange={(e) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: e.target.value } : x))} placeholder="Descrição do item" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                              <input list="pdv-editcat" value={it.descricao} onChange={(e) => { const val = e.target.value; const s = servicos.find((x: any) => (x.nome || '') === val); setEditItens((c) => c!.map((x, j) => j === i ? (s ? { ...x, descricao: s.nome, valorUnitario: Number(s.valorPadrao || x.valorUnitario) } : { ...x, descricao: val }) : x)); }} placeholder="Buscar no catálogo…" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
                               <button onClick={() => setEditItens((c) => c!.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>

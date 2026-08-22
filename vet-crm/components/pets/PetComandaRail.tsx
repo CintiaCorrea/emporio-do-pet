@@ -58,6 +58,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const [convOpen, setConvOpen] = useState(false);
   const [orcs, setOrcs] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
+  const [enviandoWhats, setEnviandoWhats] = useState(false);
   // A comanda é uma VENDA em aberto no servidor (aparece no Caixa). Guardamos o id dela.
   const [apptId, setApptId] = useState<string | null>(null);
   const [numeroVenda, setNumeroVenda] = useState<number | null>(null);
@@ -226,6 +227,41 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       toast.success("Orçamento gerado ✅"); await limpar(); await loadOrcs(); setSub("ORC");
     } catch { toast.error("Erro ao gerar orçamento"); } finally { setSaving(false); }
   }
+  // 💬 Envia o orçamento pro cliente no WhatsApp (mesmo princípio do inbox: cai na conversa do tutor).
+  function montarTextoOrcamento() {
+    const linhas = itens.map((it) => {
+      const q = Number(it.quantidade) || 1;
+      const v = q * (Number(it.valorUnitario) || 0);
+      const nome = (it.descricao || "Item").trim();
+      return q > 1 ? `• ${q}× ${nome} — *${BRL(v)}*` : `• ${nome} — *${BRL(v)}*`;
+    });
+    const dia = new Date().toLocaleDateString("pt-BR");
+    return [
+      `💰 *Orçamento — ${petNome || "seu pet"}*`,
+      `🏥 Empório do Pet · 🗓️ ${dia}`,
+      tutorNome ? `👤 Tutor(a): ${tutorNome}` : null,
+      ``,
+      `*Itens do orçamento:*`,
+      ...linhas,
+      ``,
+      `━━━━━━━━━━━━━━━`,
+      `💵 *Total: ${BRL(total)}*`,
+      ``,
+      `Qualquer dúvida, é só chamar por aqui! 🐾`,
+      `— Equipe Empório do Pet`,
+    ].filter((l) => l !== null).join("\n");
+  }
+  async function enviarOrcamentoWhats() {
+    if (!itens.length) { toast.error("Comanda vazia."); return; }
+    if (!tutorId) { toast.error("Pet sem tutor — não dá pra enviar."); return; }
+    setEnviandoWhats(true);
+    try {
+      const r = await fetch(`/api/whatsapp/enviar-documentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId, texto: montarTextoOrcamento(), petNome }) });
+      if (!r.ok) throw new Error();
+      toast.success("Orçamento enviado no WhatsApp ✅");
+    } catch { toast.error("Não consegui enviar pelo WhatsApp. Confira o número do tutor."); }
+    finally { setEnviandoWhats(false); }
+  }
   async function converterOrc(id: string) {
     if (!confirm("Transformar este orçamento em venda? (cria a venda com os mesmos itens)")) return;
     try {
@@ -356,7 +392,10 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
               <button onClick={imprimirComanda} disabled={!itens.length} className="flex-1 border-2 rounded-lg py-2 text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={13} /> Imprimir comanda</button>
               <button onClick={salvarVenda} disabled={!itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salva a venda (vai pra ‘A receber’ no Caixa) e limpa a comanda pra iniciar outra.">💰 Salvar a venda</button>
             </div>
-            <button onClick={gerarOrcamento} disabled={saving || !itens.length} className="w-full mt-2 border-2 rounded-lg py-1.5 text-[12px] font-semibold disabled:opacity-50" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#F0FBFC" }}>📄 Salvar como orçamento</button>
+            <div className="flex gap-2 mt-2">
+              <button onClick={gerarOrcamento} disabled={saving || !itens.length} className="flex-1 border-2 rounded-lg py-1.5 text-[12px] font-semibold disabled:opacity-50" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#F0FBFC" }}>📄 Salvar como orçamento</button>
+              <button onClick={enviarOrcamentoWhats} disabled={enviandoWhats || !itens.length || !tutorId} title="Envia o orçamento pro cliente no WhatsApp" className="flex-1 rounded-lg py-1.5 text-[12px] font-semibold text-white disabled:opacity-50" style={{ background: "#25D366" }}>{enviandoWhats ? "Enviando…" : "💬 Enviar no WhatsApp"}</button>
+            </div>
             {itens.length > 0 && <button onClick={limpar} className="w-full text-[11px] text-gray-400 mt-2">limpar comanda</button>}
           </div>
         </>

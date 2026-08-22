@@ -57,7 +57,6 @@ export function montarTimbradoHtml(args: {
         ${linha("Raça", v("ANIMAL_RACA"))}
         ${linha("Idade", v("ANIMAL_IDADE"))}
         ${linha("Pelagem", v("ANIMAL_PELAGEM"))}
-        ${linha("Chip", v("ANIMAL_MICROCHIP") || "—")}
         ${linhaFull("Responsável", respNome + (v("RESPONSAVEL_CPF") ? ` · CPF: ${v("RESPONSAVEL_CPF")}` : ""))}
         ${linhaFull("Endereço", v("RESPONSAVEL_ENDERECO"))}
       </div>`
