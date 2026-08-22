@@ -1,4 +1,5 @@
 import { imprimirDocumento } from "@/lib/print";
+import { carregarPetTutorParaImpressao } from "@/lib/documentos/petCompleto";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const esc = (t: any) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -28,9 +29,11 @@ export async function imprimirVenda(v: any, opts?: { rotulo?: string }) {
 
   const total = Number(v?.valor ?? v?.value ?? v?.valorTotal ?? itens.reduce((s, it) => s + Number(it.valorTotal ?? 0), 0));
   const num = v?.numeroVenda != null ? `#${v.numeroVenda}` : (v?.codigoExterno ? `SV ${v.codigoExterno}` : "");
-  // pet/tutor: aceita objeto completo (quadro rico) ou só o nome (fallback).
-  const petObj = v?.pet && typeof v.pet === "object" ? v.pet : (v?.petNome || (typeof v?.pet === "string" ? v.pet : "") ? { name: v.petNome || v.pet } : undefined);
-  const tutorObj = v?.tutor && typeof v.tutor === "object" ? v.tutor : (v?.tutorNome || v?.cliente ? { name: v.tutorNome || v.cliente } : undefined);
+  // pet/tutor: busca o pet COMPLETO pelo id (cabeçalho cheio, padrão receita); senão usa o que veio.
+  const petIdV = v?.petId || (v?.pet && typeof v.pet === "object" ? v.pet.id : undefined);
+  const petFallback = v?.pet && typeof v.pet === "object" ? v.pet : (v?.petNome || (typeof v?.pet === "string" ? v.pet : "") ? { name: v.petNome || v.pet } : undefined);
+  const tutorFallback = v?.tutor && typeof v.tutor === "object" ? v.tutor : (v?.tutorNome || v?.cliente ? { name: v.tutorNome || v.cliente } : undefined);
+  const { pet: petObj, tutor: tutorObj } = await carregarPetTutorParaImpressao(petIdV, petFallback, tutorFallback);
 
   const meta = [dataBR(v?.date || v?.createdAt || new Date()), v?.paymentMethod ? esc(v.paymentMethod) : ""].filter(Boolean).join(" · ");
   const body = `

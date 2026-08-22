@@ -198,7 +198,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
 
   function imprimirComanda() {
     if (!itens.length) { toast.error("Comanda vazia."); return; }
-    imprimirVenda({ itens: itens.map(linhaBody), valor: total, petNome, tutorNome, numeroVenda, date: new Date().toISOString() }, { rotulo: "Comanda" });
+    imprimirVenda({ itens: itens.map(linhaBody), valor: total, petNome, tutorNome, petId, numeroVenda, date: new Date().toISOString() }, { rotulo: "Comanda" });
   }
   // Comanda = venda (modelo SimplesVet): SALVA a venda, ela vira independente em "A receber" no Caixa
   // (visível a todos, paga ou não), e a comanda FECHA/LIMPA pra iniciar OUTRA venda na hora.

@@ -1,4 +1,5 @@
 import { imprimirDocumento } from "@/lib/print";
+import { carregarPetTutorParaImpressao } from "@/lib/documentos/petCompleto";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const esc = (t: any) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -49,5 +50,7 @@ export async function imprimirOrcamento(orc: any) {
     ${orc?.observacao ? `<div style="margin-top:16px;font-size:12.5px;color:#374151"><b>Observação:</b> ${esc(orc.observacao)}</div>` : ""}
   `;
 
-  await imprimirDocumento("Orçamento", body, undefined, { pet: orc?.pet, tutor: orc?.tutor });
+  // Cabeçalho COMPLETO (padrão receita): busca o pet inteiro pelo id quando houver.
+  const { pet, tutor } = await carregarPetTutorParaImpressao(orc?.pet?.id || orc?.petId, orc?.pet, orc?.tutor);
+  await imprimirDocumento("Orçamento", body, undefined, { pet, tutor });
 }
