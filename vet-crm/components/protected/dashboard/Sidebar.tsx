@@ -121,9 +121,16 @@ const NAV: Entry[] = [
   {
     group: true, key: "estoque", label: "Estoque e serviços", emoji: "📦", roles: ALL, section: "GESTAO",
     children: [
-      { href: "/dashboard/erp/catalogo-novo", label: "Produtos e Serviços", emoji: "🗂️", roles: ALL },
+      { href: "/dashboard/erp/catalogo", label: "Produtos e Serviços", emoji: "🗂️", roles: ALL },
+      { href: "/dashboard/erp/catalogo-novo", label: "Catálogo (novo) 🆕", emoji: "🗂️", roles: ALL },
+      { href: "/dashboard/erp/estoque", label: "Estoque", emoji: "📊", roles: ALL },
+      { href: "/dashboard/erp/estoque/compras", label: "Compras", emoji: "🛒", roles: ALL },
+      { href: "/dashboard/erp/estoque/saidas", label: "Outras saídas de estoque", emoji: "📤", roles: ALL },
+      { href: "/dashboard/erp/estoque/analise", label: "Análise de estoque", emoji: "📈", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/estoque/inventario", label: "Inventário", emoji: "📋", roles: ["ADMIN"] },
       { href: "/dashboard/erp/estoque/pedido-compra", label: "Pedido de compra", emoji: "📝", roles: ["ADMIN"] },
       { href: "/dashboard/configuracoes/grupos", label: "Grupos de Produtos", emoji: "📁", roles: ["ADMIN"] },
+      { href: "/dashboard/erp/estoque/marcas", label: "Marcas", emoji: "🏷️", roles: ["ADMIN"] },
     ],
   },
   {

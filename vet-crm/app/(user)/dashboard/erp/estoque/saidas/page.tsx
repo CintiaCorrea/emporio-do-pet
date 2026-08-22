@@ -1,6 +1,7 @@
-import { redirect } from "next/navigation";
+"use client";
+// Outras saídas de estoque — saídas manuais (perda, quebra, uso interno).
+import MovimentosView from "@/components/estoque/MovimentosView";
 
-// Tela antiga (lia o catálogo Product, aposentado em ago/2026) — redireciona pro catálogo novo unificado.
-export default function Page() {
-  redirect("/dashboard/erp/catalogo-novo");
+export default function OutrasSaidasPage() {
+  return <MovimentosView tipo="OUT" />;
 }
