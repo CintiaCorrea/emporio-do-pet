@@ -360,7 +360,6 @@ export default function PDVPage() {
     });
     setItemBusca(''); setItemAberto(false); setQtd(1);
   };
-  const addAvulso = () => setCarrinho((c) => [...c, { descricao: '', quantidade: 1, valorUnitario: 0, desconto: 0, executorUserId: profId || undefined }]);
   const updItem = (i: number, patch: Partial<CartItem>) => setCarrinho((c) => c.map((x, j) => j === i ? { ...x, ...patch } : x));
   const rmItem = (i: number) => setCarrinho((c) => c.filter((_, j) => j !== i));
 
@@ -666,7 +665,7 @@ export default function PDVPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     {/* linha 1: descrição + total + excluir */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input value={it.descricao} onChange={(e) => updItem(i, { descricao: e.target.value })} placeholder="Descrição do item" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                      <input value={it.descricao} readOnly title={it.descricao} style={{ ...inp, flex: 1, padding: '6px 8px', background: '#F7F5EF', cursor: 'default' }} />
                       {it._convenio ? <span title={`Faturado ao convênio ${it._convLabel}`} style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: '#E0F0F2', color: '#0E5560' }}>🏥 {it._convLabel} paga</span> : null}
                       {(() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span title={`Laboratório: ${lab.nome}`} style={{ flexShrink: 0, fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 999, background: lab.veter ? '#E1F5EE' : '#EEF2F6', color: lab.veter ? '#0F6E56' : '#4D6A8A' }}>{lab.veter ? '⭐ ' : '🏥 '}{lab.nome}</span> : null; })()}
                       <span style={{ fontSize: 13, fontWeight: 500, color: NAVY, minWidth: 78, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
@@ -694,7 +693,7 @@ export default function PDVPage() {
                 );
               })}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px' }}>
-                <button onClick={addAvulso} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12.5, fontWeight: 500, cursor: 'pointer' }}>➕ item avulso</button>
+                <span style={{ fontSize: 11.5, color: MUT }}>🔒 Itens vêm do catálogo (busca acima)</span>
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 12, color: INK2 }}>Desconto</span>
                   <span style={{ display: 'inline-flex', alignItems: 'center' }}>
@@ -961,7 +960,7 @@ export default function PDVPage() {
                         {editItens.map((it: any, i: number) => (
                           <div key={i} style={{ borderBottom: `1px solid ${SOFT}`, padding: '8px 10px' }}>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5 }}>
-                              <input list="pdv-editcat" value={it.descricao} onChange={(e) => { const val = e.target.value; const s = servicos.find((x: any) => (x.nome || '') === val); setEditItens((c) => c!.map((x, j) => j === i ? (s ? { ...x, descricao: s.nome, valorUnitario: Number(s.valorPadrao || x.valorUnitario) } : { ...x, descricao: val }) : x)); }} placeholder="Buscar no catálogo…" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                              <input list="pdv-editcat" value={it.descricao} onChange={(e) => { const val = e.target.value; const s = servicos.find((x: any) => (x.nome || '') === val); setEditItens((c) => c!.map((x, j) => j === i ? (s ? { ...x, descricao: s.nome, valorUnitario: Number(s.valorPadrao || x.valorUnitario), _doCat: true } : { ...x, descricao: val, _doCat: false }) : x)); }} onBlur={(e) => { const val = e.target.value.trim(); if (val && !servicos.some((x: any) => (x.nome || '') === val)) { toast.error('Escolha um item do catálogo.'); setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: '', valorUnitario: 0, _doCat: false } : x)); } }} placeholder="Buscar no catálogo…" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
                               <button onClick={() => setEditItens((c) => c!.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
