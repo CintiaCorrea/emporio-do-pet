@@ -57,9 +57,11 @@ export function linhaDoItem(item: ItemVendavel): LinhaVendavel {
   const base = { descricao, valorUnitario: Number(item.valorPadrao) || 0, custoUnitario: Number(item.custoPadrao) || 0 };
   if (item._novo) {
     // Catálogo NOVO: vende por descrição+valor+custo + catalogoItemId. Carrega o LAB (fornecedorId) —
-    // é o que gera o a-pagar do laboratório (Fatia 5) — e o nome do lab p/ o selo. NÃO seta _exame na
-    // linha (senão entraria no fluxo de exame ANTIGO/petexa_, que é de outra base).
-    return { ...base, _novo: true, catalogoItemId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null, descontoModo: item._descontoModo, descontoLimite: item._descontoLimite ?? null };
+    // é o que gera o a-pagar do laboratório (Fatia 5) — e o nome do lab p/ o selo.
+    // Se for EXAME, marca _exame TAMBÉM: assim entra no Kanban (petexa_) pela FONTE NOVA (cat_item_exame,
+    // resolvido por catalogoItemId no backend) — sem usar o id da base antiga (exa_catalogo).
+    const ehExame = !!item._exame || item.tipo === 'EXAME';
+    return { ...base, _novo: true, ...(ehExame ? { _exame: true } : {}), catalogoItemId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null, descontoModo: item._descontoModo, descontoLimite: item._descontoLimite ?? null };
   }
   if (item._exame) {
     return { ...base, _exame: true, catalogoExameId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null };
@@ -80,7 +82,9 @@ export function itemParaVenda(l: { descricao?: string; valorUnitario?: number; c
   // Catálogo NOVO: descrição+valor+custo + o LAB (fornecedorId → gera o a-pagar do laboratório, Fatia 5)
   // + o id novo (catalogoItemId, p/ ligar comissão/estoque nas próximas fatias). NÃO entra no fluxo de
   // exame antigo (catalogoExameId/petexa_).
-  if (l._novo) return { ...base, ...(l.fornecedorId ? { fornecedorId: l.fornecedorId } : {}), ...(l.catalogoItemId ? { catalogoItemId: l.catalogoItemId } : {}) };
+  // Catálogo NOVO: se for EXAME, manda tipoItem:"EXAME" + catalogoItemId (o backend resolve o lab pela
+  // fonte nova cat_item_exame) — assim o exame entra no Kanban. Item novo comum vai sem tipoItem.
+  if (l._novo) return { ...base, ...(l._exame ? { tipoItem: "EXAME" } : {}), ...(l.fornecedorId ? { fornecedorId: l.fornecedorId } : {}), ...(l.catalogoItemId ? { catalogoItemId: l.catalogoItemId } : {}) };
   if (l._exame) return { ...base, tipoItem: "EXAME", catalogoExameId: l.catalogoExameId, fornecedorId: l.fornecedorId ?? undefined };
   return { ...base, ...(l.servicoId ? { servicoId: l.servicoId, productId: l.productId ?? l.servicoId } : {}) };
 }

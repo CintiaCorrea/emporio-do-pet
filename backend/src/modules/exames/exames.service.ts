@@ -189,21 +189,42 @@ export class ExamesService {
     const fase = await this.faseInicialExame();
     let n = 0;
     for (const it of examItems) {
-      let cat: any = null;
+      let fornecedorId: string | null = it.fornecedorId || null;
+      let fornecedorNome: string | null = null;
+      let custo: number | null = null;
+      let valorSugerido: number | null = null;
+      // Fonte ANTIGA: exame vem por catalogoExameId (exa_catalogo).
       if (it.catalogoExameId) {
-        cat = await this.prisma.catalogoExame.findUnique({
+        const cat = await this.prisma.catalogoExame.findUnique({
           where: { id: it.catalogoExameId },
           select: { valorFornecedor: true, valorClienteSugerido: true, fornecedorId: true, fornecedor: { select: { nome: true } } },
         }).catch(() => null);
+        if (cat) { fornecedorId = fornecedorId || cat.fornecedorId || null; fornecedorNome = cat.fornecedor?.nome ?? null; custo = cat.valorFornecedor ?? null; valorSugerido = cat.valorClienteSugerido ?? null; }
+      }
+      // Fonte NOVA: exame vem por catalogoItemId (cat_item_exame → lab/custo; ItemCatalogo → preço).
+      if (fornecedorNome == null && custo == null && it.catalogoItemId) {
+        const ex = await this.prisma.itemExame.findUnique({
+          where: { itemId: it.catalogoItemId },
+          select: { custoLab: true, fornecedorId: true, item: { select: { preco: true } } },
+        }).catch(() => null);
+        if (ex) {
+          fornecedorId = fornecedorId || ex.fornecedorId || null;
+          custo = ex.custoLab ?? null;
+          valorSugerido = ex.item?.preco ?? null;
+          if (ex.fornecedorId) {
+            const forn = await this.prisma.fornecedor.findUnique({ where: { id: ex.fornecedorId }, select: { nome: true } }).catch(() => null);
+            fornecedorNome = forn?.nome ?? null;
+          }
+        }
       }
       const now = new Date().toISOString();
       const origem = it.origem || 'PDV';
       const d = {
         nome: it.descricao || it.nome || 'Exame', status: fase, date: now, externo: true,
-        fornecedorId: it.fornecedorId || cat?.fornecedorId || null,
-        fornecedorNome: cat?.fornecedor?.nome || null,
-        custo: cat?.valorFornecedor ?? null,
-        valor: cat?.valorClienteSugerido ?? (Number(it.valorUnitario) || null),
+        fornecedorId,
+        fornecedorNome,
+        custo: custo ?? (it.custoUnitario != null ? Number(it.custoUnitario) : null),
+        valor: valorSugerido ?? (Number(it.valorUnitario) || null),
         origem,
         historico: { [fase]: { at: now, por: origem } },
       };
