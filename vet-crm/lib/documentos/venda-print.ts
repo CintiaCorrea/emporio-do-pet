@@ -35,6 +35,11 @@ export async function imprimirVenda(v: any, opts?: { rotulo?: string; preview?: 
   const tutorFallback = v?.tutor && typeof v.tutor === "object" ? v.tutor : (v?.tutorNome || v?.cliente ? { name: v.tutorNome || v.cliente } : undefined);
   const { pet: petObj, tutor: tutorObj } = await carregarPetTutorParaImpressao(petIdV, petFallback, tutorFallback);
 
+  // Forma de recebimento (quando a venda foi paga): "Infinity PIX", "Dinheiro", "Cartão 3x"…
+  const formasArr = Array.isArray(v?.formas) ? (v.formas as any[]).flat().filter((f: any) => f && typeof f === "object" && !Array.isArray(f)) : [];
+  const formasStr = formasArr.length
+    ? formasArr.map((f: any) => `${f.forma || "—"}${Number(f.parcelas) > 1 ? ` ${f.parcelas}x` : ""}`).filter(Boolean).join(" + ")
+    : (v?.paymentMethod ? String(v.paymentMethod) : "");
   const meta = [dataBR(v?.date || v?.createdAt || new Date()), v?.paymentMethod ? esc(v.paymentMethod) : ""].filter(Boolean).join(" · ");
   const body = `
     <div style="font-size:12px;color:#6B7280;margin-bottom:12px">${meta}</div>
@@ -50,6 +55,7 @@ export async function imprimirVenda(v: any, opts?: { rotulo?: string; preview?: 
       <tbody>${linhas || `<tr><td colspan="4" style="padding:10px;text-align:center;color:#9aa0a8">Sem itens</td></tr>`}</tbody>
     </table>
     <div style="text-align:right;margin-top:12px;font-size:15px;font-weight:700;color:#014D5E">Total: ${BRL(total)}</div>
+    ${formasStr ? `<div style="text-align:right;margin-top:5px;font-size:12.5px;color:#374151">Forma de recebimento: <b>${esc(formasStr)}</b></div>` : ""}
     ${v?.observacao ? `<div style="margin-top:16px;font-size:12.5px;color:#374151"><b>Observação:</b> ${esc(v.observacao)}</div>` : ""}
     <div style="margin-top:22px;font-size:12px;color:#6B7280">Obrigado pela preferência! 🐾</div>
   `;

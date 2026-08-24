@@ -115,7 +115,7 @@ export default function RecebimentosPage() {
     try {
       const v = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then((x) => x.json());
       const itens = ((v.items || v.itens || []) as any[]).map((it: any) => ({ descricao: it.descricao || it.nome || "Item", quantidade: it.quantidade || it.qtd || 1, valorUnitario: it.valorUnitario ?? it.valor ?? 0, desconto: it.desconto || 0, valorTotal: it.valorTotal }));
-      imprimirVenda({ itens, valor: v.value ?? r.valorTotal, petId: v.petId, petNome: r.appointment?.pet?.name, tutorNome: r.appointment?.tutor?.name, numeroVenda: r.appointment?.numeroVenda, date: v.date || r.data }, { rotulo: "Comanda", preview: true });
+      imprimirVenda({ itens, valor: v.value ?? r.valorTotal, petId: v.petId, petNome: r.appointment?.pet?.name, tutorNome: r.appointment?.tutor?.name, numeroVenda: r.appointment?.numeroVenda, date: v.date || r.data, formas: r.formas }, { rotulo: "Comanda", preview: true });
     } catch { toast.error("Não consegui abrir a comanda."); }
   };
 
