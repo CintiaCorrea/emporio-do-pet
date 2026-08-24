@@ -177,7 +177,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
           </div>
           {itens.map((it, i) => (
             <div key={i} className="grid grid-cols-[1fr_44px_84px_24px] gap-1.5 items-center">
-              <input list={`cat-${i}`} value={it.descricao} onChange={(e) => { setItem(i, { descricao: e.target.value }); preencherDoCatalogo(i, e.target.value); }} placeholder="Descrição ou catálogo…" style={inp} />
+              <input list={`cat-${i}`} value={it.descricao} onChange={(e) => { setItem(i, { descricao: e.target.value }); preencherDoCatalogo(i, e.target.value); }} onBlur={(e) => { const val = e.target.value.trim(); if (val && !cat.some((c: any) => (c.nome || "") === val)) { toast.error("Escolha um item do catálogo."); setItem(i, { descricao: "", valor: "" }); } }} placeholder="Buscar no catálogo…" style={inp} />
               <datalist id={`cat-${i}`}>{cat.map((c) => { const lab = labDoItem(c); return <option key={c.nome} value={c.nome} label={lab ? `${lab.veter ? "⭐ " : ""}${lab.nome}` : undefined} />; })}</datalist>
               <input value={it.qtd} onChange={(e) => setItem(i, { qtd: e.target.value })} inputMode="numeric" style={{ ...inp, textAlign: "center" }} />
               <input value={it.valor} onChange={(e) => setItem(i, { valor: e.target.value })} onBlur={(e) => setItem(i, { valor: fmtVal(e.target.value) })} inputMode="decimal" placeholder="0,00" style={{ ...inp, textAlign: "right" }} />
