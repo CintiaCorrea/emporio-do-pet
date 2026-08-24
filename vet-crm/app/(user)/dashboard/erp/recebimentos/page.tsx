@@ -4,7 +4,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { imprimirVenda } from "@/lib/documentos/venda-print";
 
 const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v) ? v : 0);
 const dh = (s?: string | null) => (s ? new Date(s).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "") : "—");
@@ -95,6 +97,27 @@ export default function RecebimentosPage() {
     setLoading(false);
   }, [from, to]);
   useEffect(() => { load(); }, [load]);
+
+  // 🗑️ Excluir o recebimento (venda volta a "não paga"; não apaga a venda).
+  const excluir = async (r: any) => {
+    if (!r?.caixaSessaoId || !r?.id) { toast.error("Recebimento sem caixa vinculado — exclua pelo Caixa."); return; }
+    if (!window.confirm(`Excluir o recebimento de ${brl(Number(r.valorTotal))} (${vendaLabel(r.appointment)})?\n\nA venda volta a ficar "não paga". Não apaga a venda.`)) return;
+    try {
+      const resp = await fetch(`/api/caixa/${r.caixaSessaoId}/recebimento?itemId=${encodeURIComponent(r.id)}`, { method: "DELETE" });
+      if (!resp.ok) throw new Error();
+      toast.success("Recebimento excluído"); load();
+    } catch { toast.error("Não consegui excluir."); }
+  };
+  // 🧾 Abrir a comanda (itens) do pagamento — imprime no padrão da clínica.
+  const abrirComanda = async (r: any) => {
+    const id = r?.appointment?.id;
+    if (!id) { toast.error("Venda não encontrada."); return; }
+    try {
+      const v = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then((x) => x.json());
+      const itens = ((v.items || v.itens || []) as any[]).map((it: any) => ({ descricao: it.descricao || it.nome || "Item", quantidade: it.quantidade || it.qtd || 1, valorUnitario: it.valorUnitario ?? it.valor ?? 0, desconto: it.desconto || 0, valorTotal: it.valorTotal }));
+      imprimirVenda({ itens, valor: v.value ?? r.valorTotal, petId: v.petId, petNome: r.appointment?.pet?.name, tutorNome: r.appointment?.tutor?.name, numeroVenda: r.appointment?.numeroVenda, date: v.date || r.data }, { rotulo: "Comanda" });
+    } catch { toast.error("Não consegui abrir a comanda."); }
+  };
 
   const money = (v: number) => (olho ? brl(v) : "R$ •••");
   const k = resumo?.kpis || {};
@@ -235,9 +258,9 @@ export default function RecebimentosPage() {
           </div>
           <div className="rc-scroll">
             <table className="rc-tbl">
-              <thead><tr><th>Venda</th><th>Data</th><th>Cliente · Pet</th><th>Responsável</th><th>Formas</th><th className="r">Valor</th></tr></thead>
+              <thead><tr><th>Venda</th><th>Data</th><th>Cliente · Pet</th><th>Responsável</th><th>Formas</th><th className="r">Valor</th><th></th></tr></thead>
               <tbody>
-                {filtered.length === 0 && <tr><td colSpan={6} className="rc-empty">Nenhum recebimento no período{temFiltro ? " com esses filtros" : ""}.</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={7} className="rc-empty">Nenhum recebimento no período{temFiltro ? " com esses filtros" : ""}.</td></tr>}
                 {filtered.map((r) => (
                   <tr key={r.id}>
                     <td style={{ color: "#014D5E", fontWeight: 500, whiteSpace: "nowrap" }}>{vendaLabel(r.appointment)}</td>
@@ -246,6 +269,10 @@ export default function RecebimentosPage() {
                     <td style={{ color: "#5C6B70" }}>{r.usuario || "—"}</td>
                     <td style={{ color: "#374151" }}>{(r.formas || []).map((f: any) => f.forma).join(" + ") || "—"}</td>
                     <td className="r">{money(Number(r.valorTotal))}</td>
+                    <td className="no-print" style={{ whiteSpace: "nowrap", textAlign: "right" }}>
+                      <button onClick={() => abrirComanda(r)} title="Abrir a comanda (itens da venda)" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", marginRight: 4, fontSize: 13 }}>🧾</button>
+                      <button onClick={() => excluir(r)} title="Excluir recebimento" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", color: "#b23b3b", fontSize: 13 }}>🗑️</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -177,7 +177,15 @@ export default function CaixaPage() {
   const resumo = useMemo(() => {
     const map = new Map<string, { vendas: number; sup: number }>();
     const add = (forma: string, campo: 'vendas' | 'sup', valor: number) => { const cur = map.get(forma) || { vendas: 0, sup: 0 }; cur[campo] += valor; map.set(forma, cur); };
-    (detail?.recebimentos || []).forEach((rec) => (rec.formas || []).forEach((f) => add(f.forma || 'Outros', 'vendas', Number(f.valor || 0))));
+    (detail?.recebimentos || []).forEach((rec) => {
+      // formas pode vir malformado (ex.: [[]] de baixa sem forma) → achata e filtra objetos válidos.
+      const fs = (Array.isArray(rec.formas) ? (rec.formas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
+      let soma = 0;
+      fs.forEach((f: any) => { const v = Number(f.valor || 0); soma += v; add(f.forma || 'Outros', 'vendas', v); });
+      // o que sobrou do valorTotal (recebimento sem forma / forma parcial) NÃO some — cai em "Outros".
+      const resto = Number(rec.valorTotal || 0) - soma;
+      if (resto > 0.005) add('Outros', 'vendas', resto);
+    });
     if (detail?.suprimento) add('Dinheiro', 'sup', Number(detail.suprimento));
     (detail?.movimentos || []).filter((m) => m.tipo === 'SUPRIMENTO').forEach((m) => add(m.forma || 'Dinheiro', 'sup', Number(m.valor || 0)));
     const linhas = Array.from(map.entries()).map(([forma, v]) => ({ forma, vendas: v.vendas, sup: v.sup, resultado: v.vendas + v.sup }));

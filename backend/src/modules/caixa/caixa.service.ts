@@ -391,8 +391,11 @@ export class CaixaService {
       const v = Number(r.valorTotal) || 0;
       receitaTotal += v;
       if (sameDay(r.data, r.appointment?.date)) noDia += v; else posteriores += v;
-      const formas: any[] = Array.isArray(r.formas) ? (r.formas as any[]) : [];
-      for (const f of formas) { const nm = f?.forma || "Outro"; porForma.set(nm, (porForma.get(nm) || 0) + (Number(f?.valor) || 0)); }
+      const formas: any[] = (Array.isArray(r.formas) ? (r.formas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
+      let somaF = 0;
+      for (const f of formas) { const val = Number(f?.valor) || 0; somaF += val; const nm = f?.forma || "Outro"; porForma.set(nm, (porForma.get(nm) || 0) + val); }
+      const resto = v - somaF; // recebimento sem forma / forma parcial → não some, cai em "Outro"
+      if (resto > 0.005) porForma.set("Outro", (porForma.get("Outro") || 0) + resto);
       const un = (r.createdById && userName.get(r.createdById)) || "Sistema";
       porUsuario.set(un, (porUsuario.get(un) || 0) + v);
       const dia = new Date(r.data).toISOString().slice(0, 10);
@@ -813,7 +816,8 @@ export class CaixaService {
 
   async registrarRecebimento(caixaId: string, dto: any, userId: string) {
     const appointmentId = dto.appointmentId || null;
-    const formas = Array.isArray(dto.formas) ? dto.formas : [];
+    // Normaliza: achata malformado (ex.: [[]] de baixa sem forma) e mantém só objetos {forma,valor} válidos.
+    const formas = (Array.isArray(dto.formas) ? (dto.formas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
     // Config de vendas: obrigar NSU do cartão (maquininha/cartão)
     const cfgRec = await this.getConfigVendas();
     if (cfgRec.obrigarNsu && formas.some((f: any) => /cart|maquin/i.test(f.forma || '') && !String(f.nsu || '').trim())) {
@@ -853,7 +857,7 @@ export class CaixaService {
         valorTotal: Number(dto.valorTotal || 0),
         desconto: Number(dto.desconto || 0),
         troco: Number(dto.troco || 0),
-        formas: dto.formas ?? [],
+        formas,
         observacao: dto.observacao || null,
         data: caixaData,
         createdById: userId,
