@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ExamesService } from './exames.service';
@@ -20,6 +20,12 @@ export class ExamesController {
   @Patch(':itemId/fase')
   mudarFase(@Param('itemId') itemId: string, @Body() body: { status: string }) {
     return this.service.mudarFase(itemId, body?.status);
+  }
+
+  /** Exclui um exame do Kanban. */
+  @Delete(':itemId')
+  excluir(@Param('itemId') itemId: string) {
+    return this.service.excluir(itemId);
   }
 
   /** "Enviar agora": avisa o laboratório de um exame específico (id do listaItem petexa_). */

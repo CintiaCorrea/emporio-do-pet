@@ -170,6 +170,14 @@ export class ExamesService {
     return { ok: true };
   }
 
+  /** Exclui um exame do Kanban (remove o petexa_ do pet). Não mexe na venda/financeiro. */
+  async excluir(itemId: string): Promise<{ ok: boolean; erro?: string }> {
+    const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true } });
+    if (!it || !it.lista.startsWith('petexa_')) return { ok: false, erro: 'Exame não encontrado' };
+    await this.prisma.listaItem.delete({ where: { id: itemId } });
+    return { ok: true };
+  }
+
   /** 1ª fase configurada dos exames (Config › Exames = exame_fases). Fallback "Solicitado". */
   private async faseInicialExame(): Promise<string> {
     try {

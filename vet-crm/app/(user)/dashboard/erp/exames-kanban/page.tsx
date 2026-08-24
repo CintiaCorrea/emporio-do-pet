@@ -67,6 +67,17 @@ export default function ExamesKanbanPage() {
     catch { load(); }
   };
 
+  // Excluir o exame do Kanban (não mexe na venda/financeiro).
+  const excluir = async (e: any) => {
+    if (!window.confirm(`🗑️ Excluir este exame do quadro?\n\n${e.petNome ? e.petNome + " — " : ""}${e.nome}\n\n(Não desfaz a venda nem o a-pagar do laboratório.)`)) return;
+    setFila((prev) => prev.filter((x) => x.itemId !== e.itemId));
+    try {
+      const r = await fetch(`/api/exames/${e.itemId}`, { method: "DELETE" });
+      if (!r.ok) throw new Error();
+      toast.success("Exame removido do quadro");
+    } catch { toast.error("Não consegui excluir. Recarregando…"); load(); }
+  };
+
   // Solicitar coleta ao laboratório AGORA (urgência). O lote automático 11:30/17:00 cuida do resto.
   const avisarLab = async (e: any) => {
     if (!window.confirm(`📲 Solicitar coleta ao ${e.fornecedorNome || "laboratório"}?\n\n${e.petNome ? e.petNome + " — " : ""}${e.nome}`)) return;
@@ -119,6 +130,7 @@ export default function ExamesKanbanPage() {
             <button onClick={() => avisarLab(e)} disabled={avisando === e.itemId} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#6A4FB0", color: "#6A4FB0", background: "#F3EFFB" }}>{avisando === e.itemId ? "enviando…" : "📲 Solicitar ao lab"}</button>
           ) : null}
           {ultima ? <button onClick={() => mover(e.itemId, lastFase)} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>✓ {lastFase}</button> : null}
+          <button onClick={() => excluir(e)} title="Excluir exame do quadro" className="ml-auto text-[11px] px-1.5 py-0.5 rounded-md border" style={{ borderColor: LINE, color: "#b23b3b" }}>🗑️</button>
         </div>
       </div>
     );
