@@ -18,7 +18,7 @@ const temEstoque = (t: Tipo) => t === "PRODUTO" || t === "VACINA";
 const temComposicao = (t: Tipo) => t === "PACOTE" || t === "KIT";
 
 const FORM0: any = {
-  tipo: "PRODUTO", nome: "", grupoId: "", custo: "", markup: "", preco: "", exibeListaPreco: true, permiteAlterarPreco: true,
+  tipo: "PRODUTO", nome: "", grupoId: "", fornecedorId: "", custo: "", markup: "", preco: "", exibeListaPreco: true, permiteAlterarPreco: true,
   codigoBarras: "", unidadeVenda: "", marcaId: "", proposito: "VENDA", duracaoMin: "",
   controlaEstoque: false, estoqueAtual: "", estoqueMin: "", estoqueMax: "", controlaValidade: false,
   comissionado: false, comissaoTipo: "PERCENTUAL", comissaoValor: "", descontoModo: "LIMITE_GERAL", descontoLimite: "",
@@ -35,6 +35,7 @@ export default function CatalogoNovoPage() {
   const [grupos, setGrupos] = useState<any[]>([]);
   const [marcas, setMarcas] = useState<any[]>([]);
   const [labs, setLabs] = useState<any[]>([]);
+  const [fornAll, setFornAll] = useState<any[]>([]); // todos os fornecedores — pro seletor de terceirizado (serviço)
   const [protocolos, setProtocolos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [fTipo, setFTipo] = useState("");
@@ -77,6 +78,7 @@ export default function CatalogoNovoPage() {
       setMarcas(Array.isArray(m) ? m : (m?.data || []));
       const fArr = Array.isArray(f) ? f : (f?.data || f?.itens || []);
       setLabs(fArr.filter((x: any) => !x.tipo || /LABORATORIO|PROFISSIONAL/i.test(x.tipo)));
+      setFornAll(fArr);
       setProtocolos(Array.isArray(pr) ? pr : (pr?.data || pr?.templates || []));
       setTodosItens(Array.isArray(ti?.itens) ? ti.itens : []);
     } catch {}
@@ -113,7 +115,7 @@ export default function CatalogoNovoPage() {
       const it = await fetch(`/api/catalogo/itens/${id}`, { cache: "no-store" }).then((r) => r.json());
       setForm({
         ...FORM0, ...it,
-        custo: it.custo ?? "", markup: it.markup ?? "", preco: it.preco ?? "", duracaoMin: it.duracaoMin ?? "",
+        custo: it.custo ?? "", markup: it.markup ?? "", preco: it.preco ?? "", duracaoMin: it.duracaoMin ?? "", fornecedorId: it.fornecedorId || "",
         estoqueAtual: it.estoqueAtual ?? "", estoqueMin: it.estoqueMin ?? "", estoqueMax: it.estoqueMax ?? "",
         comissaoValor: it.comissaoValor ?? "", descontoLimite: it.descontoLimite ?? "",
         grupoId: it.grupoId || "", marcaId: it.marcaId || "", protocoloTemplateId: it.protocoloTemplateId || "",
@@ -307,6 +309,16 @@ export default function CatalogoNovoPage() {
                   <div><label style={lbl}>Preço venda *</label><input value={form.preco} onChange={(e) => up({ preco: e.target.value.replace(",", ".") })} inputMode="decimal" style={inp} /></div>
                 </div>
                 {markupReal != null && <div className="text-[11.5px] mt-1.5" style={{ color: markupReal < 0 ? "#A32D2D" : "#0F6E56" }}>Markup real: <b>{markupReal}%</b> {markupReal < 0 && "⚠️ preço abaixo do custo"}</div>}
+                {form.tipo !== "EXAME" && (
+                  <div className="mt-2.5">
+                    <label style={lbl}>Terceirizado (fornecedor) — opcional</label>
+                    <select value={form.fornecedorId || ""} onChange={(e) => up({ fornecedorId: e.target.value })} style={inp}>
+                      <option value="">— nenhum (serviço próprio) —</option>
+                      {fornAll.map((l: any) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+                    </select>
+                    {form.fornecedorId ? <div className="text-[11.5px] mt-1" style={{ color: MUT }}>Ao vender, gera <b>a-pagar</b> pro fornecedor no valor do <b>Custo</b> (o que ele recebe) — igual ao laboratório do exame.</div> : null}
+                  </div>
+                )}
                 <div className="flex gap-4 mt-2 flex-wrap text-[12.5px]" style={{ color: MUT }}>
                   <label className="flex items-center gap-1.5"><input type="checkbox" checked={form.exibeListaPreco} onChange={(e) => up({ exibeListaPreco: e.target.checked })} /> Exibe na lista de preço</label>
                   <label className="flex items-center gap-1.5"><input type="checkbox" checked={form.permiteAlterarPreco} onChange={(e) => up({ permiteAlterarPreco: e.target.checked })} /> Permite alterar preço na venda</label>
