@@ -1143,6 +1143,9 @@ export class CaixaService {
       tutorId: dto.tutorId, petId: dto.petId,
       userId: dto.userId || userId,
       date: dto.date || new Date().toISOString(),
+      // type/status marcam que é VENDA/ORÇAMENTO (não agendamento) — senão a trava de horário da
+      // agenda bloqueia a venda por falso conflito (mesmo padrão da comanda da ficha).
+      type: orcamento ? 'Orçamento' : 'Venda', status: 'COMPLETED',
       value: valorVenda, items,
     } as any);
 
