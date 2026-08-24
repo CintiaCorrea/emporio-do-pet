@@ -606,7 +606,7 @@ export default function PDVPage() {
                 {itemAberto && itensFiltrados.length > 0 && (
                   <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, marginTop: 4, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, boxShadow: '0 8px 24px -6px rgba(0,0,0,.12)', maxHeight: 240, overflowY: 'auto' }}>
                     {itensFiltrados.map((s) => (
-                      <button key={s.id} onClick={() => addItem(s)} style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '9px 12px', border: 'none', borderBottom: `1px solid ${SOFT}`, background: '#fff', cursor: 'pointer', fontSize: 13 }}>
+                      <button key={s.id} title={s.nome} onClick={() => addItem(s)} style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center', gap: 8, padding: '9px 12px', border: 'none', borderBottom: `1px solid ${SOFT}`, background: '#fff', cursor: 'pointer', fontSize: 13 }}>
                         <span style={{ color: INK, display: 'flex', alignItems: 'center', gap: 7, minWidth: 0 }}>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nome}</span>
                           {(() => { const lab = labDoItem(s); return lab ? <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: lab.veter ? '#E1F5EE' : '#EEF2F6', color: lab.veter ? '#0F6E56' : '#4D6A8A' }}>{lab.veter ? '⭐ ' : '🏥 '}{lab.nome}</span> : null; })()}

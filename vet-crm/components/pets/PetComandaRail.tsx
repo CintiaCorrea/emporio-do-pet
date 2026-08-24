@@ -318,7 +318,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                 <div className="border rounded-lg mt-1 max-h-44 overflow-auto" style={{ borderColor: "#F0EBE0" }}>
                   {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
                     matches.map((c) => (
-                      <button key={c.id} onClick={() => { const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome }); addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 }); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
+                      <button key={c.id} title={c.nome} onClick={() => { const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome }); addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 }); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
                         <span className="text-[#1F2A2E] truncate pr-2 flex items-center gap-1.5 min-w-0"><span className="truncate">{c.nome}</span>{(() => { const lab = labDoItem(c); return lab ? <span className="shrink-0 text-[10px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}</span><span className="text-[#0F6E56] font-semibold shrink-0">{BRL(c.valor)}</span>
                       </button>
                     ))}
@@ -344,7 +344,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                     <div className="border rounded-lg mt-1 max-h-40 overflow-auto bg-white" style={{ borderColor: "#F0EBE0" }}>
                       {convItens.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado nessa tabela.</div> :
                         convItens.map((it) => (
-                          <button key={it.precoId} onClick={() => addConvenioItem(it)} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
+                          <button key={it.precoId} title={it.itemNome} onClick={() => addConvenioItem(it)} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
                             <span className="text-[#1F2A2E] truncate pr-2">{it.itemNome}</span><span className="text-[#0E5560] font-semibold shrink-0">{BRL(it.preco)}</span>
                           </button>
                         ))}
@@ -362,7 +362,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
             ) : itens.map((it, i) => (
               <div key={i} className="flex items-center gap-2 py-1.5 border-b" style={{ borderColor: "#F5F1E8" }}>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[12.5px] text-[#1F2A2E] truncate flex items-center gap-1.5">
+                  <div className="text-[12.5px] text-[#1F2A2E] truncate flex items-center gap-1.5" title={it.descricao}>
                     <span className="truncate">{it.descricao}</span>
                     {it._convenio ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: "#E0F0F2", color: "#0E5560" }}>🏥 {it._convLabel} paga</span>
                       : (() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}
