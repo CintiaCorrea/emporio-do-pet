@@ -34,6 +34,13 @@ export class ProductsService {
       ? (skip as number)
       : Math.max(0, (page - 1) * resolvedTake);
 
+    // 🔀 Catálogo NOVO ligado → /api/products serve o cat_itens (mapeado no formato de Product), pra
+    // NENHUM consumidor antigo ficar sem dados (pedido de compra, tratamentos, inbox, etc.). Fallback ao antigo se vazio.
+    if (await this.usarCatalogoNovo()) {
+      const novo = await this.findAllDoCatalogoNovo({ resolvedTake, resolvedSkip, page, search, type, excludeService, categoryId });
+      if (novo) return novo;
+    }
+
     const where: any = {};
     if (type) where.type = type;
     else if (excludeService) where.type = { not: 'SERVICE' };
@@ -102,6 +109,62 @@ export class ProductsService {
         total,
         pages: Math.ceil(total / resolvedTake),
       },
+    };
+  }
+
+  // Chave do catálogo novo (config_listas › catalogo_config › { usarNovo:true }).
+  private async usarCatalogoNovo(): Promise<boolean> {
+    try {
+      const cfg = await this.prisma.listaItem.findFirst({ where: { lista: 'catalogo_config' } });
+      if (!cfg?.valor) return false;
+      return !!JSON.parse(cfg.valor)?.usarNovo;
+    } catch { return false; }
+  }
+
+  // Serve o cat_itens no MESMO formato de findAll (products/stats/pagination). Retorna null se vazio → cai no antigo.
+  private async findAllDoCatalogoNovo(p: { resolvedTake: number; resolvedSkip: number; page: number; search?: string; type?: string; excludeService?: boolean; categoryId?: string }) {
+    const { resolvedTake, resolvedSkip, page, search, type, excludeService, categoryId } = p;
+    const where: any = { arquivado: false, ativo: true };
+    if (type === 'SERVICE') where.tipo = 'SERVICO';
+    else if (type) where.tipo = { not: 'SERVICO' };
+    else if (excludeService) where.tipo = { not: 'SERVICO' };
+    if (categoryId) where.grupoId = categoryId;
+    if (search) where.nome = { contains: search, mode: 'insensitive' as const };
+
+    const [itens, total] = await Promise.all([
+      this.prisma.itemCatalogo.findMany({
+        where,
+        include: { grupo: { select: { id: true, nome: true } } },
+        orderBy: { nome: 'asc' as const },
+        skip: resolvedSkip,
+        take: resolvedTake,
+      }),
+      this.prisma.itemCatalogo.count({ where }),
+    ]);
+    if (total === 0) return null;
+
+    const products = itens.map((i) => ({
+      id: i.id,
+      name: i.nome,
+      price: i.preco,
+      type: (i.tipo === 'SERVICO' ? 'SERVICE' : 'MEDICINE') as any,
+      stock: 0,
+      custoPadrao: i.custo ?? null,
+      ativo: i.ativo,
+      categoryId: i.grupoId ?? null,
+      category: i.grupo ? { id: i.grupo.id, nome: i.grupo.nome } : null,
+      fornecedor: null,
+      treatments: [] as any[],
+      _count: { treatments: 0 },
+      createdAt: i.createdAt,
+      updatedAt: i.updatedAt,
+    }));
+    const totalValue = products.reduce((s, x) => s + (x.price || 0), 0);
+
+    return {
+      products,
+      stats: { total, totalStock: 0, totalValue, averagePrice: total ? totalValue / total : 0, lowStockCount: 0 },
+      pagination: { page, limit: resolvedTake, total, pages: Math.ceil(total / resolvedTake) },
     };
   }
 

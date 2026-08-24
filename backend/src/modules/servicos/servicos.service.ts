@@ -41,7 +41,44 @@ export class ServicosService {
    * funcionando sem alteração. Product e Servico já compartilham ServiceCategory,
    * então `category` sai igual.
    */
+  // Chave do catálogo novo (config_listas › catalogo_config › { usarNovo:true }).
+  private async usarCatalogoNovo(): Promise<boolean> {
+    try {
+      const cfg = await this.prisma.listaItem.findFirst({ where: { lista: 'catalogo_config' } });
+      if (!cfg?.valor) return false;
+      return !!JSON.parse(cfg.valor)?.usarNovo;
+    } catch { return false; }
+  }
+
   async listServicos(includeInactive = false, categoryId?: string) {
+    // 🔀 Catálogo NOVO ligado → os serviços da agenda/internação/inbox saem do cat_itens (fonte única),
+    // no MESMO formato de Servico (os consumidores não mudam). Se ligado mas VAZIO, cai no antigo.
+    if (await this.usarCatalogoNovo()) {
+      const novos = await this.prisma.itemCatalogo.findMany({
+        where: {
+          tipo: 'SERVICO' as any,
+          arquivado: false,
+          ...(includeInactive ? {} : { ativo: true }),
+          ...(categoryId ? { grupoId: categoryId } : {}),
+        },
+        orderBy: [{ ativo: 'desc' }, { nome: 'asc' }],
+        include: { grupo: { select: { id: true, nome: true } } },
+      });
+      if (novos.length) {
+        return novos.map((i) => ({
+          id: i.id,
+          nome: i.nome,
+          valorPadrao: i.preco,
+          custoPadrao: i.custo ?? null,
+          comissaoBaseDefault: null,
+          categoryId: i.grupoId ?? null,
+          ativo: i.ativo,
+          createdAt: i.createdAt,
+          updatedAt: i.updatedAt,
+          category: i.grupo ? { id: i.grupo.id, nome: i.grupo.nome } : null,
+        }));
+      }
+    }
     const itens = await this.prisma.product.findMany({
       where: {
         type: 'SERVICE',
