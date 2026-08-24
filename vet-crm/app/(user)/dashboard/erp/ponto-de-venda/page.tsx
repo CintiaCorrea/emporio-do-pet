@@ -353,7 +353,7 @@ export default function PDVPage() {
       if (i >= 0) { const cp = [...c]; cp[i] = { ...cp[i], quantidade: cp[i].quantidade + qtd }; return cp; }
       const base = { descricao: l.descricao, quantidade: qtd, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined };
       return [...c, l._novo
-        ? { ...base, _novo: true, catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, descontoModo: l.descontoModo, descontoLimite: l.descontoLimite }
+        ? { ...base, _novo: true, ...(l._exame ? { _exame: true } : {}), catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, descontoModo: l.descontoModo, descontoLimite: l.descontoLimite }
         : l._exame
         ? { ...base, _exame: true, catalogoExameId: l.catalogoExameId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome }
         : { ...base, servicoId: l.servicoId }];
