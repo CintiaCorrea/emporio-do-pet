@@ -42,8 +42,9 @@ export function montarTimbradoHtml(args: {
   const tels = [clinica?.telefone ? esc(clinica.telefone) : v("CLINICA_TELEFONE"), clinica?.whatsapp ? esc(clinica.whatsapp) : v("CLINICA_TELEFONE2")].filter(Boolean).join(" · ");
 
   // linhas do quadro de dados (só mostra o que existir)
-  const animalNome = [v("ANIMAL_FICHA"), v("ANIMAL_NOME")].filter(Boolean).join(" - ");
-  const respNome = [v("RESPONSAVEL_FICHA"), v("RESPONSAVEL_NOME")].filter(Boolean).join(" - ");
+  // Padrão (Cintia): Tutor/Pet pelo NOME, sem o código da ficha na frente (ex.: "Nenem", não "4701 - Nenem").
+  const animalNome = v("ANIMAL_NOME");
+  const respNome = v("RESPONSAVEL_NOME");
   const linha = (rot: string, val: string) => (val ? `<div><b>${rot}:</b> <span>${val}</span></div>` : "");
   const linhaFull = (rot: string, val: string) => (val ? `<div class="tb-full"><b>${rot}:</b> <span>${val}</span></div>` : "");
 

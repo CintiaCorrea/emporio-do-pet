@@ -30,7 +30,7 @@ async function getClinica(): Promise<any> {
  * que inclui o quadro de dados do animal), usa esse; senão gera um cabeçalho padrão
  * (logo + dados da clínica).
  */
-export async function imprimirDocumento(titulo: string, corpoHtml: string, cabecalhoHtml?: string, dados?: { pet?: any; tutor?: any }, opts?: { compacto?: boolean }): Promise<void> {
+export async function imprimirDocumento(titulo: string, corpoHtml: string, cabecalhoHtml?: string, dados?: { pet?: any; tutor?: any }, opts?: { compacto?: boolean; preview?: boolean }): Promise<void> {
   let cab = cabecalhoHtml || "";
   if (!cab) {
     const clinica = await getClinica();
@@ -60,6 +60,9 @@ export async function imprimirDocumento(titulo: string, corpoHtml: string, cabec
   );
   w.document.close();
   w.focus();
-  // dá um tempinho pra a LOGO (imagem externa) carregar antes de mandar imprimir
-  setTimeout(() => { try { w.print(); } catch { /* usuário fecha */ } }, 600);
+  // preview = só VISUALIZAR (olhinho): abre o documento sem disparar a impressão (ela pode imprimir por Ctrl+P).
+  if (!opts?.preview) {
+    // dá um tempinho pra a LOGO (imagem externa) carregar antes de mandar imprimir
+    setTimeout(() => { try { w.print(); } catch { /* usuário fecha */ } }, 600);
+  }
 }

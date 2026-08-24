@@ -11,7 +11,7 @@ const dataBR = (d: any) => { try { return new Date(d).toLocaleDateString("pt-BR"
  * `v` aceita o formato da Consulta de vendas (itens, valor, cliente, pet, numeroVenda) ou um objeto
  * montado na comanda/PDV ({ itens, valor, petNome/pet, tutorNome/tutor, observacao }).
  */
-export async function imprimirVenda(v: any, opts?: { rotulo?: string }) {
+export async function imprimirVenda(v: any, opts?: { rotulo?: string; preview?: boolean }) {
   const rotulo = opts?.rotulo || "Comprovante de venda";
   const itens: any[] = Array.isArray(v?.itens) ? v.itens : [];
   const linhas = itens.map((it) => {
@@ -54,5 +54,5 @@ export async function imprimirVenda(v: any, opts?: { rotulo?: string }) {
     <div style="margin-top:22px;font-size:12px;color:#6B7280">Obrigado pela preferência! 🐾</div>
   `;
 
-  await imprimirDocumento(`${rotulo} ${num}`.trim(), body, undefined, { pet: petObj, tutor: tutorObj });
+  await imprimirDocumento(`${rotulo} ${num}`.trim(), body, undefined, { pet: petObj, tutor: tutorObj }, { preview: opts?.preview });
 }
