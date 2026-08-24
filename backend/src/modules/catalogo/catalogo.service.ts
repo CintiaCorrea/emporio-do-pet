@@ -93,6 +93,7 @@ export class CatalogoService {
       nome: dto.nome?.trim(),
       grupoId: dto.grupoId || null,
       custo: dto.custo != null ? Number(dto.custo) : null,
+      fornecedorId: dto.fornecedorId || null,   // terceirizado/parceiro do serviço → a-pagar ao vender
       markup: dto.markup != null ? Number(dto.markup) : null,
       preco: Number(dto.preco) || 0,
       exibeListaPreco: dto.exibeListaPreco ?? true,
@@ -196,10 +197,14 @@ export class CatalogoService {
       orderBy: { nome: 'asc' },
       take: 8000,
     });
-    const fornIds = [...new Set(itens.map((i) => i.exame?.fornecedorId).filter(Boolean) as string[])];
+    // Fornecedor da LINHA: exame usa o lab (i.exame.fornecedorId); serviço/produto usa o terceirizado do item (i.fornecedorId).
+    const fornDe = (i: any) => (i.tipo === 'EXAME' ? i.exame?.fornecedorId : i.fornecedorId) ?? i.fornecedorId ?? null;
+    const fornIds = [...new Set(itens.map(fornDe).filter(Boolean) as string[])];
     const forns = fornIds.length ? await this.prisma.fornecedor.findMany({ where: { id: { in: fornIds } }, select: { id: true, nome: true } }) : [];
     const fornMap = new Map(forns.map((f) => [f.id, f.nome]));
-    return itens.map((i) => ({
+    return itens.map((i) => {
+      const fid = fornDe(i);
+      return {
       id: i.id,
       nome: i.nome,
       valorPadrao: i.preco,
@@ -211,11 +216,13 @@ export class CatalogoService {
       codigoBarras: i.codigoBarras ?? null,
       _novo: true,
       _exame: i.tipo === 'EXAME',
-      _fornecedorId: i.exame?.fornecedorId ?? null,
-      _fornecedorNome: i.exame?.fornecedorId ? (fornMap.get(i.exame.fornecedorId) ?? null) : null,
+      // Terceirizado/parceiro (ou lab do exame) → gera o a-pagar D+1 ao vender.
+      _fornecedorId: fid ?? null,
+      _fornecedorNome: fid ? (fornMap.get(fid) ?? null) : null,
       _descontoModo: i.descontoModo,     // política de desconto por item (Fatia 6b)
       _descontoLimite: i.descontoLimite ?? null,
-    }));
+      };
+    });
   }
 
   // ── ESTOQUE (Fatia 4): movimentações + motivos + previsão ─────────

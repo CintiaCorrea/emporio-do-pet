@@ -3994,6 +3994,7 @@ model ItemCatalogo {
   grupo               CatGrupo? @relation(fields: [grupoId], references: [id])
   // preço
   custo               Float?
+  fornecedorId        String?   // terceirizado/parceiro (Fornecedor) — ao vender, gera a-pagar D+1 (como o lab do exame). FK string simples.
   markup              Float?    // % desejado
   preco               Float     @default(0)
   exibeListaPreco     Boolean   @default(true)
