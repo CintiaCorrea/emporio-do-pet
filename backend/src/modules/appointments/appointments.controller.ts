@@ -29,7 +29,9 @@ export class AppointmentsController {
 
   @Post()
   @ApiOperation({ summary: 'Criar agendamento' })
-  create(@Body() createAppointmentDto: CreateAppointmentDto) {
+  create(@Body() createAppointmentDto: CreateAppointmentDto, @CurrentUser('id') userId: string) {
+    // Default do vendedor/vet = usuário logado (ex.: comanda criada pelo inbox não manda userId).
+    if (!createAppointmentDto.userId) createAppointmentDto.userId = userId;
     return this.appointmentsService.create(createAppointmentDto);
   }
 

@@ -52,9 +52,10 @@ export class CreateAppointmentDto {
   @IsUUID()
   petId?: string;
 
-  @ApiProperty({ description: 'ID do veterinário responsável' })
+  @ApiPropertyOptional({ description: 'ID do veterinário responsável (default: usuário logado)' })
+  @IsOptional()
   @IsUUID()
-  userId: string;
+  userId?: string;
 
   @ApiPropertyOptional({ description: 'ID da agenda avulsa (Parceiro externo / MAP) — o agendamento pertence a ela; o userId é só quem lançou' })
   @IsOptional()
