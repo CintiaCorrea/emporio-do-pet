@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem } from "@/lib/catalogoVendavel";
+import EditarOrcamentoModal from "@/components/vendas/EditarOrcamentoModal";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
@@ -33,6 +34,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const meId = (session?.user as any)?.id || "";
   const [aberto, setAberto] = useState(false);
   const [sub, setSub] = useState<"VENDA" | "ORC">("VENDA");
+  const [editOrc, setEditOrc] = useState<any | null>(null); // orçamento em edição (modal compartilhado)
   const [itens, setItens] = useState<Item[]>([]);
   const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
   const addDoCatalogo = (c: any) => {
@@ -414,6 +416,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                   </div>
                   <div className="text-[11px] text-gray-400 mt-0.5">{o.createdAt ? new Date(o.createdAt).toLocaleDateString("pt-BR") : ""} · {(o.itens || []).length} itens</div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {!conv && <button onClick={() => setEditOrc(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#E8E2D6", color: "#6D28D9" }}>✏️ Editar</button>}
                     <button onClick={() => imprimirOrcamento(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={11} /> Imprimir</button>
                     {!conv && <button onClick={() => converterOrc(o.id)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded text-white" style={{ background: "#009AAC" }}><LuArrowRight size={11} /> Transformar em venda</button>}
                   </div>
@@ -422,6 +425,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
             })}
         </div>
       )}
+      <EditarOrcamentoModal orc={editOrc} onClose={() => setEditOrc(null)} onSaved={() => loadOrcs()} />
     </div>
   );
 }
