@@ -1,5 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
+import { useRolePreview } from "@/lib/ui/RolePreview";
+import EditarOrcamentoModal from "@/components/vendas/EditarOrcamentoModal";
 /* ─────────────────────────────────────────────────────────────
    EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
    Tela........: Ficha do Pet  (pets/[id])
@@ -174,6 +176,8 @@ export default function PetDetailPage() {
   const [exPick, setExPick] = useState("");
   const [savingEx, setSavingEx] = useState(false);
   const [vets, setVets] = useState<any[]>([]);
+  const { effectiveRole } = useRolePreview();
+  const isAdmin = effectiveRole === "ADMIN"; // excluir venda só no perfil Admin
   const [atdOpen, setAtdOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [savingAtd, setSavingAtd] = useState(false);
@@ -236,6 +240,11 @@ export default function PetDetailPage() {
   const [intResp, setIntResp] = useState(""); // quem acompanha o follow-up (encaminhar)
   const [fuResp, setFuResp] = useState<{ userId: string; nome: string; entryId?: string } | null>(null); // responsável salvo (KV fu_responsavel)
   const [atendimentos, setAtendimentos] = useState<any[]>([]);
+  const [orcsPet, setOrcsPet] = useState<any[]>([]); // orçamentos do pet (histórico de vendas detalhado)
+  const [histAberto, setHistAberto] = useState<string | null>(null); // linha expandida no histórico
+  const [histFull, setHistFull] = useState<Record<string, any>>({}); // detalhe completo carregado ao expandir
+  const [loadingHistId, setLoadingHistId] = useState<string | null>(null);
+  const [editVendaOrc, setEditVendaOrc] = useState<any | null>(null); // orçamento em edição (modal compartilhado)
   const [clinDocs, setClinDocs] = useState<any[]>([]);
   const [historico, setHistorico] = useState<any[]>([]);
   // Enviar exame/receita do prontuário pelo WhatsApp (mensagem + anexos; fica no aguardo se fechada)
@@ -347,7 +356,7 @@ export default function PetDetailPage() {
     w.document.write(`<html><head><title>Boletim de fisioterapia</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#0E2244;padding:40px;max-width:720px;margin:0 auto;font-size:13px;line-height:1.55}h1{color:#014D5E;font-size:19px;margin:0 0 2px}.sub{color:#6B7280;font-size:12px;margin-bottom:16px}pre{white-space:pre-wrap;font-family:inherit;border-top:2px solid #009AAC;padding-top:14px}</style></head><body><h1>🌿 Boletim de Fisioterapia — Empório do Pet</h1><div class="sub">${esc(pet?.name || "")} · ${esc(b.data?.sessaoData ? fmtDataBR(b.data.sessaoData) : new Date().toLocaleDateString("pt-BR"))}</div><pre>${esc(montarTextoBoletim(b.data))}</pre></body></html>`);
     w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
   }
-  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadClinDocs(); loadHistorico(); loadAtdConfig(); loadProtocolos(); loadBoletins(); loadFisioRec(); } /* eslint-disable-next-line */ }, [petId]);
+  useEffect(() => { if (petId) { load(); loadPipes(); loadPetColecoes(); loadCatalogos(); loadInteracoesPet(); loadAtendimentos(); loadOrcsPet(); loadClinDocs(); loadHistorico(); loadAtdConfig(); loadProtocolos(); loadBoletins(); loadFisioRec(); } /* eslint-disable-next-line */ }, [petId]);
   // A comanda (PetComandaRail) dispara "pet:venda" ao fechar venda/converter orçamento → recarrega
   // Compras/Total e o crédito, sem precisar de F5.
   useEffect(() => {
@@ -1249,6 +1258,36 @@ export default function PetDetailPage() {
     } catch {}
   }
   async function loadAtendimentos() { try { const r = await fetch(`/api/appointments?petId=${petId}&limit=500`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.appointments || d.data || []); setAtendimentos(arr.slice().sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())); } catch {} }
+  async function loadOrcsPet() { try { const r = await fetch(`/api/orcamentos?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); setOrcsPet(Array.isArray(d) ? d : (d.data || d.orcamentos || [])); } catch {} }
+  async function excluirVendaHist(row: any) {
+    if (!isAdmin) return;
+    if (!(await confirmDelete({ entityLabel: row.kind === "orc" ? "orçamento" : "venda", itemName: row.numero ? `venda nº ${row.numero}` : (row.kind === "orc" ? "este orçamento" : "esta venda") }))) return;
+    try {
+      const url = row.kind === "orc" ? `/api/orcamentos/${row.id}` : `/api/appointments/${row.id}`;
+      const r = await fetch(url, { method: "DELETE" }); if (!r.ok) throw new Error();
+      toast.success("Excluído"); setHistAberto(null);
+      await loadAtendimentos(); await loadOrcsPet();
+    } catch { toast.error("Erro ao excluir"); }
+  }
+  // Expande uma linha do histórico e carrega o detalhe completo (itens + funcionário) sob demanda.
+  async function toggleHist(row: any) {
+    if (histAberto === row.id) { setHistAberto(null); return; }
+    setHistAberto(row.id);
+    if (!histFull[row.id]) {
+      setLoadingHistId(row.id);
+      try {
+        const url = row.kind === "venda" ? `/api/appointments/${row.id}` : `/api/orcamentos/${row.id}`;
+        const full = await fetch(url, { cache: "no-store" }).then((r) => r.json());
+        setHistFull((m) => ({ ...m, [row.id]: full }));
+      } catch { /* ignore */ } finally { setLoadingHistId(null); }
+    }
+  }
+  // Vendas (pagas + abertas) + orçamentos do pet, unificados e ordenados (estilo SimplesVet).
+  const vendasHist = useMemo(() => {
+    const vendas = (atendimentos || []).filter((a: any) => /venda/i.test(String(a.type || ""))).map((a: any) => ({ kind: "venda", id: a.id, date: a.date, numero: a.numeroVenda ?? null, status: a.paymentStatus || "PENDING", value: Number(a.value || 0), raw: a }));
+    const orcs = (orcsPet || []).filter((o: any) => !o.appointmentId).map((o: any) => ({ kind: "orc", id: o.id, date: o.createdAt, numero: null, status: "ORCAMENTO", value: Number(o.valorTotal || 0), raw: o }));
+    return [...vendas, ...orcs].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [atendimentos, orcsPet]);
   async function loadHistorico() { try { const r = await fetch(`/api/pets/${petId}/historico`, { cache: "no-store" }); const d = await r.json(); setHistorico(Array.isArray(d) ? d : (d.data || [])); } catch {} }
   async function abrirDetalheHist(id: string) { try { const r = await fetch(`/api/pets/historico/${id}`, { cache: "no-store" }); const d = await r.json(); if (d?.id) setDetalheHist(d); } catch {} }
   async function loadClinDocs() { try { const r = await fetch(`/api/clinical-documents/pet/${petId}`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.documents || d.data || []); setClinDocs(arr); } catch {} }
@@ -2594,24 +2633,62 @@ export default function PetDetailPage() {
               )}
             </div>
 
-            {/* Histórico de vendas/atendimentos (somente leitura) */}
+            {/* Histórico de VENDAS detalhado (vendas pagas/abertas + orçamentos) — estilo SimplesVet */}
             <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
               <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
-                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🧾 Histórico de compras</h3>
+                <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🧾 Histórico de vendas</h3>
                 <span className="text-[11px] text-[#374151]">registre novas vendas pelo atendimento →</span>
               </div>
-              <div style={{ padding: "6px 15px" }}>
-                {atendimentos.length === 0 && <p className="text-[12.5px] text-[#374151] py-4 text-center">Nenhuma compra registrada ainda.</p>}
-                {atendimentos.map((a: any, i: number) => (
-                  <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left" style={{ borderBottom: i < atendimentos.length - 1 ? "1px solid #F0EBE0" : "none" }}>
-                    <span className="text-[11.5px] text-[#374151] w-[42px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
-                    <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{resumoItens(a)}</span>
-                    <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
-                  </button>
-                ))}
+              <div style={{ padding: "5px 10px" }}>
+                {vendasHist.length === 0 && <p className="text-[12.5px] text-[#374151] py-4 text-center">Nenhuma venda registrada ainda.</p>}
+                {vendasHist.map((row: any) => {
+                  const aberto = histAberto === row.id;
+                  const badge = row.status === "PAID" ? { t: "Baixado", bg: "#E7F6EF", c: "#0F6E56" } : row.status === "ORCAMENTO" ? { t: "Orçamento", bg: "#EDE9FE", c: "#6D28D9" } : { t: "Aberto", bg: "#FCF6E3", c: "#8A6D00" };
+                  const full = histFull[row.id];
+                  const itens = row.kind === "venda" ? (full?.items || []) : (full?.itens || []);
+                  return (
+                    <div key={row.id} className="border rounded-lg mb-1.5" style={{ borderColor: aberto ? "#E8DFC8" : "#F0EBE0" }}>
+                      <button onClick={() => toggleHist(row)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
+                        <span className="text-[11.5px] text-[#374151] w-[68px] shrink-0">{fmtDataBR(row.date)}</span>
+                        <span className="text-[11.5px] text-[#5C6B70] flex-1 truncate">{row.numero ? `Cód. ${row.numero}` : "Orçamento"}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: badge.bg, color: badge.c }}>{badge.t}</span>
+                        <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0 w-[76px] text-right">{money(row.value)}</span>
+                        <span className="text-[#9CA3AF] text-[11px] w-[12px]">{aberto ? "▲" : "▼"}</span>
+                      </button>
+                      {aberto && (
+                        <div className="px-3 pb-3" style={{ borderTop: "1px solid #F0EBE0" }}>
+                          {loadingHistId === row.id && !full ? <p className="text-[12px] text-[#374151] py-2">Carregando…</p> : (
+                            <>
+                              {itens.length === 0 ? <p className="text-[12px] text-[#374151] py-2">Sem itens.</p> : (
+                                <table className="w-full text-[12px] mt-2">
+                                  <thead><tr className="text-[#8A857A]"><th className="text-left font-medium py-1">Produto / Serviço</th><th className="text-left font-medium">Funcionário</th><th className="text-right font-medium">Valor</th></tr></thead>
+                                  <tbody>
+                                    {itens.map((it: any, k: number) => (
+                                      <tr key={k} style={{ borderTop: "1px solid #F5F1E8" }}>
+                                        <td className="py-1 text-[#1F2A2E]">{it.descricao || it.servico?.nome || it.product?.name || "Item"}{Number(it.quantidade) > 1 ? ` ×${it.quantidade}` : ""}</td>
+                                        <td className="text-[#5C6B70]">{it.executorUser?.name || it.executor?.name || "—"}</td>
+                                        <td className="text-right text-[#014D5E]">{money(Number(it.valorTotal ?? (Number(it.quantidade || 1) * Number(it.valorUnitario || 0))))}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                              <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                                {row.kind === "orc" && <button onClick={() => setEditVendaOrc(full || row.raw)} className="text-[11.5px] px-2.5 py-1 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#6D28D9" }}>✏️ Editar</button>}
+                                {row.kind === "venda" && row.status !== "PAID" && <button onClick={() => abrirAtd(row.id)} className="text-[11.5px] px-2.5 py-1 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#6D28D9" }}>✏️ Editar</button>}
+                                {isAdmin && <button onClick={() => excluirVendaHist(row)} className="ml-auto text-[11.5px] px-2.5 py-1 rounded-lg border hover:bg-[#FBEEEC]" style={{ borderColor: "#E8DFC8", color: "#b23b39" }}>🗑️ Excluir</button>}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
-            <p className="text-[11px] text-[#374151] px-1">Somente leitura. Novas vendas, crédito e pacotes são lançados na tela de <b>Novo atendimento</b>.</p>
+            <p className="text-[11px] text-[#374151] px-1">Vendas pagas, abertas e orçamentos. {isAdmin ? "Você pode excluir vendas (perfil Admin)." : "Só o Admin pode excluir vendas."} Novas vendas são lançadas no atendimento/comanda.</p>
+            <EditarOrcamentoModal orc={editVendaOrc} onClose={() => setEditVendaOrc(null)} onSaved={() => { loadOrcsPet(); setHistFull((m) => { const n = { ...m }; if (editVendaOrc?.id) delete n[editVendaOrc.id]; return n; }); }} />
           </div>
         );
       })()}
