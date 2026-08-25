@@ -12,7 +12,8 @@ const dataBR = (d: any) => { try { return new Date(d).toLocaleDateString("pt-BR"
  * montado na comanda/PDV ({ itens, valor, petNome/pet, tutorNome/tutor, observacao }).
  */
 export async function imprimirVenda(v: any, opts?: { rotulo?: string; preview?: boolean }) {
-  const rotulo = opts?.rotulo || "Comprovante de venda";
+  // Título correto conforme o tipo: "Venda" ou "Orçamento" (não mais "Comprovante de venda").
+  const rotulo = opts?.rotulo || (/or[çc]amento/i.test(String(v?.type || v?.tipo || "")) ? "Orçamento" : "Venda");
   const itens: any[] = Array.isArray(v?.itens) ? v.itens : [];
   const linhas = itens.map((it) => {
     const nome = it.descricao || it.nome || it.product?.name || "Item";

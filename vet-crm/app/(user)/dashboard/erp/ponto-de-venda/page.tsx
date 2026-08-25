@@ -139,6 +139,29 @@ export default function PDVPage() {
   const [detExcluindo, setDetExcluindo] = useState(false);
   const [editItens, setEditItens] = useState<any[] | null>(null); // itens em edição no detalhe (null = modo leitura)
   const [savingEdit, setSavingEdit] = useState(false);
+  const [editOrc, setEditOrc] = useState<any[] | null>(null); // itens do ORÇAMENTO em edição (null = leitura)
+  const [savingOrc, setSavingOrc] = useState(false);
+  const editOrcTotal = useMemo(() => (editOrc || []).reduce((s, it) => s + Math.max(0, (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0) - (Number(it.desconto) || 0)), 0), [editOrc]);
+  function abrirEdicaoOrc() {
+    const its = (detOrc?.itens || []).map((it: any) => ({ servicoId: it.servicoId ?? undefined, productId: it.productId ?? undefined, descricao: it.descricao || it.servico?.nome || it.product?.name || '', quantidade: Number(it.quantidade ?? 1), valorUnitario: Number(it.valorUnitario ?? 0), desconto: Number(it.desconto ?? 0) }));
+    setEditOrc(its.length ? its : [{ descricao: '', quantidade: 1, valorUnitario: 0, desconto: 0 }]);
+  }
+  async function salvarEdicaoOrc() {
+    if (!detOrc || !editOrc) return;
+    const limpos = editOrc.filter((it) => (it.descricao || '').trim());
+    if (limpos.length === 0) { toast.error('Adicione ao menos um item.'); return; }
+    setSavingOrc(true);
+    try {
+      const itens = limpos.map((it) => ({ servicoId: it.servicoId || undefined, productId: it.productId || undefined, descricao: it.descricao, quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, desconto: Number(it.desconto) || 0 }));
+      const r = await fetch(`/api/orcamentos/${detOrc.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itens }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao salvar'); }
+      const novo = await r.json().catch(() => null);
+      toast.success('Orçamento atualizado!');
+      setEditOrc(null);
+      if (novo) setDetOrc({ ...detOrc, itens: novo.itens || itens, valorTotal: novo.valorTotal ?? editOrcTotal });
+      await loadOrcamentos();
+    } catch (e: any) { toast.error(e.message || 'Erro ao salvar'); } finally { setSavingOrc(false); }
+  }
   const [recOpen, setRecOpen] = useState(false);            // modal de recebimento de venda existente
   const [recFormas, setRecFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]);
   const [recSaving, setRecSaving] = useState(false);
@@ -831,7 +854,7 @@ export default function PDVPage() {
               ))}
               {/* 📄 ORÇAMENTOS em aberto — MESMA lista, valor em ROXO pra diferenciar + botão converter. */}
               {vendaTab === 'NAO' && orcamentos.slice(0, 8).map((o) => (
-                <div key={o.id} onClick={() => setDetOrc(o._orc || o)} title="Abrir orçamento" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderTop: `1px solid ${SOFT}`, borderRadius: 8, cursor: 'pointer' }}
+                <div key={o.id} onClick={() => { setEditOrc(null); setDetOrc(o._orc || o); }} title="Abrir orçamento" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderTop: `1px solid ${SOFT}`, borderRadius: 8, cursor: 'pointer' }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAF7')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#EDE9FE', color: '#6D28D9', fontSize: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📄</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -936,7 +959,7 @@ export default function PDVPage() {
 
       {/* ===== DETALHE DO ORÇAMENTO (abre ao clicar na linha roxa) ===== */}
       {detOrc && (
-        <div onClick={() => setDetOrc(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div onClick={() => { setEditOrc(null); setDetOrc(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16 }}>
             <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#6D28D9', fontSize: 15, fontWeight: 500 }}>📄 Orçamento</span>
@@ -945,25 +968,54 @@ export default function PDVPage() {
             <div style={{ padding: 18 }}>
               <div style={{ fontWeight: 600, color: INK, fontSize: 14 }}>{detOrc.tutor?.name || 'Cliente'}{detOrc.pet?.name ? ` · ${detOrc.pet.name}` : ''}</div>
               <div style={{ fontSize: 12, color: MUT, marginBottom: 12 }}>{detOrc.createdAt ? new Date(detOrc.createdAt).toLocaleDateString('pt-BR') : ''}{detOrc.validade ? ` · válido até ${new Date(detOrc.validade).toLocaleDateString('pt-BR')}` : ''}</div>
-              <div style={{ border: `1px solid ${SOFT}`, borderRadius: 10, overflow: 'hidden' }}>
-                {(detOrc.itens || []).length === 0 ? (
-                  <div style={{ padding: 12, textAlign: 'center', color: MUT, fontSize: 12 }}>Sem itens.</div>
-                ) : (detOrc.itens || []).map((it: any, i: number) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '8px 12px', borderTop: i ? `1px solid ${SOFT}` : 'none', fontSize: 13 }}>
-                    <span style={{ color: INK }}>{it.descricao || it.servico?.nome || it.product?.name || 'Item'}{Number(it.quantidade) > 1 ? ` ×${it.quantidade}` : ''}</span>
-                    <span style={{ color: NAVY, fontWeight: 500, whiteSpace: 'nowrap' }}>{brl(Number(it.valorTotal ?? (Number(it.quantidade || 1) * Number(it.valorUnitario || 0))))}</span>
+              {editOrc === null ? (
+                <>
+                  <div style={{ border: `1px solid ${SOFT}`, borderRadius: 10, overflow: 'hidden' }}>
+                    {(detOrc.itens || []).length === 0 ? (
+                      <div style={{ padding: 12, textAlign: 'center', color: MUT, fontSize: 12 }}>Sem itens.</div>
+                    ) : (detOrc.itens || []).map((it: any, i: number) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '8px 12px', borderTop: i ? `1px solid ${SOFT}` : 'none', fontSize: 13 }}>
+                        <span style={{ color: INK }}>{it.descricao || it.servico?.nome || it.product?.name || 'Item'}{Number(it.quantidade) > 1 ? ` ×${it.quantidade}` : ''}</span>
+                        <span style={{ color: NAVY, fontWeight: 500, whiteSpace: 'nowrap' }}>{brl(Number(it.valorTotal ?? (Number(it.quantidade || 1) * Number(it.valorUnitario || 0))))}</span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                <span style={{ color: INK2, fontSize: 13 }}>Total</span>
-                <span style={{ fontSize: 18, fontWeight: 600, color: NAVY }}>{brl(Number(detOrc.valorTotal || 0))}</span>
-              </div>
-              {detOrc.observacao && <div style={{ marginTop: 10, fontSize: 12, color: '#374151' }}><b>Obs:</b> {detOrc.observacao}</div>}
-              <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
-                <button onClick={() => imprimirOrcamento(detOrc)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>🖨️ Imprimir orçamento</button>
-                <button onClick={async () => { await converterOrcamento({ id: detOrc.id, tutor: detOrc.tutor?.name || 'Cliente', valor: Number(detOrc.valorTotal || 0) }); setDetOrc(null); }} style={{ marginLeft: 'auto', border: 'none', borderRadius: 9, background: '#6D28D9', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>→ Converter em venda</button>
-              </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                    <span style={{ color: INK2, fontSize: 13 }}>Total</span>
+                    <span style={{ fontSize: 18, fontWeight: 600, color: NAVY }}>{brl(Number(detOrc.valorTotal || 0))}</span>
+                  </div>
+                  {detOrc.observacao && <div style={{ marginTop: 10, fontSize: 12, color: '#374151' }}><b>Obs:</b> {detOrc.observacao}</div>}
+                  <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+                    <button onClick={abrirEdicaoOrc} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>✏️ Editar</button>
+                    <button onClick={() => imprimirOrcamento(detOrc)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>🖨️ Imprimir orçamento</button>
+                    <button onClick={async () => { await converterOrcamento({ id: detOrc.id, tutor: detOrc.tutor?.name || 'Cliente', valor: Number(detOrc.valorTotal || 0) }); setDetOrc(null); }} style={{ marginLeft: 'auto', border: 'none', borderRadius: 9, background: '#6D28D9', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>→ Converter em venda</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <datalist id="pdv-orccat">{servicos.map((s: any, i: number) => <option key={i} value={s.nome} />)}</datalist>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    {editOrc.map((it, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <input list="pdv-orccat" value={it.descricao} onChange={(e) => { const val = e.target.value; const s = servicos.find((x: any) => (x.nome || '') === val); setEditOrc((c) => c!.map((x, j) => j === i ? (s ? { ...x, descricao: s.nome, valorUnitario: Number(s.valorPadrao || x.valorUnitario) } : { ...x, descricao: val }) : x)); }} placeholder="Buscar no catálogo…" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                        <input value={it.quantidade} inputMode="numeric" onChange={(e) => setEditOrc((c) => c!.map((x, j) => j === i ? { ...x, quantidade: Math.max(1, Number(e.target.value) || 1) } : x))} title="Qtd" style={{ ...inp, width: 42, padding: '6px 4px', textAlign: 'center' }} />
+                        <DecimalInput value={it.valorUnitario} onValue={(n) => setEditOrc((c) => c!.map((x, j) => j === i ? { ...x, valorUnitario: n } : x))} placeholder="Unit." title="Valor unitário" style={{ ...inp, width: 78, padding: '6px 8px' }} />
+                        <DecimalInput value={it.desconto} onValue={(n) => setEditOrc((c) => c!.map((x, j) => j === i ? { ...x, desconto: n } : x))} placeholder="Desc." title="Desconto" style={{ ...inp, width: 60, padding: '6px 8px' }} />
+                        <button onClick={() => setEditOrc((c) => c!.filter((_, j) => j !== i))} title="Remover" style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 14 }}>🗑️</button>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => setEditOrc((c) => [...(c || []), { descricao: '', quantidade: 1, valorUnitario: 0, desconto: 0 }])} style={{ alignSelf: 'flex-start', border: `1px dashed ${SOFT}`, background: 'none', color: NAVY, fontSize: 12, fontWeight: 600, cursor: 'pointer', padding: '6px 11px', borderRadius: 9, marginTop: 8 }}>➕ item</button>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
+                    <span style={{ color: INK2, fontSize: 13 }}>Total</span>
+                    <span style={{ fontSize: 18, fontWeight: 600, color: NAVY }}>{brl(editOrcTotal)}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                    <button onClick={() => setEditOrc(null)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: MUT }}>Cancelar</button>
+                    <button onClick={salvarEdicaoOrc} disabled={savingOrc} style={{ marginLeft: 'auto', border: 'none', borderRadius: 9, background: '#6D28D9', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: savingOrc ? .5 : 1 }}>{savingOrc ? 'Salvando…' : '✓ Salvar orçamento'}</button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
