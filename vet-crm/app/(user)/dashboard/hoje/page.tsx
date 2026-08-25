@@ -811,17 +811,20 @@ export default function HojePage() {
   // Confirma: registra a observação (NOTA, autor = usuário logado) e zera o proximoFollowupAt (pet ou lead).
   async function confirmarResolverFu() {
     const e = fuResolving; if (!e) return;
-    const isPet = String(e.id).startsWith("p");
+    const kind = String(e.id).charAt(0); // 'p' pet · 't' tutor/cliente · 'l' lead
     const rawId = String(e.id).slice(1);
     setFuSaving(true);
     try {
       const obs = fuObs.trim();
       if (obs) {
-        await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(isPet ? { petId: rawId } : { leadId: rawId }), tipo: "NOTA", texto: `Follow-up resolvido: ${obs}`, canal: "Follow-up" }) }).catch(() => {});
+        const chave = kind === "p" ? { petId: rawId } : kind === "t" ? { tutorId: rawId } : { leadId: rawId };
+        await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...chave, tipo: "NOTA", texto: `Follow-up resolvido: ${obs}`, canal: "Follow-up" }) }).catch(() => {});
       }
-      const r = isPet
-        ? await fetch(`/api/pets/${rawId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) })
-        : await fetch(`/api/leads/${rawId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) });
+      const r = kind === "l"
+        ? await fetch(`/api/leads/${rawId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) })
+        : kind === "t"
+        ? await fetch(`/api/tutors/${rawId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) })
+        : await fetch(`/api/pets/${rawId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) });
       if (!r.ok) throw new Error();
       setFuDue((prev: any[]) => prev.filter((x: any) => x.id !== e.id));
       toast.success("Follow-up resolvido ✓");
