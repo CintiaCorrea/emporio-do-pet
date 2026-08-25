@@ -5,7 +5,7 @@ function backendUrl() {
   return process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;
 }
 function apiBase(b: string) { const n = b.replace(/\/$/, ''); return n.endsWith('/api') ? n : `${n}/api`; }
-async function authHeader(req: NextRequest) {
+async function authHeader(req: NextRequest): Promise<Record<string, string>> {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) return {};
   try {

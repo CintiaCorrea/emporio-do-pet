@@ -76,19 +76,18 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const [savingTag, setSavingTag] = useState(false);
   const [motivoPerda, setMotivoPerda] = useState("");
   const [motivoId, setMotivoId] = useState<string | null>(null);
+  const [wantText, setWantText] = useState("");      // "O que o lead quer" (lead.notes)
+  const [savingWant, setSavingWant] = useState(false);
+  const [tempManual, setTempManual] = useState("");  // temperatura manual (KV leadtemp_<id>)
+  const [tempManualId, setTempManualId] = useState<string | null>(null);
   const [leadInteracoes, setLeadInteracoes] = useState<any[]>([]);
   const [intTipo, setIntTipo] = useState("NOTA");
   const [intTexto, setIntTexto] = useState("");
   const [savingInt, setSavingInt] = useState(false);
   const [classif, setClassif] = useState("Cliente");
   const [converting, setConverting] = useState(false);
-
-  const [qual, setQual] = useState({
-    qualSituacaoPet: "",
-    qualQueMaisIncomoda: "",
-    qualTentouOutroVet: "",
-    qualOQueMudaResolver: "",
-    qualQuemDecide: ""});
+  const [convWpp, setConvWpp] = useState<any>(null); // conversa do WhatsApp casada pelo telefone
+  const [convWppChecado, setConvWppChecado] = useState(false);
 
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
@@ -97,12 +96,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setLead(data);
-      setQual({
-        qualSituacaoPet: data.qualSituacaoPet || "",
-        qualQueMaisIncomoda: data.qualQueMaisIncomoda || "",
-        qualTentouOutroVet: data.qualTentouOutroVet || "",
-        qualOQueMudaResolver: data.qualOQueMudaResolver || "",
-        qualQuemDecide: data.qualQuemDecide || ""});
+      setWantText(data.notes || "");
     } catch (e: any) {
       toast.error("Erro ao carregar o lead: " + e.message);
     } finally { jaCarregou.current = true; setLoading(false); }
@@ -121,7 +115,35 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
       toast.success("Motivo salvo");
     } catch { toast.error("Erro ao salvar motivo"); }
   }
-  useEffect(() => { load(); loadComercial(); loadLeadTags(); loadTagTpls(); loadLeadInteracoes(); loadMotivo(); }, [id]);
+  async function saveWant() { setSavingWant(true); try { const r = await fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notes: wantText }) }); if (!r.ok) throw new Error(); toast.success("Salvo"); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingWant(false); } }
+  async function loadTemp() { try { const r = await fetch(`/api/listas?lista=leadtemp_${id}`, { cache: "no-store" }); const d = await r.json(); const a = Array.isArray(d) ? d : (d.itens || d.data || []); if (a[0]) { setTempManual(a[0].valor || ""); setTempManualId(a[0].id); } else { setTempManual(""); setTempManualId(null); } } catch { /* sem temp manual */ } }
+  // Casa o telefone do lead com a conversa do inbox (mesmo padrão do inbox-nativo: últimos 8 dígitos) e firma o vínculo no banco.
+  async function vincularConversaWpp(l: any) {
+    try {
+      const digitos = (l?.phone || "").replace(/\D/g, "");
+      if (digitos.length < 8) { setConvWpp(null); setConvWppChecado(true); return; }
+      const p8 = digitos.slice(-8);
+      const r = await fetch(`/api/whatsapp/conversations?search=${encodeURIComponent(digitos)}&limit=20`, { cache: "no-store" });
+      if (!r.ok) { setConvWppChecado(true); return; }
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.conversations || d.data || d.itens || []);
+      const match = arr.find((c: any) => ((c.contactPhone || c.contactNumber || "").replace(/\D/g, "").slice(-8)) === p8);
+      setConvWpp(match || null);
+      setConvWppChecado(true);
+      if (match?.id && match.id !== l?.whatsappConversationId) {
+        fetch(`/api/leads/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ whatsappConversationId: match.id }) }).catch(() => {});
+      }
+    } catch { setConvWppChecado(true); }
+  }
+  async function setTemperatura(t: string) {
+    setTempManual(t);
+    try {
+      if (tempManualId) { await fetch(`/api/listas/${tempManualId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: t }) }); }
+      else { const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `leadtemp_${id}`, valor: t }) }).then((x) => x.json()); if (r?.id) setTempManualId(r.id); }
+    } catch { toast.error("Erro ao salvar temperatura"); }
+  }
+  useEffect(() => { load(); loadComercial(); loadLeadTags(); loadTagTpls(); loadLeadInteracoes(); loadMotivo(); loadTemp(); }, [id]);
+  useEffect(() => { if (lead?.phone) vincularConversaWpp(lead); }, [lead?.phone]);
   useEffect(() => {
     (async () => {
       try { const u = await fetch(`/api/users`, { cache: "no-store" }).then((r) => r.json()).catch(() => []); const arr = Array.isArray(u) ? u : (u.users || u.data || []); setStaff(arr.filter((x: any) => !x.isBlocked)); } catch {}
@@ -148,19 +170,6 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   async function delTagLead(tid: string) { try { const r = await fetch(`/api/listas/${tid}`, { method: "DELETE" }); if (!r.ok) throw new Error(); await loadLeadTags(); } catch { toast.error("Erro ao remover"); } }
   async function loadLeadInteracoes() { try { const r = await fetch(`/api/interacoes?leadId=${id}&limit=100`, { cache: "no-store" }); if (!r.ok) throw new Error(); const d = await r.json(); setLeadInteracoes(Array.isArray(d) ? d : (d.interacoes || d.data || [])); } catch { console.error("Falha ao carregar interações do lead"); } }
   async function addLeadInteracao() { if (!intTexto.trim()) { toast.error("Escreva algo"); return; } setSavingInt(true); try { const r = await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: id, tipo: intTipo, texto: intTexto.trim(), canal: "Sistema" }) }); if (!r.ok) throw new Error(); toast.success("Registrado"); setIntTexto(""); await loadLeadInteracoes(); } catch { toast.error("Erro ao registrar"); } finally { setSavingInt(false); } }
-
-  const saveQualification = async () => {
-    try {
-      const res = await fetch(`/api/leads/${id}/qualification`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(qual)});
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      setLead(data);
-      toast.success("Qualificação salva!");
-    } catch (e: any) { toast.error("Erro ao salvar qualificação: " + e.message); }
-  };
 
   async function handleDelete() {
     try {
@@ -189,8 +198,8 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   if (loading) return <div className="p-6 text-center text-[#374151]">Carregando...</div>;
   if (!lead) return <div className="p-6 text-center text-[#374151]">Lead não encontrado</div>;
 
-  const temp = getTemp(lead.currentScore || 0);
-  const answered = Object.values(qual).filter((v) => v.trim().length > 0).length;
+  const TEMP_INFO: any = { Frio: { label: "Frio", icon: "🧊", color: "#4d72a0", bg: "#E6F1FB" }, Morno: { label: "Morno", icon: "☕", color: "#B25C0A", bg: "#FBEED8" }, Quente: { label: "Quente", icon: "🔥", color: "#C2410C", bg: "#FFE2D2" } };
+  const temp = (tempManual && TEMP_INFO[tempManual]) ? TEMP_INFO[tempManual] : getTemp(lead.currentScore || 0);
   const customFields = lead.customFields || {};
   const initials = (lead.name || "??").split(/\s+/).slice(0, 2).map((s: string) => s[0]).join("").toUpperCase();
   const stages = pipeComercial.length ? pipeComercial : PIPELINE_STAGES;
@@ -233,9 +242,15 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
               {CLASSIFICACOES.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
             </select>
           </div>
-          <button onClick={() => openWhatsAppMeta(lead.phone)} className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 hover:bg-[#E0F4F6]">
+          <button onClick={() => openWhatsAppMeta(lead.phone)} title={convWpp ? "Conversa encontrada no inbox — abrir" : "Abrir no inbox do WhatsApp"} className="bg-white border border-[#009AAC] text-[#00798A] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 hover:bg-[#E0F4F6]">
             📲 WhatsApp
+            {convWpp && <span className="w-1.5 h-1.5 rounded-full bg-[#12B76A]" title="Conversa vinculada" />}
           </button>
+          {convWppChecado && (
+            convWpp
+              ? <span className="text-[10px] text-[#0F6E56] bg-[#E7F6EF] border border-[#B7E4CE] px-2 py-1 rounded-lg flex items-center gap-1">🟢 Conversa vinculada</span>
+              : <span className="text-[10px] text-[#8A6D00] bg-[#FCF6E3] border border-[#EAD9A0] px-2 py-1 rounded-lg flex items-center gap-1">⚪ Sem conversa no inbox</span>
+          )}
           <button onClick={() => setEmailOpen(true)} className={outlineBtn}>✉️ E-mail</button>
           <EncaminharBox tipo="lead" id={id} nome={lead?.name || ""} onChange={loadLeadInteracoes} />
           <button onClick={() => setShowScripts(!showScripts)} className={outlineBtn}>📖 Scripts</button>
@@ -262,161 +277,115 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
-      {/* Resumo (full width) */}
-      <div className="bg-[#FBF6EC] rounded-xl border border-[#ECE2CE] p-4 mb-3">
-        <div className="grid grid-cols-3 gap-5 items-start">
-          <div>
-            <div className="text-[10px] text-[#374151] tracking-wide font-medium mb-1">RESUMO DA CONVERSA</div>
-            <div className="text-[11px] text-[#1F2A2E]"><strong className="font-medium">Qualificação:</strong> <span className="italic text-[#374151]">{answered}/5 respondidas</span></div>
-          </div>
-          <div>
-            <div className="text-[10px] text-[#374151] tracking-wide font-medium mb-1">SCORE DE QUALIFICAÇÃO</div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 h-1.5 bg-[#EAE3D4] rounded-full">
-                <div style={{ width: `${lead.currentScore || 0}%`, background: temp.color }} className="h-full rounded-full" />
-              </div>
-              <span style={{ color: temp.color }} className="text-sm font-medium">{lead.currentScore || 0}</span>
-            </div>
-          </div>
-          <div>
-            <div className="text-[10px] text-[#374151] tracking-wide font-medium mb-1">ÚLTIMAS INTERAÇÕES</div>
-            <div className="text-[11px] text-[#5C6B70]">{customFields.resumoIA || lead.notes || "Sem registro"}</div>
-          </div>
+      {/* Barra de ação: próximo contato + acompanha + temperatura */}
+      <div className="bg-white rounded-xl border border-[#E8E2D6] p-3 mb-3 flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wide text-[#8A948F] font-medium">🗓️ Próximo contato</span>
+          {lead.proximoFollowupAt && <span className="text-[11px] text-[#014D5E] font-medium">{new Date(lead.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>}
+          <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="border border-[#E8E2D6] rounded-lg px-2 py-1 text-[12px]" />
+          <button onClick={saveFu} disabled={savingFu} className="bg-[#009AAC] text-white text-[11.5px] px-2.5 py-1 rounded-lg disabled:opacity-50">{savingFu ? "..." : "Agendar"}</button>
+          {lead.proximoFollowupAt && <button onClick={clearFu} title="Remover" className="text-[11px] text-[#A32D2D]">✕</button>}
         </div>
-      </div>
-
-      {/* Score + Pipeline + Conquistas + Etiquetas (4 col) */}
-      <div className="grid grid-cols-4 gap-2.5 mb-3">
-        <div className={cardCls}>
-          <h3 className={h3Cls}>🔥 Score</h3>
-          <div className="flex items-baseline gap-1 mb-1 mt-2">
-            <span style={{ color: temp.color }} className="text-3xl font-medium">{lead.currentScore || 0}</span>
-            <span className="text-[10px] text-[#374151]">/100</span>
-          </div>
-          <span style={{ color: temp.color }} className="text-[10px] font-medium inline-flex items-center gap-1">{temp.icon} {temp.label}</span>
-          <div className="relative h-1.5 bg-[#EAE3D4] rounded-full mt-2 mb-1">
-            <div style={{ width: `${lead.currentScore || 0}%`, background: temp.color }} className="absolute left-0 top-0 bottom-0 rounded-full" />
-          </div>
-          <div className="flex justify-between text-[9px] text-[#374151]">
-            <span>🧊</span><span>☕</span><span>🔥</span>
-          </div>
-        </div>
-
-        <div className={cardCls}>
-          <h3 className={h3Cls}>🌿 Pipeline</h3>
-          <select value={lead.pipelineComercialEtapa || ""} onChange={(e) => setStage(e.target.value)}
-            className="w-full border border-[#009AAC] rounded px-2 py-1 text-[11px] text-[#014D5E] bg-white focus:outline-none mb-1 mt-2">
-            <option value="">— selecionar —</option>
-            {lead.pipelineComercialEtapa && !stages.includes(lead.pipelineComercialEtapa) && <option value={lead.pipelineComercialEtapa}>{lead.pipelineComercialEtapa}</option>}
-            {stages.map((s) => <option key={s} value={s}>{s}</option>)}
+        <div className="w-px self-stretch bg-[#F0EBE0]" />
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wide text-[#8A948F] font-medium">Acompanha</span>
+          <select value={fuResp} onChange={(e) => setFuResp(e.target.value)} className="border border-[#E8E2D6] rounded-lg px-2 py-1 text-[12px]">
+            <option value="">Ninguém específico</option>
+            {staff.map((s: any) => <option key={s.id} value={s.id}>{s.name || "Sem nome"}</option>)}
           </select>
-          <p className="text-[9px] text-[#374151]">"Compareceu" vira cliente</p>
-          <div className="mt-2.5 pt-2.5 border-t border-[#F0EBE0]">
-            <label className="text-[10px] text-[#5C6B70] font-medium">Motivo da perda</label>
-            <select value={motivoPerda} onChange={(e) => saveMotivo(e.target.value)} className="w-full mt-1 border border-[#E8E2D6] rounded px-2 py-1 text-[11px] text-[#014D5E] bg-white focus:outline-none">
-              <option value="">— sem motivo —</option>
-              {MOTIVOS_PERDA.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-            <p className="text-[9px] text-[#374151] mt-1">Preencha quando o lead for perdido (alimenta a dashboard)</p>
-          </div>
         </div>
-
-        <div className={cardCls}>
-          <h3 className={h3Cls}>🏆 Conquistas</h3>
-          <div className="grid grid-cols-8 gap-1 mt-2">
-            <div className="aspect-square bg-[#E0F4F6] rounded flex items-center justify-center" title="Primeiro contato">💬</div>
-            <div className="aspect-square bg-[#E1F5EE] rounded flex items-center justify-center" title="WhatsApp ativo">📲</div>
-            <div className="aspect-square bg-[#FFE2D2] rounded flex items-center justify-center" title="Quente">🔥</div>
-            {[0, 1, 2, 3, 4].map((i) => (
-              <div key={i} className="aspect-square bg-[#F0EBE0] rounded flex items-center justify-center opacity-40">🔒</div>
-            ))}
-          </div>
-          <p className="text-[9px] text-[#374151] mt-2">3 de 8 desbloqueadas</p>
-        </div>
-
-        <div className={cardCls}>
-          <h3 className={h3Cls}>🏷️ Etiquetas</h3>
-          <div className="flex flex-wrap gap-1 items-center mt-2">
-            {leadTags.length === 0 && <span className="text-[10px] text-[#374151]">Sem etiquetas</span>}
-            {leadTags.map((t) => { const tpl = tagTpls.find((x: any) => x.texto === t.texto); const cor = tpl?.cor || "#009AAC"; return (
-              <span key={t.id} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>● {t.texto}<button onClick={() => delTagLead(t.id)} className="font-bold hover:opacity-60">×</button></span>
+        <div className="w-px self-stretch bg-[#F0EBE0]" />
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase tracking-wide text-[#8A948F] font-medium">🌡️ Temperatura</span>
+          <div className="inline-flex border border-[#E8E2D6] rounded-lg overflow-hidden">
+            {["Frio", "Morno", "Quente"].map((t) => { const on = temp.label === t; const ti = TEMP_INFO[t]; return (
+              <button key={t} onClick={() => setTemperatura(t)} className="text-[12px] font-medium px-3 py-1 border-l first:border-l-0 border-[#F0EBE0]" style={on ? { background: ti.color, color: "#fff" } : { background: "#fff", color: "#5C6B70" }}>{t}</button>
             ); })}
-            <button onClick={() => setTagPicker(v => !v)} className="border border-dashed border-[#E8E2D6] text-[#374151] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
           </div>
-          {tagPicker && (
-            <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-wrap gap-1">
-              {tagTpls.filter((t: any) => !leadTags.some(p => p.texto === t.texto)).length === 0 ? <p className="text-[10px] text-[#374151]">Nenhuma etiqueta de Lead. Cadastre em Configurações.</p> :
-                tagTpls.filter((t: any) => !leadTags.some(p => p.texto === t.texto)).map((t: any) => (<button key={t.texto} disabled={savingTag} onClick={() => addTagLead(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>))}
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Dados do Lead + Qualificação | Follow-up + Histórico */}
-      <div className="grid grid-cols-2 gap-2.5 mb-3">
-        <div className={cardCls}>
-          <h3 className={h3Cls}>👤 Dados do lead</h3>
-          <div className="text-[11px] text-[#5C6B70] leading-loose mt-2">
-            <div>📞 <span className="text-[#00798A]">{lead.phone || "—"}</span></div>
-            <div><strong className="text-[#1F2A2E] font-medium">Canal:</strong> {lead.channel || "WhatsApp"}</div>
-            <div><strong className="text-[#1F2A2E] font-medium">Serviço:</strong> {customFields.servicoInteresse || "—"}</div>
-            <div><strong className="text-[#1F2A2E] font-medium">Valor:</strong> {customFields.valor ? `R$ ${customFields.valor}` : "—"}</div>
+      {/* 2 colunas: esquerda (dados/o que quer/etiquetas/pipeline) | direita hero (conversa) */}
+      <div className="grid grid-cols-2 gap-2.5 mb-3 items-start">
+          {/* Dados do lead */}
+          <div className={cardCls}>
+            <h3 className={h3Cls}>👤 Dados do lead</h3>
+            <div className="text-[11px] text-[#5C6B70] leading-loose mt-2">
+              <div>📞 <span className="text-[#00798A]">{lead.phone || "—"}</span></div>
+              <div><strong className="text-[#1F2A2E] font-medium">Canal:</strong> {lead.channel || "WhatsApp"}</div>
+              <div><strong className="text-[#1F2A2E] font-medium">Serviço:</strong> {customFields.servicoInteresse || "—"}</div>
+              <div><strong className="text-[#1F2A2E] font-medium">Valor:</strong> {customFields.valor ? `R$ ${customFields.valor}` : "—"}</div>
+            </div>
           </div>
-          <div className="mt-3 pt-3 border-t border-[#F0EBE0]">
+
+          {/* O que o lead quer */}
+          <div className={cardCls}>
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-[11px] text-[#014D5E] tracking-wide font-medium flex items-center gap-1.5">✅ Qualificação <span className="text-[#374151]">· {answered}/5</span></h3>
-              <button onClick={saveQualification} className="bg-[#009AAC] text-white px-3 py-1 rounded-lg text-[10px] font-medium">Salvar</button>
+              <h3 className={h3Cls + " mb-0"}>💭 O que o lead quer</h3>
+              <button onClick={saveWant} disabled={savingWant} className="bg-[#009AAC] text-white px-3 py-1 rounded-lg text-[10px] font-medium disabled:opacity-50">{savingWant ? "..." : "Salvar"}</button>
             </div>
-            <div className="space-y-2">
-              {([["qualSituacaoPet", "1. Situação do pet hoje?"], ["qualQueMaisIncomoda", "2. O que mais incomoda?"], ["qualTentouOutroVet", "3. Já tentou outro vet?"], ["qualOQueMudaResolver", "4. O que muda ao resolver?"], ["qualQuemDecide", "5. Quem decide?"]] as [string, string][]).map(([key, label]) => (
-                <div key={key}>
-                  <label className="block text-[11px] text-[#1F2A2E] font-medium mb-0.5">{label}</label>
-                  <input value={(qual as any)[key]} onChange={(e) => setQual({ ...qual, [key]: e.target.value })} placeholder="Resposta..." className="w-full bg-white border border-[#E8E2D6] rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#009AAC]" />
-                </div>
-              ))}
+            <textarea value={wantText} onChange={(e) => setWantText(e.target.value)} rows={4} placeholder="Anote com as palavras do próprio tutor o que ele procura, a dor do pet, o que já tentou, quem decide..." className="w-full bg-white border border-[#E8E2D6] rounded px-2.5 py-2 text-xs leading-relaxed focus:outline-none focus:border-[#009AAC] resize-y" />
+          </div>
+
+          {/* Etiquetas */}
+          <div className={cardCls}>
+            <h3 className={h3Cls}>🏷️ Etiquetas</h3>
+            <div className="flex flex-wrap gap-1 items-center mt-2">
+              {leadTags.length === 0 && <span className="text-[10px] text-[#374151]">Sem etiquetas</span>}
+              {leadTags.map((t) => { const tpl = tagTpls.find((x: any) => x.texto === t.texto); const cor = tpl?.cor || "#009AAC"; return (
+                <span key={t.id} className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1" style={{ background: cor + "22", color: cor }}>● {t.texto}<button onClick={() => delTagLead(t.id)} className="font-bold hover:opacity-60">×</button></span>
+              ); })}
+              <button onClick={() => setTagPicker(v => !v)} className="border border-dashed border-[#E8E2D6] text-[#374151] text-[10px] px-2 py-0.5 rounded-full">+ tag</button>
             </div>
-          </div>
-        </div>
-        <div className={cardCls}>
-          <h3 className={h3Cls}>📅 Follow-up</h3>
-          <div className="mt-2">
-          {lead.proximoFollowupAt ? (
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[11px] text-[#1F2A2E]">{new Date(lead.proximoFollowupAt).toLocaleDateString("pt-BR")}</span>
-              <button onClick={clearFu} className="text-[10px] text-[#A32D2D]">Remover</button>
-            </div>
-          ) : <p className="text-[11px] text-[#374151] mb-1.5">Sem follow-up agendado</p>}
-          <div className="flex gap-1">
-            <input type="date" value={fuDate} onChange={(e) => setFuDate(e.target.value)} className="flex-1 min-w-0 border border-[#E8E2D6] rounded px-1.5 py-1 text-[10px]" />
-            <button onClick={saveFu} disabled={savingFu} className="bg-[#009AAC] text-white px-2 py-1 rounded text-[10px] disabled:opacity-50">{savingFu ? "..." : "Agendar"}</button>
-          </div>
-          <div className="flex items-center gap-1.5 mt-1.5">
-            <span className="text-[10px] whitespace-nowrap text-[#00798A]">👤 Acompanha:</span>
-            <select value={fuResp} onChange={(e) => setFuResp(e.target.value)} className="flex-1 min-w-0 border border-[#E8E2D6] rounded px-1.5 py-1 text-[10px]">
-              <option value="">Ninguém específico</option>
-              {staff.map((s: any) => <option key={s.id} value={s.id}>{s.name || "Sem nome"}</option>)}
-            </select>
-          </div>
-          </div>
-          <div className="mt-3 pt-3 border-t border-[#F0EBE0]">
-            <h4 className="text-[11px] font-medium text-[#014D5E] flex items-center gap-1.5 mb-2">💬 Histórico de interações <span className="text-[10px] text-[#374151]">({leadInteracoes.length})</span></h4>
-            <div className="flex gap-1.5 mb-2">
-              <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#E8E2D6] rounded px-1.5 py-1 text-[11px]"><option value="NOTA">Nota</option><option value="LIGACAO">Ligação</option><option value="WHATSAPP_ENVIADO">WhatsApp</option><option value="PRESENCIAL">Presencial</option></select>
-              <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addLeadInteracao(); }} placeholder="Registrar..." className="flex-1 min-w-0 border border-[#E8E2D6] rounded px-2 py-1 text-[11px]" />
-              <button onClick={addLeadInteracao} disabled={savingInt} className="bg-[#009AAC] text-white px-2.5 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "+"}</button>
-            </div>
-            {leadInteracoes.length === 0 ? <p className="text-center text-[11px] text-[#374151] py-2">Nenhuma interação ainda</p> : (
-              <div className="flex flex-col gap-1.5 max-h-60 overflow-auto">
-                {leadInteracoes.map((it: any) => (
-                  <div key={it.id} className="bg-[#FBF9F4] rounded px-2.5 py-1.5">
-                    <div className="flex items-center justify-between"><span className="text-[10px] font-medium text-[#00798A]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span><span className="text-[10px] text-[#374151]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span></div>
-                    <p className="text-[11px] text-[#1F2A2E] mt-0.5">{it.texto}</p>
-                    {it.autor?.name && <p className="text-[10px] text-[#374151] mt-0.5">por {it.autor.name}</p>}
-                  </div>
-                ))}
+            {tagPicker && (
+              <div className="mt-2 pt-2 border-t border-[#F0EBE0] flex flex-wrap gap-1">
+                {tagTpls.filter((t: any) => !leadTags.some(p => p.texto === t.texto)).length === 0 ? <p className="text-[10px] text-[#374151]">Nenhuma etiqueta de Lead. Cadastre em Configurações.</p> :
+                  tagTpls.filter((t: any) => !leadTags.some(p => p.texto === t.texto)).map((t: any) => (<button key={t.texto} disabled={savingTag} onClick={() => addTagLead(t.texto)} className="text-[10px] px-2 py-0.5 rounded-full border disabled:opacity-50" style={{ borderColor: (t.cor || "#009AAC") + "66", color: t.cor || "#009AAC" }}>+ {t.texto}</button>))}
               </div>
             )}
           </div>
+
+          {/* Pipeline */}
+          <div className={cardCls}>
+            <h3 className={h3Cls}>🌿 Pipeline</h3>
+            <select value={lead.pipelineComercialEtapa || ""} onChange={(e) => setStage(e.target.value)}
+              className="w-full border border-[#009AAC] rounded px-2 py-1 text-[11px] text-[#014D5E] bg-white focus:outline-none mb-1 mt-2">
+              <option value="">— selecionar —</option>
+              {lead.pipelineComercialEtapa && !stages.includes(lead.pipelineComercialEtapa) && <option value={lead.pipelineComercialEtapa}>{lead.pipelineComercialEtapa}</option>}
+              {stages.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <p className="text-[9px] text-[#374151]">"Compareceu" vira cliente</p>
+            <div className="mt-2.5 pt-2.5 border-t border-[#F0EBE0]">
+              <label className="text-[10px] text-[#5C6B70] font-medium">Motivo da perda</label>
+              <select value={motivoPerda} onChange={(e) => saveMotivo(e.target.value)} className="w-full mt-1 border border-[#E8E2D6] rounded px-2 py-1 text-[11px] text-[#014D5E] bg-white focus:outline-none">
+                <option value="">— sem motivo —</option>
+                {MOTIVOS_PERDA.map((m) => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <p className="text-[9px] text-[#374151] mt-1">Preencha quando o lead for perdido (alimenta a dashboard)</p>
+            </div>
+          </div>
+        {/* ===== Conversa e histórico (largura total) ===== */}
+        <div className={cardCls + " col-span-2"}>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className={h3Cls + " mb-0"}>💬 Conversa e histórico</h3>
+            <span className="text-[10px] text-[#374151]">{leadInteracoes.length} registro{leadInteracoes.length === 1 ? "" : "s"}</span>
+          </div>
+          <div className="flex gap-1.5 mb-2.5">
+            <select value={intTipo} onChange={(e) => setIntTipo(e.target.value)} className="border border-[#E8E2D6] rounded px-1.5 py-1 text-[11px]"><option value="NOTA">Nota</option><option value="LIGACAO">Ligação</option><option value="WHATSAPP_ENVIADO">WhatsApp</option><option value="PRESENCIAL">Presencial</option></select>
+            <input value={intTexto} onChange={(e) => setIntTexto(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addLeadInteracao(); }} placeholder="Registrar interação..." className="flex-1 min-w-0 border border-[#E8E2D6] rounded px-2 py-1 text-[11px]" />
+            <button onClick={addLeadInteracao} disabled={savingInt} className="bg-[#009AAC] text-white px-3 py-1 rounded text-[11px] font-medium disabled:opacity-50">{savingInt ? "..." : "+"}</button>
+          </div>
+          {leadInteracoes.length === 0 ? <p className="text-center text-[11px] text-[#374151] py-6">Nenhuma interação ainda</p> : (
+            <div className="flex flex-col gap-1.5 max-h-[520px] overflow-auto">
+              {leadInteracoes.map((it: any) => (
+                <div key={it.id} className="bg-[#FBF9F4] rounded px-2.5 py-1.5">
+                  <div className="flex items-center justify-between"><span className="text-[10px] font-medium text-[#00798A]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span><span className="text-[10px] text-[#374151]">{new Date(it.createdAt).toLocaleDateString("pt-BR")}</span></div>
+                  <p className="text-[11px] text-[#1F2A2E] mt-0.5">{it.texto}</p>
+                  {it.autor?.name && <p className="text-[10px] text-[#374151] mt-0.5">por {it.autor.name}</p>}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

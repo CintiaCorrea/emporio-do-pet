@@ -117,4 +117,10 @@ export class CreateLeadDto {
   @IsOptional()
   @IsString()
   notes?: string;
+
+  // Vínculo com a conversa do WhatsApp no inbox (firmado pela tela do lead ao casar o telefone)
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  whatsappConversationId?: string;
 }
