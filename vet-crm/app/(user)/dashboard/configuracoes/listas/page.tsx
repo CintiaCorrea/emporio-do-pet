@@ -11,6 +11,13 @@ interface ListaTipo { id: string; nome: string; label?: string | null; emoji?: s
 interface ListaItem { id: string; lista: string; valor: string; ordem: number; ativo: boolean; }
 
 const slugify = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9_]+/g, "_").replace(/^_+|_+$/g, "");
+// Alguns itens guardam JSON ({v,l,duracaoMin...}). Mostra o rótulo amigável (l/label/nome), não o JSON cru.
+const rotuloItem = (v: string): string => {
+  const s = String(v ?? "");
+  if (!s.startsWith("{")) return s;
+  try { const o = JSON.parse(s); if (o && typeof o === "object") return String(o.l ?? o.label ?? o.nome ?? o.v ?? s); } catch { /* não é JSON válido */ }
+  return s;
+};
 const EMPTY_T: any = { nome: "", label: "", emoji: "", descricao: "", ordem: 0, ativo: true };
 const EMPTY_I: any = { valor: "", lista: "", ordem: 0, ativo: true };
 
@@ -74,7 +81,7 @@ export default function ListasPage() {
     } catch (e) { alert(`Erro: ${e}`); }
   }
   async function removeI(i: ListaItem) {
-    if (!(await confirmDelete({ entityLabel: "item", itemName: i.valor }))) return;
+    if (!(await confirmDelete({ entityLabel: "item", itemName: rotuloItem(i.valor) }))) return;
     const res = await fetch(`/api/listas/${i.id}`, { method: "DELETE" });
     if (!res.ok) { alert(`Erro: ${res.status}`); return; }
     await load();
@@ -157,7 +164,7 @@ export default function ListasPage() {
                 const t = tipos.find(x => x.nome === i.lista);
                 return (
                   <tr key={i.id} className="border-b hover:bg-gray-50/60 transition" style={{ borderColor: "#F0EBE0", opacity: i.ativo ? 1 : 0.5 }}>
-                    <td className="px-4 py-2.5 font-medium" style={{ color: "#0E2244" }}>{i.valor}</td>
+                    <td className="px-4 py-2.5 font-medium" style={{ color: "#0E2244" }} title={i.valor}>{rotuloItem(i.valor)}</td>
                     <td className="px-4 py-2.5 hidden md:table-cell text-gray-700">{t?.emoji} {t?.label || i.lista}</td>
                     <td className="px-4 py-2.5 hidden md:table-cell text-right tabular-nums text-gray-500">{i.ordem}</td>
                     <td className="px-4 py-2.5 text-center">
