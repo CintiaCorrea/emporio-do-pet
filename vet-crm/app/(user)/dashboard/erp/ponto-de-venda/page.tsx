@@ -74,6 +74,7 @@ export default function PDVPage() {
   const [tipoVenda, setTipoVenda] = useState(TIPOS_VENDA[0]);
   const [caixaAberto, setCaixaAberto] = useState<boolean | null>(null);
   const [caixaAbertoId, setCaixaAbertoId] = useState<string | null>(null);
+  const [caixasAbertos, setCaixasAbertos] = useState<any[]>([]); // todos os caixas ABERTOS (um por operador)
   // Com vários caixas abertos (um por operador), re-seleciona o caixa DO operador logado quando a sessão carrega.
   useEffect(() => {
     if (!meId) return;
@@ -83,6 +84,7 @@ export default function PDVPage() {
         if (!r.ok) return;
         const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []);
         const abertos = arr.filter((c: any) => c.status === 'ABERTO').sort((a: any, b: any) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime());
+        setCaixasAbertos(abertos);
         const ab = abertos.find((c: any) => c.user?.id === meId) || abertos[0];
         setCaixaAberto(!!ab); setCaixaAbertoId(ab?.id || null);
       } catch { /* mantém o que já tinha */ }
@@ -290,7 +292,7 @@ export default function PDVPage() {
       } catch { /* */ }
       try {
         const r = await fetch('/api/caixa', { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []); const abertos = arr.filter((c: any) => c.status === 'ABERTO').sort((a: any, b: any) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime()); const ab = (meId && abertos.find((c: any) => c.user?.id === meId)) || abertos[0]; setCaixaAberto(!!ab); setCaixaAbertoId(ab?.id || null); }
+        if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []); const abertos = arr.filter((c: any) => c.status === 'ABERTO').sort((a: any, b: any) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime()); setCaixasAbertos(abertos); const ab = (meId && abertos.find((c: any) => c.user?.id === meId)) || abertos[0]; setCaixaAberto(!!ab); setCaixaAbertoId(ab?.id || null); }
         else setCaixaAberto(false);
       } catch { setCaixaAberto(false); }
       try {
@@ -845,9 +847,25 @@ export default function PDVPage() {
 
           <div style={card}>
             <div style={chLeve}><span style={{ color: NAVY, fontSize: 13.5, fontWeight: 500 }}>💵 Outros caixas</span></div>
-            <div style={{ padding: 13, display: 'flex', gap: 9 }}>
-              <Link href="/dashboard/erp/caixa" style={{ flex: 1, textDecoration: 'none', textAlign: 'center', border: 'none', borderRadius: 9, background: TEAL, color: '#fff', padding: '10px', fontSize: 12.5, fontWeight: 500 }}>➕ Novo caixa</Link>
-              <Link href="/dashboard/erp/caixa" style={{ flex: 1, textDecoration: 'none', textAlign: 'center', border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', color: INK2, padding: '10px', fontSize: 12.5 }}>💵 Meus caixas</Link>
+            <div style={{ padding: 13, display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {caixasAbertos.length > 0 && (
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                  {caixasAbertos.map((c: any) => {
+                    const ativo = c.id === caixaAbertoId;
+                    const nome = (c.user?.name || 'Operador').split(' ')[0];
+                    return (
+                      <button key={c.id} onClick={() => { setCaixaAbertoId(c.id); setCaixaAberto(true); }} title={`Usar o caixa nº ${c.numero} de ${c.user?.name || 'operador'}`}
+                        style={{ border: ativo ? `1.5px solid ${TEAL}` : `1px solid ${LINE}`, background: ativo ? '#e8f7f9' : '#fff', color: ativo ? '#014D5E' : INK2, borderRadius: 9, padding: '7px 11px', fontSize: 12, fontWeight: ativo ? 600 : 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        {ativo && '✓ '}CX {c.numero} · {nome}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div style={{ display: 'flex', gap: 9 }}>
+                <Link href="/dashboard/erp/caixa" style={{ flex: 1, textDecoration: 'none', textAlign: 'center', border: 'none', borderRadius: 9, background: TEAL, color: '#fff', padding: '10px', fontSize: 12.5, fontWeight: 500 }}>➕ Novo caixa</Link>
+                <Link href="/dashboard/erp/caixa" style={{ flex: 1, textDecoration: 'none', textAlign: 'center', border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', color: INK2, padding: '10px', fontSize: 12.5 }}>💵 Meus caixas</Link>
+              </div>
             </div>
           </div>
         </div>
