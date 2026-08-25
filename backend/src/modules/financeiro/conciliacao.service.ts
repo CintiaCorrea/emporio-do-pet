@@ -51,6 +51,18 @@ export class ConciliacaoService {
         return { linha, eid, sugestao: 'JA_IMPORTADA' as Sugestao, match: null, diferencaCentavos: 0 };
       }
 
+      // 🎯 CONCILIAÇÃO POR NSU (prioritária): se a linha do extrato traz o NSU/autorização e casa
+      // EXATO com o numeroDocumento de um lançamento (gravado no recebimento do cartão), concilia
+      // direto — independe de pequenas diferenças de valor (taxa) ou de data (D+1/D+30).
+      const nsuLinha = String((linha as any).nsu || (linha as any).documento || '').trim();
+      if (nsuLinha) {
+        const exato = pendentes.find((p) => !usados.has(p.id) && p.tipo === linha.tipo && String((p as any).numeroDocumento || '').trim() === nsuLinha);
+        if (exato) {
+          usados.add(exato.id);
+          return { linha, eid, sugestao: 'CONCILIAR' as Sugestao, match: exato, diferencaCentavos: linha.valorCentavos - exato.valorCentavos };
+        }
+      }
+
       let best: (typeof pendentes)[number] | null = null;
       let bestDiff = Infinity;
       for (const p of pendentes) {

@@ -54,7 +54,7 @@ function parseExtrato(texto: string): { linhas: Linha[]; erros: number } {
   let iData = idx(['data', 'dt ', 'dt']);
   let iDesc = idx(['descri', 'histor', 'lança', 'lanca', 'memo']);
   let iVal = idx(['valor', 'montante', 'amount']);
-  let iDoc = idx(['docum', 'nº', 'numero', 'número']);
+  let iDoc = idx(['nsu', 'autoriz', 'docum', 'nº', 'numero', 'número']);
   const temHeader = iData >= 0 && iVal >= 0;
   const dataRows = temHeader ? linhasTxt.slice(1) : linhasTxt;
   if (!temHeader) { iData = 0; iDesc = 1; iVal = 2; iDoc = 3; }

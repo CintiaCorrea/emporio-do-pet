@@ -177,12 +177,16 @@ export class RecebimentosService {
       select: { id: true, appointmentId: true, data: true, formas: true },
     });
     const formaPorApp = new Map<string, string>();
+    const nsuPorApp = new Map<string, string>(); // NSU do cartão → conciliação bancária por NSU
     for (const rec of recs) {
       if (!rec.appointmentId) continue;
       const formas = Array.isArray(rec.formas) ? (rec.formas as any[]) : [];
       let melhor: { forma: string; valor: number } | null = null;
       for (const f of formas) { const val = Number(f?.valor) || 0; if (f?.forma && (!melhor || val > melhor.valor)) melhor = { forma: String(f.forma), valor: val }; }
       if (melhor && !formaPorApp.has(rec.appointmentId)) formaPorApp.set(rec.appointmentId, melhor.forma);
+      // NSU: pega o do cartão (forma com modalidade) que tenha nsu preenchido.
+      const comNsu = formas.find((f: any) => String(f?.nsu || '').trim());
+      if (comNsu && !nsuPorApp.has(rec.appointmentId)) nsuPorApp.set(rec.appointmentId, String(comNsu.nsu).trim());
     }
 
     // Marca do item (EMPORIO|MUNDO_A_PARTE|DRA_VIVIAN) → fin_marca.
@@ -211,7 +215,7 @@ export class RecebimentosService {
     const extIds = [...groups.values()].map((g) => `venda:${g.appointmentId}:${g.catKey}`);
     const existentes = await this.prisma.lancamento.findMany({
       where: { origem: 'CRM' as any, externalId: { in: extIds } },
-      select: { id: true, externalId: true, linhaServicoId: true, marcaId: true, formaPagamentoId: true, categoriaId: true, contaId: true, status: true },
+      select: { id: true, externalId: true, linhaServicoId: true, marcaId: true, formaPagamentoId: true, categoriaId: true, contaId: true, status: true, numeroDocumento: true },
     });
     const porExt = new Map(existentes.map((e) => [e.externalId as string, e]));
 
@@ -229,9 +233,10 @@ export class RecebimentosService {
       const ex = porExt.get(extId);
       if (ex) {
         if (ex.status === 'CONCILIADO') continue; // não mexe no que já foi conciliado
-        const mudou = (ex.linhaServicoId ?? null) !== (linhaId ?? null) || (ex.marcaId ?? null) !== (marcaId ?? null) || (ex.formaPagamentoId ?? null) !== (formaId ?? null) || (ex.categoriaId ?? null) !== (catReceitaId ?? null) || (ex.contaId ?? null) !== (contaLanc ?? null);
+        const nsuApp = nsuPorApp.get(g.appointmentId) || null;
+        const mudou = (ex.linhaServicoId ?? null) !== (linhaId ?? null) || (ex.marcaId ?? null) !== (marcaId ?? null) || (ex.formaPagamentoId ?? null) !== (formaId ?? null) || (ex.categoriaId ?? null) !== (catReceitaId ?? null) || (ex.contaId ?? null) !== (contaLanc ?? null) || ((ex as any).numeroDocumento ?? null) !== nsuApp;
         if (mudou) {
-          try { await this.prisma.lancamento.update({ where: { id: ex.id }, data: { linhaServicoId: linhaId ?? null, marcaId: marcaId ?? null, formaPagamentoId: formaId ?? null, categoriaId: catReceitaId ?? null, contaId: contaLanc } }); atualizados++; }
+          try { await this.prisma.lancamento.update({ where: { id: ex.id }, data: { linhaServicoId: linhaId ?? null, marcaId: marcaId ?? null, formaPagamentoId: formaId ?? null, categoriaId: catReceitaId ?? null, contaId: contaLanc, ...(nsuApp ? { numeroDocumento: nsuApp } : {}) } }); atualizados++; }
           catch (e) { this.logger.warn(`receita update ${extId}: ${String((e as any)?.message || e)}`); }
         }
         continue;
@@ -245,6 +250,7 @@ export class RecebimentosService {
           contaId: contaLanc, unidadeId, categoriaId: catReceitaId ?? undefined,
           linhaServicoId: linhaId ?? undefined, marcaId: marcaId ?? undefined, formaPagamentoId: formaId,
           origem: 'CRM' as any, externalId: extId,
+          numeroDocumento: nsuPorApp.get(g.appointmentId) || undefined, // NSU p/ conciliação por NSU
           appointmentId: g.appointmentId, tutorId: g.tutorId ?? undefined,
           status: 'CONFIRMADO' as any, aplicarRegras: false,
         } as any);

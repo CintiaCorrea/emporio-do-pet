@@ -38,6 +38,11 @@ export class LinhaExtratoDto {
   @IsString()
   documento?: string;
 
+  @ApiPropertyOptional({ description: 'NSU/autorização do cartão — casa exato com o lançamento (conciliação por NSU)' })
+  @IsOptional()
+  @IsString()
+  nsu?: string;
+
   @ApiPropertyOptional({ description: 'ID estável na fonte (se ausente, geramos um hash)' })
   @IsOptional()
   @IsString()
