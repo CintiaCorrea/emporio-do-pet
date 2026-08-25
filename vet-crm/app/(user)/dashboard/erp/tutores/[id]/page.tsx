@@ -20,6 +20,7 @@ import { buscarCep } from "@/lib/cep";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import EncaminharBox from "@/components/inbox/EncaminharBox";
 import { assignFollowUpFor, loadFuRespFor } from "@/lib/followup";
+import ResolverFuModal, { type FuAlvo } from "@/components/followup/ResolverFuModal";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
@@ -225,6 +226,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [savingTag, setSavingTag] = useState(false);
   const [fuDate, setFuDate] = useState("");
   const [savingFu, setSavingFu] = useState(false);
+  const [resolverAlvo, setResolverAlvo] = useState<FuAlvo | null>(null); // resolver-com-observação (tutor ou pet dele)
   const [interacoes, setInteracoes] = useState<any[]>([]);
   const [intTipo, setIntTipo] = useState("NOTA");
   const [intTexto, setIntTexto] = useState("");
@@ -1091,13 +1093,22 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             </div>
             <div style={{ padding: "13px 14px" }}>
               {tutor.proximoFollowupAt ? (
-                <div className="text-[12.5px] text-[#5C6B70]">Próximo em <b className="text-[#014D5E]">{fmtDataBR(tutor.proximoFollowupAt)}</b></div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[12.5px] text-[#5C6B70]">Cliente · próximo em <b className="text-[#014D5E]">{fmtDataBR(tutor.proximoFollowupAt)}</b></span>
+                  <button onClick={() => setResolverAlvo({ kind: "tutor", id, nome: tutor.name || "Cliente" })} className="text-white text-[11px] px-2 py-0.5 rounded-[8px] font-semibold" style={{ background: "#1c7a47" }}>✓ Resolver</button>
+                </div>
               ) : (
-                <div className="text-[12.5px] text-[#374151]">Nenhum follow-up agendado.</div>
+                <div className="text-[12.5px] text-[#374151]">Nenhum follow-up do cliente.</div>
               )}
+              {/* Follow-ups dos PETS do cliente (agregado) — cada um resolvível aqui também. */}
+              {(tutor.pets || []).filter((pp: any) => pp.proximoFollowupAt).map((pp: any) => (
+                <div key={pp.id} className="flex items-center gap-2 flex-wrap mt-1.5">
+                  <span className="text-[12.5px] text-[#5C6B70]">🐾 {pp.name} · <b className="text-[#014D5E]">{fmtDataBR(pp.proximoFollowupAt)}</b></span>
+                  <button onClick={() => setResolverAlvo({ kind: "pet", id: pp.id, nome: pp.name || "Pet" })} className="text-white text-[11px] px-2 py-0.5 rounded-[8px] font-semibold" style={{ background: "#1c7a47" }}>✓ Resolver</button>
+                </div>
+              ))}
               <div className="flex gap-1.5 mt-2.5">
-                <button onClick={() => { setFuDate(tutor.proximoFollowupAt ? String(tutor.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">{tutor.proximoFollowupAt ? "Reagendar" : "Agendar"}</button>
-                {tutor.proximoFollowupAt && <button onClick={clearFollowup} className="bg-[#FBF9F4] text-[#5C6B70] text-[11px] px-2.5 py-1 rounded-[8px] border border-[#F0EBE0]">Concluir</button>}
+                <button onClick={() => { setFuDate(tutor.proximoFollowupAt ? String(tutor.proximoFollowupAt).slice(0, 10) : ""); setFuOpen(true); }} className="bg-[#E0F4F6] text-[#014D5E] text-[11px] px-2.5 py-1 rounded-[8px]">{tutor.proximoFollowupAt ? "Reagendar" : "Agendar"} follow-up do cliente</button>
               </div>
             </div>
           </div>
@@ -1240,6 +1251,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
       )}
+
+      <ResolverFuModal alvo={resolverAlvo} onClose={() => setResolverAlvo(null)} onResolved={() => load()} />
 
       {notaOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setNotaOpen(false)}>

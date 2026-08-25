@@ -20,6 +20,7 @@ import {
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import FeedTimeline from "@/components/pets/FeedTimeline";
+import ResolverFuModal from "@/components/followup/ResolverFuModal";
 import WeightChart from "@/components/pets/WeightChart";
 import HistoricoAddGrid from "@/components/pets/HistoricoAddGrid";
 import PetProtocolosPanel from "@/components/pets/PetProtocolosPanel";
@@ -261,6 +262,7 @@ export default function PetDetailPage() {
   const [notaVal, setNotaVal] = useState("");
   const [savingNota, setSavingNota] = useState(false);
   const [fuOpen, setFuOpen] = useState(false);
+  const [resolverFuOpen, setResolverFuOpen] = useState(false); // modal resolver-com-observação
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [tagLivre, setTagLivre] = useState("");
   const [pipeOpen, setPipeOpen] = useState<{ clinico: boolean; fisio: boolean }>({ clinico: false, fisio: false });
@@ -1861,7 +1863,7 @@ export default function PetDetailPage() {
               {pet.proximoFollowupAt ? (
                 <span className="text-[#8a6400]">📞 Próximo em <b>{fmtDataBR(pet.proximoFollowupAt)}</b>{fuResp?.nome ? ` · resp. ${fuResp.nome}` : ""}</span>
               ) : <span className="text-[#374151]">Sem follow-up agendado</span>}
-              {pet.proximoFollowupAt && <button onClick={clearFu} className="bg-[#FBF9F4] text-[#5C6B70] px-2 py-0.5 rounded-[8px] border border-[#F0EBE0]">Concluir</button>}
+              {pet.proximoFollowupAt && <button onClick={() => setResolverFuOpen(true)} className="text-white px-2 py-0.5 rounded-[8px] font-semibold" style={{ background: "#1c7a47" }}>✓ Resolver</button>}
             </div>
           </div>
           <div style={{ padding: "12px 14px" }}>
@@ -2721,6 +2723,8 @@ export default function PetDetailPage() {
           </div>
         </div>
       )}
+
+      <ResolverFuModal alvo={resolverFuOpen ? { kind: "pet", id: petId, nome: pet?.name || "Pet" } : null} onClose={() => setResolverFuOpen(false)} onResolved={async () => { await load(); await loadInteracoesPet(); }} />
 
       {verAtd && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto py-10" onClick={() => setVerAtd(null)}>

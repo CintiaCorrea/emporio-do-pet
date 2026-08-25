@@ -181,7 +181,7 @@ export class TutorsService {
         email: true, // a tela de Clientes oferece busca por e-mail; sem isso ela falha calada
         birthDate: true, proximoFollowupAt: true, rankingAbc: true, nivelRelacionamento: true,
         contacts: { take: 1, orderBy: { isPrimary: 'desc' }, select: { number: true, isPrimary: true } },
-        pets: { select: { id: true, name: true, species: true } },
+        pets: { select: { id: true, name: true, species: true, proximoFollowupAt: true } },
       },
       orderBy: { name: 'asc' },
     });

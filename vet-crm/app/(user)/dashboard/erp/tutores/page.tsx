@@ -1,6 +1,7 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { usePodeEditar } from "@/lib/permissions/context";
+import ResolverFuModal, { type FuAlvo } from "@/components/followup/ResolverFuModal";
 /* ─────────────────────────────────────────────────────────────
    EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
    Tela........: Lista de Clientes/Tutores  (erp/tutores)
@@ -128,6 +129,16 @@ const semAcento = (s?: string | null) =>
 export default function ClientesPage() {
   const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/excluir
   const [tutores, setTutores] = useState<Tutor[]>([]);
+  const [resolverAlvo, setResolverAlvo] = useState<FuAlvo | null>(null); // resolver-com-observação (FU do cliente OU de um pet)
+  // FU do cliente = o mais próximo entre o do tutor e os dos pets dele (agregado).
+  const fuCliente = (t: any): { date: string; alvo: FuAlvo } | null => {
+    const cands: { date: string; alvo: FuAlvo }[] = [];
+    if (t?.proximoFollowupAt) cands.push({ date: t.proximoFollowupAt, alvo: { kind: "tutor", id: t.id, nome: t.name || "Cliente" } });
+    (t?.pets || []).forEach((pp: any) => { if (pp?.proximoFollowupAt) cands.push({ date: pp.proximoFollowupAt, alvo: { kind: "pet", id: pp.id, nome: pp.name || "Pet" } }); });
+    if (!cands.length) return null;
+    cands.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return cands[0];
+  };
   const [loading, setLoading] = useState(true);
   const [aba, setAba] = useState<"CLIENTES" | "PETS">("CLIENTES");
   const [pets, setPets] = useState<PetSimples[] | null>(null);
@@ -638,7 +649,12 @@ export default function ClientesPage() {
                         </div>
                         <div>
                           <div className="text-[#0E2244] font-medium">{t.name || "Sem nome"}</div>
-                          {t.proximoFollowupAt && <span className="text-[10px] text-[#BA7517]">FU: {new Date(t.proximoFollowupAt).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+                          {(() => { const f = fuCliente(t); return f ? (
+                            <span className="inline-flex items-center gap-1">
+                              <span className="text-[10px] text-[#BA7517]">FU: {new Date(f.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}{f.alvo.kind === "pet" ? ` · 🐾 ${f.alvo.nome}` : ""}</span>
+                              <button onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setResolverAlvo(f.alvo); }} title="Resolver follow-up" className="text-[9px] px-1.5 py-0.5 rounded-full border font-semibold" style={{ borderColor: "#1c7a47", color: "#1c7a47", background: "#E7F6EE" }}>✓ resolver</button>
+                            </span>
+                          ) : null; })()}
                         </div>
                       </Link>
                     </td>
@@ -835,6 +851,16 @@ export default function ClientesPage() {
           </div>
         </div>
       )}
+
+      <ResolverFuModal
+        alvo={resolverAlvo}
+        onClose={() => setResolverAlvo(null)}
+        onResolved={() => setTutores((prev: any[]) => prev.map((t: any) => {
+          if (resolverAlvo?.kind === "tutor" && t.id === resolverAlvo.id) return { ...t, proximoFollowupAt: null };
+          if (resolverAlvo?.kind === "pet") return { ...t, pets: (t.pets || []).map((p: any) => p.id === resolverAlvo.id ? { ...p, proximoFollowupAt: null } : p) };
+          return t;
+        }))}
+      />
     </div>
   );
 }
