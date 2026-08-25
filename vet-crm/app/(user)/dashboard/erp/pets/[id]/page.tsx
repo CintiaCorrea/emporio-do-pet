@@ -64,6 +64,8 @@ const diasTxt = (d: number | null | undefined) =>
   d == null ? "—" : d === 0 ? "hoje" : d < 30 ? `${d}d` : d < 365 ? `${Math.floor(d / 30)}m` : `${Math.floor(d / 365)}a`;
 const sterilLabel = (s?: string | null) =>
   s === "STERILIZED" ? "Castrado" : s === "NOT_STERILIZED" ? "Não castrado" : s === "SCHEDULED" ? "Castração agendada" : "—";
+// Interações automáticas do BotConversa (canal "WhatsApp BC") não entram no Acompanhamento & Follow-up.
+const semBotConversa = (arr: any[]) => (arr || []).filter((x: any) => !/whatsapp\s*bc|botconversa/i.test(String(x?.canal || "")));
 
 // Status de saúde derivado das pipelines clínica/fisio (pill do cabeçalho)
 const healthStatus = (clin?: string | null, fisio?: string | null): { label: string; bg: string; color: string } => {
@@ -1854,7 +1856,7 @@ export default function PetDetailPage() {
         {/* Acompanhamento + Follow-up unificados — LARGURA TOTAL */}
         <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
           <div className="border-b border-[#F0EBE0] flex items-center justify-between gap-2 flex-wrap" style={{ padding: "11px 14px" }}>
-            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🕓 Acompanhamento &amp; Follow-up <span className="bg-[#E7F6EE] text-[#1c7a47] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{petInteracoes.length}</span></h3>
+            <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🕓 Acompanhamento &amp; Follow-up <span className="bg-[#E7F6EE] text-[#1c7a47] text-[10px] font-medium px-1.5 py-0.5 rounded-full">{semBotConversa(petInteracoes).length}</span></h3>
             <div className="flex items-center gap-2 text-[11.5px]">
               {pet.proximoFollowupAt ? (
                 <span className="text-[#8a6400]">📞 Próximo em <b>{fmtDataBR(pet.proximoFollowupAt)}</b>{fuResp?.nome ? ` · resp. ${fuResp.nome}` : ""}</span>
@@ -1884,11 +1886,11 @@ export default function PetDetailPage() {
               </select>
               {(intFuDate || intResp) && <span className="text-[10px] text-[#9aa0a8]">salva junto ao clicar em Salvar</span>}
             </div>
-            {petInteracoes.length === 0 ? (
+            {semBotConversa(petInteracoes).length === 0 ? (
               <p className="text-center text-[12px] text-[#374151] py-4">Nenhuma interação ainda</p>
             ) : (
               <div className="flex flex-col gap-1.5 max-h-72 overflow-auto">
-                {petInteracoes.map((it: any) => (
+                {semBotConversa(petInteracoes).map((it: any) => (
                   <div key={it.id} className="bg-[#FBF9F4] border border-[#F0EBE0] rounded-[11px] px-2.5 py-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-medium text-[#009AAC]">{it.tipo}{it.canal ? ` · ${it.canal}` : ""}</span>
