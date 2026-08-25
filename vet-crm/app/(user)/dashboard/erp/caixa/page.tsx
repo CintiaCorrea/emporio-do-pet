@@ -24,7 +24,7 @@ const LINE = '#E8E2D6';
 type Forma = PagForma; // fonte única (lib/formasPagamento): forma+valor +modalidade/bandeira/parcelas/nsu
 interface Movimento { id: string; tipo: string; valor: number; forma?: string | null; conta?: string | null; descricao?: string | null; observacao?: string | null; data: string; }
 interface CreditoUtil { id: string; tipo: string; valor: number; descricao?: string | null; data: string; appointmentId?: string | null; tutor?: { id: string; name: string } | null; }
-interface Recebimento { id: string; valorTotal: number; desconto: number; troco: number; formas: Forma[]; observacao?: string | null; data: string; appointmentId?: string | null; appointment?: { id: string; value: number; numeroVenda?: number | null; codigoExterno?: string | null; pet?: { name: string }; tutor?: { name: string } } | null; }
+interface Recebimento { id: string; valorTotal: number; desconto: number; troco: number; formas: Forma[]; observacao?: string | null; data: string; appointmentId?: string | null; appointment?: { id: string; date?: string; value: number; numeroVenda?: number | null; codigoExterno?: string | null; pet?: { name: string }; tutor?: { name: string } } | null; }
 interface Caixa { id: string; numero: number; status: string; abertura: string; fechamento?: string | null; suprimento: number; observacao?: string | null; valorEsperado?: number | null; valorContado?: number | null; diferenca?: number | null; obsFechamento?: string | null; user?: { id: string; name: string } | null; recebimentos: Recebimento[]; movimentos?: Movimento[]; creditosUtilizados?: CreditoUtil[]; }
 interface Appointment { id: string; value: number; numeroVenda?: number | null; codigoExterno?: string | null; paymentStatus?: string; tutorId?: string; pet?: { name: string } | null; tutor?: { id?: string; name: string } | null; start?: string; }
 
@@ -516,7 +516,7 @@ export default function CaixaPage() {
             {/* AREA PRINCIPAL */}
             <div style={{ flex: '1 1 480px', minWidth: 0 }}>
               <div className="no-print" style={{ display: 'flex', gap: 26, borderBottom: `1px solid ${LINE}`, overflowX: 'auto' }}>
-                {tabBtn('resumo', 'Resumo')}{tabBtn('receb', 'Recebimentos')}{tabBtn('mov', 'Movimentações')}{tabBtn('cred', 'Créditos')}
+                {tabBtn('resumo', 'Resumo')}{tabBtn('receb', 'Recebimentos')}{tabBtn('mov', 'Movimentações')}
               </div>
               <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderTop: 'none', borderRadius: '0 0 11px 11px', padding: 18 }}>
 
@@ -545,6 +545,25 @@ export default function CaixaPage() {
                         )}
                       </tbody>
                     </table>
+                    {(detail.creditosUtilizados || []).length > 0 && (
+                      <>
+                        <div style={{ fontSize: 14, fontWeight: 600, margin: '18px 0 10px' }}>Créditos utilizados</div>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                          <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Cliente</th><th style={thStyle}>Venda</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
+                          <tbody>
+                            {(detail.creditosUtilizados || []).map((c) => (
+                              <tr key={c.id}>
+                                <td style={{ ...tdStyle, color: '#5C6B70' }}>{dataHora(c.data)}</td>
+                                <td style={{ ...tdStyle, color: '#1F2A2E' }}>{c.tutor?.name || 'Cliente'}</td>
+                                <td style={{ ...tdStyle, color: '#374151' }}>{(c as any).appointment?.numeroVenda != null ? `#${(c as any).appointment.numeroVenda}` : (c.descricao || '—')}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500 }}>{money(Number(c.valor))}</td>
+                                {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{delBtn(() => delCred(c.id))}</td>}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </>
+                    )}
                   </>
                 )}
 
@@ -576,28 +595,35 @@ export default function CaixaPage() {
                         </div>
                       </div>
                     )}
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead><tr><th style={thStyle}>Venda</th><th style={thStyle}>Hora</th><th style={thStyle}>Cliente · Pet</th><th style={thStyle}>Formas</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th><th style={{ ...thStyle, textAlign: 'right' }}>Status</th>{aberto && <th style={{ ...thStyle, textAlign: 'right' }} className="no-print"></th>}</tr></thead>
-                      <tbody>
-                        {(detail.recebimentos || []).length === 0 && (<tr><td colSpan={aberto ? 7 : 6} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Nenhum recebimento registrado.</td></tr>)}
-                        {(detail.recebimentos || []).map((rec) => {
-                          const value = Number(rec.appointment?.value || 0);
-                          const pago = rec.appointmentId ? pagoPorAppt.get(rec.appointmentId) || 0 : 0;
-                          const st = statusVenda(value, pago);
-                          return (
-                            <tr key={rec.id}>
-                              <td style={{ ...tdStyle, color: '#014D5E', fontWeight: 500, whiteSpace: 'nowrap' }}>{vendaLabel(rec.appointment)}</td>
-                              <td style={{ ...tdStyle, color: '#5C6B70' }}>{hora(rec.data)}</td>
-                              <td style={{ ...tdStyle, color: '#1F2A2E' }}>{rec.appointment?.tutor?.name || 'Cliente'} · {rec.appointment?.pet?.name || 'Pet'}</td>
-                              <td style={{ ...tdStyle, color: '#374151' }}>{(rec.formas || []).map((f) => f.forma).join(' + ') || '—'}</td>
-                              <td style={{ ...tdStyle, textAlign: 'right' }}>{money(Number(rec.valorTotal))}</td>
-                              <td style={{ ...tdStyle, textAlign: 'right' }}><span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.label}</span></td>
-                              {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{delBtn(() => delRec(rec.id))}</td>}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {(detail.recebimentos || []).length === 0 && <p style={{ textAlign: 'center', color: '#374151', padding: 16, fontSize: 13 }}>Nenhum recebimento registrado.</p>}
+                      {(detail.recebimentos || []).map((rec) => {
+                        const fs = (Array.isArray(rec.formas) ? (rec.formas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
+                        const value = Number(rec.appointment?.value || 0);
+                        const pago = rec.appointmentId ? pagoPorAppt.get(rec.appointmentId) || 0 : 0;
+                        const st = statusVenda(value, pago);
+                        return (
+                          <div key={rec.id} style={{ border: '1px solid #F0EBE0', borderRadius: 10, overflow: 'hidden' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, background: '#FBF9F4', padding: '8px 12px', fontSize: 12.5 }}>
+                              <span style={{ color: '#014D5E', fontWeight: 600 }}>Venda: {vendaLabel(rec.appointment)}{rec.appointment?.date ? <span style={{ fontWeight: 400, color: '#5C6B70' }}> em {new Date(rec.appointment.date).toLocaleDateString('pt-BR')}</span> : null}</span>
+                              <span style={{ color: '#5C6B70' }}>Baixa em {dataHora(rec.data)}</span>
+                              <span style={{ color: '#1F2A2E' }}>Cliente: {rec.appointment?.tutor?.name || 'Cliente'}{rec.appointment?.pet?.name ? ` · ${rec.appointment.pet.name}` : ''}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.label}</span><b style={{ color: '#014D5E' }}>{money(Number(rec.valorTotal))}</b></span>
+                            </div>
+                            <div>
+                              {fs.length === 0 ? <div style={{ padding: '8px 12px', color: '#8A6D00', fontSize: 12 }}>Sem forma identificada</div> :
+                                fs.map((f: any, k: number) => (
+                                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderTop: '1px solid #F5F1E8', fontSize: 12.5 }}>
+                                    <span style={{ flex: 1, color: '#1F2A2E' }}>{f.forma || 'Outros'} <span style={{ color: '#8A857A' }}>({f.modalidade || 'À Vista'})</span></span>
+                                    <span style={{ color: '#014D5E', fontWeight: 500 }}>{money(Number(f.valor || 0))}</span>
+                                    {aberto && <span className="no-print">{delBtn(() => delRec(rec.id))}</span>}
+                                  </div>
+                                ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </>
                 )}
 
@@ -614,24 +640,6 @@ export default function CaixaPage() {
                           <td style={{ ...tdStyle, color: '#374151' }}>{m.conta}</td>
                           <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: m.entrada ? GREEN : ORANGE }}>{m.entrada ? '' : '− '}{money(m.valor)}</td>
                           {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{m.id ? delBtn(() => delMov(m.id!)) : null}</td>}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-
-                {tab === 'cred' && (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Cliente</th><th style={thStyle}>Descrição</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
-                    <tbody>
-                      {(detail.creditosUtilizados || []).length === 0 && (<tr><td colSpan={aberto ? 5 : 4} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Nenhum crédito utilizado.</td></tr>)}
-                      {(detail.creditosUtilizados || []).map((c) => (
-                        <tr key={c.id}>
-                          <td style={{ ...tdStyle, color: '#5C6B70' }}>{dataHora(c.data)}</td>
-                          <td style={{ ...tdStyle, color: '#1F2A2E' }}>{c.tutor?.name || 'Cliente'}</td>
-                          <td style={{ ...tdStyle, color: '#374151' }}>{c.descricao || '—'}</td>
-                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: ORANGE }}>− {money(Number(c.valor))}</td>
-                          {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{delBtn(() => delCred(c.id))}</td>}
                         </tr>
                       ))}
                     </tbody>

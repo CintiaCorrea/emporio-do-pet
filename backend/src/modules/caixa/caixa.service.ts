@@ -54,7 +54,7 @@ export class CaixaService {
     const rows = await this.prisma.recebimento.findMany({
       where,
       include: {
-        appointment: { select: { id: true, value: true, numeroVenda: true, codigoExterno: true, pet: { select: { name: true } }, tutor: { select: { id: true, name: true } }, items: { select: { marca: true } } } },
+        appointment: { select: { id: true, date: true, value: true, numeroVenda: true, codigoExterno: true, pet: { select: { name: true } }, tutor: { select: { id: true, name: true } }, items: { select: { marca: true } } } },
       },
       orderBy: { data: 'desc' },
       take: 500,
