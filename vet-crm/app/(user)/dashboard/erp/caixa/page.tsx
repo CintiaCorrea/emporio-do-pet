@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { usePodeEditar } from '@/lib/permissions/context';
 import { ehDinheiro, carregarFormasRecebimento, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
+import DecimalInput from '@/components/DecimalInput';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
@@ -83,6 +84,19 @@ export default function CaixaPage() {
       if (!r.ok) throw new Error();
       toast.success('Status atualizado'); await fetchCaixas(); await fetchDetail(detail.id);
     } catch { toast.error('Erro ao mudar status'); }
+  };
+  const [editSup, setEditSup] = useState(false);
+  const [supVal, setSupVal] = useState('');
+  const [savingSup, setSavingSup] = useState(false);
+  const salvarSuprimento = async () => {
+    if (!detail) return;
+    setSavingSup(true);
+    try {
+      const novo = Number(String(supVal).replace(',', '.')) || 0;
+      const r = await fetch(`/api/caixa/${detail.id}/suprimento`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suprimento: novo }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.message || 'Erro'); }
+      toast.success('Valor de abertura atualizado'); setEditSup(false); await fetchCaixas(); await fetchDetail(detail.id);
+    } catch (e: any) { toast.error(e?.message || 'Erro ao editar o valor de abertura'); } finally { setSavingSup(false); }
   };
   const [loading, setLoading] = useState(true);
   const [ocultar, setOcultar] = useState(false);
@@ -408,6 +422,20 @@ export default function CaixaPage() {
                 <div style={{ fontSize: 12.5, lineHeight: 1.95 }}>
                   <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Usuário:</span> {detail.user?.name || '—'}</div>
                   <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Abertura:</span> {dataHora(detail.abertura)}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    <span style={{ color: '#014D5E', fontWeight: 500 }}>Valor de abertura:</span>
+                    {!editSup && <span>{money(Number(detail.suprimento || 0))}</span>}
+                    {!editSup && podeEditar && detail.status === 'ABERTO' && (
+                      <button onClick={() => { setSupVal(String(detail.suprimento ?? '')); setEditSup(true); }} style={miniBtn} title="Corrigir o valor de abertura (fundo de troco)">✏️ editar</button>
+                    )}
+                    {editSup && (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <input value={supVal} inputMode="decimal" placeholder="0,00" onChange={(e) => setSupVal(e.target.value)} autoFocus style={{ width: 90, border: '1px solid #E8E2D6', borderRadius: 8, padding: '4px 8px', fontSize: 13 }} />
+                        <button onClick={salvarSuprimento} disabled={savingSup} style={{ ...miniBtn, background: TEAL, color: '#fff', border: 'none', opacity: savingSup ? .5 : 1 }}>{savingSup ? '...' : 'Salvar'}</button>
+                        <button onClick={() => setEditSup(false)} style={miniBtn}>cancelar</button>
+                      </span>
+                    )}
+                  </div>
                   {detail.fechamento && <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Fechamento:</span> {dataHora(detail.fechamento)}</div>}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><span style={{ color: '#014D5E', fontWeight: 500 }}>Status:</span>
                     {(() => { const u = STATUS_UI(detail.status); return <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, background: u.bg, color: u.fg }}>{u.label}</span>; })()}
@@ -689,7 +717,7 @@ export default function CaixaPage() {
             {creditoExcede && <p style={{ fontSize: 11, color: ORANGE, margin: '6px 0 0' }}>Crédito usado ({brl(creditoNasFormas)}) maior que o disponível ({brl(tutorSaldo || 0)}).</p>}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1 }}><Field label="Desconto"><input value={desconto || ''} inputMode="decimal" placeholder="0,00" onChange={(e) => setDesconto(Number(String(e.target.value).replace(',', '.')) || 0)} style={inp} /></Field></div>
+            <div style={{ flex: 1 }}><Field label="Desconto"><DecimalInput value={desconto} onValue={(n) => setDesconto(n)} placeholder="0,00" style={inp} /></Field></div>
             <div style={{ flex: 1 }}><Field label="Troco (auto)"><div style={{ ...inp, color: '#374151', background: '#FBF9F4' }}>{brl(troco)}</div></Field></div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e8f7f9', borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>

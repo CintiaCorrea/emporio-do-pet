@@ -750,6 +750,12 @@ export class CaixaService {
   }
 
   async abrir(dto: any, userId: string) {
+    // 🔒 Trava: só um caixa aberto por vez. Evita que a venda do PDV caia num caixa
+    // diferente do que a operadora está olhando (o PDV mira "o último aberto").
+    const jaAberto = await this.prisma.caixaSessao.findFirst({ where: { status: 'ABERTO' }, select: { numero: true } });
+    if (jaAberto) {
+      throw new BadRequestException(`Já existe um caixa aberto (nº ${jaAberto.numero}). Feche ou encerre ele antes de abrir outro.`);
+    }
     const count = await this.prisma.caixaSessao.count();
     // Caixa retroativo: permite abrir com uma data passada (backfill). Meio-dia p/ evitar borda de fuso.
     const abertura = dto.abertura ? new Date(String(dto.abertura).slice(0, 10) + 'T12:00:00') : undefined;
@@ -762,6 +768,19 @@ export class CaixaService {
         ...(abertura ? { abertura } : {}),
       },
       include: { user: { select: { id: true, name: true } }, recebimentos: true },
+    });
+  }
+
+  // Corrige o valor de abertura (suprimento) de um caixa AINDA aberto. Não mexe em caixa
+  // fechado/encerrado (mudaria a conferência já feita).
+  async editarSuprimento(id: string, suprimento: number) {
+    const c = await this.prisma.caixaSessao.findUnique({ where: { id }, select: { status: true } });
+    if (!c) throw new NotFoundException('Caixa não encontrado');
+    if (c.status !== 'ABERTO') throw new BadRequestException('Só dá para editar o valor de abertura enquanto o caixa está aberto.');
+    return this.prisma.caixaSessao.update({
+      where: { id },
+      data: { suprimento: Number(suprimento || 0) },
+      include: { user: { select: { id: true, name: true } }, recebimentos: true, movimentos: true },
     });
   }
 
@@ -818,6 +837,12 @@ export class CaixaService {
     const appointmentId = dto.appointmentId || null;
     // Normaliza: achata malformado (ex.: [[]] de baixa sem forma) e mantém só objetos {forma,valor} válidos.
     const formas = (Array.isArray(dto.formas) ? (dto.formas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
+    // 🔒 Trava anti-"Outros": um recebimento com valor NÃO pode entrar sem forma de pagamento.
+    // (era a raiz das baixas que caíam em "Outros" e não contavam no dinheiro — formas `[[]]`.)
+    const somaFormasRec = formas.reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
+    if (Number(dto.valorTotal || 0) > 0.005 && somaFormasRec <= 0.005) {
+      throw new BadRequestException('Informe a forma de recebimento — o valor não pode entrar no caixa sem forma.');
+    }
     // Config de vendas: obrigar NSU do cartão (maquininha/cartão)
     const cfgRec = await this.getConfigVendas();
     if (cfgRec.obrigarNsu && formas.some((f: any) => /cart|maquin/i.test(f.forma || '') && !String(f.nsu || '').trim())) {

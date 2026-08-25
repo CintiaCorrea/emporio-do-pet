@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import DecimalInput from '@/components/DecimalInput';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
 import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
@@ -675,9 +676,9 @@ export default function PDVPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6, flexWrap: 'wrap' }}>
                       <input type="number" min={1} value={it.quantidade} onChange={(e) => updItem(i, { quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} title="Qtd" style={{ ...inp, width: 46, padding: '5px 6px', textAlign: 'center', fontSize: 12 }} />
                       <span style={{ color: MUT, fontSize: 12 }}>×</span>
-                      <input value={it.valorUnitario || ''} inputMode="decimal" placeholder="Unit." onChange={(e) => updItem(i, { valorUnitario: num(e.target.value) })} title="Valor unitário" style={{ ...inp, width: 96, padding: '5px 8px', fontSize: 12 }} />
+                      <DecimalInput value={it.valorUnitario} onValue={(n) => updItem(i, { valorUnitario: n })} placeholder="Unit." title="Valor unitário" style={{ ...inp, width: 96, padding: '5px 8px', fontSize: 12 }} />
                       <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-                        <input value={it.desconto || ''} disabled={it.descontoModo === 'SEM_DESCONTO'} inputMode="decimal" placeholder="Desc." onChange={(e) => updItem(i, { desconto: clampDesc(it, num(e.target.value)) })} title={it.descontoModo === 'SEM_DESCONTO' ? 'Este item não permite desconto' : it.descontoModo === 'LIMITE_ITEM' && it.descontoLimite != null ? `Desconto máximo: ${it.descontoLimite}%` : 'Desconto'} style={{ ...inp, width: 52, padding: '5px 6px', fontSize: 12, borderTopRightRadius: 0, borderBottomRightRadius: 0, opacity: it.descontoModo === 'SEM_DESCONTO' ? 0.5 : 1 }} />
+                        <DecimalInput value={it.desconto} onValue={(n) => updItem(i, { desconto: clampDesc(it, n) })} disabled={it.descontoModo === 'SEM_DESCONTO'} placeholder="Desc." title={it.descontoModo === 'SEM_DESCONTO' ? 'Este item não permite desconto' : it.descontoModo === 'LIMITE_ITEM' && it.descontoLimite != null ? `Desconto máximo: ${it.descontoLimite}%` : 'Desconto'} style={{ ...inp, width: 52, padding: '5px 6px', fontSize: 12, borderTopRightRadius: 0, borderBottomRightRadius: 0, opacity: it.descontoModo === 'SEM_DESCONTO' ? 0.5 : 1 }} />
                         <button type="button" onClick={() => updItem(i, { descTipo: it.descTipo === '%' ? '$' : '%' })} title="Alternar R$ / %" style={{ border: `1px solid ${SOFT}`, borderLeft: 'none', background: SUAVE, color: NAVY, fontSize: 11, fontWeight: 600, padding: '5px 6px', cursor: 'pointer', borderTopRightRadius: 7, borderBottomRightRadius: 7 }}>{it.descTipo === '%' ? '%' : 'R$'}</button>
                       </span>
                       <span title="Vendedor deste item" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, background: vendDiff ? AGUA : SUAVE, border: `1px solid ${vendDiff ? TEAL : SOFT}`, borderRadius: 999, padding: '2px 4px 2px 9px' }}>
@@ -966,8 +967,8 @@ export default function PDVPage() {
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                               <input type="number" min={1} value={it.quantidade} onChange={(e) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) } : x))} title="Qtd" style={{ ...inp, width: 52, padding: '6px 6px', textAlign: 'center' }} />
                               <span style={{ color: MUT, fontSize: 12 }}>×</span>
-                              <input value={it.valorUnitario || ''} inputMode="decimal" placeholder="Unit." onChange={(e) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, valorUnitario: num(e.target.value) } : x))} title="Valor unitário" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
-                              <input value={it.desconto || ''} inputMode="decimal" placeholder="Desc." onChange={(e) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, desconto: num(e.target.value) } : x))} title="Desconto" style={{ ...inp, width: 66, padding: '6px 8px' }} />
+                              <DecimalInput value={it.valorUnitario} onValue={(n) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, valorUnitario: n } : x))} placeholder="Unit." title="Valor unitário" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                              <DecimalInput value={it.desconto} onValue={(n) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, desconto: n } : x))} placeholder="Desc." title="Desconto" style={{ ...inp, width: 66, padding: '6px 8px' }} />
                               <span style={{ fontSize: 12.5, fontWeight: 500, color: NAVY, minWidth: 72, textAlign: 'right' }}>{brl(Math.max(0, it.quantidade * it.valorUnitario - (it.desconto || 0)))}</span>
                             </div>
                           </div>

@@ -117,6 +117,12 @@ export class CaixaController {
     return this.service.setStatusCaixa(id, dto?.status);
   }
 
+  // Corrige o valor de abertura (suprimento / fundo de troco) de um caixa já aberto.
+  @Patch(':id/suprimento')
+  editarSuprimento(@Param('id') id: string, @Body() dto: any) {
+    return this.service.editarSuprimento(id, Number(dto?.suprimento || 0));
+  }
+
   @Post(':id/recebimento')
   receber(@Param('id') id: string, @Body() dto: RecebimentoDto, @CurrentUser('id') userId: string) {
     return this.service.registrarRecebimento(id, dto, userId);
