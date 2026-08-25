@@ -803,6 +803,21 @@ export default function HojePage() {
 
   const isRecep = effectiveRole === "RECEPTIONIST";
 
+  // ✓ Resolver o follow-up direto do painel: zera o proximoFollowupAt (pet ou lead) e tira da lista.
+  async function resolverFu(e: any, ev: any) {
+    ev.preventDefault(); ev.stopPropagation();
+    const isPet = String(e.id).startsWith("p");
+    const rawId = String(e.id).slice(1);
+    try {
+      const r = isPet
+        ? await fetch(`/api/pets/${rawId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) })
+        : await fetch(`/api/leads/${rawId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) });
+      if (!r.ok) throw new Error();
+      setFuDue((prev: any[]) => prev.filter((x: any) => x.id !== e.id));
+      toast.success("Follow-up resolvido ✓");
+    } catch { toast.error("Não consegui resolver."); }
+  }
+
   // Linha de tarefa dos cards "Minhas tarefas" / "Recepção & execução". Para "Retornos vencidos"
   // (que não tem página própria), abre a LISTA de follow-ups INLINE ali mesmo (antes não abria).
   function renderTarefaRow(p: Pendencia) {
@@ -820,6 +835,12 @@ export default function HojePage() {
         </div>
         {aberto && (
           <div style={{ background: "#FBF9F4" }}>
+            <div className="flex items-center gap-1.5 border-b flex-wrap" style={{ padding: "8px 15px 8px 58px", borderColor: "#F0EBE0" }} onClick={(ev) => ev.stopPropagation()}>
+              <span className="text-[11px] mr-1" style={{ color: "#8A938F" }}>Mostrar:</span>
+              {(([["meus", "Meus"], ["revisar", "A revisar"], ["todos", "Todos"]]) as [any, string][]).map(([v, lbl]) => (
+                <button key={v} onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setFuFilter(v); }} className="text-[11px] px-2.5 py-1 rounded-full font-medium" style={fuFilter === v ? { background: "#009AAC", color: "#fff" } : { background: "#fff", border: "1px solid #E8E2D6", color: "#5C6B70" }}>{lbl} · {(fuCounts as any)[v]}</button>
+              ))}
+            </div>
             {fuShown.length === 0
               ? <div style={{ padding: "10px 15px 10px 58px", fontSize: 12, color: "#8A938F" }}>Nenhum follow-up para hoje neste filtro.</div>
               : fuShown.slice(0, 40).map((e: any) => (
@@ -828,6 +849,7 @@ export default function HojePage() {
                   <span className="font-medium truncate">{e.nome}</span>
                   {e.respNome && <span className="text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: "#E0F4F6", color: "#00798A" }}>👤 {String(e.respNome).split(" ")[0]}</span>}
                   {e.date && <span className="ml-auto whitespace-nowrap" style={{ color: "#5C6B70" }}>{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
+                  <button onClick={(ev) => resolverFu(e, ev)} title="Marcar follow-up como resolvido" className="whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold" style={{ borderColor: "#1c7a47", color: "#1c7a47", background: "#E7F6EE", marginLeft: e.date ? 8 : "auto" }}>✓ resolver</button>
                 </Link>
               ))}
           </div>
@@ -1289,6 +1311,7 @@ export default function HojePage() {
                         </Link>
                         {e.date && <span className="whitespace-nowrap" style={{ color: B44.text2 }}>{new Date(e.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</span>}
                         {onEnc && <button onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); onEnc(e); }} title="Encaminhar para outra pessoa" className="text-[10.5px] px-2 py-1 rounded-md border whitespace-nowrap hover:bg-white" style={{ borderColor: B44.line, color: B44.primary }}>Encaminhar →</button>}
+                        {onEnc && <button onClick={(ev) => resolverFu(e, ev)} title="Marcar follow-up como resolvido" className="text-[10.5px] px-2 py-1 rounded-md border whitespace-nowrap font-semibold" style={{ borderColor: "#1c7a47", color: "#1c7a47", background: "#E7F6EE" }}>✓ resolver</button>}
                       </div>
                     ))}
                   </div>
