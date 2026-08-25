@@ -48,9 +48,13 @@ const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', c
 const num = (s: any) => Number(String(s ?? '').replace(',', '.')) || 0;
 // Remonta as formas como objetos literais NOVOS (o objeto de estado ia como `[]` no JSON → virava
 // formas [[]] no backend e caía na trava "sem forma"). Fonte única p/ todo envio de recebimento.
-const sanitizeFormas = (arr: any) => (Array.isArray(arr) ? arr : [])
-  .filter((f: any) => f && typeof f === 'object' && !Array.isArray(f) && Number(f.valor) > 0)
-  .map((f: any) => ({ forma: String(f.forma || ''), valor: Number(f.valor) || 0, modalidade: f.modalidade ?? undefined, bandeira: f.bandeira ?? undefined, parcelas: f.parcelas ?? undefined, nsu: f.nsu ?? undefined }));
+const sanitizeFormas = (arr: any) => {
+  const lim = (Array.isArray(arr) ? arr : [])
+    .filter((f: any) => f && typeof f === 'object' && !Array.isArray(f) && Number(f.valor) > 0)
+    .map((f: any) => ({ forma: String(f.forma || ''), valor: Number(f.valor) || 0, modalidade: f.modalidade ?? undefined, bandeira: f.bandeira ?? undefined, parcelas: f.parcelas ?? undefined, nsu: f.nsu ?? undefined }));
+  // round-trip: estrutura 100% limpa (imune ao bug em que o objeto de estado ia como `[]` no JSON aninhado).
+  try { return JSON.parse(JSON.stringify(lim)); } catch { return lim; }
+};
 const hoje = () => new Date().toISOString().slice(0, 10);
 const iniciais = (n: string) => (n || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const avatarOf = (n: string) => AV[(n || '').length % AV.length];
@@ -237,11 +241,11 @@ export default function PDVPage() {
   }
   async function confirmarRecVenda() {
     if (!detVenda || !caixaAbertoId) return;
-    const formasValidas = sanitizeFormas(recFormas);
-    const soma = formasValidas.reduce((s, f) => s + Number(f.valor || 0), 0);
+    const formasValidas = sanitizeFormas(recFormas) as PagForma[];
+    const soma = formasValidas.reduce((s: number, f: PagForma) => s + Number(f.valor || 0), 0);
     if (soma <= 0.001) { toast.error('Informe o valor recebido.'); return; }
     const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
-    const temDin = formasValidas.some((f) => ehDinheiro(f.forma));
+    const temDin = formasValidas.some((f: PagForma) => ehDinheiro(f.forma));
     const trocoR = temDin && soma > aReceber ? Number((soma - aReceber).toFixed(2)) : 0;
     const valorAplicado = Math.max(0, Number((soma - trocoR).toFixed(2)));
     setRecSaving(true);
