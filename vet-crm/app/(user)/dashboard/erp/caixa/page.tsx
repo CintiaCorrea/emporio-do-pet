@@ -315,7 +315,7 @@ export default function CaixaPage() {
     try {
       // Remonta as formas como objetos literais NOVOS (o objeto de estado ia como `[]` no JSON → formas [[]] no backend).
       const formasEnvio = (Array.isArray(formas) ? formas : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f) && Number(f.valor) > 0).map((f: any) => ({ forma: String(f.forma || ''), valor: Number(f.valor) || 0, modalidade: f.modalidade ?? undefined, bandeira: f.bandeira ?? undefined, parcelas: f.parcelas ?? undefined, nsu: f.nsu ?? undefined }));
-      const r = await fetch(`/api/caixa/${detail.id}/recebimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: vendaSel.id, valorTotal: valorAplicado, desconto, troco, formas: formasEnvio, observacao: obsReceb || null }) });
+      const r = await fetch(`/api/caixa/${detail.id}/recebimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: vendaSel.id, valorTotal: valorAplicado, desconto, troco, formas: formasEnvio, formasStr: JSON.stringify(formasEnvio), observacao: obsReceb || null }) });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao registrar recebimento'); }
       toast.success('Recebimento registrado!'); setReceberOpen(false); await fetchDetail(detail.id); await fetchAppointments();
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar recebimento'); }

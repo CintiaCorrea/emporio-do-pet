@@ -847,8 +847,12 @@ export class CaixaService {
 
   async registrarRecebimento(caixaId: string, dto: any, userId: string) {
     const appointmentId = dto.appointmentId || null;
+    // formasStr (texto) tem prioridade sobre formas (array) — contorna o bug de serialização do
+    // navegador que zerava o array "formas" no JSON (chegava [[]]).
+    let rawFormas: any = dto.formas;
+    if (dto.formasStr) { try { rawFormas = JSON.parse(dto.formasStr); } catch { /* usa dto.formas */ } }
     // Normaliza: achata malformado (ex.: [[]] de baixa sem forma) e mantém só objetos {forma,valor} válidos.
-    const formas = (Array.isArray(dto.formas) ? (dto.formas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
+    const formas = (Array.isArray(rawFormas) ? (rawFormas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
     // 🔒 Trava anti-"Outros": um recebimento com valor NÃO pode entrar sem forma de pagamento.
     // (era a raiz das baixas que caíam em "Outros" e não contavam no dinheiro — formas `[[]]`.)
     const somaFormasRec = formas.reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
@@ -1202,7 +1206,10 @@ export class CaixaService {
       examesCriados = await this.examesService.iniciarExamesDaVenda(dto.petId, examItems).catch(() => 0);
     }
 
-    const formas = orcamento ? [] : (Array.isArray(dto.formas) ? dto.formas : []);
+    // formasStr (texto) tem prioridade — contorna o bug do navegador que zerava o array "formas".
+    let rawFormasPdv: any = dto.formas;
+    if (dto.formasStr) { try { rawFormasPdv = JSON.parse(dto.formasStr); } catch { /* usa dto.formas */ } }
+    const formas = orcamento ? [] : (Array.isArray(rawFormasPdv) ? rawFormasPdv : []);
     const somaFormas = formas.reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
     const temDinheiro = formas.some((f: any) => /dinheiro/i.test(f.forma || ''));
     const troco = temDinheiro && somaFormas > valorVenda ? Number((somaFormas - valorVenda).toFixed(2)) : 0;

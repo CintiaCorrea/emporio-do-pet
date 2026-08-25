@@ -252,7 +252,7 @@ export default function PDVPage() {
     try {
       const r = await fetch(`/api/caixa/${caixaAbertoId}/recebimento`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appointmentId: detVenda.id, valorTotal: valorAplicado, troco: trocoR, formas: formasValidas, observacao: 'Recebimento de venda' }),
+        body: JSON.stringify({ appointmentId: detVenda.id, valorTotal: valorAplicado, troco: trocoR, formas: formasValidas, formasStr: JSON.stringify(formasValidas), observacao: 'Recebimento de venda' }),
       });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao receber'); }
       toast.success('Recebimento registrado!' + (trocoR ? ` · troco ${brl(trocoR)}` : ''));
@@ -474,7 +474,7 @@ export default function PDVPage() {
   };
 
   const abrirRecebimento = () => { if (!baseValida) return; setFormas([{ forma: 'Dinheiro', valor: Number(total.toFixed(2)) }]); setModal(true); };
-  const confirmarRecebimento = () => enviar(payload({ tipo: 'VENDA', formas: sanitizeFormas(formas) }), 'Venda registrada!');
+  const confirmarRecebimento = () => { const fv = sanitizeFormas(formas); return enviar(payload({ tipo: 'VENDA', formas: fv, formasStr: JSON.stringify(fv) }), 'Venda registrada!'); };
   const salvar = () => { if (tipo === 'ORCAMENTO') return salvarOrcamento(); return enviar(payload({ tipo }), 'Venda salva (a receber)'); };
   // 🖨️ Imprime o que está na tela (venda ou orçamento, conforme o tipo) — mesmo antes de salvar.
   const imprimirAtual = () => {
