@@ -104,6 +104,8 @@ export default function CatalogoNovoPage() {
   }
 
   useEffect(() => { (async () => { setLoading(true); await carregarApoio(); await carregarFlag(); await carregarItens(); setLoading(false); })(); /* eslint-disable-next-line */ }, []);
+  // Abre direto o gerenciador de grupos quando vem do menu "Grupos de Produtos" (?grupos=1).
+  useEffect(() => { if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("grupos") === "1") setGrupoOpen(true); }, []);
   useEffect(() => { const t = setTimeout(carregarItens, 250); return () => clearTimeout(t); }, [carregarItens]);
 
   const gruposFolha = useMemo(() => grupos.filter((g) => !g.agrupador), [grupos]);
