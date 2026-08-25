@@ -46,6 +46,11 @@ const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Créd
 const TIPOS_VENDA = ['Presencial, para consumidor final', 'Online / delivery', 'Entrega a domicílio'];
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
 const num = (s: any) => Number(String(s ?? '').replace(',', '.')) || 0;
+// Remonta as formas como objetos literais NOVOS (o objeto de estado ia como `[]` no JSON → virava
+// formas [[]] no backend e caía na trava "sem forma"). Fonte única p/ todo envio de recebimento.
+const sanitizeFormas = (arr: any) => (Array.isArray(arr) ? arr : [])
+  .filter((f: any) => f && typeof f === 'object' && !Array.isArray(f) && Number(f.valor) > 0)
+  .map((f: any) => ({ forma: String(f.forma || ''), valor: Number(f.valor) || 0, modalidade: f.modalidade ?? undefined, bandeira: f.bandeira ?? undefined, parcelas: f.parcelas ?? undefined, nsu: f.nsu ?? undefined }));
 const hoje = () => new Date().toISOString().slice(0, 10);
 const iniciais = (n: string) => (n || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const avatarOf = (n: string) => AV[(n || '').length % AV.length];
@@ -232,7 +237,7 @@ export default function PDVPage() {
   }
   async function confirmarRecVenda() {
     if (!detVenda || !caixaAbertoId) return;
-    const formasValidas = recFormas.filter((f) => Number(f.valor) > 0);
+    const formasValidas = sanitizeFormas(recFormas);
     const soma = formasValidas.reduce((s, f) => s + Number(f.valor || 0), 0);
     if (soma <= 0.001) { toast.error('Informe o valor recebido.'); return; }
     const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
@@ -465,7 +470,7 @@ export default function PDVPage() {
   };
 
   const abrirRecebimento = () => { if (!baseValida) return; setFormas([{ forma: 'Dinheiro', valor: Number(total.toFixed(2)) }]); setModal(true); };
-  const confirmarRecebimento = () => enviar(payload({ tipo: 'VENDA', formas: formas.filter((f) => Number(f.valor) > 0) }), 'Venda registrada!');
+  const confirmarRecebimento = () => enviar(payload({ tipo: 'VENDA', formas: sanitizeFormas(formas) }), 'Venda registrada!');
   const salvar = () => { if (tipo === 'ORCAMENTO') return salvarOrcamento(); return enviar(payload({ tipo }), 'Venda salva (a receber)'); };
   // 🖨️ Imprime o que está na tela (venda ou orçamento, conforme o tipo) — mesmo antes de salvar.
   const imprimirAtual = () => {
