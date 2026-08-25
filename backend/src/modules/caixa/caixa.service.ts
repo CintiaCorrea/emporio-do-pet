@@ -750,11 +750,12 @@ export class CaixaService {
   }
 
   async abrir(dto: any, userId: string) {
-    // 🔒 Trava: só um caixa aberto por vez. Evita que a venda do PDV caia num caixa
-    // diferente do que a operadora está olhando (o PDV mira "o último aberto").
-    const jaAberto = await this.prisma.caixaSessao.findFirst({ where: { status: 'ABERTO' }, select: { numero: true } });
+    // 🔒 Trava POR OPERADOR (padrão SimplesVet): vários caixas abertos ao mesmo tempo, mas só
+    // UM por operador/login. Assim cada pessoa tem o seu caixa e a venda cai no caixa certo.
+    const targetUserId = dto.userId || userId;
+    const jaAberto = await this.prisma.caixaSessao.findFirst({ where: { status: 'ABERTO', userId: targetUserId }, select: { numero: true } });
     if (jaAberto) {
-      throw new BadRequestException(`Já existe um caixa aberto (nº ${jaAberto.numero}). Feche ou encerre ele antes de abrir outro.`);
+      throw new BadRequestException(`Este operador já tem um caixa aberto (nº ${jaAberto.numero}). Feche ou encerre ele antes de abrir outro no mesmo nome.`);
     }
     const count = await this.prisma.caixaSessao.count();
     // Caixa retroativo: permite abrir com uma data passada (backfill). Meio-dia p/ evitar borda de fuso.
@@ -827,13 +828,12 @@ export class CaixaService {
   }
 
   async reabrir(id: string, dto: any = {}) {
-    // 🔒 Mesma trava do abrir: não reabrir se já houver outro caixa ABERTO (evita 2 abertos).
-    const outroAberto = await this.prisma.caixaSessao.findFirst({ where: { status: 'ABERTO', id: { not: id } }, select: { numero: true } });
+    // 🔒 Mesma trava do abrir (POR OPERADOR): não reabrir se o operador DESTE caixa já tiver outro aberto.
+    const cur = await this.prisma.caixaSessao.findUnique({ where: { id }, select: { obsFechamento: true, userId: true } });
+    const outroAberto = await this.prisma.caixaSessao.findFirst({ where: { status: 'ABERTO', userId: cur?.userId || undefined, id: { not: id } }, select: { numero: true } });
     if (outroAberto) {
-      throw new BadRequestException(`Já existe um caixa aberto (nº ${outroAberto.numero}). Feche ele antes de reabrir este.`);
+      throw new BadRequestException(`Este operador já tem um caixa aberto (nº ${outroAberto.numero}). Feche ele antes de reabrir este.`);
     }
-    // Guarda o motivo da reabertura no histórico (obsFechamento), sem perder a observação anterior.
-    const cur = await this.prisma.caixaSessao.findUnique({ where: { id }, select: { obsFechamento: true } });
     const motivo = String(dto.observacao || '').trim();
     const nota = motivo ? `${cur?.obsFechamento ? cur.obsFechamento + ' | ' : ''}Reaberto: ${motivo}` : (cur?.obsFechamento || null);
     return this.prisma.caixaSessao.update({ where: { id }, data: { status: 'ABERTO', fechamento: null, obsFechamento: nota } });
@@ -1212,7 +1212,10 @@ export class CaixaService {
     if (somaFormas > 0.001) {
       let caixaId = dto.caixaId || null;
       if (!caixaId) {
-        const aberto = await this.prisma.caixaSessao.findFirst({ where: { status: 'ABERTO' }, orderBy: { abertura: 'desc' } });
+        // Com vários caixas abertos (um por operador), a venda cai no caixa DO OPERADOR logado.
+        // Fallback: o último aberto (compat com quando o operador não tem caixa próprio).
+        const doOperador = await this.prisma.caixaSessao.findFirst({ where: { status: 'ABERTO', userId }, orderBy: { abertura: 'desc' } });
+        const aberto = doOperador || await this.prisma.caixaSessao.findFirst({ where: { status: 'ABERTO' }, orderBy: { abertura: 'desc' } });
         if (!aberto) throw new BadRequestException('Nenhum caixa aberto. Abra o caixa antes de receber.');
         caixaId = aberto.id;
       }

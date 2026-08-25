@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import DecimalInput from '@/components/DecimalInput';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
@@ -56,12 +57,28 @@ export default function PDVPage() {
 
   const { effectiveRole } = useRolePreview();
   const isAdmin = effectiveRole === 'ADMIN';
+  const { data: sessao } = useSession();
+  const meId = (sessao as any)?.user?.id as string | undefined;
 
   const [data, setData] = useState(hoje());
   const [tipo, setTipo] = useState<'VENDA' | 'ORCAMENTO'>('VENDA');
   const [tipoVenda, setTipoVenda] = useState(TIPOS_VENDA[0]);
   const [caixaAberto, setCaixaAberto] = useState<boolean | null>(null);
   const [caixaAbertoId, setCaixaAbertoId] = useState<string | null>(null);
+  // Com vários caixas abertos (um por operador), re-seleciona o caixa DO operador logado quando a sessão carrega.
+  useEffect(() => {
+    if (!meId) return;
+    (async () => {
+      try {
+        const r = await fetch('/api/caixa', { cache: 'no-store' });
+        if (!r.ok) return;
+        const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []);
+        const abertos = arr.filter((c: any) => c.status === 'ABERTO').sort((a: any, b: any) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime());
+        const ab = abertos.find((c: any) => c.user?.id === meId) || abertos[0];
+        setCaixaAberto(!!ab); setCaixaAbertoId(ab?.id || null);
+      } catch { /* mantém o que já tinha */ }
+    })();
+  }, [meId]);
 
   const [profs, setProfs] = useState<Prof[]>([]);
   const [profId, setProfId] = useState('');
@@ -264,7 +281,7 @@ export default function PDVPage() {
       } catch { /* */ }
       try {
         const r = await fetch('/api/caixa', { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []); const ab = arr.filter((c: any) => c.status === 'ABERTO').sort((a: any, b: any) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime())[0]; setCaixaAberto(!!ab); setCaixaAbertoId(ab?.id || null); }
+        if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []); const abertos = arr.filter((c: any) => c.status === 'ABERTO').sort((a: any, b: any) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime()); const ab = (meId && abertos.find((c: any) => c.user?.id === meId)) || abertos[0]; setCaixaAberto(!!ab); setCaixaAbertoId(ab?.id || null); }
         else setCaixaAberto(false);
       } catch { setCaixaAberto(false); }
       try {

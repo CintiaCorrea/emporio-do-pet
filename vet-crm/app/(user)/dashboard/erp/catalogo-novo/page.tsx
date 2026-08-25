@@ -834,8 +834,14 @@ function GruposModal({ grupos, onClose, onChanged }: { grupos: any[]; onClose: (
   const [paiId, setPaiId] = useState("");
   const [agrupador, setAgrupador] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editId, setEditId] = useState("");
+  const [editNome, setEditNome] = useState("");
   const B = "#014D5E", T = "#009AAC", LINE = "#E8DFC8", MUT = "#5C6B70";
   const agrupadores = grupos.filter((g) => g.agrupador);
+  async function salvarEdicao(id: string) {
+    if (!editNome.trim()) { toast.error("Informe o nome"); return; }
+    try { const r = await fetch(`/api/catalogo/grupos/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: editNome.trim() }) }); if (!r.ok) { const e = await r.json().catch(() => null); throw new Error(e?.message); } toast.success("Renomeado"); setEditId(""); setEditNome(""); onChanged(); } catch (e: any) { toast.error(e?.message || "Erro ao renomear"); }
+  }
   async function criar() {
     if (!nome.trim()) { toast.error("Informe o nome"); return; }
     setSaving(true);
@@ -864,9 +870,20 @@ function GruposModal({ grupos, onClose, onChanged }: { grupos: any[]; onClose: (
             {grupos.length === 0 ? <div className="text-[13px] text-center py-4" style={{ color: MUT }}>Nenhum grupo ainda.</div> : grupos.map((g) => (
               <div key={g.id} className="flex items-center gap-2 py-1.5 px-2 rounded-lg" style={{ background: g.agrupador ? "#F1EFE8" : "#fff", border: `1px solid ${LINE}` }}>
                 <span style={{ paddingLeft: g.paiId ? 16 : 0 }}>{g.agrupador ? "📁" : "📄"}</span>
-                <span className="text-[13px] font-medium" style={{ color: B }}>{g.nome}</span>
-                {g.agrupador && <span className="text-[10px] px-1.5 rounded" style={{ background: "#E8DFC8", color: MUT }}>agrupador</span>}
-                <button onClick={() => excluir(g.id)} className="ml-auto text-[#b23b39] text-[13px]">🗑</button>
+                {editId === g.id ? (
+                  <>
+                    <input value={editNome} onChange={(e) => setEditNome(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") salvarEdicao(g.id); if (e.key === "Escape") setEditId(""); }} autoFocus style={{ ...inp, flex: 1, padding: "5px 8px" }} />
+                    <button onClick={() => salvarEdicao(g.id)} className="text-[12px] font-semibold px-2.5 py-1 rounded-lg text-white" style={{ background: T }}>Salvar</button>
+                    <button onClick={() => setEditId("")} className="text-[12px] px-2 py-1" style={{ color: MUT }}>cancelar</button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[13px] font-medium" style={{ color: B }}>{g.nome}</span>
+                    {g.agrupador && <span className="text-[10px] px-1.5 rounded" style={{ background: "#E8DFC8", color: MUT }}>agrupador</span>}
+                    <button onClick={() => { setEditId(g.id); setEditNome(g.nome); }} className="ml-auto text-[13px]" style={{ color: T }} title="Renomear">✏️</button>
+                    <button onClick={() => excluir(g.id)} className="text-[#b23b39] text-[13px]" title="Excluir">🗑</button>
+                  </>
+                )}
               </div>
             ))}
           </div>
