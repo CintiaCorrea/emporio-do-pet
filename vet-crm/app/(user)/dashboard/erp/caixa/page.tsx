@@ -53,6 +53,12 @@ export default function CaixaPage() {
   const [detail, setDetail] = useState<Caixa | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [tab, setTab] = useState<'resumo' | 'receb' | 'mov' | 'cred'>('resumo');
+  const [movModo, setMovModo] = useState<'caixa' | 'periodo'>('caixa'); // aba Movimentações: só este caixa ou por período
+  const [movFrom, setMovFrom] = useState('');
+  const [movTo, setMovTo] = useState('');
+  const [movTipoF, setMovTipoF] = useState('');
+  const [movContaF, setMovContaF] = useState('');
+  const [movPeriodo, setMovPeriodo] = useState<any[]>([]);
   // Status do caixa (4 estados, string) + grade filtrável
   const STATUS_UI = (s: string) => {
     const S = String(s || '').toUpperCase();
@@ -239,6 +245,20 @@ export default function CaixaPage() {
     (detail?.movimentos || []).forEach((m) => linhas.push({ id: m.id, data: m.data, tipo: tipoLabel[m.tipo] || m.tipo, descricao: m.descricao || '—', conta: m.conta || 'Caixa', valor: Number(m.valor || 0), entrada: ehEntrada(m.tipo) }));
     return linhas.sort((a, b) => +new Date(b.data) - +new Date(a.data));
   }, [detail]);
+
+  // Movimentos POR PERÍODO (substitui a tela avulsa "Movimentos de caixa" — agora dentro da aba).
+  const fetchMovPeriodo = useCallback(async () => {
+    const p = new URLSearchParams();
+    if (movFrom) p.set('from', movFrom); if (movTo) p.set('to', movTo);
+    try { const r = await fetch(`/api/caixa/movimentos?${p.toString()}`, { cache: 'no-store' }); if (!r.ok) return; const d = await r.json(); setMovPeriodo(Array.isArray(d) ? d : (d.data || [])); } catch { /* ignore */ }
+  }, [movFrom, movTo]);
+  useEffect(() => { if (movModo === 'periodo') fetchMovPeriodo(); }, [movModo, fetchMovPeriodo]);
+  // Movimentos do período já mapeados p/ o mesmo formato + filtro por tipo/conta.
+  const movPeriodoLinhas = useMemo(() => (movPeriodo || [])
+    .map((m: any) => ({ id: m.id, data: m.data, tipoRaw: m.tipo, tipo: tipoLabel[m.tipo] || m.tipo, descricao: m.descricao || '—', conta: m.conta || 'Caixa', valor: Number(m.valor || 0), entrada: ehEntrada(m.tipo) }))
+    .filter((m) => (!movTipoF || m.tipoRaw === movTipoF) && (!movContaF || m.conta === movContaF))
+    .sort((a, b) => +new Date(b.data) - +new Date(a.data)), [movPeriodo, movTipoF, movContaF]);
+  const movTotais = useMemo(() => { let ent = 0, sai = 0; movPeriodoLinhas.forEach((m) => { if (m.entrada) ent += m.valor; else sai += m.valor; }); return { ent, sai }; }, [movPeriodoLinhas]);
 
   const abrirCaixa = async () => {
     try {
@@ -627,24 +647,46 @@ export default function CaixaPage() {
                   </>
                 )}
 
-                {tab === 'mov' && (
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Tipo</th><th style={thStyle}>Descrição</th><th style={thStyle}>Conta</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
-                    <tbody>
-                      {movLinhas.length === 0 && (<tr><td colSpan={aberto ? 6 : 5} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Sem movimentações.</td></tr>)}
-                      {movLinhas.map((m, i) => (
-                        <tr key={m.id || i}>
-                          <td style={{ ...tdStyle, color: '#5C6B70' }}>{dataHora(m.data)}</td>
-                          <td style={{ ...tdStyle, color: m.entrada ? GREEN : ORANGE }}>{m.tipo}</td>
-                          <td style={{ ...tdStyle, color: '#5C6B70' }}>{m.descricao}</td>
-                          <td style={{ ...tdStyle, color: '#374151' }}>{m.conta}</td>
-                          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: m.entrada ? GREEN : ORANGE }}>{m.entrada ? '' : '− '}{money(m.valor)}</td>
-                          {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{m.id ? delBtn(() => delMov(m.id!)) : null}</td>}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+                {tab === 'mov' && (() => {
+                  const periodo = movModo === 'periodo';
+                  const lbl2: React.CSSProperties = { fontSize: 11, color: '#5C6B70', display: 'block', marginBottom: 3 };
+                  const linhas = periodo ? movPeriodoLinhas : movLinhas;
+                  const mostraDel = !periodo && aberto;
+                  return (
+                    <>
+                      <div className="no-print" style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
+                        <div style={{ display: 'inline-flex', border: `1px solid ${LINE}`, borderRadius: 9, overflow: 'hidden' }}>
+                          {(['caixa', 'periodo'] as const).map((k) => (
+                            <button key={k} onClick={() => { setMovModo(k); if (k === 'periodo' && !movFrom) { const f = new Date(Date.now() - 30 * 86400000); setMovFrom(`${f.getFullYear()}-${String(f.getMonth() + 1).padStart(2, '0')}-${String(f.getDate()).padStart(2, '0')}`); setMovTo(hojeStr()); } }} style={{ border: 'none', background: movModo === k ? TEAL : '#fff', color: movModo === k ? '#fff' : '#5C6B70', fontSize: 12.5, fontWeight: 500, padding: '7px 13px', cursor: 'pointer' }}>{k === 'caixa' ? 'Deste caixa' : '🗓️ Por período'}</button>
+                          ))}
+                        </div>
+                        {periodo && (<>
+                          <div><label style={lbl2}>De</label><input type="date" value={movFrom} onChange={(e) => setMovFrom(e.target.value)} style={inp} /></div>
+                          <div><label style={lbl2}>Até</label><input type="date" value={movTo} onChange={(e) => setMovTo(e.target.value)} style={inp} /></div>
+                          <div><label style={lbl2}>Tipo</label><select value={movTipoF} onChange={(e) => setMovTipoF(e.target.value)} style={inp}><option value="">Todos</option>{Object.keys(tipoLabel).map((t) => <option key={t} value={t}>{tipoLabel[t]}</option>)}</select></div>
+                          <div><label style={lbl2}>Conta</label><select value={movContaF} onChange={(e) => setMovContaF(e.target.value)} style={inp}><option value="">Todas</option>{contasList.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
+                          <div style={{ marginLeft: 'auto', fontSize: 12.5, alignSelf: 'center' }}><span style={{ color: GREEN }}>Entradas {money(movTotais.ent)}</span> · <span style={{ color: ORANGE }}>Saídas {money(movTotais.sai)}</span></div>
+                        </>)}
+                      </div>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                        <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Tipo</th><th style={thStyle}>Descrição</th><th style={thStyle}>Conta</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{mostraDel && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
+                        <tbody>
+                          {linhas.length === 0 && (<tr><td colSpan={mostraDel ? 6 : 5} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Sem movimentações{periodo ? ' no período' : ''}.</td></tr>)}
+                          {linhas.map((m: any, i: number) => (
+                            <tr key={m.id || i}>
+                              <td style={{ ...tdStyle, color: '#5C6B70' }}>{dataHora(m.data)}</td>
+                              <td style={{ ...tdStyle, color: m.entrada ? GREEN : ORANGE }}>{m.tipo}</td>
+                              <td style={{ ...tdStyle, color: '#5C6B70' }}>{m.descricao}</td>
+                              <td style={{ ...tdStyle, color: '#374151' }}>{m.conta}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, color: m.entrada ? GREEN : ORANGE }}>{m.entrada ? '' : '− '}{money(m.valor)}</td>
+                              {mostraDel && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{m.id ? delBtn(() => delMov(m.id!)) : null}</td>}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </>
+                  );
+                })()}
 
               </div>
             </div>
