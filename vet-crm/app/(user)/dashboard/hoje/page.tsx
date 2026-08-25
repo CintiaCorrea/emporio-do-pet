@@ -319,6 +319,9 @@ export default function HojePage() {
   const [fuDue, setFuDue] = useState<any[]>([]);
   const [fuDueOpen, setFuDueOpen] = useState(false);
   const [fuFilter, setFuFilter] = useState<"meus" | "revisar" | "todos">("meus"); // Meus (dono=eu) · A revisar (sem dono) · Todos
+  const [fuResolving, setFuResolving] = useState<any>(null); // FU sendo resolvido (abre modal de observação)
+  const [fuObs, setFuObs] = useState("");
+  const [fuSaving, setFuSaving] = useState(false);
   const [vets, setVets] = useState<any[]>([]); // equipe (p/ encaminhar follow-up)
   const [encaminhando, setEncaminhando] = useState<any | null>(null); // FU sendo encaminhado → abre o seletor de pessoa
   const [toques, setToques] = useState<any[]>([]);
@@ -803,19 +806,28 @@ export default function HojePage() {
 
   const isRecep = effectiveRole === "RECEPTIONIST";
 
-  // ✓ Resolver o follow-up direto do painel: zera o proximoFollowupAt (pet ou lead) e tira da lista.
-  async function resolverFu(e: any, ev: any) {
-    ev.preventDefault(); ev.stopPropagation();
+  // ✓ Resolver o follow-up: abre o modal pra escrever a observação (individualizada — autor = quem resolve).
+  function resolverFu(e: any, ev: any) { ev.preventDefault(); ev.stopPropagation(); setFuObs(""); setFuResolving(e); }
+  // Confirma: registra a observação (NOTA, autor = usuário logado) e zera o proximoFollowupAt (pet ou lead).
+  async function confirmarResolverFu() {
+    const e = fuResolving; if (!e) return;
     const isPet = String(e.id).startsWith("p");
     const rawId = String(e.id).slice(1);
+    setFuSaving(true);
     try {
+      const obs = fuObs.trim();
+      if (obs) {
+        await fetch(`/api/interacoes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...(isPet ? { petId: rawId } : { leadId: rawId }), tipo: "NOTA", texto: `Follow-up resolvido: ${obs}`, canal: "Follow-up" }) }).catch(() => {});
+      }
       const r = isPet
         ? await fetch(`/api/pets/${rawId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) })
         : await fetch(`/api/leads/${rawId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: null }) });
       if (!r.ok) throw new Error();
       setFuDue((prev: any[]) => prev.filter((x: any) => x.id !== e.id));
       toast.success("Follow-up resolvido ✓");
+      setFuResolving(null); setFuObs("");
     } catch { toast.error("Não consegui resolver."); }
+    finally { setFuSaving(false); }
   }
 
   // Linha de tarefa dos cards "Minhas tarefas" / "Recepção & execução". Para "Retornos vencidos"
@@ -1525,6 +1537,27 @@ export default function HojePage() {
             </div>
             <div className="px-4 py-2.5 border-t text-right" style={{ borderColor: B44.lineSoft }}>
               <button onClick={() => setEncaminhando(null)} className="text-[12px] px-3 py-1.5 rounded-lg border" style={{ borderColor: B44.line, color: B44.text2 }}>Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Resolver follow-up → registra a observação (individualizada, autor = você) e zera o retorno. */}
+      {fuResolving && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.30)" }} onClick={() => !fuSaving && setFuResolving(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm" style={{ border: "1px solid " + B44.line }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-4 py-3 border-b" style={{ borderColor: B44.lineSoft }}>
+              <div className="text-[14px] font-semibold" style={{ color: B44.navy }}>✓ Resolver follow-up</div>
+              <div className="text-[12px]" style={{ color: B44.text2 }}>{fuResolving.tipo} · {fuResolving.nome}</div>
+            </div>
+            <div className="p-4">
+              <label className="text-[11px] font-medium" style={{ color: B44.text3 }}>Observação (o que aconteceu no retorno)</label>
+              <textarea value={fuObs} onChange={(e) => setFuObs(e.target.value)} rows={3} autoFocus placeholder="Ex.: cliente retornou, pet bem; ou não atendeu, remarcar…" className="w-full mt-1 border rounded-lg px-2.5 py-2 text-[13px]" style={{ borderColor: B44.line }} />
+              <div className="text-[10.5px] mt-1" style={{ color: B44.text3 }}>Fica registrada na ficha (autor: você). Pode deixar em branco.</div>
+            </div>
+            <div className="px-4 py-2.5 border-t flex justify-end gap-2" style={{ borderColor: B44.lineSoft }}>
+              <button onClick={() => setFuResolving(null)} disabled={fuSaving} className="text-[12px] px-3 py-1.5 rounded-lg border" style={{ borderColor: B44.line, color: B44.text2 }}>Cancelar</button>
+              <button onClick={confirmarResolverFu} disabled={fuSaving} className="text-[12px] px-3 py-1.5 rounded-lg font-semibold text-white" style={{ background: "#1c7a47" }}>{fuSaving ? "Salvando…" : "✓ Resolver"}</button>
             </div>
           </div>
         </div>
