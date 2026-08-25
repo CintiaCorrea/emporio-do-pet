@@ -108,8 +108,8 @@ export class CaixaController {
   }
 
   @Patch(':id/reabrir')
-  reabrir(@Param('id') id: string) {
-    return this.service.reabrir(id);
+  reabrir(@Param('id') id: string, @Body() dto: any) {
+    return this.service.reabrir(id, dto);
   }
 
   @Patch(':id/status')

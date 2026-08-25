@@ -789,10 +789,13 @@ export class CaixaService {
     const valorContado = dto.valorContado != null ? Number(dto.valorContado) : null;
     const diferenca = (valorEsperado != null && valorContado != null)
       ? Number((valorContado - valorEsperado).toFixed(2)) : null;
+    // status alvo: 'FECHADO' (encerrar) ou 'EM_REVISAO' (colocar em revisão). fechamento pode vir do modal.
+    const status = String(dto.status || '').toUpperCase() === 'EM_REVISAO' ? 'EM_REVISAO' : 'FECHADO';
+    const fechamento = dto.fechamento ? new Date(dto.fechamento) : new Date();
     return this.prisma.caixaSessao.update({
       where: { id },
       data: {
-        status: 'FECHADO', fechamento: new Date(),
+        status, fechamento,
         valorEsperado, valorContado, diferenca,
         obsFechamento: dto.observacao || null,
       },
@@ -823,8 +826,17 @@ export class CaixaService {
     return this.prisma.caixaSessao.update({ where: { id }, data });
   }
 
-  async reabrir(id: string) {
-    return this.prisma.caixaSessao.update({ where: { id }, data: { status: 'ABERTO', fechamento: null } });
+  async reabrir(id: string, dto: any = {}) {
+    // 🔒 Mesma trava do abrir: não reabrir se já houver outro caixa ABERTO (evita 2 abertos).
+    const outroAberto = await this.prisma.caixaSessao.findFirst({ where: { status: 'ABERTO', id: { not: id } }, select: { numero: true } });
+    if (outroAberto) {
+      throw new BadRequestException(`Já existe um caixa aberto (nº ${outroAberto.numero}). Feche ele antes de reabrir este.`);
+    }
+    // Guarda o motivo da reabertura no histórico (obsFechamento), sem perder a observação anterior.
+    const cur = await this.prisma.caixaSessao.findUnique({ where: { id }, select: { obsFechamento: true } });
+    const motivo = String(dto.observacao || '').trim();
+    const nota = motivo ? `${cur?.obsFechamento ? cur.obsFechamento + ' | ' : ''}Reaberto: ${motivo}` : (cur?.obsFechamento || null);
+    return this.prisma.caixaSessao.update({ where: { id }, data: { status: 'ABERTO', fechamento: null, obsFechamento: nota } });
   }
 
   // Lê as regras do módulo de vendas (lista `configvendas`, 1 item JSON).

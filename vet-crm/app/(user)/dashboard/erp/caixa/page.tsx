@@ -105,7 +105,7 @@ export default function CaixaPage() {
   const money = (v: number) => (ocultar ? 'R$ ••••••' : brl(v));
 
   const [abrirOpen, setAbrirOpen] = useState(false);
-  const [abrirForm, setAbrirForm] = useState({ suprimento: '', observacao: '', abertura: '' });
+  const [abrirForm, setAbrirForm] = useState({ suprimento: '', observacao: '', abertura: '', userId: '', contaOrigemId: '', forma: 'Dinheiro' });
   const [receberOpen, setReceberOpen] = useState(false);
   const [vendaSel, setVendaSel] = useState<Appointment | null>(null);
   const [formas, setFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]);
@@ -122,7 +122,10 @@ export default function CaixaPage() {
   const [credForm, setCredForm] = useState({ appointmentId: '', tipo: 'RECARGA', valor: '', descricao: '', forma: 'Dinheiro' });
   const [prevCred, setPrevCred] = useState<{ totalCentavos: number; porData: { data: string; liquidoCentavos: number }[] } | null>(null); // item 10 — previsão de crédito das maquininhas (D+1)
   const [fecharOpen, setFecharOpen] = useState(false);
-  const [fecharForm, setFecharForm] = useState({ valorContado: '', observacao: '' });
+  const [fecharForm, setFecharForm] = useState({ valorContado: '', observacao: '', data: '', hora: '', semMov: false });
+  const [usuarios, setUsuarios] = useState<any[]>([]); // operadores (p/ Usuário do caixa)
+  const [reabrirOpen, setReabrirOpen] = useState(false);
+  const [reabrirMotivo, setReabrirMotivo] = useState('');
   const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas cadastradas (fonte única — igual PDV)
   const [formasConfig, setFormasConfig] = useState<FormaCfg[]>([]); // config completa por forma (p/ cartão: adquirente/bandeira)
   const [taxas, setTaxas] = useState<TaxaRow[]>([]); // tabela TaxaContratada (mostra bandeiras do cartão)
@@ -182,6 +185,11 @@ export default function CaixaPage() {
         const arr = Array.isArray(cats) ? cats : (cats.itens || cats.data || []);
         setCategoriasDespesa(arr.filter((c: any) => String(c?.tipo || '') === 'DESPESA').sort((a: any, b: any) => (a.nome || '').localeCompare(b.nome || '')));
       } catch { /* sem categorias */ }
+      try {
+        const us = await fetch('/api/users', { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
+        const arr = Array.isArray(us) ? us : (us.itens || us.data || us.users || []);
+        setUsuarios(arr.filter((u: any) => u?.id).map((u: any) => ({ id: u.id, name: u.name || u.nome || 'Sem nome' })));
+      } catch { /* sem usuários */ }
     })();
   }, []);
 
@@ -234,24 +242,35 @@ export default function CaixaPage() {
 
   const abrirCaixa = async () => {
     try {
-      const r = await fetch('/api/caixa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suprimento: Number(String(abrirForm.suprimento).replace(',', '.')) || 0, observacao: abrirForm.observacao || null, abertura: abrirForm.abertura || undefined }) });
-      if (!r.ok) throw new Error('Erro ao abrir caixa');
-      toast.success(abrirForm.abertura ? `Caixa aberto para ${abrirForm.abertura.split('-').reverse().join('/')}!` : 'Caixa aberto!'); setAbrirOpen(false); setAbrirForm({ suprimento: '', observacao: '', abertura: '' }); await fetchCaixas();
+      // Conta + forma do suprimento vão junto na observação (registro), Usuário vira o dono do caixa.
+      const contaNome = contasFin.find((c) => c.id === abrirForm.contaOrigemId)?.nome;
+      const obs = [abrirForm.observacao, abrirForm.forma && `Forma: ${abrirForm.forma}`, contaNome && `Conta: ${contaNome}`].filter(Boolean).join(' · ') || null;
+      const r = await fetch('/api/caixa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suprimento: Number(String(abrirForm.suprimento).replace(',', '.')) || 0, observacao: obs, abertura: abrirForm.abertura || undefined, userId: abrirForm.userId || undefined }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.message || 'Erro ao abrir caixa'); }
+      toast.success(abrirForm.abertura ? `Caixa aberto para ${abrirForm.abertura.split('-').reverse().join('/')}!` : 'Caixa aberto!'); setAbrirOpen(false); setAbrirForm({ suprimento: '', observacao: '', abertura: '', userId: '', contaOrigemId: '', forma: 'Dinheiro' }); await fetchCaixas();
     } catch (e: any) { toast.error(e.message || 'Erro ao abrir caixa'); }
   };
-  const abrirFechar = () => { setFecharForm({ valorContado: '', observacao: '' }); setFecharOpen(true); };
-  const fecharCaixa = async () => {
-    if (!detail) return;
-    const valorContado = fecharForm.valorContado === '' ? null : Number(String(fecharForm.valorContado).replace(',', '.'));
-    try {
-      const r = await fetch(`/api/caixa/${detail.id}/fechar`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valorEsperado: Number(saldoDinheiro.toFixed(2)), valorContado, observacao: fecharForm.observacao || null }) });
-      if (!r.ok) throw new Error('Erro ao encerrar caixa');
-      toast.success('Caixa encerrado!'); setFecharOpen(false); await fetchCaixas(); await fetchDetail(detail.id);
-    } catch (e: any) { toast.error(e.message || 'Erro ao encerrar caixa'); }
+  const abrirFechar = () => {
+    const now = new Date();
+    const d = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const h = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    setFecharForm({ valorContado: '', observacao: '', data: d, hora: h, semMov: false }); setFecharOpen(true);
   };
-  const reabrirCaixa = async () => {
-    if (!detail) return; if (!confirm(`Reabrir o Caixa nº ${detail.numero}?`)) return;
-    try { const r = await fetch(`/api/caixa/${detail.id}/reabrir`, { method: 'PATCH' }); if (!r.ok) throw new Error('Erro ao reabrir caixa'); toast.success('Caixa reaberto!'); await fetchCaixas(); await fetchDetail(detail.id); }
+  const enviarFechamento = async (status: 'FECHADO' | 'EM_REVISAO') => {
+    if (!detail) return;
+    const valorContado = fecharForm.semMov ? Number(saldoDinheiro.toFixed(2)) : (fecharForm.valorContado === '' ? null : Number(String(fecharForm.valorContado).replace(',', '.')));
+    const fechamento = fecharForm.data ? new Date(`${fecharForm.data}T${fecharForm.hora || '23:59'}:00`).toISOString() : undefined;
+    try {
+      const r = await fetch(`/api/caixa/${detail.id}/fechar`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status, fechamento, valorEsperado: Number(saldoDinheiro.toFixed(2)), valorContado, observacao: fecharForm.observacao || (fecharForm.semMov ? 'Caixa sem movimento' : null) }) });
+      if (!r.ok) throw new Error('Erro ao processar');
+      toast.success(status === 'EM_REVISAO' ? 'Caixa colocado em revisão!' : 'Caixa encerrado!'); setFecharOpen(false); await fetchCaixas(); await fetchDetail(detail.id);
+    } catch (e: any) { toast.error(e.message || 'Erro ao processar o fechamento'); }
+  };
+  const fecharCaixa = () => enviarFechamento('FECHADO');
+  const reabrirCaixa = () => { if (!detail) return; setReabrirMotivo(''); setReabrirOpen(true); };
+  const confirmarReabrir = async () => {
+    if (!detail) return;
+    try { const r = await fetch(`/api/caixa/${detail.id}/reabrir`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ observacao: reabrirMotivo || null }) }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.message || 'Erro ao reabrir caixa'); } toast.success('Caixa reaberto!'); setReabrirOpen(false); await fetchCaixas(); await fetchDetail(detail.id); }
     catch (e: any) { toast.error(e.message || 'Erro ao reabrir caixa'); }
   };
   const abrirReceber = async (venda: Appointment) => {
@@ -322,7 +341,7 @@ export default function CaixaPage() {
 
   const vendasEmAberto = appointments.filter((a) => { const pago = pagoPorAppt.get(a.id) || 0; return Number(a.value) - pago > 0.001; });
   const aberto = detail?.status === 'ABERTO';
-  const contado = fecharForm.valorContado === '' ? null : Number(String(fecharForm.valorContado).replace(',', '.'));
+  const contado = fecharForm.semMov ? Number(saldoDinheiro.toFixed(2)) : (fecharForm.valorContado === '' ? null : Number(String(fecharForm.valorContado).replace(',', '.')));
   const difPrevia = contado === null ? null : Number((contado - saldoDinheiro).toFixed(2));
 
   const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, padding: '14px 15px' };
@@ -626,25 +645,48 @@ export default function CaixaPage() {
       {/* MODAIS */}
       {abrirOpen && (
         <Modal title="Abrir caixa" onClose={() => setAbrirOpen(false)} onConfirm={abrirCaixa} confirmLabel="Abrir caixa">
+          <Field label="Usuário (operador do caixa)"><select value={abrirForm.userId} onChange={(e) => setAbrirForm({ ...abrirForm, userId: e.target.value })} style={inp}><option value="">Eu mesmo(a)</option>{usuarios.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select></Field>
           <Field label="Data do caixa (deixe vazio = hoje; escolha um dia passado p/ lançar retroativo)"><input type="date" value={abrirForm.abertura} max={hojeStr()} onChange={(e) => setAbrirForm({ ...abrirForm, abertura: e.target.value })} style={inp} /></Field>
-          <Field label="Suprimento (fundo de troco)"><input value={abrirForm.suprimento} onChange={(e) => setAbrirForm({ ...abrirForm, suprimento: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field>
-          <Field label="Observação"><input value={abrirForm.observacao} onChange={(e) => setAbrirForm({ ...abrirForm, observacao: e.target.value })} placeholder="Ex: Abertura de caixa Isabela" style={inp} /></Field>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#014D5E', marginTop: 2 }}>Suprimento (fundo de troco)</div>
+          <Field label="Conta de origem"><select value={abrirForm.contaOrigemId} onChange={(e) => setAbrirForm({ ...abrirForm, contaOrigemId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 1 }}><Field label="Valor"><input value={abrirForm.suprimento} onChange={(e) => setAbrirForm({ ...abrirForm, suprimento: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field></div>
+            <div style={{ flex: 1 }}><Field label="Forma de pagamento"><select value={abrirForm.forma} onChange={(e) => setAbrirForm({ ...abrirForm, forma: e.target.value })} style={inp}>{formasList.map((f) => <option key={f} value={f}>{f}</option>)}</select></Field></div>
+          </div>
+          <Field label="Descrição"><input value={abrirForm.observacao} onChange={(e) => setAbrirForm({ ...abrirForm, observacao: e.target.value })} placeholder="Ex: Fundo de troco" style={inp} /></Field>
         </Modal>
       )}
 
       {fecharOpen && detail && (
-        <Modal title="Revisar e encerrar" onClose={() => setFecharOpen(false)} onConfirm={fecharCaixa} confirmLabel="Encerrar caixa" dark>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#e8f7f9', borderRadius: 8, padding: '11px 12px' }}>
-            <span style={{ color: '#014D5E', fontSize: 13 }}>Esperado em dinheiro (gaveta)</span><b style={{ color: TEAL_DARK, fontSize: 15 }}>{brl(saldoDinheiro)}</b>
+        <Modal title={`Encerramento do caixa nº ${detail.numero}`} onClose={() => setFecharOpen(false)} onConfirm={fecharCaixa} confirmLabel="✅ Encerrar caixa" dark
+          secondary={{ label: '🔄 Colocar em revisão', onClick: () => enviarFechamento('EM_REVISAO'), color: '#7C5CBF' }}>
+          <button type="button" onClick={() => setFecharForm({ ...fecharForm, semMov: !fecharForm.semMov })} style={{ width: '100%', padding: '12px', borderRadius: 8, border: fecharForm.semMov ? `2px solid ${TEAL}` : '1px solid #E8E2D6', background: fecharForm.semMov ? '#e8f7f9' : '#F4F6F7', color: '#5C6B70', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>{fecharForm.semMov ? '✓ ' : ''}Caixa sem movimento</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 1 }}><Field label="Data"><input type="date" value={fecharForm.data} onChange={(e) => setFecharForm({ ...fecharForm, data: e.target.value })} style={inp} /></Field></div>
+            <div style={{ flex: 1 }}><Field label="Hora"><input type="time" value={fecharForm.hora} onChange={(e) => setFecharForm({ ...fecharForm, hora: e.target.value })} style={inp} /></Field></div>
           </div>
-          <Field label="Dinheiro contado"><input value={fecharForm.valorContado} onChange={(e) => setFecharForm({ ...fecharForm, valorContado: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field>
-          {difPrevia !== null && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', borderRadius: 8, padding: '10px 12px', fontSize: 13, background: Math.abs(difPrevia) < 0.005 ? '#e1f5ee' : '#fef0e8' }}>
-              <span style={{ color: difPrevia >= 0 ? GREEN : '#993C1D' }}>{Math.abs(difPrevia) < 0.005 ? 'Caixa confere' : difPrevia > 0 ? 'Sobra' : 'Falta'}</span>
-              <b style={{ color: difPrevia >= 0 ? GREEN : ORANGE }}>{brl(Math.abs(difPrevia))}</b>
-            </div>
+          {!fecharForm.semMov && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#e8f7f9', borderRadius: 8, padding: '11px 12px' }}>
+                <span style={{ color: '#014D5E', fontSize: 13 }}>Esperado em dinheiro (gaveta)</span><b style={{ color: TEAL_DARK, fontSize: 15 }}>{brl(saldoDinheiro)}</b>
+              </div>
+              <Field label="Dinheiro contado"><input value={fecharForm.valorContado} onChange={(e) => setFecharForm({ ...fecharForm, valorContado: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field>
+              {difPrevia !== null && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderRadius: 8, padding: '10px 12px', fontSize: 13, background: Math.abs(difPrevia) < 0.005 ? '#e1f5ee' : '#fef0e8' }}>
+                  <span style={{ color: difPrevia >= 0 ? GREEN : '#993C1D' }}>{Math.abs(difPrevia) < 0.005 ? 'Caixa confere' : difPrevia > 0 ? 'Sobra' : 'Falta'}</span>
+                  <b style={{ color: difPrevia >= 0 ? GREEN : ORANGE }}>{brl(Math.abs(difPrevia))}</b>
+                </div>
+              )}
+            </>
           )}
-          <Field label="Observação"><input value={fecharForm.observacao} onChange={(e) => setFecharForm({ ...fecharForm, observacao: e.target.value })} style={inp} /></Field>
+          <Field label="Comentário"><input value={fecharForm.observacao} onChange={(e) => setFecharForm({ ...fecharForm, observacao: e.target.value })} placeholder="Opcional" style={inp} /></Field>
+        </Modal>
+      )}
+
+      {reabrirOpen && detail && (
+        <Modal title={`Reabrir o caixa nº ${detail.numero}`} onClose={() => setReabrirOpen(false)} onConfirm={confirmarReabrir} confirmLabel="Reabrir caixa">
+          <p style={{ fontSize: 12.5, color: '#5C6B70', margin: 0 }}>O caixa volta a ficar <b>Aberto</b>. Informe o motivo (fica registrado no histórico do caixa).</p>
+          <Field label="Motivo da reabertura"><input value={reabrirMotivo} onChange={(e) => setReabrirMotivo(e.target.value)} placeholder="Ex: faltou lançar uma venda em dinheiro" style={inp} /></Field>
         </Modal>
       )}
 
@@ -738,7 +780,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   return <div><label style={lbl}>{label}</label>{children}</div>;
 }
 
-function Modal({ title, children, onClose, onConfirm, confirmLabel, confirmDisabled, dark, slide }: { title: string; children: React.ReactNode; onClose: () => void; onConfirm: () => void; confirmLabel: string; confirmDisabled?: boolean; dark?: boolean; slide?: boolean }) {
+function Modal({ title, children, onClose, onConfirm, confirmLabel, confirmDisabled, dark, slide, secondary }: { title: string; children: React.ReactNode; onClose: () => void; onConfirm: () => void; confirmLabel: string; confirmDisabled?: boolean; dark?: boolean; slide?: boolean; secondary?: { label: string; onClick: () => void; color?: string } }) {
   // slide=painel deslizante pela direita (mantém a lista de vendas visível atrás — padrão SimplesVet).
   const painel: React.CSSProperties = slide
     ? { background: '#fff', width: '100%', maxWidth: 480, height: '100vh', overflow: 'auto', borderLeft: '1px solid #F0EBE0', boxShadow: '-12px 0 30px rgba(0,0,0,.14)', animation: 'cxSlideOver .18s ease-out' }
@@ -754,6 +796,7 @@ function Modal({ title, children, onClose, onConfirm, confirmLabel, confirmDisab
         <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 13 }}>{children}</div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '15px 18px', borderTop: '1px solid #F0EBE0' }}>
           <button onClick={onClose} style={{ padding: '9px 16px', borderRadius: 9, border: '1px solid #E8E2D6', background: '#fff', color: '#5C6B70', cursor: 'pointer' }}>Cancelar</button>
+          {secondary && <button onClick={secondary.onClick} style={{ padding: '9px 16px', borderRadius: 9, border: 'none', color: '#fff', fontWeight: 500, cursor: 'pointer', background: secondary.color || '#7C5CBF' }}>{secondary.label}</button>}
           <button onClick={onConfirm} disabled={confirmDisabled} style={{ padding: '9px 18px', borderRadius: 9, border: 'none', color: '#fff', fontWeight: 500, cursor: 'pointer', background: dark ? TEAL_DARK : TEAL, opacity: confirmDisabled ? .4 : 1 }}>{confirmLabel}</button>
         </div>
       </div>
