@@ -876,7 +876,7 @@ export default function PDVPage() {
                 <span style={{ fontSize: 13, color: INK2 }}>Total da venda</span>
                 <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(total)}</span>
               </div>
-              <PagamentoFormas formas={formas} onChange={setFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
+              <PagamentoFormas formas={formas} onChange={setFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} mostrarTaxa={effectiveRole !== "RECEPTIONIST"} />
 
               <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Pago</span><b style={{ color: NAVY }}>{brl(pago)}</b></div>
@@ -1043,7 +1043,7 @@ export default function PDVPage() {
                   <span style={{ fontSize: 13, color: INK2 }}>Saldo a receber</span>
                   <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(aReceber)}</span>
                 </div>
-                <PagamentoFormas formas={recFormas} onChange={setRecFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
+                <PagamentoFormas formas={recFormas} onChange={setRecFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} mostrarTaxa={effectiveRole !== "RECEPTIONIST"} />
 
                 <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Recebido agora</span><b style={{ color: NAVY }}>{brl(pagoR)}</b></div>

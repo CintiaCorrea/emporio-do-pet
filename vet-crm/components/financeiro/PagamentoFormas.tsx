@@ -14,12 +14,13 @@ const C = { teal: "#009AAC", navy: "#014D5E", line: "#E8E2D6", ink: "#112", mut:
 const inp: React.CSSProperties = { padding: "8px 9px", border: `1px solid ${C.line}`, borderRadius: 9, fontSize: 13, background: "#fff", color: C.ink, fontFamily: "inherit", boxSizing: "border-box", width: "100%" };
 const lbl: React.CSSProperties = { fontSize: 10, textTransform: "uppercase", letterSpacing: ".3px", color: C.mut, marginBottom: 3, display: "block" };
 
-export default function PagamentoFormas({ formas, onChange, formasList, formasConfig, taxas }: {
+export default function PagamentoFormas({ formas, onChange, formasList, formasConfig, taxas, mostrarTaxa = true }: {
   formas: PagForma[];
   onChange: (f: PagForma[]) => void;
   formasList: string[];
   formasConfig: FormaCfg[];
   taxas: TaxaRow[];
+  mostrarTaxa?: boolean; // recepção não vê taxa/líquido do cartão
 }) {
   const [focusIdx, setFocusIdx] = useState<number | null>(null); // p/ mostrar 2 casas quando não está digitando
   const cfgByNome = new Map(formasConfig.map((c) => [c.nome, c]));
@@ -94,11 +95,11 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
                 </div>
               </div>
             )}
-            {(() => { const bps = taxaBpsDe(f, cfg); if (bps == null) return null; const v = Number(f.valor) || 0; const taxa = v * bps / 10000; return <div style={{ marginTop: 6, fontSize: 11, color: "#9A6C1F" }}>💳 taxa ~{(bps / 100).toFixed(2)}% = {brl(taxa)} · líquido {brl(v - taxa)}</div>; })()}
+            {mostrarTaxa && (() => { const bps = taxaBpsDe(f, cfg); if (bps == null) return null; const v = Number(f.valor) || 0; const taxa = v * bps / 10000; return <div style={{ marginTop: 6, fontSize: 11, color: "#9A6C1F" }}>💳 taxa ~{(bps / 100).toFixed(2)}% = {brl(taxa)} · líquido {brl(v - taxa)}</div>; })()}
           </div>
         );
       })}
-      {taxaTotal > 0.001 && (
+      {mostrarTaxa && taxaTotal > 0.001 && (
         <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6, fontSize: 12, color: "#9A6C1F", background: "#FBF1DA", border: "1px solid #F0D9A6", borderRadius: 9, padding: "7px 11px" }}>
           <span>💳 Taxa estimada dos cartões: {brl(taxaTotal)}</span>
           <span>Líquido dos cartões: <b>{brl(cartaoBruto - taxaTotal)}</b></span>

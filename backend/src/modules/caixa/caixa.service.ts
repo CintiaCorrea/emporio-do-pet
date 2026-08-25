@@ -853,12 +853,17 @@ export class CaixaService {
     // (era a raiz das baixas que caíam em "Outros" e não contavam no dinheiro — formas `[[]]`.)
     const somaFormasRec = formas.reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
     if (Number(dto.valorTotal || 0) > 0.005 && somaFormasRec <= 0.005) {
+      // 🔎 DIAGNÓSTICO: registra o que chegou (algumas telas mandam formas vazias/mal-formadas).
+      console.error('[recebimento sem forma] valorTotal=', dto.valorTotal, 'formasRaw=', JSON.stringify(dto.formas), 'obs=', dto.observacao);
       throw new BadRequestException('Informe a forma de recebimento — o valor não pode entrar no caixa sem forma.');
     }
-    // Config de vendas: obrigar NSU do cartão (maquininha/cartão)
+    // Config de vendas: obrigar NSU do cartão. Detecta cartão pela MODALIDADE (Débito/Crédito que o
+    // PDV manda) OU pelo nome (cart/maquin) — assim maquininhas com nome próprio (InfinityPay, Nubank)
+    // também exigem NSU. A baixa de comanda (sem modalidade e nome não-cartão) não é afetada.
+    const ehCartao = (f: any) => !!String(f.modalidade || '').trim() || /cart|maquin/i.test(f.forma || '');
     const cfgRec = await this.getConfigVendas();
-    if (cfgRec.obrigarNsu && formas.some((f: any) => /cart|maquin/i.test(f.forma || '') && !String(f.nsu || '').trim())) {
-      throw new BadRequestException('Informe o NSU do cartão (a configuração de vendas exige).');
+    if (cfgRec.obrigarNsu && formas.some((f: any) => ehCartao(f) && !String(f.nsu || '').trim())) {
+      throw new BadRequestException('Informe o NSU do cartão (a configuração de vendas exige — usado na conciliação).');
     }
     // Só "Crédito do pet/cliente" debita o saldo do cliente. ⚠️ NÃO usar /crédito/ solto: casaria
     // com "Cartão crédito" e trataria pagamento no cartão como uso de saldo (mesma regex do DRE).
