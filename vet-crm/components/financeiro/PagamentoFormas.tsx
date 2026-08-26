@@ -23,6 +23,7 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
   mostrarTaxa?: boolean; // recepção não vê taxa/líquido do cartão
 }) {
   const [focusIdx, setFocusIdx] = useState<number | null>(null); // p/ mostrar 2 casas quando não está digitando
+  const [buf, setBuf] = useState<string>(""); // texto cru do valor enquanto digita (aceita vírgula E ponto)
   const cfgByNome = new Map(formasConfig.map((c) => [c.nome, c]));
   const set = (i: number, patch: Partial<PagForma>) => onChange(formas.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const fmtValor = (v: number) => (v ? v.toFixed(2).replace(".", ",") : "");
@@ -61,7 +62,7 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
               </div>
               <div style={{ flex: 1, minWidth: 78 }}>
                 <label style={lbl}>Valor</label>
-                <input value={focusIdx === i ? (f.valor || "") : fmtValor(f.valor)} inputMode="decimal" placeholder="R$ 0,00" onFocus={() => setFocusIdx(i)} onBlur={() => setFocusIdx(null)} onChange={(e) => set(i, { valor: Number(String(e.target.value).replace(",", ".")) || 0 })} style={inp} />
+                <input value={focusIdx === i ? buf : fmtValor(f.valor)} inputMode="decimal" placeholder="R$ 0,00" onFocus={() => { setFocusIdx(i); setBuf(f.valor ? String(f.valor).replace(".", ",") : ""); }} onBlur={() => setFocusIdx(null)} onChange={(e) => { setBuf(e.target.value); set(i, { valor: Number(String(e.target.value).replace(",", ".")) || 0 }); }} style={inp} />
               </div>
               {formas.length > 1 && <button onClick={() => onChange(formas.filter((_, j) => j !== i))} title="Remover" style={{ border: "none", background: "none", cursor: "pointer", fontSize: 14, padding: "8px 2px" }}>🗑️</button>}
             </div>

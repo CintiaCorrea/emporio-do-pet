@@ -1239,6 +1239,14 @@ export class CaixaService {
   async deleteMovimento(caixaId: string, itemId: string) {
     const mov = await this.prisma.caixaMovimento.findUnique({ where: { id: itemId } });
     if (!mov || mov.caixaSessaoId !== caixaId) throw new NotFoundException('Movimento nao encontrado');
+    // 🎁 Se for um CRÉDITO DO PET (observacao "credito:<id>"), reverte TUDO: o crédito do cliente
+    // (creditoMovimento) + o adiantamento e a taxa no DRE — senão o crédito ficava no cliente.
+    const credLink = /^credito:(.+)$/.exec(String((mov as any).observacao || ''));
+    if (credLink) {
+      const credId = credLink[1];
+      await this.prisma.creditoMovimento.delete({ where: { id: credId } }).catch(() => undefined);
+      await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: { in: [`credito-mov:${credId}`, `credito-taxa:${credId}`] } } }).catch(() => undefined);
+    }
     await this.prisma.caixaMovimento.delete({ where: { id: itemId } });
     // remove também o lançamento financeiro da despesa (se houver) — mantém DRE/saldo coerentes
     await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: `caixa-mov:${itemId}` } }).catch(() => undefined);

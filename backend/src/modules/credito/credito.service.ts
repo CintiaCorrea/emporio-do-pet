@@ -186,6 +186,7 @@ export class CreditoService {
               caixaSessaoId: dto.caixaSessaoId, tipo: 'SUPRIMENTO', valor,
               forma: f0.forma || 'Dinheiro',
               descricao: `Crédito do pet${dto.descricao ? ' — ' + dto.descricao : ''}`,
+              observacao: `credito:${mov.id}`, // link p/ reverter o crédito+DRE se este movimento for excluído
               data: sess.abertura, createdById: userId,
             },
           });
