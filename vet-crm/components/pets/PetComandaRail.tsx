@@ -43,6 +43,25 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? c.valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome });
     addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 });
   };
+  const [modelosVenda, setModelosVenda] = useState<any[]>([]); // modelos (mesmos do orçamento) p/ carregar na comanda
+  // 📄 Carrega um MODELO na comanda — resolve cada item pelo catálogo.
+  const aplicarModeloComanda = (id: string) => {
+    const m = modelosVenda.find((x) => x.id === id); if (!m) return;
+    let n = 0;
+    for (const it of (m.itens || [])) {
+      const nome = String(it.descricao || "").trim(); if (!nome) continue;
+      const q = Number(it.quantidade) || 1; const vu = it.valorUnitario != null ? Number(it.valorUnitario) : undefined;
+      const c = cat.find((x) => (x.nome || "") === nome);
+      if (c) {
+        const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? (c as any).valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome });
+        addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: vu != null ? vu : l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: q });
+      } else {
+        addItem({ descricao: nome, valorUnitario: vu || 0, quantidade: q } as Item);
+      }
+      n++;
+    }
+    if (n) toast.success(`Modelo "${m.nome}" carregado`);
+  };
   // 📷 Leitura de código de barras: o scanner USB digita o código + Enter. No Enter, se casar com um
   // código de barras (ou o código do item), lança direto e limpa o campo.
   function tentarCodigoBarras(q: string): boolean {
@@ -95,6 +114,11 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       try {
         const its = await carregarCatalogoVendavel();
         setCat(its.map((i) => ({ id: i.id, nome: i.nome, valor: i.valorPadrao, custoPadrao: i.custoPadrao, _exame: i._exame, _fornecedorId: i._fornecedorId, _fornecedorNome: i._fornecedorNome, codigo: i.codigo ?? null, codigoBarras: i.codigoBarras ?? null })));
+      } catch {}
+      try {
+        const rm = await fetch("/api/listas?lista=orcamentomodelo", { cache: "no-store" }); const d = await rm.json();
+        const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
+        setModelosVenda(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return null; } }).filter((m: any) => m && m.ativo !== false));
       } catch {}
     })();
   }, []);
@@ -314,6 +338,12 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       {sub === "VENDA" ? (
         <>
           <div className="px-3 pt-3">
+            {modelosVenda.length > 0 && (
+              <select value="" onChange={(e) => { if (e.target.value) { aplicarModeloComanda(e.target.value); e.currentTarget.value = ""; } }} className="w-full mb-2 text-[12.5px] rounded-lg px-2 py-2 border" style={{ borderColor: "#6D28D9", color: "#6D28D9" }} title="Carregar um modelo de itens na comanda">
+                <option value="">📄 Carregar modelo…</option>
+                {modelosVenda.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              </select>
+            )}
             <button onClick={() => { setAddOpen((v) => !v); setBusca(""); }} className="w-full text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#009AAC" }}>➕ Adicionar item {addOpen ? "▲" : "▾"}</button>
             {addOpen && (
               <div className="mt-2">

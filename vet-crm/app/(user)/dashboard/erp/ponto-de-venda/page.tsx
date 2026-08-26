@@ -107,6 +107,7 @@ export default function PDVPage() {
   const [itemAberto, setItemAberto] = useState(false);
   const [qtd, setQtd] = useState(1);
   const [carrinho, setCarrinho] = useState<CartItem[]>([]);
+  const [modelosVenda, setModelosVenda] = useState<any[]>([]); // modelos (mesmos do orçamento) p/ carregar no carrinho
   // 🏥 Convênio do pet (Petlife etc.): buscador da tabela do convênio, precificado por porte.
   const [convPet, setConvPet] = useState<{ convenio: { id: string; nome: string; diaFechamento: number | null }; isCat: boolean; porteSugerido: string } | null>(null);
   const [convItens, setConvItens] = useState<{ precoId: string; itemNome: string; codigo: string | null; preco: number }[]>([]);
@@ -312,6 +313,10 @@ export default function PDVPage() {
         setServicos(itens as any);
       } catch { /* */ }
       try {
+        const rm = await fetch('/api/listas?lista=orcamentomodelo', { cache: 'no-store' });
+        if (rm.ok) { const d = await rm.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setModelosVenda(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return null; } }).filter((m: any) => m && m.ativo !== false)); }
+      } catch { /* */ }
+      try {
         const r = await fetch('/api/users', { cache: 'no-store' });
         if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.users || d.data || []); setProfs(arr.map((u: any) => ({ id: u.id, name: u.name || u.nome || u.email }))); }
       } catch { /* */ }
@@ -399,6 +404,28 @@ export default function PDVPage() {
     if (!q) return [];
     return servicos.filter((s) => (s.nome || '').toLowerCase().includes(q)).slice(0, 12);
   }, [servicos, itemBusca]);
+
+  // 📄 Carrega um MODELO (mesmos do orçamento) no carrinho — resolve cada item pelo catálogo.
+  const aplicarModeloVenda = (id: string) => {
+    const m = modelosVenda.find((x) => x.id === id); if (!m) return;
+    const novas: CartItem[] = [];
+    for (const it of (m.itens || [])) {
+      const nome = String(it.descricao || '').trim(); if (!nome) continue;
+      const q = Number(it.quantidade) || 1; const vu = it.valorUnitario != null ? Number(it.valorUnitario) : undefined;
+      const s = servicos.find((x: any) => (x.nome || '') === nome);
+      if (s) {
+        const l = linhaDoItem(s as any);
+        const base = { descricao: l.descricao, quantidade: q, valorUnitario: vu != null ? vu : l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined };
+        novas.push(l._novo
+          ? { ...base, _novo: true, ...(l._exame ? { _exame: true } : {}), catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, descontoModo: l.descontoModo, descontoLimite: l.descontoLimite }
+          : l._exame ? { ...base, _exame: true, catalogoExameId: l.catalogoExameId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome }
+          : { ...base, servicoId: l.servicoId });
+      } else {
+        novas.push({ descricao: nome, quantidade: q, valorUnitario: vu || 0, desconto: 0, executorUserId: profId || undefined });
+      }
+    }
+    if (novas.length) { setCarrinho((c) => [...c, ...novas]); if (m.observacao) setObs((o) => o || String(m.observacao)); toast.success(`Modelo "${m.nome}" carregado`); }
+  };
 
   const addItem = (s: Servico) => {
     const l = linhaDoItem(s as any);   // núcleo único: exame × produto/serviço, id certo, tira "🔬"
@@ -649,6 +676,12 @@ export default function PDVPage() {
                 <option value="">Profissional…</option>
                 {profs.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
+              {modelosVenda.length > 0 && (
+                <select value="" onChange={(e) => { if (e.target.value) { aplicarModeloVenda(e.target.value); e.currentTarget.value = ''; } }} style={{ ...inp, minWidth: 140, borderColor: '#6D28D9', color: '#6D28D9' }} title="Carregar um modelo de itens no carrinho">
+                  <option value="">📄 Modelo…</option>
+                  {modelosVenda.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+                </select>
+              )}
               <div style={{ display: 'inline-flex', alignItems: 'center', border: `1px solid ${LINE}`, borderRadius: 9, overflow: 'hidden' }}>
                 <button onClick={() => setQtd((q) => Math.max(1, q - 1))} style={{ padding: '8px 12px', border: 'none', background: '#fff', cursor: 'pointer', color: TEAL, fontSize: 15 }}>−</button>
                 <span style={{ padding: '8px 12px', borderLeft: `1px solid ${SOFT}`, borderRight: `1px solid ${SOFT}`, minWidth: 18, textAlign: 'center', color: INK }}>{qtd}</span>
