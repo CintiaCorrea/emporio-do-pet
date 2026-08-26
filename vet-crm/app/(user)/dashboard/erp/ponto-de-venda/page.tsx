@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import DecimalInput from '@/components/DecimalInput';
+import OrcamentoRapidoModal from '@/components/vendas/OrcamentoRapidoModal';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
 import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
@@ -71,6 +72,7 @@ export default function PDVPage() {
 
   const [data, setData] = useState(hoje());
   const [tipo, setTipo] = useState<'VENDA' | 'ORCAMENTO'>('VENDA');
+  const [orcModeloOpen, setOrcModeloOpen] = useState(false); // novo orçamento com MODELO (modal padrão)
   const [tipoVenda, setTipoVenda] = useState(TIPOS_VENDA[0]);
   const [caixaAberto, setCaixaAberto] = useState<boolean | null>(null);
   const [caixaAbertoId, setCaixaAbertoId] = useState<string | null>(null);
@@ -775,6 +777,7 @@ export default function PDVPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: `1px solid ${SOFT}`, paddingTop: 16 }}>
               <button onClick={abrirRecebimento} disabled={!baseValida || tipo === 'ORCAMENTO'} style={{ border: 'none', borderRadius: 9, background: (baseValida && tipo === 'VENDA') ? TEAL : '#cfd8d9', color: '#fff', padding: '11px 18px', fontSize: 13.5, fontWeight: 500, cursor: (baseValida && tipo === 'VENDA') ? 'pointer' : 'not-allowed' }}>💰 Registrar recebimento</button>
               <button onClick={salvar} disabled={!baseValida || salvando} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '11px 18px', fontSize: 13.5, cursor: baseValida ? 'pointer' : 'not-allowed', color: INK }}>{tipo === 'ORCAMENTO' ? '💾 Salvar orçamento' : '💾 Salvar'}</button>
+              <button onClick={() => setOrcModeloOpen(true)} disabled={!cliente || !petId} title={!cliente || !petId ? 'Selecione cliente e pet' : 'Novo orçamento a partir de um modelo (salvar/imprimir/enviar)'} style={{ border: `1px solid #6D28D9`, borderRadius: 9, background: '#fff', padding: '11px 18px', fontSize: 13.5, cursor: (cliente && petId) ? 'pointer' : 'not-allowed', color: '#6D28D9', opacity: (cliente && petId) ? 1 : .5 }}>📄 Orçamento com modelo</button>
               <button onClick={imprimirAtual} disabled={!carrinho.length} title={tipo === 'ORCAMENTO' ? 'Imprimir o orçamento' : 'Imprimir a venda'} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '11px 16px', fontSize: 13.5, cursor: carrinho.length ? 'pointer' : 'not-allowed', color: INK, opacity: carrinho.length ? 1 : 0.5 }}>🖨️ Imprimir {tipo === 'ORCAMENTO' ? 'orçamento' : 'venda'}</button>
               <button onClick={reset} style={{ marginLeft: 'auto', border: 'none', background: 'none', color: MUT, padding: '11px', fontSize: 13, cursor: 'pointer' }}>✕ Cancelar</button>
             </div>
@@ -1186,6 +1189,8 @@ export default function PDVPage() {
           </form>
         </div>
       )}
+
+      {orcModeloOpen && <OrcamentoRapidoModal open={orcModeloOpen} onClose={() => { setOrcModeloOpen(false); loadOrcamentos(); }} pet={petId ? { id: petId, name: (cliente?.pets || []).find((p: any) => p.id === petId)?.name || 'pet' } : null} tutor={cliente ? { id: cliente.id, name: cliente.name } : null} />}
     </div>
   );
 }

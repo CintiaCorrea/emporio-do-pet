@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { LuTrash, LuPlus, LuMessageSquare } from "react-icons/lu";
+import { LuTrash, LuPlus, LuMessageSquare, LuPrinter, LuSave } from "react-icons/lu";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem, ItemVendavel } from "@/lib/catalogoVendavel";
+import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ddmm = (iso: string) => { const [, m, d] = String(iso).split("-"); return d && m ? `${d}/${m}` : iso; };
@@ -150,6 +151,20 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
     onClose();
   }
 
+  // 💾 Salva o orçamento (aparece na aba Compras do pet) — sem enviar/mandar pro caixa.
+  async function salvarSomente() {
+    if (!itensValidos().length) { toast.error("Adicione ao menos um item."); return; }
+    setSaving(true);
+    const ok = await salvar();
+    setSaving(false);
+    if (ok) { toast.success("Orçamento salvo — está na aba Compras do pet ✅"); try { window.dispatchEvent(new Event("pet:venda")); } catch { /* ignore */ } onClose(); }
+  }
+  // 🖨️ Imprime o orçamento (mesmo layout/timbrado dos outros).
+  function imprimir() {
+    if (!itensValidos().length) { toast.error("Adicione ao menos um item."); return; }
+    imprimirOrcamento({ itens: itensVendaBody(), valorTotal: total, pet: pet ? { name: pet.name } : undefined, tutor: tutor ? { name: tutor.name } : undefined, observacao: obs.trim() || undefined, validade: validade ? new Date(validade + "T12:00:00").toISOString() : undefined, createdAt: new Date().toISOString() } as any);
+  }
+
   const inp: any = { border: "1px solid #E8E2D6", borderRadius: 8, padding: "6px 8px", fontSize: 12.5 };
 
   return (
@@ -195,8 +210,10 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
 
         <div className="flex gap-2 mt-3 justify-end flex-wrap">
           <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8E2D6", color: "#64748b" }}>Cancelar</button>
+          <button onClick={imprimir} className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5" style={{ borderColor: "#E8E2D6", color: "#0C447C" }}><LuPrinter size={13} /> Imprimir</button>
+          <button onClick={salvarSomente} disabled={saving} title="Salva o orçamento na aba Compras do pet" className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#6D28D9", color: "#6D28D9" }}><LuSave size={13} /> {saving ? "..." : "Salvar"}</button>
           <button onClick={mandarProCaixa} disabled={saving} title="Cria a comanda no caixa (a receber) — sem precisar converter" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#014D5E" }}>🧾 {saving ? "..." : "Mandar pro caixa"}</button>
-          <button onClick={enviar} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#009AAC" }}><LuMessageSquare size={13} /> {saving ? "..." : "Enviar orçamento"}</button>
+          <button onClick={enviar} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#009AAC" }}><LuMessageSquare size={13} /> {saving ? "..." : "Enviar"}</button>
         </div>
       </div>
     </div>

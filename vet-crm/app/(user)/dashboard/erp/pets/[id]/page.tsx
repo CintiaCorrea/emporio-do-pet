@@ -360,7 +360,7 @@ export default function PetDetailPage() {
   // A comanda (PetComandaRail) dispara "pet:venda" ao fechar venda/converter orçamento → recarrega
   // Compras/Total e o crédito, sem precisar de F5.
   useEffect(() => {
-    const onVenda = () => { if (petId) { loadAtendimentos(); load(); } };
+    const onVenda = () => { if (petId) { loadAtendimentos(); loadOrcsPet(); load(); } };
     window.addEventListener("pet:venda", onVenda);
     return () => window.removeEventListener("pet:venda", onVenda);
     /* eslint-disable-next-line */

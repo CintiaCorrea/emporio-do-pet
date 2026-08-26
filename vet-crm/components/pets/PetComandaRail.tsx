@@ -7,6 +7,7 @@ import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem } from "@/lib/catalogoVendavel";
 import EditarOrcamentoModal from "@/components/vendas/EditarOrcamentoModal";
+import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
@@ -35,6 +36,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const [aberto, setAberto] = useState(false);
   const [sub, setSub] = useState<"VENDA" | "ORC">("VENDA");
   const [editOrc, setEditOrc] = useState<any | null>(null); // orçamento em edição (modal compartilhado)
+  const [orcNovoOpen, setOrcNovoOpen] = useState(false); // novo orçamento com MODELO (modal padrão)
   const [itens, setItens] = useState<Item[]>([]);
   const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
   const addDoCatalogo = (c: any) => {
@@ -403,7 +405,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
         </>
       ) : (
         <div className="flex-1 overflow-auto px-3 py-3">
-          <button onClick={() => { setSub("VENDA"); setAddOpen(true); }} className="w-full text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#009AAC" }}>➕ Montar novo orçamento</button>
+          <button onClick={() => setOrcNovoOpen(true)} className="w-full text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#009AAC" }}>📄 Novo orçamento (com modelo)</button>
           <p className="text-[10.5px] text-gray-400 mb-3 mt-1 text-center">Adicione os itens na aba <b>🛒 Comanda</b> e clique <b>“📄 Salvar como orçamento”</b>.</p>
           {orcs.length === 0 ? <div className="text-center text-[12px] text-gray-400 py-8">Nenhum orçamento deste pet.</div> :
             orcs.map((o) => {
@@ -426,6 +428,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
         </div>
       )}
       <EditarOrcamentoModal orc={editOrc} onClose={() => setEditOrc(null)} onSaved={() => loadOrcs()} />
+      {orcNovoOpen && <OrcamentoRapidoModal open={orcNovoOpen} onClose={() => { setOrcNovoOpen(false); loadOrcs(); }} pet={petId ? { id: petId, name: petNome || "pet" } : null} tutor={tutorId ? { id: tutorId, name: tutorNome || "Cliente" } : null} />}
     </div>
   );
 }
