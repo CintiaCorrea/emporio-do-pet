@@ -57,8 +57,17 @@ export function formatPhone(raw?: string | null): string {
   return `55 (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9)}`;
 }
 
-/** True se 2 telefones sao do mesmo dono (compara pelos ultimos 9 digitos). */
+/** True se 2 telefones sao do mesmo dono.
+ * Quando os DOIS numeros tem DDD (normalizam pra 13 digitos: 55+DDD+9+8), compara
+ * DDD + assinante (8 finais) — inclui o DDD, pra NAO confundir (24)99277-1958 com
+ * (85)99277-1958 (mesmos 8 finais, DDDs diferentes = pessoas diferentes).
+ * Fallback (numeros incompletos/sem DDD): mantem o comportamento antigo (8/9 finais). */
 export function samePhone(a?: string | null, b?: string | null): boolean {
+  const na = normalizePhone(a);
+  const nb = normalizePhone(b);
+  if (na.length === 13 && nb.length === 13) {
+    return na.slice(2, 4) === nb.slice(2, 4) && na.slice(-8) === nb.slice(-8);
+  }
   const la = last9(a);
   const lb = last9(b);
   if (!la || !lb) return false;

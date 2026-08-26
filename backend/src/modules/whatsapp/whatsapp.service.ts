@@ -4,6 +4,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudStorageService } from '../media/cloud-storage.service';
 import { findTutorByPhoneUnique } from '../../common/tutor-match';
+import { samePhone } from '../../common/phone';
 import * as crypto from 'crypto';
 import {
   WhatsAppMessageType,
@@ -1003,12 +1004,15 @@ export class WhatsAppService {
       const tail = formattedPhone.replace(/\D/g, '').slice(-8);
       if (tail.length >= 8) {
         // Clínica tem 1 número: a mesma pessoa é UMA conversa, mesmo que o envio
-        // automático tenha usado outro usuário/formato. Reusa a de mais mensagens.
-        existing = await this.prisma.whatsAppConversation.findFirst({
+        // automático tenha usado outro usuário/formato. Reusa a de mais mensagens —
+        // MAS confirmando o MESMO dono (com DDD), pra não fundir 2 pessoas que só
+        // compartilham os 8 finais (DDDs diferentes = pessoas diferentes).
+        const cands = await this.prisma.whatsAppConversation.findMany({
           where: { contactPhone: { endsWith: tail } },
           include: { assignedAgent: true, tutor: true },
           orderBy: { lastMessageAt: 'desc' },
         });
+        existing = cands.find((c) => samePhone(c.contactPhone, formattedPhone)) || null;
       }
     }
 
@@ -1701,10 +1705,7 @@ export class WhatsAppService {
 
     // Acha a conversa pelo FINAL do número (últimos 8) — o Meta corta o 9 do celular no
     // Brasil, então o match exato falhava e a janela parecia fechada mesmo aberta.
-    const tail = formatted.replace(/\D/g, '').slice(-8);
-    const conv = tail.length >= 8
-      ? await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } })
-      : await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
+    const conv = await this.acharConvPorNumero(formatted);
     let aberta = false;
     if (conv) {
       const lastIn = await this.prisma.whatsAppMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { createdAt: 'desc' } });
@@ -1785,10 +1786,7 @@ export class WhatsAppService {
     const formatted = this.formatPhoneNumber(phone);
 
     // Acha a conversa pelo FINAL do número (últimos 8) — o Meta corta o 9 do celular no Brasil.
-    const tail = formatted.replace(/\D/g, '').slice(-8);
-    const conv = tail.length >= 8
-      ? await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } })
-      : await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
+    const conv = await this.acharConvPorNumero(formatted);
     let aberta = false;
     if (conv) {
       const lastIn = await this.prisma.whatsAppMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { createdAt: 'desc' } });
@@ -1843,10 +1841,7 @@ export class WhatsAppService {
     if (!phone) return { status: 'erro', error: 'Tutor sem telefone' };
     const formatted = this.formatPhoneNumber(phone);
 
-    const tail = formatted.replace(/\D/g, '').slice(-8);
-    const conv = tail.length >= 8
-      ? await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } })
-      : await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
+    const conv = await this.acharConvPorNumero(formatted);
     let aberta = false;
     if (conv) {
       const lastIn = await this.prisma.whatsAppMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { createdAt: 'desc' } });
@@ -1948,7 +1943,7 @@ export class WhatsAppService {
     for (const it of itens) {
       let d: any = {}; try { d = JSON.parse(it.valor); } catch { continue; }
       const casaTutor = !!tutorId && !!d.tutorId && d.tutorId === tutorId;
-      const casaTel = !!tail && (d.phone || '').replace(/\D/g, '').slice(-8) === tail;
+      const casaTel = !!phone && !!d.phone && samePhone(d.phone, phone); // inclui o DDD
       if (!casaTutor && !casaTel) continue;
       // ON_REPLY dispara sempre; SCHEDULED só se a hora marcada já passou (senão espera o horário).
       if (d.trigger === 'SCHEDULED' && d.scheduledAt && new Date(d.scheduledAt).getTime() > agora) continue;
@@ -2096,13 +2091,21 @@ export class WhatsAppService {
     this._donoWhatsApp = admin?.id || (await this.prisma.user.findFirst({ select: { id: true } }).catch(() => null))?.id || null;
     return this._donoWhatsApp;
   }
-  /** Acha a conversa pelo telefone (últimos 8) ou CRIA uma nova (dono = admin). */
-  private async acharOuCriarConversa(formatted: string) {
-    const tail = formatted.replace(/\D/g, '').slice(-8);
-    if (tail.length >= 8) {
-      const existente = await this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } });
-      if (existente) return existente;
+  /** Acha a conversa pelo número, casando o MESMO dono (inclui o DDD — o `endsWith` dos 8
+   *  finais só NARROWS os candidatos; o `samePhone` confirma pra não confundir DDDs diferentes
+   *  com os mesmos 8 finais). Retorna a de mensagem mais recente. */
+  private async acharConvPorNumero(formatted: string) {
+    const tail = (formatted || '').replace(/\D/g, '').slice(-8);
+    if (tail.length < 8) {
+      return this.prisma.whatsAppConversation.findFirst({ where: { contactPhone: formatted }, orderBy: { lastMessageAt: 'desc' } });
     }
+    const cands = await this.prisma.whatsAppConversation.findMany({ where: { contactPhone: { endsWith: tail } }, orderBy: { lastMessageAt: 'desc' } });
+    return cands.find((c) => samePhone(c.contactPhone, formatted)) || null;
+  }
+  /** Acha a conversa pelo telefone (mesmo dono, com DDD) ou CRIA uma nova (dono = admin). */
+  private async acharOuCriarConversa(formatted: string) {
+    const existente = await this.acharConvPorNumero(formatted);
+    if (existente) return existente;
     const dono = await this.resolverDonoWhatsApp();
     if (!dono) return null;
     return this.createOrGetConversation(dono, formatted);
