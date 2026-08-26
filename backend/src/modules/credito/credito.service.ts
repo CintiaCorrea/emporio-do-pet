@@ -179,14 +179,16 @@ export class CreditoService {
       try {
         const sess = await this.prisma.caixaSessao.findUnique({ where: { id: dto.caixaSessaoId }, select: { abertura: true } });
         if (sess) {
-          // SUPRIMENTO com a FORMA escolhida. Só conta na "gaveta de dinheiro" se a forma for dinheiro
-          // (o front já filtra por ehDinheiro); cartão/pix aparecem no Resumo na coluna da forma.
-          await this.prisma.caixaMovimento.create({
+          // RECEBIMENTO (não mais suprimento): a recarga entra como dinheiro do cliente ENTRANDO pela
+          // forma escolhida → aparece na aba Recebimentos, conta em "A receber das maquininhas" e concilia
+          // por NSU. Não gera receita de venda (sem appointment → recebimentos.processar não cria receita);
+          // a "receita" é o Adiantamento (lançado acima). observacao guarda cliente + link p/ reverter.
+          const tutorNome = (await this.prisma.tutor.findUnique({ where: { id: tutorId }, select: { name: true } }))?.name || 'Cliente';
+          await this.prisma.recebimento.create({
             data: {
-              caixaSessaoId: dto.caixaSessaoId, tipo: 'SUPRIMENTO', valor,
-              forma: f0.forma || 'Dinheiro',
-              descricao: `Crédito do pet${dto.descricao ? ' — ' + dto.descricao : ''}`,
-              observacao: `credito:${mov.id}`, // link p/ reverter o crédito+DRE se este movimento for excluído
+              caixaSessaoId: dto.caixaSessaoId, valorTotal: valor, desconto: 0, troco: 0,
+              formas: formasArr as any,
+              observacao: `Crédito do pet · ${tutorNome}${dto.descricao ? ' — ' + dto.descricao : ''} ||credito:${mov.id}`,
               data: sess.abertura, createdById: userId,
             },
           });

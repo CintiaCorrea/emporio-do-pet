@@ -1256,6 +1256,14 @@ export class CaixaService {
   async deleteRecebimento(caixaId: string, itemId: string) {
     const rec = await this.prisma.recebimento.findUnique({ where: { id: itemId } });
     if (!rec || rec.caixaSessaoId !== caixaId) throw new NotFoundException('Recebimento nao encontrado');
+    // 🎁 Recarga de CRÉDITO DO PET (observacao "||credito:<id>"): reverte o crédito do cliente +
+    // o adiantamento e a taxa no DRE — senão o crédito ficava no cliente ao excluir o recebimento.
+    const credLink = /\|\|credito:([^\s|]+)/.exec(String(rec.observacao || ''));
+    if (credLink) {
+      const credId = credLink[1];
+      await this.prisma.creditoMovimento.delete({ where: { id: credId } }).catch(() => undefined);
+      await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: { in: [`credito-mov:${credId}`, `credito-taxa:${credId}`] } } }).catch(() => undefined);
+    }
     await this.prisma.creditoMovimento.deleteMany({ where: { recebimentoId: itemId } });
     await this.prisma.recebimento.delete({ where: { id: itemId } });
     // 🧹 Limpa os lançamentos DESTE recebimento no DRE (senão ficam órfãos: taxa de cartão + baixa de crédito).

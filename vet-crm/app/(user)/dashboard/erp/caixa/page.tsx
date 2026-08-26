@@ -629,13 +629,16 @@ export default function CaixaPage() {
                         const value = Number(rec.appointment?.value || 0);
                         const pago = rec.appointmentId ? pagoPorAppt.get(rec.appointmentId) || 0 : 0;
                         const st = statusVenda(value, pago);
+                        // Recarga de crédito do pet: recebimento sem venda, observacao "Crédito do pet · <cliente> ||credito:<id>"
+                        const ehRecarga = /^Crédito do pet/.test(String(rec.observacao || ''));
+                        const recargaCliente = ehRecarga ? String(rec.observacao || '').replace(/^Crédito do pet · /, '').replace(/\s*\|\|credito:.*$/, '') : '';
                         return (
                           <div key={rec.id} style={{ border: '1px solid #F0EBE0', borderRadius: 10, overflow: 'hidden' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, background: '#FBF9F4', padding: '8px 12px', fontSize: 12.5 }}>
-                              <span style={{ color: '#014D5E', fontWeight: 600 }}>Venda: {vendaLabel(rec.appointment)}{rec.appointment?.date ? <span style={{ fontWeight: 400, color: '#5C6B70' }}> em {new Date(rec.appointment.date).toLocaleDateString('pt-BR')}</span> : null}</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, background: ehRecarga ? '#F3EEFB' : '#FBF9F4', padding: '8px 12px', fontSize: 12.5 }}>
+                              <span style={{ color: ehRecarga ? '#6D28D9' : '#014D5E', fontWeight: 600 }}>{ehRecarga ? '🎁 Crédito do pet' : <>Venda: {vendaLabel(rec.appointment)}{rec.appointment?.date ? <span style={{ fontWeight: 400, color: '#5C6B70' }}> em {new Date(rec.appointment.date).toLocaleDateString('pt-BR')}</span> : null}</>}</span>
                               <span style={{ color: '#5C6B70' }}>Baixa em {dataHora(rec.data)}</span>
-                              <span style={{ color: '#1F2A2E' }}>Cliente: {rec.appointment?.tutor?.name || 'Cliente'}{rec.appointment?.pet?.name ? ` · ${rec.appointment.pet.name}` : ''}</span>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.label}</span><b style={{ color: '#014D5E' }}>{money(Number(rec.valorTotal))}</b></span>
+                              <span style={{ color: '#1F2A2E' }}>Cliente: {ehRecarga ? recargaCliente : (rec.appointment?.tutor?.name || 'Cliente')}{!ehRecarga && rec.appointment?.pet?.name ? ` · ${rec.appointment.pet.name}` : ''}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>{!ehRecarga && <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.label}</span>}<b style={{ color: '#014D5E' }}>{money(Number(rec.valorTotal))}</b></span>
                             </div>
                             <div>
                               {fs.length === 0 ? <div style={{ padding: '8px 12px', color: '#8A6D00', fontSize: 12 }}>Sem forma identificada</div> :
