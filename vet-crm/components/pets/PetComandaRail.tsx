@@ -1,23 +1,16 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { LuShoppingCart, LuPlus, LuTrash, LuX, LuPrinter, LuArrowRight } from "react-icons/lu";
+import { LuShoppingCart, LuTrash, LuPrinter } from "react-icons/lu";
 import toast from "react-hot-toast";
-import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem } from "@/lib/catalogoVendavel";
-import EditarOrcamentoModal from "@/components/vendas/EditarOrcamentoModal";
-import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+// Valor em pt-BR: aceita "1.234,50" (milhar . + decimal ,) ou "1234.5" (ponto) → número.
+const parseVal = (s: any): number => { const str = String(s ?? "").trim(); if (!str) return 0; return (str.includes(",") ? Number(str.replace(/\./g, "").replace(",", ".")) : Number(str)) || 0; };
+const fmtVal = (n: any): string => { const v = Number(n) || 0; return v ? v.toFixed(2).replace(".", ",") : ""; };
 type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
-
-const ST: any = {
-  RASCUNHO: { l: "Rascunho", c: "#64748b", b: "#eef2f4" },
-  APROVADO: { l: "Aprovado", c: "#0F6E56", b: "#E7F6EF" },
-  RECUSADO: { l: "Recusado", c: "#A32D2D", b: "#fbe6e6" },
-  EXPIRADO: { l: "Expirado", c: "#92400e", b: "#fef3c7" },
-};
 
 // Serializa um item da comanda p/ o formato de venda do backend — NÚCLEO ÚNICO `itemParaVenda`
 // (mesmo do PDV/atendimento/internação/orçamento). A tela só acrescenta quantidade + total.
@@ -34,10 +27,6 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const { data: session } = useSession();
   const meId = (session?.user as any)?.id || "";
   const [aberto, setAberto] = useState(false);
-  const [sub, setSub] = useState<"VENDA" | "ORC">("VENDA");
-  const [editOrc, setEditOrc] = useState<any | null>(null); // orçamento em edição (modal compartilhado)
-  const [orcNovoOpen, setOrcNovoOpen] = useState(false); // novo orçamento/venda com MODELO (modal padrão)
-  const [modoModal, setModoModal] = useState<"orcamento" | "venda">("orcamento");
   const [itens, setItens] = useState<Item[]>([]);
   const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
   const addDoCatalogo = (c: any) => {
@@ -73,7 +62,6 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     return true;
   }
   const [busca, setBusca] = useState("");
-  const [addOpen, setAddOpen] = useState(false);
   // 🏥 Convênio do pet (Petlife etc.) — mesma tabela do PDV, precificada por porte.
   const [convPet, setConvPet] = useState<{ convenio: { id: string; nome: string; diaFechamento: number | null }; isCat: boolean; porteSugerido: string } | null>(null);
   const [convItens, setConvItens] = useState<{ precoId: string; itemNome: string; preco: number }[]>([]);
@@ -83,6 +71,10 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const [orcs, setOrcs] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [enviandoWhats, setEnviandoWhats] = useState(false);
+  const [obs, setObs] = useState("");           // observação (usada ao salvar orçamento)
+  const [validade, setValidade] = useState("");   // validade (usada ao salvar orçamento)
+  const [valFocus, setValFocus] = useState<number | null>(null); // linha com o Valor em edição
+  const [valBuf, setValBuf] = useState("");        // texto cru do Valor enquanto edita (aceita vírgula)
   // A comanda é uma VENDA em aberto no servidor (aparece no Caixa). Guardamos o id dela.
   const [apptId, setApptId] = useState<string | null>(null);
   const [numeroVenda, setNumeroVenda] = useState<number | null>(null);
@@ -205,7 +197,8 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   }
   useEffect(() => { if (aberto) loadOrcs(); /* eslint-disable-next-line */ }, [aberto, petId]);
 
-  // Gancho p/ outras partes da ficha lançarem itens na comanda
+  // Gancho p/ outras partes da ficha lançarem itens na comanda (cobrar exame/protocolo/atendimento).
+  // Abre a telinha já com o item lançado — nada se perde.
   useEffect(() => {
     function onAdd(e: any) { const d = e?.detail; if (!d?.descricao) return; addItem({ descricao: d.descricao, servicoId: d.servicoId, valorUnitario: Number(d.valorUnitario) || 0, custoUnitario: d.custoUnitario != null ? Number(d.custoUnitario) : undefined, fornecedorId: d.fornecedorId ?? undefined, fornecedorNome: d.fornecedorNome ?? undefined, catalogoExameId: d.catalogoExameId, _exame: d._exame, _novo: d._novo, catalogoItemId: d.catalogoItemId, quantidade: Number(d.quantidade) || 1 }); setAberto(true); toast.success("Lançado na comanda"); }
     window.addEventListener("comanda:add", onAdd as any);
@@ -218,6 +211,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const totalConvenio = useMemo(() => somaConvenio(itens), [itens]);
   function addItem(it: Item) { setItens((arr) => [...arr, it]); }
   function setQtd(i: number, q: number) { setItens((arr) => arr.map((x, idx) => idx === i ? { ...x, quantidade: Math.max(1, q) } : x)); }
+  function setValor(i: number, v: number) { setItens((arr) => arr.map((x, idx) => idx === i ? { ...x, valorUnitario: Math.max(0, v) } : x)); }
   function del(i: number) { setItens((arr) => arr.filter((_, idx) => idx !== i)); }
   async function limpar() {
     if (apptId && !confirm("Limpar a comanda? Ela também sai do Caixa.")) return;
@@ -242,8 +236,9 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     setApptId(null); apptIdRef.current = null; setNumeroVenda(null);
     try { localStorage.removeItem(apptKey); localStorage.removeItem(key); } catch {}
     pendingRef.current = [];
-    setItens([]);
+    setItens([]); setObs(""); setValidade("");
     try { window.dispatchEvent(new Event("pet:venda")); } catch {} // ficha recarrega Compras / a-receber
+    setAberto(false);
     toast.success(`Venda${num ? ` nº ${num}` : ""} salva ✅ — está em “A receber” no Caixa. Pode iniciar outra.`);
   }
 
@@ -251,9 +246,13 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     if (!itens.length) { toast.error("Comanda vazia."); return; }
     setSaving(true);
     try {
-      const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tutorId, itens: itens.map(linhaBody) }) });
+      const body: any = { petId, tutorId, itens: itens.map(linhaBody) };
+      if (obs.trim()) body.observacao = obs.trim();
+      if (validade) body.validade = new Date(validade + "T12:00:00").toISOString();
+      const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();
-      toast.success("Orçamento gerado ✅"); await limpar(); await loadOrcs(); setSub("ORC");
+      toast.success("Orçamento salvo — está na aba Compras do pet ✅"); setObs(""); setValidade(""); await limpar(); await loadOrcs();
+      try { window.dispatchEvent(new Event("pet:venda")); } catch {}
     } catch { toast.error("Erro ao gerar orçamento"); } finally { setSaving(false); }
   }
   // 💬 Envia o orçamento pro cliente no WhatsApp (mesmo princípio do inbox: cai na conversa do tutor).
@@ -275,6 +274,8 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       ``,
       `━━━━━━━━━━━━━━━`,
       `💵 *Total: ${BRL(total)}*`,
+      obs.trim() ? `` : null,
+      obs.trim() ? `📝 *Observação:* ${obs.trim()}` : null,
       ``,
       `Qualquer dúvida, é só chamar por aqui! 🐾`,
       `— Equipe Empório do Pet`,
@@ -291,15 +292,6 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     } catch { toast.error("Não consegui enviar pelo WhatsApp. Confira o número do tutor."); }
     finally { setEnviandoWhats(false); }
   }
-  async function converterOrc(id: string) {
-    if (!confirm("Transformar este orçamento em venda? (cria a venda com os mesmos itens)")) return;
-    try {
-      const r = await fetch(`/api/orcamentos/${id}/converter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      if (!r.ok) throw new Error();
-      toast.success("Orçamento transformado em venda ✅"); await loadOrcs();
-      try { window.dispatchEvent(new Event("pet:venda")); } catch {} // avisa a ficha p/ recarregar Compras
-    } catch { toast.error("Erro ao transformar em venda"); }
-  }
 
   const nItens = itens.length;
   const statusTxt = !tutorId ? "sem tutor — não vai ao Caixa"
@@ -308,8 +300,9 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     : apptId ? `✓ No Caixa${numeroVenda ? ` · nº ${numeroVenda}` : ""} · a receber`
     : "vai pro Caixa ao adicionar itens";
   const statusCor = sync === "error" ? "#B23B39" : apptId ? "#0F6E56" : "#8A857A";
+  const inpV: any = { border: "1px solid #E8E2D6", borderRadius: 8, padding: "6px 8px", fontSize: 12.5 };
 
-  // Botão flutuante (canto inferior direito)
+  // Botão flutuante (canto inferior direito) — abre a telinha da comanda/venda.
   if (!aberto) {
     return (
       <button onClick={() => setAberto(true)} title="Abrir comanda"
@@ -321,146 +314,117 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     );
   }
 
+  // Telinha centralizada (mesma cara do orçamento) — serve p/ VENDA e ORÇAMENTO.
   return (
-    <div className="fixed z-40 bg-white border shadow-2xl flex flex-col print:hidden"
-      style={{ right: 0, top: 64, bottom: 0, width: 330, maxWidth: "92vw", borderColor: "#E8DFC8" }}>
-      <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
-        <b style={{ color: "#014D5E", fontSize: 14 }}>🛒 Comanda — {petNome || "pet"}</b>
-        <button onClick={() => setAberto(false)} className="text-[#94a3b8]" title="Recolher"><LuX size={18} /></button>
-      </div>
-      <div className="flex" style={{ borderBottom: "1px solid #F0EBE0" }}>
-        {(["VENDA", "ORC"] as const).map((k) => (
-          <button key={k} onClick={() => setSub(k)} className="flex-1 text-[12.5px] font-semibold py-2" style={{ color: sub === k ? "#009AAC" : "#8A857A", borderBottom: sub === k ? "2px solid #009AAC" : "2px solid transparent" }}>
-            {k === "VENDA" ? `🛒 Comanda${nItens ? ` (${nItens})` : ""}` : "📄 Orçamentos"}
-          </button>
-        ))}
-      </div>
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4 print:hidden" onClick={() => setAberto(false)}>
+      <div className="bg-white rounded-xl w-full max-w-md p-4 flex flex-col" style={{ maxHeight: "92vh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>🛒 Comanda / Venda — {petNome || "pet"}</h3>
+          <button onClick={() => setAberto(false)} className="text-[#94a3b8] text-lg leading-none" title="Fechar">×</button>
+        </div>
 
-      {sub === "VENDA" ? (
-        <>
-          <div className="px-3 pt-3">
-            <button onClick={() => { setModoModal("venda"); setOrcNovoOpen(true); }} className="w-full mb-2 text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#014D5E" }} title="Tela rápida de venda/comanda (com modelo, observação, imprimir)">🛒 Venda/comanda com modelo</button>
-            {modelosVenda.length > 0 && (
-              <select value="" onChange={(e) => { if (e.target.value) { aplicarModeloComanda(e.target.value); e.currentTarget.value = ""; } }} className="w-full mb-2 text-[12.5px] rounded-lg px-2 py-2 border" style={{ borderColor: "#6D28D9", color: "#6D28D9" }} title="Carregar um modelo de itens na comanda">
-                <option value="">📄 Carregar modelo…</option>
-                {modelosVenda.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
-              </select>
-            )}
-            <button onClick={() => { setAddOpen((v) => !v); setBusca(""); }} className="w-full text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#009AAC" }}>➕ Adicionar item {addOpen ? "▲" : "▾"}</button>
-            {addOpen && (
-              <div className="mt-2">
-                <input value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!tentarCodigoBarras(busca) && matches.length === 1) { addDoCatalogo(matches[0]); setBusca(""); } } }} autoFocus placeholder="🔍 Buscar ou ler código de barras…" className="w-full border rounded-lg px-2 py-1.5 text-[12.5px]" style={{ borderColor: "#E8DFC8" }} />
-                {busca.trim() && (
-                <div className="border rounded-lg mt-1 max-h-44 overflow-auto" style={{ borderColor: "#F0EBE0" }}>
-                  {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
-                    matches.map((c) => (
-                      <button key={c.id} title={c.nome} onClick={() => { const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome }); addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 }); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
-                        <span className="text-[#1F2A2E] truncate pr-2 flex items-center gap-1.5 min-w-0"><span className="truncate">{c.nome}</span>{(() => { const lab = labDoItem(c); return lab ? <span className="shrink-0 text-[10px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}</span><span className="text-[#0F6E56] font-semibold shrink-0">{BRL(c.valor)}</span>
-                      </button>
-                    ))}
-                </div>
-                )}
-              </div>
-            )}
+        {/* Modelo (mesmos modelos do orçamento) */}
+        {modelosVenda.length > 0 && (
+          <div className="mb-2.5">
+            <label className="text-[10px] text-[#8A857A] uppercase tracking-wide">Modelo</label>
+            <select value="" onChange={(e) => { if (e.target.value) { aplicarModeloComanda(e.target.value); e.currentTarget.value = ""; } }} className="w-full mt-0.5" style={{ ...inpV, width: "100%" }}>
+              <option value="">Começar do zero…</option>
+              {modelosVenda.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+            </select>
           </div>
+        )}
 
-          {convPet?.convenio && (
-            <div className="px-3 pt-2">
-              <div className="rounded-lg border px-2.5 py-2" style={{ borderColor: "#BEE3E8", background: "#F0FBFC" }}>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[12px] font-bold" style={{ color: "#0E5560" }}>🏥 {convPet.convenio.nome} paga</span>
-                  <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: "#5C6B70" }}>Porte:
-                    {["gato", "p", "m", "g", "gg"].map((pt) => { const on = (convPorte || convPet.porteSugerido) === pt; return <button key={pt} onClick={() => setConvPorte(pt)} className="rounded-full font-semibold" style={{ padding: "2px 8px", fontSize: 10.5, border: `1px solid ${on ? "#0C93A6" : "#D9D2C0"}`, background: on ? "#0C93A6" : "#fff", color: on ? "#fff" : "#5C6B70", cursor: "pointer" }}>{pt === "gato" ? "🐱" : pt.toUpperCase()}</button>; })}
-                  </span>
-                  <button onClick={() => setConvOpen((o) => !o)} className="ml-auto text-[11.5px] font-semibold rounded-lg" style={{ color: "#009AAC", border: "1px solid #E8DFC8", background: "#fff", padding: "4px 9px", cursor: "pointer" }}>{convOpen ? "fechar" : "＋ item convênio"}</button>
-                </div>
-                {convOpen && (
-                  <div className="mt-2">
-                    <input value={convBusca} onChange={(e) => setConvBusca(e.target.value)} placeholder={`🔍 Buscar na tabela ${convPet.convenio.nome}…`} className="w-full border rounded-lg px-2 py-1.5 text-[12px]" style={{ borderColor: "#E8DFC8" }} />
-                    <div className="border rounded-lg mt-1 max-h-40 overflow-auto bg-white" style={{ borderColor: "#F0EBE0" }}>
-                      {convItens.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado nessa tabela.</div> :
-                        convItens.map((it) => (
-                          <button key={it.precoId} title={it.itemNome} onClick={() => addConvenioItem(it)} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
-                            <span className="text-[#1F2A2E] truncate pr-2">{it.itemNome}</span><span className="text-[#0E5560] font-semibold shrink-0">{BRL(it.preco)}</span>
-                          </button>
-                        ))}
-                    </div>
-                    <div className="text-[10px] text-gray-400 mt-1">O item entra marcado “{convPet.convenio.nome} paga” — sai do total do tutor e vira a-receber mensal do convênio.</div>
-                  </div>
-                )}
-              </div>
+        {/* Adicionar item (busca + código de barras) */}
+        <div className="mb-2">
+          <input value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!tentarCodigoBarras(busca) && matches.length === 1) { addDoCatalogo(matches[0]); setBusca(""); } } }} placeholder="🔍 Buscar no catálogo ou ler código de barras…" className="w-full" style={{ ...inpV, width: "100%" }} />
+          {busca.trim() && (
+            <div className="border rounded-lg mt-1 max-h-44 overflow-auto" style={{ borderColor: "#F0EBE0" }}>
+              {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
+                matches.map((c) => (
+                  <button key={c.id} title={c.nome} onClick={() => { addDoCatalogo(c); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
+                    <span className="text-[#1F2A2E] truncate pr-2 flex items-center gap-1.5 min-w-0"><span className="truncate">{c.nome}</span>{(() => { const lab = labDoItem(c); return lab ? <span className="shrink-0 text-[10px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}</span><span className="text-[#0F6E56] font-semibold shrink-0">{BRL(c.valor)}</span>
+                  </button>
+                ))}
             </div>
           )}
-
-          <div className="flex-1 overflow-auto px-3 py-2">
-            {itens.length === 0 ? (
-              <div className="text-center text-[12px] text-gray-400 py-8">Nada lançado ainda.<br />Use “Adicionar item”.</div>
-            ) : itens.map((it, i) => (
-              <div key={i} className="flex items-center gap-2 py-1.5 border-b" style={{ borderColor: "#F5F1E8" }}>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12.5px] text-[#1F2A2E] truncate flex items-center gap-1.5" title={it.descricao}>
-                    <span className="truncate">{it.descricao}</span>
-                    {it._convenio ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: "#E0F0F2", color: "#0E5560" }}>🏥 {it._convLabel} paga</span>
-                      : (() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}
-                  </div>
-                  <div className="text-[11px] text-gray-400">{BRL(it.valorUnitario)} cada</div>
-                </div>
-                <input type="number" min={1} value={it.quantidade} onChange={(e) => setQtd(i, Number(e.target.value))} className="w-11 border rounded text-center text-[12px] py-0.5" style={{ borderColor: "#E8DFC8" }} />
-                <span className="text-[12.5px] font-semibold text-[#0F6E56] w-16 text-right tabular-nums">{BRL((Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0))}</span>
-                <button onClick={() => del(i)} className="text-[#b23b39]" title="Remover"><LuTrash size={13} /></button>
-              </div>
-            ))}
-          </div>
-
-          <div className="border-t px-4 py-3" style={{ borderColor: "#F0EBE0" }}>
-            {totalConvenio > 0 && (
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[11.5px] font-semibold" style={{ color: "#0E5560" }}>🏥 {convPet?.convenio?.nome || "Convênio"} paga (a receber)</span>
-                <span className="text-[13px] font-semibold tabular-nums" style={{ color: "#0E5560" }}>{BRL(totalConvenio)}</span>
-              </div>
-            )}
-            <div className="flex justify-between items-center">
-              <span className="text-[13px] font-semibold text-[#014D5E]">{totalConvenio > 0 ? "👤 Tutor paga" : "Total"}</span>
-              <span className="text-[16px] font-bold text-[#014D5E] tabular-nums">{BRL(totalTutor)}</span>
-            </div>
-            <div className="text-[10.5px] mb-2 mt-0.5" style={{ color: statusCor }}>{statusTxt}</div>
-            <div className="flex gap-2">
-              <button onClick={imprimirComanda} disabled={!itens.length} className="flex-1 border-2 rounded-lg py-2 text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={13} /> Imprimir comanda</button>
-              <button onClick={salvarVenda} disabled={!itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salva a venda (vai pra ‘A receber’ no Caixa) e limpa a comanda pra iniciar outra.">💰 Salvar a venda</button>
-            </div>
-            <div className="flex gap-2 mt-2">
-              <button onClick={gerarOrcamento} disabled={saving || !itens.length} className="flex-1 border-2 rounded-lg py-1.5 text-[12px] font-semibold disabled:opacity-50" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#F0FBFC" }}>📄 Salvar como orçamento</button>
-              <button onClick={enviarOrcamentoWhats} disabled={enviandoWhats || !itens.length || !tutorId} title="Envia o orçamento pro cliente no WhatsApp" className="flex-1 rounded-lg py-1.5 text-[12px] font-semibold text-white disabled:opacity-50" style={{ background: "#25D366" }}>{enviandoWhats ? "Enviando…" : "💬 Enviar no WhatsApp"}</button>
-            </div>
-            {itens.length > 0 && <button onClick={limpar} className="w-full text-[11px] text-gray-400 mt-2">limpar comanda</button>}
-          </div>
-        </>
-      ) : (
-        <div className="flex-1 overflow-auto px-3 py-3">
-          <button onClick={() => { setModoModal("orcamento"); setOrcNovoOpen(true); }} className="w-full text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#009AAC" }}>📄 Novo orçamento (com modelo)</button>
-          <p className="text-[10.5px] text-gray-400 mb-3 mt-1 text-center">Adicione os itens na aba <b>🛒 Comanda</b> e clique <b>“📄 Salvar como orçamento”</b>.</p>
-          {orcs.length === 0 ? <div className="text-center text-[12px] text-gray-400 py-8">Nenhum orçamento deste pet.</div> :
-            orcs.map((o) => {
-              const st = ST[o.status] || ST.RASCUNHO; const conv = !!o.appointmentId;
-              return (
-                <div key={o.id} className="border rounded-lg px-2.5 py-2 mb-2" style={{ borderColor: "#F0EBE0" }}>
-                  <div className="flex justify-between items-center">
-                    <span className="text-[12.5px] font-semibold text-[#0F6E56]">{BRL(o.valorTotal)}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: conv ? "#E6F1FB" : st.b, color: conv ? "#185FA5" : st.c }}>{conv ? "Vendido" : st.l}</span>
-                  </div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">{o.createdAt ? new Date(o.createdAt).toLocaleDateString("pt-BR") : ""} · {(o.itens || []).length} itens</div>
-                  <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    {!conv && <button onClick={() => setEditOrc(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#E8E2D6", color: "#6D28D9" }}>✏️ Editar</button>}
-                    <button onClick={() => imprimirOrcamento(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={11} /> Imprimir</button>
-                    {!conv && <button onClick={() => converterOrc(o.id)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded text-white" style={{ background: "#009AAC" }}><LuArrowRight size={11} /> Transformar em venda</button>}
-                  </div>
-                </div>
-              );
-            })}
         </div>
-      )}
-      <EditarOrcamentoModal orc={editOrc} onClose={() => setEditOrc(null)} onSaved={() => loadOrcs()} />
-      {orcNovoOpen && <OrcamentoRapidoModal open={orcNovoOpen} modo={modoModal} onClose={() => { setOrcNovoOpen(false); loadOrcs(); }} pet={petId ? { id: petId, name: petNome || "pet" } : null} tutor={tutorId ? { id: tutorId, name: tutorNome || "Cliente" } : null} />}
+
+        {/* Convênio (Petlife) — item que o convênio paga */}
+        {convPet?.convenio && (
+          <div className="mb-2">
+            <div className="rounded-lg border px-2.5 py-2" style={{ borderColor: "#BEE3E8", background: "#F0FBFC" }}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[12px] font-bold" style={{ color: "#0E5560" }}>🏥 {convPet.convenio.nome} paga</span>
+                <span className="inline-flex items-center gap-1 text-[11px]" style={{ color: "#5C6B70" }}>Porte:
+                  {["gato", "p", "m", "g", "gg"].map((pt) => { const on = (convPorte || convPet.porteSugerido) === pt; return <button key={pt} onClick={() => setConvPorte(pt)} className="rounded-full font-semibold" style={{ padding: "2px 8px", fontSize: 10.5, border: `1px solid ${on ? "#0C93A6" : "#D9D2C0"}`, background: on ? "#0C93A6" : "#fff", color: on ? "#fff" : "#5C6B70", cursor: "pointer" }}>{pt === "gato" ? "🐱" : pt.toUpperCase()}</button>; })}
+                </span>
+                <button onClick={() => setConvOpen((o) => !o)} className="ml-auto text-[11.5px] font-semibold rounded-lg" style={{ color: "#009AAC", border: "1px solid #E8DFC8", background: "#fff", padding: "4px 9px", cursor: "pointer" }}>{convOpen ? "fechar" : "＋ item convênio"}</button>
+              </div>
+              {convOpen && (
+                <div className="mt-2">
+                  <input value={convBusca} onChange={(e) => setConvBusca(e.target.value)} placeholder={`🔍 Buscar na tabela ${convPet.convenio.nome}…`} className="w-full border rounded-lg px-2 py-1.5 text-[12px]" style={{ borderColor: "#E8DFC8" }} />
+                  <div className="border rounded-lg mt-1 max-h-40 overflow-auto bg-white" style={{ borderColor: "#F0EBE0" }}>
+                    {convItens.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado nessa tabela.</div> :
+                      convItens.map((it) => (
+                        <button key={it.precoId} title={it.itemNome} onClick={() => addConvenioItem(it)} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
+                          <span className="text-[#1F2A2E] truncate pr-2">{it.itemNome}</span><span className="text-[#0E5560] font-semibold shrink-0">{BRL(it.preco)}</span>
+                        </button>
+                      ))}
+                  </div>
+                  <div className="text-[10px] text-gray-400 mt-1">O item entra marcado “{convPet.convenio.nome} paga” — sai do total do tutor e vira a-receber mensal do convênio.</div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Tabela de itens — Item / Qtd / Valor (valor editável) */}
+        <div className="flex flex-col gap-1 overflow-auto" style={{ maxHeight: "40vh" }}>
+          <div className="grid grid-cols-[1fr_44px_84px_24px] gap-1.5 text-[10px] text-[#8A857A] uppercase tracking-wide px-0.5">
+            <span>Item</span><span className="text-center">Qtd</span><span className="text-right">Valor</span><span></span>
+          </div>
+          {itens.length === 0 ? (
+            <div className="text-center text-[12px] text-gray-400 py-6">Nada lançado ainda.<br />Use a busca acima.</div>
+          ) : itens.map((it, i) => (
+            <div key={i} className="grid grid-cols-[1fr_44px_84px_24px] gap-1.5 items-center">
+              <div className="min-w-0">
+                <div className="text-[12px] text-[#1F2A2E] truncate flex items-center gap-1.5" title={it.descricao}>
+                  <span className="truncate">{it.descricao}</span>
+                  {it._convenio ? <span className="shrink-0 text-[9px] font-bold px-1 py-[1px] rounded-full" style={{ background: "#E0F0F2", color: "#0E5560" }}>🏥 {it._convLabel} paga</span>
+                    : (() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span className="shrink-0 text-[9px] font-bold px-1 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}
+                </div>
+              </div>
+              <input value={it.quantidade} onChange={(e) => setQtd(i, Number(e.target.value) || 1)} inputMode="numeric" style={{ ...inpV, textAlign: "center" }} />
+              <input value={valFocus === i ? valBuf : fmtVal(it.valorUnitario)} onFocus={() => { setValFocus(i); setValBuf(fmtVal(it.valorUnitario)); }} onChange={(e) => { setValBuf(e.target.value); setValor(i, parseVal(e.target.value)); }} onBlur={() => setValFocus(null)} inputMode="decimal" placeholder="0,00" style={{ ...inpV, textAlign: "right" }} />
+              <button onClick={() => del(i)} title="Remover" className="text-[#b23b39] flex items-center justify-center"><LuTrash size={13} /></button>
+            </div>
+          ))}
+        </div>
+
+        {/* Total + validade */}
+        <div className="flex items-center justify-between mt-3 pt-2.5 border-t" style={{ borderColor: "#F0EBE0" }}>
+          <span className="text-[14px] font-bold" style={{ color: "#014D5E" }}>{totalConvenio > 0 ? "👤 Tutor: " : "Total: "}{BRL(totalTutor)}</span>
+          <label className="flex items-center gap-1.5 text-[11.5px] text-[#5C6B70]">Validade <input type="date" value={validade} onChange={(e) => setValidade(e.target.value)} style={inpV} /></label>
+        </div>
+        {totalConvenio > 0 && (
+          <div className="flex justify-between items-center mt-0.5">
+            <span className="text-[11px] font-semibold" style={{ color: "#0E5560" }}>🏥 {convPet?.convenio?.nome || "Convênio"} paga (a receber)</span>
+            <span className="text-[12px] font-semibold tabular-nums" style={{ color: "#0E5560" }}>{BRL(totalConvenio)}</span>
+          </div>
+        )}
+        <div className="text-[10.5px] mt-0.5" style={{ color: statusCor }}>{statusTxt}</div>
+        <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observação (opcional)" className="w-full mt-2" style={{ ...inpV, width: "100%" }} />
+
+        {/* Botões — venda e orçamento na mesma telinha */}
+        <div className="flex gap-2 mt-3 justify-end flex-wrap">
+          <button onClick={() => setAberto(false)} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8E2D6", color: "#64748b" }}>Fechar</button>
+          <button onClick={imprimirComanda} disabled={!itens.length} className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#E8E2D6", color: "#0C447C" }}><LuPrinter size={13} /> Imprimir</button>
+          <button onClick={gerarOrcamento} disabled={saving || !itens.length} title="Salva como orçamento (aba Compras do pet)" className="px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#6D28D9", color: "#6D28D9" }}>📄 {saving ? "..." : "Salvar orçamento"}</button>
+          <button onClick={enviarOrcamentoWhats} disabled={enviandoWhats || !itens.length || !tutorId} title="Envia o orçamento pro cliente no WhatsApp" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#25D366" }}>💬 {enviandoWhats ? "..." : "WhatsApp"}</button>
+          <button onClick={salvarVenda} disabled={!itens.length} title="Salva a venda (vai pra ‘A receber’ no Caixa) e limpa pra iniciar outra." className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#014D5E" }}>🧾 {saving ? "..." : "Salvar a venda"}</button>
+        </div>
+        {itens.length > 0 && <button onClick={limpar} className="w-full text-[11px] text-gray-400 mt-2">limpar comanda</button>}
+      </div>
     </div>
   );
 }
