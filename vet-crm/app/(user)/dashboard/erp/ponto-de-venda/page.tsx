@@ -212,6 +212,17 @@ export default function PDVPage() {
       await Promise.all([loadVendas(), loadOrcamentos()]);
     } catch { toast.error('Erro ao converter orçamento'); }
   }
+  // 🗑️ Exclui um orçamento (só admin — igual às vendas). Fecha o modal e recarrega a lista.
+  async function excluirOrcamento(o: { id: string; tutor?: string; valor?: number }) {
+    if (!confirm(`Excluir o orçamento${o.tutor ? ` de ${o.tutor}` : ''}${o.valor != null ? ` (${brl(Number(o.valor))})` : ''}?\nEssa ação não pode ser desfeita.`)) return;
+    try {
+      const r = await fetch(`/api/orcamentos/${o.id}`, { method: 'DELETE' });
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d?.message || d?.error || ''); }
+      toast.success('Orçamento excluído 🗑️');
+      setDetOrc(null); setEditOrc(null);
+      await loadOrcamentos();
+    } catch (e: any) { toast.error('Erro ao excluir orçamento' + (e?.message ? `: ${String(e.message).slice(0, 80)}` : '')); }
+  }
 
   // Abre o detalhe de uma venda (itens) num modal.
   async function abrirDetVenda(v: any) {
@@ -1024,6 +1035,7 @@ export default function PDVPage() {
                   <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                     <button onClick={abrirEdicaoOrc} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>✏️ Editar</button>
                     <button onClick={() => imprimirOrcamento(detOrc)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>🖨️ Imprimir orçamento</button>
+                    {isAdmin && <button onClick={() => excluirOrcamento({ id: detOrc.id, tutor: detOrc.tutor?.name || 'Cliente', valor: Number(detOrc.valorTotal || 0) })} title="Excluir este orçamento (só administrador)" style={{ border: `1px solid #E7C3C3`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: '#A32D2D' }}>🗑️ Excluir</button>}
                     <button onClick={async () => { await converterOrcamento({ id: detOrc.id, tutor: detOrc.tutor?.name || 'Cliente', valor: Number(detOrc.valorTotal || 0) }); setDetOrc(null); }} style={{ marginLeft: 'auto', border: 'none', borderRadius: 9, background: '#6D28D9', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>→ Converter em venda</button>
                   </div>
                 </>
@@ -1048,6 +1060,7 @@ export default function PDVPage() {
                   </div>
                   <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                     <button onClick={() => setEditOrc(null)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: MUT }}>Cancelar</button>
+                    {isAdmin && detOrc && <button onClick={() => excluirOrcamento({ id: detOrc.id, tutor: detOrc.tutor?.name || 'Cliente', valor: Number(detOrc.valorTotal || 0) })} title="Excluir este orçamento (só administrador)" style={{ border: `1px solid #E7C3C3`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: '#A32D2D' }}>🗑️ Excluir</button>}
                     <button onClick={salvarEdicaoOrc} disabled={savingOrc} style={{ marginLeft: 'auto', border: 'none', borderRadius: 9, background: '#6D28D9', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: savingOrc ? .5 : 1 }}>{savingOrc ? 'Salvando…' : '✓ Salvar orçamento'}</button>
                   </div>
                 </>
