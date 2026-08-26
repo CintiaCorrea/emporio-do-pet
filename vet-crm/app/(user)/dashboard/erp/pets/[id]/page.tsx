@@ -2645,7 +2645,8 @@ export default function PetDetailPage() {
                   const aberto = histAberto === row.id;
                   const badge = row.status === "PAID" ? { t: "Baixado", bg: "#E7F6EF", c: "#0F6E56" } : row.status === "ORCAMENTO" ? { t: "Orçamento", bg: "#EDE9FE", c: "#6D28D9" } : { t: "Aberto", bg: "#FCF6E3", c: "#8A6D00" };
                   const full = histFull[row.id];
-                  const itens = row.kind === "venda" ? (full?.items || []) : (full?.itens || []);
+                  // itens vêm do detalhe (ao expandir) OU, como fallback, dos que já vieram na lista (row.raw) — a lista de orçamentos já traz os itens.
+                  const itens = row.kind === "venda" ? (full?.items || row.raw?.items || []) : (full?.itens || row.raw?.itens || []);
                   return (
                     <div key={row.id} className="border rounded-lg mb-1.5" style={{ borderColor: aberto ? "#E8DFC8" : "#F0EBE0" }}>
                       <button onClick={() => toggleHist(row)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left">
