@@ -36,6 +36,21 @@ export class AppointmentsService {
     return /fisio|reabilit|hidroester/.test(txt);
   }
 
+  /** Serviço + profissional pra pôr nos avisos da agenda (marcação/remarcação/cancelamento).
+   *  Fisioterapia → serviço "fisioterapia" e SEM profissional (decisão da Cintia: fisio é da equipe,
+   *  não de um vet específico). Demais → o TIPO do agendamento (ex.: "Consulta", "Vacinação") +
+   *  o profissional, mas só se for veterinário (recepção/gerente vira sem nome, pra não sair o nome errado). */
+  private servicoEProf(appt: any): { servico: string; prof: string } {
+    if (this.isFisio(appt)) return { servico: 'fisioterapia', prof: '' };
+    const raw = String(appt?.type || '').trim();
+    // TIPO tipo enum em CAIXA ALTA (CONSULTA/RETORNO) → capitaliza; senão usa como está.
+    const servico = raw && raw === raw.toUpperCase() ? raw.charAt(0) + raw.slice(1).toLowerCase() : (raw || 'atendimento');
+    const profTipo = appt?.user?.profissional?.tipo;
+    const profNome = (appt?.user?.profissional?.nomeExibicao || appt?.user?.name || '').trim();
+    const prof = (profTipo === 'RECEPCIONISTA' || profTipo === 'GERENTE' || !profNome) ? '' : profNome;
+    return { servico, prof };
+  }
+
   private confirmacaoTemplate(appt: any): { name: string; params: Array<{ type: 'text'; text: string }> } {
     const d = new Date(appt.date);
     // Servidor roda em UTC — formata SEMPRE no fuso de Fortaleza pra não errar a hora.
@@ -117,8 +132,37 @@ export class AppointmentsService {
     const get = (t: string) => parts.find((p) => p.type === t)?.value || '';
     const dia = `${get('day')}/${get('month')}`;
     const hora = `${get('hour')}:${get('minute')}`;
-    const pet = appt.pet?.name ? `${appt.pet.name} — ` : '';
-    const msg = `✅ Agendamento confirmado! ${pet}${dia} às ${hora}. Qualquer coisa é só chamar por aqui. 🐾`;
+    const petNome = appt.pet?.name || 'seu pet';
+    const { servico, prof } = this.servicoEProf(appt);
+    const svc = servico ? ` para ${servico}${prof ? ` com ${prof}` : ''}` : '';
+    const msg = `✅ Agendamento confirmado! ${petNome}${svc} em ${dia} às ${hora}. Qualquer coisa é só chamar por aqui. 🐾`;
+    const res = await this.whatsapp.enviarTextoRegistrando(phone, msg);
+    return res?.success ? { success: true, to: phone } : { success: false, error: res?.error };
+  }
+
+  /** Aviso de CANCELAMENTO ao cliente (antes não existia — pedido da Cintia). Texto livre:
+   *  chega se a conversa estiver aberta (cliente falou nas últimas 24h). */
+  async sendAvisoCancelamento(id: string, motivo?: string) {
+    const appt = await this.findById(id);
+    const contatos = await this.prisma.contact.findMany({
+      where: { tutorId: appt.tutorId },
+      orderBy: [{ isPrimary: 'desc' }, { isWhatsApp: 'desc' }],
+      take: 1,
+    });
+    const phone = contatos[0]?.number;
+    if (!phone) return { success: false, error: 'Tutor sem telefone/WhatsApp cadastrado.' };
+    const parts = new Intl.DateTimeFormat('pt-BR', {
+      timeZone: 'America/Fortaleza',
+      day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false,
+    }).formatToParts(new Date(appt.date));
+    const get = (t: string) => parts.find((p) => p.type === t)?.value || '';
+    const dia = `${get('day')}/${get('month')}`;
+    const hora = `${get('hour')}:${get('minute')}`;
+    const petNome = appt.pet?.name || 'seu pet';
+    const { servico, prof } = this.servicoEProf(appt);
+    const svc = servico ? ` de ${servico}${prof ? ` com ${prof}` : ''}` : '';
+    const mot = motivo?.trim() ? ` Motivo: ${motivo.trim()}.` : '';
+    const msg = `❌ Agendamento cancelado. O horário${svc} do(a) ${petNome} em ${dia} às ${hora} foi cancelado.${mot}\n\nSe quiser remarcar, é só chamar por aqui! 🐾`;
     const res = await this.whatsapp.enviarTextoRegistrando(phone, msg);
     return res?.success ? { success: true, to: phone } : { success: false, error: res?.error };
   }
@@ -136,7 +180,7 @@ export class AppointmentsService {
   /** Cancela o agendamento com motivo opcional (lista) + observação livre. */
   async cancelWithReason(id: string, motivo?: string, observacao?: string) {
     await this.findById(id);
-    return this.prisma.appointment.update({
+    const res = await this.prisma.appointment.update({
       where: { id },
       data: {
         status: 'Cancelado',
@@ -148,6 +192,9 @@ export class AppointmentsService {
         pet: { select: { id: true, name: true } },
       },
     });
+    // Avisa o cliente do cancelamento (best-effort — nunca trava o cancelamento).
+    this.sendAvisoCancelamento(id, motivo).catch(() => undefined);
+    return res;
   }
 
   // 🛡️ TRAVA DE HORÁRIO reutilizável (bug 31/07 + remarcação 04/08): recusa qualquer

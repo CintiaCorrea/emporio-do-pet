@@ -29,9 +29,24 @@ export class AppointmentConfirmationListener {
 
   // Mensagem de agradecimento ao tutor que CONFIRMOU. "amanhã" se a consulta for amanhã;
   // senão nomeia o dia. Saudação conforme a hora (nunca "bom dia" à noite).
+  /** Serviço + profissional pra pôr na mensagem. Fisio → "fisioterapia" sem profissional
+   *  (fisio é da equipe, não de um vet). Demais → tipo do agendamento + profissional (só se veterinário). */
+  private servicoEProf(appt: any): { servico: string; prof: string } {
+    const txt = `${appt?.type || ''} ${appt?.description || ''}`.toLowerCase();
+    if (/fisio|reabilit|hidroester/.test(txt)) return { servico: 'fisioterapia', prof: '' };
+    const raw = String(appt?.type || '').trim();
+    const servico = raw && raw === raw.toUpperCase() ? raw.charAt(0) + raw.slice(1).toLowerCase() : (raw || 'atendimento');
+    const profTipo = appt?.user?.profissional?.tipo;
+    const profNome = (appt?.user?.profissional?.nomeExibicao || appt?.user?.name || '').trim();
+    const prof = (profTipo === 'RECEPCIONISTA' || profTipo === 'GERENTE' || !profNome) ? '' : profNome;
+    return { servico, prof };
+  }
+
   private msgAgradecimento(appt: any): string {
     const primeiro = (appt?.tutor?.name || '').trim().split(/\s+/)[0] || 'tudo bem';
     const petNome = appt?.pet?.name || 'seu pet';
+    const { servico, prof } = this.servicoEProf(appt);
+    const svc = servico ? ` para ${servico}${prof ? ` com ${prof}` : ''}` : '';
     const fAppt = new Date(new Date(appt.date).getTime() - 3 * 3600 * 1000); // Fortaleza
     const mm = fAppt.getUTCMinutes();
     const horario = `${String(fAppt.getUTCHours()).padStart(2, '0')}h${mm ? String(mm).padStart(2, '0') : ''}`;
@@ -41,11 +56,11 @@ export class AppointmentConfirmationListener {
     const diaAppt = Date.UTC(fAppt.getUTCFullYear(), fAppt.getUTCMonth(), fAppt.getUTCDate());
     const amanha = Date.UTC(fAgora.getUTCFullYear(), fAgora.getUTCMonth(), fAgora.getUTCDate()) + 86400000;
     if (diaAppt === amanha) {
-      return `${saud}, ${primeiro}! 💛\n\nAgradecemos pela confirmação. Estamos ansiosos para receber a ${petNome} amanhã às ${horario}! Se precisar de algo mais, é só avisar. Até logo! 🐾✨`;
+      return `${saud}, ${primeiro}! 💛\n\nAgradecemos pela confirmação. Estamos ansiosos para receber a ${petNome}${svc} amanhã às ${horario}! Se precisar de algo mais, é só avisar. Até logo! 🐾✨`;
     }
     const SEM = ['domingo', 'segunda-feira', 'terça-feira', 'quarta-feira', 'quinta-feira', 'sexta-feira', 'sábado'];
     const dia = `${SEM[fAppt.getUTCDay()]} (${String(fAppt.getUTCDate()).padStart(2, '0')}/${String(fAppt.getUTCMonth() + 1).padStart(2, '0')})`;
-    return `${saud}, ${primeiro}! 💛\n\nAgradecemos pela confirmação! Estamos ansiosos para receber a ${petNome} na ${dia} às ${horario}. Se precisar de algo, é só avisar! 🐾\n\nAté lá!`;
+    return `${saud}, ${primeiro}! 💛\n\nAgradecemos pela confirmação! Estamos ansiosos para receber a ${petNome}${svc} na ${dia} às ${horario}. Se precisar de algo, é só avisar! 🐾\n\nAté lá!`;
   }
 
   @OnEvent('whatsapp.message.received')
@@ -63,8 +78,10 @@ export class AppointmentConfirmationListener {
       // Resposta ESCRITA natural (não só o botão do template). Só entra aqui quando existe
       // um agendamento com confirmação ENVIADA aguardando resposta (ver consulta abaixo),
       // por isso um "ok"/"sim" solto é seguro.
+      // Só confirmações FORTES e inequívocas — evita falso-positivo do tipo "Certo"/"ok"/"beleza"
+      // dito no MEIO de uma conversa (bug 26/08: "Certo" disparou o agradecimento fora de hora).
       const AFIRMATIVO =
-        /^(sim|ok|okay|okey|blz|beleza|certo|isso|claro|perfeito|combinado|positivo|confirmo|confirmad[oa]|estarei|vou|pode ser|t[aá] bom|tudo bem|tudo certo|com certeza)\b/;
+        /^(sim,?\s*(confirmo|confirmad[oa])?|confirmo|confirmad[oa]|confirmar|confirmo\s+a\s+presen|estarei\s+(presente|l[aá])|vou\s+sim|com\s+certeza|pode\s+confirmar)\b/;
       const EMOJI_OK = /(👍|✅|👌)/;
 
       // ORDEM IMPORTA: cancelar/remarcar antes de confirmar (ex.: "ok, mas preciso remarcar").
@@ -107,7 +124,7 @@ export class AppointmentConfirmationListener {
         // ressuscita como duplicado. (Complementa o filtro do scheduler.)
         where: { tutorId: contato.tutorId, confirmacaoStatus: 'ENVIADA', date: { gte: inicioHoje }, status: { notIn: STATUS_NAO_CONFIRMAVEL } },
         orderBy: { confirmacaoEnviadaAt: 'desc' },
-        select: { id: true, date: true, pet: { select: { name: true } }, tutor: { select: { name: true } } },
+        select: { id: true, date: true, type: true, description: true, pet: { select: { name: true } }, tutor: { select: { name: true } }, user: { select: { name: true, profissional: { select: { tipo: true, nomeExibicao: true } } } } },
       });
       if (!appt) return;
 
