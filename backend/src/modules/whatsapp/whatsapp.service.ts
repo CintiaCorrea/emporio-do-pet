@@ -1988,9 +1988,10 @@ export class WhatsAppService {
     const texto = (dto.texto || '').trim();
     const temMidia = !!dto.midia?.url;
     if (!phone) throw new Error('Telefone é obrigatório.');
-    if (!texto && !temMidia) throw new Error('Escreva a mensagem ou anexe um documento.');
+    const temFollowup = !!(texto || temMidia);
+    if (!temFollowup && !dto.aberturaTemplate) throw new Error('Escreva a mensagem, anexe um documento, ou escolha um modelo de abertura.');
     const quando = dto.quando === 'AGENDADO' ? 'AGENDADO' : dto.quando === 'AO_RESPONDER' ? 'AO_RESPONDER' : 'AGORA';
-    if (quando === 'AGENDADO' && !dto.scheduledAt) throw new Error('Escolha o dia e a hora.');
+    if (quando === 'AGENDADO' && temFollowup && !dto.scheduledAt) throw new Error('Escolha o dia e a hora.');
 
     const formatted = this.formatPhoneNumber(phone);
     const conv = await this.acharOuCriarConversa(formatted);
@@ -2006,6 +2007,13 @@ export class WhatsAppService {
       const res = await this.enviarTemplateRegistrando(formatted, dto.aberturaTemplate, params, `[abertura: ${dto.aberturaTemplate}]`);
       return res.success ? 'enviada' : 'falhou';
     };
+
+    // Só a ABERTURA (sem "sua mensagem"): o template JÁ é a mensagem — manda e pronto.
+    if (!temFollowup) {
+      const ab = await mandarAbertura();
+      if (ab !== 'enviada') throw new Error('Não consegui enviar o modelo de abertura. Confira o modelo e as variáveis.');
+      return { status: 'enviado', janela: janelaAberta ? 'aberta' : 'fechada', abertura: 'enviada' };
+    }
 
     if (quando === 'AGORA') {
       if (janelaAberta && conv) {

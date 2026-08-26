@@ -1307,8 +1307,9 @@ export default function InboxUnificadoPage() {
   const enviarMensagemProgramada = async () => {
     const phone = novaMsgPhone.replace(/\D/g, "");
     if (!phone) { alert("Escolha o contato ou digite o telefone."); return; }
-    if (!novaMsgText.trim() && !novaMsgAnexo) { alert("Escreva a mensagem ou anexe um documento."); return; }
-    if (mpQuando === "AGENDADO" && !novaMsgScheduledAt) { alert("Escolha o dia e a hora."); return; }
+    const temFollowup = !!(novaMsgText.trim() || novaMsgAnexo);
+    if (!temFollowup && !novaMsgTemplate) { alert("Escreva a mensagem, anexe um documento, ou escolha um modelo de abertura."); return; }
+    if (mpQuando === "AGENDADO" && temFollowup && !novaMsgScheduledAt) { alert("Escolha o dia e a hora."); return; }
     if (novaMsgTemplate && novaMsgVars.some((v) => !v.trim())) { alert("Preencha as variáveis do modelo de abertura (ou tire o modelo)."); return; }
     setNovaMsgSending(true);
     try {
