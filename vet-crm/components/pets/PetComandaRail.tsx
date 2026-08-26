@@ -35,9 +35,14 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 });
   };
   const [modelosVenda, setModelosVenda] = useState<any[]>([]); // modelos (mesmos do orçamento) p/ carregar na comanda
+  const [modeloSel, setModeloSel] = useState(""); // modelo escolhido (fixa a seleção no select)
   // 📄 Carrega um MODELO na comanda — resolve cada item pelo catálogo.
   const aplicarModeloComanda = (id: string) => {
     const m = modelosVenda.find((x) => x.id === id); if (!m) return;
+    if (!Array.isArray(m.itens) || m.itens.length === 0) {
+      toast.error(`O modelo “${m.nome}” está vazio (sem itens). Adicione itens nele em ERP › Modelos de orçamento.`);
+      return;
+    }
     let n = 0;
     for (const it of (m.itens || [])) {
       const nome = String(it.descricao || "").trim(); if (!nome) continue;
@@ -216,7 +221,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   function del(i: number) { setItens((arr) => arr.filter((_, idx) => idx !== i)); }
   async function limpar() {
     if (apptId && !confirm("Limpar a comanda? Ela também sai do Caixa.")) return;
-    setItens([]);
+    setItens([]); setModeloSel("");
   }
   const matches = useMemo(() => { const q = busca.trim().toLowerCase(); if (!q) return cat.slice(0, 20); return cat.filter((c) => c.nome.toLowerCase().includes(q)).slice(0, 20); }, [cat, busca]);
 
@@ -237,7 +242,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     setApptId(null); apptIdRef.current = null; setNumeroVenda(null);
     try { localStorage.removeItem(apptKey); localStorage.removeItem(key); } catch {}
     pendingRef.current = [];
-    setItens([]); setObs(""); setValidade("");
+    setItens([]); setObs(""); setValidade(""); setModeloSel("");
     try { window.dispatchEvent(new Event("pet:venda")); } catch {} // ficha recarrega Compras / a-receber
     setAberto(false);
     toast.success(`Venda${num ? ` nº ${num}` : ""} salva ✅ — está em “A receber” no Caixa. Pode iniciar outra.`);
@@ -328,9 +333,9 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
         {modelosVenda.length > 0 && (
           <div className="mb-2.5">
             <label className="text-[10px] text-[#8A857A] uppercase tracking-wide">Modelo</label>
-            <select value="" onChange={(e) => { if (e.target.value) { aplicarModeloComanda(e.target.value); e.currentTarget.value = ""; } }} className="w-full mt-0.5" style={{ ...inpV, width: "100%" }}>
+            <select value={modeloSel} onChange={(e) => { const v = e.target.value; setModeloSel(v); if (v) aplicarModeloComanda(v); }} className="w-full mt-0.5" style={{ ...inpV, width: "100%" }}>
               <option value="">Começar do zero…</option>
-              {modelosVenda.map((m) => <option key={m.id} value={m.id}>{m.nome}</option>)}
+              {modelosVenda.map((m) => { const vazio = !Array.isArray(m.itens) || m.itens.length === 0; return <option key={m.id} value={m.id}>{m.nome}{vazio ? " (vazio)" : ` (${m.itens.length} ${m.itens.length === 1 ? "item" : "itens"})`}</option>; })}
             </select>
           </div>
         )}
