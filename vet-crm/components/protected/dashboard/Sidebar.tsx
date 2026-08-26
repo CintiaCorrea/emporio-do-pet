@@ -89,7 +89,7 @@ const NAV: Entry[] = [
       { href: "/dashboard/erp/pacotes", label: "Pacotes vendidos", emoji: "📦", roles: ALL },
       { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ALL },
       { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/modelos-orcamento", label: "Modelo de orçamento", emoji: "📄", roles: ALL },
+      { href: "/dashboard/erp/modelos-orcamento", label: "Modelos de venda/orçamento", emoji: "📄", roles: ALL },
       { href: "/dashboard/erp/modelo-demonstrativo", label: "Modelo de demonstrativo", emoji: "🧾", roles: ["ADMIN"] },
       { href: "/dashboard/erp/formas-recebimento", label: "Formas de recebimento", emoji: "💳", roles: ["ADMIN"] },
       { href: "/dashboard/erp/configuracoes-vendas", label: "Configuração de vendas", emoji: "⚙️", roles: ["ADMIN"] },

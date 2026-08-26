@@ -36,15 +36,19 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   };
   const [modelosVenda, setModelosVenda] = useState<any[]>([]); // modelos (mesmos do orçamento) p/ carregar na comanda
   const [modeloSel, setModeloSel] = useState(""); // modelo escolhido (fixa a seleção no select)
-  // 📄 Carrega um MODELO na comanda — resolve cada item pelo catálogo.
+  // 📄 Carrega um MODELO na comanda — traz os ITENS (se houver) e a OBSERVAÇÃO (se houver).
+  // Um modelo pode ser só observação (texto reutilizável) — isso NÃO é "vazio".
   const aplicarModeloComanda = (id: string) => {
     const m = modelosVenda.find((x) => x.id === id); if (!m) return;
-    if (!Array.isArray(m.itens) || m.itens.length === 0) {
-      toast.error(`O modelo “${m.nome}” está vazio (sem itens). Adicione itens nele em ERP › Modelos de orçamento.`);
+    const temItens = Array.isArray(m.itens) && m.itens.length > 0;
+    const temObs = !!(m.observacao && String(m.observacao).trim());
+    if (!temItens && !temObs) {
+      toast.error(`O modelo “${m.nome}” está vazio (sem itens e sem observação).`);
       return;
     }
+    if (temObs) setObs(String(m.observacao));
     let n = 0;
-    for (const it of (m.itens || [])) {
+    for (const it of (temItens ? m.itens : [])) {
       const nome = String(it.descricao || "").trim(); if (!nome) continue;
       const q = Number(it.quantidade) || 1; const vu = it.valorUnitario != null ? Number(it.valorUnitario) : undefined;
       const c = cat.find((x) => (x.nome || "") === nome);
@@ -56,7 +60,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       }
       n++;
     }
-    if (n) toast.success(`Modelo "${m.nome}" carregado`);
+    toast.success(`Modelo "${m.nome}" carregado${n ? ` · ${n} ${n === 1 ? "item" : "itens"}` : temObs ? " · observação" : ""}`);
   };
   // 📷 Leitura de código de barras: o scanner USB digita o código + Enter. No Enter, se casar com um
   // código de barras (ou o código do item), lança direto e limpa o campo.
@@ -330,15 +334,20 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
         </div>
 
         {/* Modelo (mesmos modelos do orçamento) */}
-        {modelosVenda.length > 0 && (
-          <div className="mb-2.5">
-            <label className="text-[10px] text-[#8A857A] uppercase tracking-wide">Modelo</label>
+        <div className="mb-2.5">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] text-[#8A857A] uppercase tracking-wide">Modelo (vale p/ venda e orçamento)</label>
+            <a href="/dashboard/erp/modelos-orcamento" target="_blank" rel="noopener noreferrer" className="text-[10.5px] font-semibold" style={{ color: "#6D28D9" }} title="Criar ou editar modelos (um só serve para venda e orçamento)">✏️ Criar/editar</a>
+          </div>
+          {modelosVenda.length > 0 ? (
             <select value={modeloSel} onChange={(e) => { const v = e.target.value; setModeloSel(v); if (v) aplicarModeloComanda(v); }} className="w-full mt-0.5" style={{ ...inpV, width: "100%" }}>
               <option value="">Começar do zero…</option>
-              {modelosVenda.map((m) => { const vazio = !Array.isArray(m.itens) || m.itens.length === 0; return <option key={m.id} value={m.id}>{m.nome}{vazio ? " (vazio)" : ` (${m.itens.length} ${m.itens.length === 1 ? "item" : "itens"})`}</option>; })}
+              {modelosVenda.map((m) => { const nItens = Array.isArray(m.itens) ? m.itens.length : 0; const temObs = !!(m.observacao && String(m.observacao).trim()); const tag = nItens ? ` (${nItens} ${nItens === 1 ? "item" : "itens"})` : temObs ? " (observação)" : " (vazio)"; return <option key={m.id} value={m.id}>{m.nome}{tag}</option>; })}
             </select>
-          </div>
-        )}
+          ) : (
+            <div className="text-[11px] text-gray-400 mt-0.5">Nenhum modelo ainda — crie em <b>“✏️ Criar/editar”</b>.</div>
+          )}
+        </div>
 
         {/* Adicionar item (busca + código de barras) */}
         <div className="mb-2">
@@ -420,7 +429,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
           </div>
         )}
         <div className="text-[10.5px] mt-0.5" style={{ color: statusCor }}>{statusTxt}</div>
-        <input value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Observação (opcional)" className="w-full mt-2" style={{ ...inpV, width: "100%" }} />
+        <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={obs.length > 80 ? 5 : 2} placeholder="Observação (opcional) — o texto do modelo aparece aqui" className="w-full mt-2 resize-y" style={{ ...inpV, width: "100%" }} />
 
         {/* Botões — venda e orçamento na mesma telinha */}
         <div className="flex gap-2 mt-3 justify-end flex-wrap">

@@ -14,7 +14,7 @@ const num = (s: any) => Number(String(s ?? "").replace(",", ".")) || 0;
 const novoModelo = () => ({ id: "", nome: "", ativo: true, observacao: "", compartilhado: true, autorId: "", autorNome: "", itens: [] as any[] });
 
 export default function ModelosOrcamentoPage() {
-  usePageTitle("Modelo de orçamento", "Orçamentos-modelo reutilizáveis");
+  usePageTitle("Modelos de venda e orçamento", "Um modelo só — vale para venda/comanda E orçamento");
   const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/editar/excluir
   const [loading, setLoading] = useState(true);
   const jaCarregou = useRef(false);
