@@ -28,9 +28,10 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const meId = (session?.user as any)?.id || "";
   const [aberto, setAberto] = useState(false);
   const [itens, setItens] = useState<Item[]>([]);
-  const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
+  const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null; _novo?: boolean; tipo?: string; _descontoModo?: string; _descontoLimite?: number | null }[]>([]);
+  const [buscaFocus, setBuscaFocus] = useState(false);
   const addDoCatalogo = (c: any) => {
-    const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? c.valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome });
+    const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? c.valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome, _novo: c._novo, tipo: c.tipo, _descontoModo: c._descontoModo, _descontoLimite: c._descontoLimite });
     addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 });
   };
   const [modelosVenda, setModelosVenda] = useState<any[]>([]); // modelos (mesmos do orçamento) p/ carregar na comanda
@@ -43,7 +44,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       const q = Number(it.quantidade) || 1; const vu = it.valorUnitario != null ? Number(it.valorUnitario) : undefined;
       const c = cat.find((x) => (x.nome || "") === nome);
       if (c) {
-        const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? (c as any).valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome });
+        const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? (c as any).valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome, _novo: c._novo, tipo: c.tipo, _descontoModo: c._descontoModo, _descontoLimite: c._descontoLimite });
         addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: vu != null ? vu : l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: q });
       } else {
         addItem({ descricao: nome, valorUnitario: vu || 0, quantidade: q } as Item);
@@ -106,7 +107,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     (async () => {
       try {
         const its = await carregarCatalogoVendavel();
-        setCat(its.map((i) => ({ id: i.id, nome: i.nome, valor: i.valorPadrao, custoPadrao: i.custoPadrao, _exame: i._exame, _fornecedorId: i._fornecedorId, _fornecedorNome: i._fornecedorNome, codigo: i.codigo ?? null, codigoBarras: i.codigoBarras ?? null })));
+        setCat(its.map((i) => ({ id: i.id, nome: i.nome, valor: i.valorPadrao, custoPadrao: i.custoPadrao, _exame: i._exame, _fornecedorId: i._fornecedorId, _fornecedorNome: i._fornecedorNome, codigo: i.codigo ?? null, codigoBarras: i.codigoBarras ?? null, _novo: i._novo, tipo: i.tipo, _descontoModo: i._descontoModo, _descontoLimite: i._descontoLimite ?? null })));
       } catch {}
       try {
         const rm = await fetch("/api/listas?lista=orcamentomodelo", { cache: "no-store" }); const d = await rm.json();
@@ -336,10 +337,11 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
 
         {/* Adicionar item (busca + código de barras) */}
         <div className="mb-2">
-          <input value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!tentarCodigoBarras(busca) && matches.length === 1) { addDoCatalogo(matches[0]); setBusca(""); } } }} placeholder="🔍 Buscar no catálogo ou ler código de barras…" className="w-full" style={{ ...inpV, width: "100%" }} />
-          {busca.trim() && (
+          <input value={busca} onFocus={() => setBuscaFocus(true)} onBlur={() => setTimeout(() => setBuscaFocus(false), 150)} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!tentarCodigoBarras(busca) && matches.length === 1) { addDoCatalogo(matches[0]); setBusca(""); } } }} placeholder="🔍 Buscar item ou ler código de barras…" className="w-full" style={{ ...inpV, width: "100%" }} />
+          {(buscaFocus || busca.trim()) && (
             <div className="border rounded-lg mt-1 max-h-44 overflow-auto" style={{ borderColor: "#F0EBE0" }}>
-              {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
+              {cat.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Carregando catálogo…</div> :
+                matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
                 matches.map((c) => (
                   <button key={c.id} title={c.nome} onClick={() => { addDoCatalogo(c); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
                     <span className="text-[#1F2A2E] truncate pr-2 flex items-center gap-1.5 min-w-0"><span className="truncate">{c.nome}</span>{(() => { const lab = labDoItem(c); return lab ? <span className="shrink-0 text-[10px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}</span><span className="text-[#0F6E56] font-semibold shrink-0">{BRL(c.valor)}</span>
