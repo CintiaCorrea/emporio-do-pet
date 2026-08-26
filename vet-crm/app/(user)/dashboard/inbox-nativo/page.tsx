@@ -479,12 +479,8 @@ export default function InboxUnificadoPage() {
   const [novaMsgTemplate, setNovaMsgTemplate] = useState("");
   const [novaMsgVars, setNovaMsgVars] = useState<string[]>([]);
   const [templateSending, setTemplateSending] = useState(false);
-  // Follow-up programado (Opção 2): "mensagem seguinte" ao template abridor.
-  const [fuOn, setFuOn] = useState(false); // ligar/desligar a mensagem seguinte
-  const [fuTexto, setFuTexto] = useState("");
-  const [fuAnexo, setFuAnexo] = useState<File | null>(null);
-  const [fuTrigger, setFuTrigger] = useState<"ON_REPLY" | "SCHEDULED">("ON_REPLY");
-  const [fuAgendaAt, setFuAgendaAt] = useState(""); // datetime-local
+  // Mensagem programada (tela única): quando enviar.
+  const [mpQuando, setMpQuando] = useState<"AGORA" | "AGENDADO" | "AO_RESPONDER">("AGORA");
 
   // Internas — usuários da clínica
   const [internalUsers, setInternalUsers] = useState<Array<{id: string; name: string; email: string; role: string}>>([]);
@@ -1305,66 +1301,55 @@ export default function InboxUnificadoPage() {
     const arr = Array.from({ length: nVars }, (_, i) => varPadrao(i, novaMsgNome, novaMsgPet) || "");
     setNovaMsgVars(arr);
   };
-  const enviarTemplate = async () => {
+  // 📨 MENSAGEM PROGRAMADA (tela única): a mensagem (texto + documento) e QUANDO enviar.
+  // O backend cuida da regra das 24h: janela aberta → manda já; fechada → manda a abertura
+  // (template) e segura o texto/documento pra sair quando o cliente responder.
+  const enviarMensagemProgramada = async () => {
     const phone = novaMsgPhone.replace(/\D/g, "");
     if (!phone) { alert("Escolha o contato ou digite o telefone."); return; }
-    if (!novaMsgTemplate) { alert("Escolha um modelo."); return; }
-    if (novaMsgVars.some((v) => !v.trim())) { alert("Preencha todas as variáveis do modelo."); return; }
-    // Valida o follow-up ANTES de enviar o template (pra não mandar a abridora à toa).
-    if (fuOn) {
-      if (!fuTexto.trim() && !fuAnexo) { alert("Escreva a mensagem seguinte ou anexe um documento (ou desmarque a opção)."); return; }
-      if (fuTrigger === "SCHEDULED" && !fuAgendaAt) { alert("Escolha o dia e a hora da mensagem seguinte."); return; }
-    }
-    const t = templates.find((x) => x.name === novaMsgTemplate);
-    let preview = templateBody(novaMsgTemplate);
-    novaMsgVars.forEach((v, i) => { preview = preview.replace(`{{${i + 1}}}`, v); });
-    setTemplateSending(true);
+    if (!novaMsgText.trim() && !novaMsgAnexo) { alert("Escreva a mensagem ou anexe um documento."); return; }
+    if (mpQuando === "AGENDADO" && !novaMsgScheduledAt) { alert("Escolha o dia e a hora."); return; }
+    if (novaMsgTemplate && novaMsgVars.some((v) => !v.trim())) { alert("Preencha as variáveis do modelo de abertura (ou tire o modelo)."); return; }
+    setNovaMsgSending(true);
     try {
-      const r = await fetch("/api/whatsapp/send-template", {
+      // 1) Sobe o documento (se houver) — mesmo caminho do resto do sistema.
+      let midia: any = undefined;
+      if (novaMsgAnexo) {
+        const fd = new FormData();
+        fd.append("file", novaMsgAnexo);
+        const ru = await fetch("/api/media/upload?pasta=documentos&origem=whatsapp", { method: "POST", body: fd });
+        const up = await ru.json().catch(() => ({}));
+        if (!ru.ok || !up?.url) throw new Error(up?.message || up?.error || "Falha ao subir o documento");
+        const tipo = (novaMsgAnexo.type || "").startsWith("image/") ? "image" : "document";
+        midia = { url: up.url, nome: up.filename || up.name || novaMsgAnexo.name, tipo };
+      }
+      // 2) Manda pro backend decidir a regra das 24h.
+      const r = await fetch("/api/whatsapp/mensagem-programada", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ to: phone, templateName: novaMsgTemplate, language: t?.language || "pt_BR", params: novaMsgVars.map((v) => ({ type: "text", text: v })), preview }),
+        body: JSON.stringify({
+          to: phone,
+          tutorId: tutorSel?.id || undefined,
+          texto: novaMsgText.trim(),
+          midia,
+          quando: mpQuando,
+          scheduledAt: mpQuando === "AGENDADO" ? new Date(novaMsgScheduledAt).toISOString() : undefined,
+          aberturaTemplate: novaMsgTemplate || undefined,
+          aberturaParams: novaMsgTemplate ? novaMsgVars : undefined,
+        }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok || d?.success === false) { alert(d?.error || "Não consegui enviar o modelo."); return; }
-
-      // Follow-up (Opção 2): programa a "mensagem seguinte" (texto + documento opcional).
-      if (fuOn) {
-        try {
-          let midia: any = undefined;
-          if (fuAnexo) {
-            const fd = new FormData();
-            fd.append("file", fuAnexo);
-            const ru = await fetch("/api/media/upload?pasta=documentos&origem=followup", { method: "POST", body: fd });
-            const up = await ru.json().catch(() => ({}));
-            if (!ru.ok || !up?.url) throw new Error(up?.message || up?.error || "Falha ao subir o documento");
-            const tipo = (fuAnexo.type || "").startsWith("image/") ? "image" : "document";
-            midia = { url: up.url, nome: up.filename || up.name || fuAnexo.name, tipo };
-          }
-          const rf = await fetch("/api/whatsapp/followup", {
-            method: "POST", headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              to: phone,
-              tutorId: tutorSel?.id || undefined,
-              texto: fuTexto.trim(),
-              midia,
-              trigger: fuTrigger,
-              scheduledAt: fuTrigger === "SCHEDULED" ? new Date(fuAgendaAt).toISOString() : undefined,
-            }),
-          });
-          if (!rf.ok) { const ej = await rf.json().catch(() => ({})); throw new Error(ej?.message || ej?.error || "Falha ao programar a mensagem seguinte"); }
-          toast.success(fuTrigger === "SCHEDULED" ? "Conversa iniciada 🚀 · seguinte agendada 🗓️" : "Conversa iniciada 🚀 · seguinte pronta ✉️");
-        } catch (e: any) {
-          // A abridora JÁ foi enviada — avisa que só o follow-up falhou (não perde o envio).
-          toast.error("Modelo enviado, mas a mensagem seguinte não foi programada: " + String(e?.message || e).slice(0, 100));
-        }
-      } else {
-        toast.success("Conversa iniciada 🚀");
-      }
-      setNovaMsgOpen(false); setNovaMsgPhone(""); setNovaMsgNome(""); setNovaMsgBusca(""); setNovaMsgTemplate(""); setNovaMsgVars([]);
-      setFuOn(false); setFuTexto(""); setFuAnexo(null); setFuTrigger("ON_REPLY"); setFuAgendaAt("");
+      if (!r.ok) { alert(d?.message || d?.error || "Não consegui enviar a mensagem."); return; }
+      // Mensagem clara conforme o que aconteceu.
+      const msg = d?.status === "enviado" ? "Enviado ✅"
+        : d?.status === "agendado" ? (d?.janela === "fechada" ? "Agendado 🗓️ — mandei a abertura pra reabrir a conversa" : "Agendado 🗓️")
+        : d?.janela === "fechada" ? "Abertura enviada 🚀 — sua mensagem sai assim que o cliente responder"
+        : "Vai sair assim que o cliente responder ✉️";
+      toast.success(msg);
+      setNovaMsgOpen(false); setNovaMsgPhone(""); setNovaMsgNome(""); setNovaMsgBusca(""); setNovaMsgText(""); setNovaMsgAnexo(null);
+      setNovaMsgScheduledAt(""); setNovaMsgTemplate(""); setNovaMsgVars([]); setMpQuando("AGORA");
       setRefreshTick((t) => t + 1);
-    } catch { alert("Erro ao enviar o modelo."); }
-    finally { setTemplateSending(false); }
+    } catch (e: any) { alert(String(e?.message || "Erro ao enviar a mensagem").slice(0, 160)); }
+    finally { setNovaMsgSending(false); }
   };
 
   // Carregar mensagens internas recebidas (badge + aba Internas) — com poll p/ tempo real
@@ -2566,73 +2551,9 @@ export default function InboxUnificadoPage() {
             <input value={novaMsgPhone} onChange={(e) => setNovaMsgPhone(e.target.value)} placeholder="+55 85 99999-9999"
               className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
 
-            {/* 2) Modelo do Meta — para iniciar conversa nova (fora das 24h) */}
-            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Modelo do Meta (para iniciar conversa nova)</label>
-            <select value={novaMsgTemplate} onChange={(e) => onSelectTemplate(e.target.value)} className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-2 focus:outline-none focus:border-[#009AAC]">
-              <option value="">— escolha um modelo aprovado —</option>
-              {templates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
-            </select>
-            {novaMsgTemplate && (
-              <div className="bg-[#F0FBFC] border border-[#cfeef2] rounded-lg p-2.5 mb-3">
-                <div className="text-[11px] text-[#0E2244] whitespace-pre-wrap mb-2">{(() => { let p = templateBody(novaMsgTemplate); novaMsgVars.forEach((v, i) => { p = p.replace(`{{${i + 1}}}`, v || `{{${i + 1}}}`); }); return p; })()}</div>
-                {novaMsgVars.map((v, i) => (
-                  <input key={i} value={v} onChange={(e) => setNovaMsgVars((vs) => vs.map((x, j) => (j === i ? e.target.value : x)))}
-                    placeholder={["Cliente {{1}}", "Pet {{2}}", "Quem atende {{3}}"][i] || `Variável {{${i + 1}}}`}
-                    className="w-full px-2.5 py-1.5 border border-[#e8e1d2] rounded-lg text-[12px] mb-1.5 focus:outline-none focus:border-[#009AAC]" />
-                ))}
-                {/* Follow-up (Opção 2): mensagem seguinte que sai quando o cliente responde ou num dia/hora */}
-                <div className="mt-2 pt-2 border-t" style={{ borderColor: "#cfeef2" }}>
-                  <label className="flex items-center gap-2 cursor-pointer select-none">
-                    <input type="checkbox" checked={fuOn} onChange={(e) => setFuOn(e.target.checked)} className="accent-[#009AAC]" />
-                    <span className="text-[11.5px] text-[#0E2244] font-medium">✉️ Deixar uma mensagem seguinte pronta</span>
-                  </label>
-                  {fuOn && (
-                    <div className="mt-2">
-                      <textarea value={fuTexto} onChange={(e) => setFuTexto(e.target.value)} rows={3}
-                        placeholder="Ex.: Oi! Segue em anexo o orçamento que combinamos 💛"
-                        className="w-full px-2.5 py-1.5 border border-[#cfeef2] rounded-lg text-[12px] mb-2 focus:outline-none focus:border-[#009AAC] bg-white" />
-                      <div className="flex items-center gap-2 mb-2">
-                        <label className="cursor-pointer text-[11px] px-2.5 py-1.5 rounded-lg border border-[#cfeef2] bg-white hover:bg-[#F0FBFC] text-[#00798A]">
-                          📎 {fuAnexo ? "Trocar documento" : "Anexar documento"}
-                          <input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; setFuAnexo(f || null); e.currentTarget.value = ""; }} />
-                        </label>
-                        {fuAnexo && (
-                          <span className="text-[10.5px] text-[#5F5E5A] truncate max-w-[150px]">{fuAnexo.name}
-                            <button onClick={() => setFuAnexo(null)} className="ml-1 text-[#B23B39]">✕</button>
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex flex-col gap-1 mb-1">
-                        <label className="flex items-center gap-2 cursor-pointer text-[11px] text-[#0E2244]">
-                          <input type="radio" name="futrig" checked={fuTrigger === "ON_REPLY"} onChange={() => setFuTrigger("ON_REPLY")} className="accent-[#009AAC]" />
-                          Assim que o cliente responder
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer text-[11px] text-[#0E2244]">
-                          <input type="radio" name="futrig" checked={fuTrigger === "SCHEDULED"} onChange={() => setFuTrigger("SCHEDULED")} className="accent-[#009AAC]" />
-                          Num dia e hora
-                        </label>
-                        {fuTrigger === "SCHEDULED" && (
-                          <input type="datetime-local" value={fuAgendaAt} onChange={(e) => setFuAgendaAt(e.target.value)}
-                            className="mt-1 px-2.5 py-1.5 border border-[#cfeef2] rounded-lg text-[12px] focus:outline-none focus:border-[#009AAC] bg-white" />
-                        )}
-                        {fuTrigger === "SCHEDULED" && (
-                          <span className="text-[10px] text-[#888780] mt-0.5">Se nessa hora fizer +24h que o cliente não fala com a gente, seguro e envio assim que ele responder.</span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <button onClick={enviarTemplate} disabled={templateSending} className="w-full mt-2 bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium disabled:opacity-50">
-                  {templateSending ? "Enviando…" : (fuOn ? "🚀 Enviar modelo + programar seguinte" : "🚀 Enviar modelo (iniciar conversa)")}
-                </button>
-              </div>
-            )}
-
-            <div className="border-t my-2" style={{ borderColor: "#eee" }} />
-            <div className="text-[10px] text-[#888780] mb-2">Ou <b>texto livre</b> — só funciona se a pessoa te enviou mensagem nas últimas 24h:</div>
-
+            {/* 1) SUA MENSAGEM (texto que o cliente recebe) */}
             <div className="flex items-center justify-between mb-1">
-              <label className="text-[11px] text-[#5F5E5A] font-medium">Mensagem</label>
+              <label className="text-[11px] text-[#5F5E5A] font-medium">Sua mensagem</label>
               <button onClick={() => setNovaMsgScriptOpen(!novaMsgScriptOpen)}
                 className={`text-[10px] px-2 py-0.5 rounded ${novaMsgScriptOpen ? "bg-[#FBF0DD] text-[#8a6313]" : "text-[#009AAC] hover:underline"}`}>
                 📝 Usar script
@@ -2652,11 +2573,11 @@ export default function InboxUnificadoPage() {
                 </Link>
               </div>
             )}
-            <textarea value={novaMsgText} onChange={(e) => setNovaMsgText(e.target.value)} placeholder="Digite a mensagem..."
+            <textarea value={novaMsgText} onChange={(e) => setNovaMsgText(e.target.value)} placeholder="Digite a mensagem que o cliente vai receber..."
               rows={4}
               className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-2 focus:outline-none focus:border-[#009AAC] resize-none" />
 
-            {/* Anexar documento/foto — vale pra qualquer mensagem (vai como legenda). */}
+            {/* 2) ANEXAR DOCUMENTO/FOTO */}
             <div className="mb-3">
               {novaMsgAnexo ? (
                 <span className="inline-flex items-center gap-2 text-[11px] bg-[#F1EFE8] rounded px-2 py-1">
@@ -2671,25 +2592,50 @@ export default function InboxUnificadoPage() {
               )}
             </div>
 
-            {!novaMsgAnexo && (
-              <>
-                <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">
-                  📅 Agendar para (opcional)
+            {/* 3) QUANDO ENVIAR */}
+            <label className="block text-[11px] text-[#5F5E5A] mb-1 font-medium">Quando enviar?</label>
+            <div className="flex flex-col gap-1.5 mb-3">
+              {([["AGORA", "🚀 Agora"], ["AGENDADO", "🗓️ Num dia e hora"], ["AO_RESPONDER", "✉️ Quando o cliente responder"]] as const).map(([val, lab]) => (
+                <label key={val} className="flex items-center gap-2 cursor-pointer text-[12.5px] text-[#0E2244]">
+                  <input type="radio" name="mpquando" checked={mpQuando === val} onChange={() => setMpQuando(val)} className="accent-[#009AAC]" />{lab}
                 </label>
+              ))}
+              {mpQuando === "AGENDADO" && (
                 <input type="datetime-local" value={novaMsgScheduledAt} onChange={(e) => setNovaMsgScheduledAt(e.target.value)}
-                  className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm mb-3 focus:outline-none focus:border-[#009AAC]" />
-                {novaMsgScheduledAt && (
-                  <p className="text-[10px] text-[#0F6E56] mb-2">
-                    ⏰ Vai enviar em {new Date(novaMsgScheduledAt).toLocaleString("pt-BR")}
-                  </p>
-                )}
-              </>
-            )}
+                  className="mt-1 w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm focus:outline-none focus:border-[#009AAC]" />
+              )}
+              {mpQuando === "AGENDADO" && novaMsgScheduledAt && (
+                <p className="text-[10px] text-[#0F6E56]">⏰ {new Date(novaMsgScheduledAt).toLocaleString("pt-BR")} — se fizer +24h que o cliente não falar, seguro e mando na 1ª resposta.</p>
+              )}
+              {mpQuando === "AO_RESPONDER" && (
+                <p className="text-[10px] text-[#888780]">Sua mensagem sai automaticamente assim que o cliente responder.</p>
+              )}
+            </div>
+
+            {/* 4) ABERTURA (modelo do Meta) — só necessária se fizer +24h que o cliente não fala com você */}
+            <div className="bg-[#FBF9F4] border border-[#EBE3D0] rounded-lg p-2.5 mb-3">
+              <label className="block text-[11px] text-[#8a6313] mb-1 font-medium">Abertura — só se fizer +24h que o cliente não fala com você</label>
+              <p className="text-[10px] text-[#888780] mb-1.5">Fora das 24h, o WhatsApp exige um <b>modelo aprovado</b> pra reabrir a conversa. Se a conversa já estiver aberta, isto é ignorado.</p>
+              <select value={novaMsgTemplate} onChange={(e) => onSelectTemplate(e.target.value)} className="w-full px-3 py-2 border border-[#e8e1d2] rounded-lg text-sm bg-white focus:outline-none focus:border-[#009AAC]">
+                <option value="">— sem abertura (só envia se a conversa já estiver aberta) —</option>
+                {templates.map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
+              </select>
+              {novaMsgTemplate && (
+                <div className="mt-2">
+                  <div className="text-[11px] text-[#0E2244] whitespace-pre-wrap mb-1.5 bg-white rounded p-2 border" style={{ borderColor: "#EBE3D0" }}>{(() => { let p = templateBody(novaMsgTemplate); novaMsgVars.forEach((v, i) => { p = p.replace(`{{${i + 1}}}`, v || `{{${i + 1}}}`); }); return p; })()}</div>
+                  {novaMsgVars.map((v, i) => (
+                    <input key={i} value={v} onChange={(e) => setNovaMsgVars((vs) => vs.map((x, j) => (j === i ? e.target.value : x)))}
+                      placeholder={["Cliente {{1}}", "Pet {{2}}", "Quem atende {{3}}"][i] || `Variável {{${i + 1}}}`}
+                      className="w-full px-2.5 py-1.5 border border-[#e8e1d2] rounded-lg text-[12px] mb-1.5 focus:outline-none focus:border-[#009AAC]" />
+                  ))}
+                </div>
+              )}
+            </div>
 
             <div className="flex justify-end gap-2">
               <button onClick={() => setNovaMsgOpen(false)} className="px-3 py-1.5 text-xs text-[#5F5E5A]">Cancelar</button>
-              <button onClick={enviarNovaMensagem} disabled={novaMsgSending} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
-                {novaMsgSending ? "Enviando..." : (novaMsgAnexo ? "Enviar com anexo" : (novaMsgScheduledAt ? "Agendar" : "Enviar agora"))}
+              <button onClick={enviarMensagemProgramada} disabled={novaMsgSending} className="bg-[#009AAC] text-white px-4 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50">
+                {novaMsgSending ? "Enviando..." : (mpQuando === "AGENDADO" ? "🗓️ Agendar" : mpQuando === "AO_RESPONDER" ? "✉️ Programar" : "🚀 Enviar")}
               </button>
             </div>
           </div>

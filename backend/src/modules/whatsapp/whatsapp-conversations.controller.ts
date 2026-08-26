@@ -429,6 +429,25 @@ export class WhatsAppConversationsController {
     }
   }
 
+  // Mensagem programada (tela única): decide sozinho a regra das 24h — manda já,
+  // agenda, ou segura pro cliente responder; com documento e abertura opcional.
+  @Post('mensagem-programada')
+  async mensagemProgramada(
+    @CurrentUser() user: JwtUser,
+    @Body() body: { phone?: string; to?: string; tutorId?: string; texto?: string; midia?: { url: string; nome?: string; tipo?: 'document' | 'image' }; quando?: 'AGORA' | 'AGENDADO' | 'AO_RESPONDER'; scheduledAt?: string; aberturaTemplate?: string; aberturaParams?: string[] },
+  ) {
+    const phone = body.phone || body.to || '';
+    if (!phone) throw new BadRequestException('Telefone é obrigatório.');
+    try {
+      return await this.whatsAppService.mensagemProgramada(user?.id || null, {
+        phone, tutorId: body.tutorId, texto: body.texto, midia: body.midia,
+        quando: body.quando, scheduledAt: body.scheduledAt, aberturaTemplate: body.aberturaTemplate, aberturaParams: body.aberturaParams,
+      });
+    } catch (e: any) {
+      throw new BadRequestException(e?.message || 'Não consegui enviar a mensagem.');
+    }
+  }
+
   @Post('conversations/:id/media')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 60 * 1024 * 1024 } }))
   async sendMedia(

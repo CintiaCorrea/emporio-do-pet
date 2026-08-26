@@ -1971,6 +1971,66 @@ export class WhatsAppService {
     return n;
   }
 
+  /**
+   * MENSAGEM PROGRAMADA (tela única): decide sozinho a regra das 24h.
+   * - AGORA: janela aberta → entrega já (texto + documento). Fechada → manda a abertura
+   *   (template) e SEGURA o texto/documento pra sair quando o cliente responder.
+   * - AGENDADO: guarda pro dia/hora (o cron entrega se a janela estiver aberta; senão segura
+   *   pra 1ª resposta). Se fechada agora e houver abertura, manda a abridora pra já reabrir.
+   * - AO_RESPONDER: guarda pra sair na próxima resposta; manda a abertura agora se fechada.
+   * Retorna { status: 'enviado' | 'agendado' | 'na_fila', janela: 'aberta'|'fechada', abertura?: 'enviada'|'faltando'|'falhou' }.
+   */
+  async mensagemProgramada(
+    userId: string | null,
+    dto: { phone: string; tutorId?: string; texto?: string; midia?: { url: string; nome?: string; tipo?: 'document' | 'image' }; quando?: 'AGORA' | 'AGENDADO' | 'AO_RESPONDER'; scheduledAt?: string; aberturaTemplate?: string; aberturaParams?: string[] },
+  ): Promise<{ status: string; janela: 'aberta' | 'fechada'; abertura?: string }> {
+    const phone = (dto.phone || '').replace(/\D/g, '');
+    const texto = (dto.texto || '').trim();
+    const temMidia = !!dto.midia?.url;
+    if (!phone) throw new Error('Telefone é obrigatório.');
+    if (!texto && !temMidia) throw new Error('Escreva a mensagem ou anexe um documento.');
+    const quando = dto.quando === 'AGENDADO' ? 'AGENDADO' : dto.quando === 'AO_RESPONDER' ? 'AO_RESPONDER' : 'AGORA';
+    if (quando === 'AGENDADO' && !dto.scheduledAt) throw new Error('Escolha o dia e a hora.');
+
+    const formatted = this.formatPhoneNumber(phone);
+    const conv = await this.acharOuCriarConversa(formatted);
+    const lastIn = conv
+      ? await this.prisma.whatsAppMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } })
+      : null;
+    const janelaAberta = !!lastIn && Date.now() - new Date(lastIn.createdAt).getTime() < 24 * 3600 * 1000;
+    const anexos = temMidia ? [{ url: dto.midia!.url, tipo: dto.midia!.tipo === 'image' ? 'image' : 'document', nome: dto.midia!.nome }] : [];
+
+    const mandarAbertura = async (): Promise<'enviada' | 'faltando' | 'falhou'> => {
+      if (!dto.aberturaTemplate) return 'faltando';
+      const params = (dto.aberturaParams || []).map((t) => ({ type: 'text' as const, text: String(t) }));
+      const res = await this.enviarTemplateRegistrando(formatted, dto.aberturaTemplate, params, `[abertura: ${dto.aberturaTemplate}]`);
+      return res.success ? 'enviada' : 'falhou';
+    };
+
+    if (quando === 'AGORA') {
+      if (janelaAberta && conv) {
+        await this.entregarDocumentos(conv, texto, anexos as any, 'Mensagem');
+        return { status: 'enviado', janela: 'aberta' };
+      }
+      // Fechada: precisa da abertura (template) + segura pro on-reply.
+      const ab = await mandarAbertura();
+      if (ab === 'faltando') throw new Error('Faz mais de 24h que o cliente não fala com a gente — escolha um modelo de abertura pra reabrir a conversa.');
+      await this.enfileirarFollowup(userId, { phone, tutorId: dto.tutorId, texto, midia: dto.midia, trigger: 'ON_REPLY' });
+      return { status: 'na_fila', janela: 'fechada', abertura: ab };
+    }
+
+    if (quando === 'AGENDADO') {
+      await this.enfileirarFollowup(userId, { phone, tutorId: dto.tutorId, texto, midia: dto.midia, trigger: 'SCHEDULED', scheduledAt: dto.scheduledAt });
+      const abertura = !janelaAberta ? await mandarAbertura() : undefined;
+      return { status: 'agendado', janela: janelaAberta ? 'aberta' : 'fechada', abertura };
+    }
+
+    // AO_RESPONDER
+    await this.enfileirarFollowup(userId, { phone, tutorId: dto.tutorId, texto, midia: dto.midia, trigger: 'ON_REPLY' });
+    const abertura = !janelaAberta ? await mandarAbertura() : undefined;
+    return { status: 'na_fila', janela: janelaAberta ? 'aberta' : 'fechada', abertura };
+  }
+
   /** Entrega a fila de documentos quando o tutor responde (DocsFilaReplyListener). */
   async entregarDocsDaFila(tutorId: string): Promise<boolean> {
     const item = await this.prisma.listaItem.findFirst({ where: { lista: 'docs_fila', valor: { contains: `"tutorId":"${tutorId}"` } } });
