@@ -20,9 +20,10 @@ type Props = {
   tutor?: { id: string; name: string } | null;
   onEnviarTexto?: (texto: string) => void; // envia na conversa aberta (fallback: /api/whatsapp/send)
   phone?: string | null;
+  modo?: "orcamento" | "venda"; // muda só o nome: "Orçamento / Comanda" vs "Comanda / Venda"
 };
 
-export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnviarTexto, phone }: Props) {
+export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnviarTexto, phone, modo = "orcamento" }: Props) {
   const [itens, setItens] = useState<Item[]>([{ descricao: "", qtd: "1", valor: "" }]);
   const [validade, setValidade] = useState("");
   const [obs, setObs] = useState("");
@@ -171,7 +172,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-md p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>💲 Orçamento / Comanda — {pet?.name || "pet"}</h3>
+          <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>{modo === "venda" ? "🛒 Comanda / Venda" : "💲 Orçamento / Comanda"} — {pet?.name || "pet"}</h3>
           <button onClick={onClose} className="text-[#94a3b8] text-lg leading-none">×</button>
         </div>
 
