@@ -91,6 +91,7 @@ export default function VendasGraficosPage() {
   const [fHIni, setFHIni] = useState(""), [fHFim, setFHFim] = useState("");
   const [fPerfil, setFPerfil] = useState(""), [fNps, setFNps] = useState("");
   const [fOrigem, setFOrigem] = useState(""), [fCidade, setFCidade] = useState(""), [fBairro, setFBairro] = useState("");
+  const [fCliente, setFCliente] = useState(""), [fPet, setFPet] = useState(""); // referência por nome do cliente/pet
   const [profs, setProfs] = useState<{ id: string; name: string }[]>([]);
   const [produtos, setProdutos] = useState<{ id: string; nome: string }[]>([]);
   const fAtivos = [fProf, fProd, fGrupo, fMarca, fTipo, fTurno, (fHIni || fHFim) ? "h" : "", fPerfil, fNps, fOrigem, fCidade, fBairro].filter(Boolean).length;
@@ -118,11 +119,13 @@ export default function VendasGraficosPage() {
       if (fOrigem) p.set("origem", fOrigem);
       if (fCidade) p.set("cidade", fCidade);
       if (fBairro) p.set("bairro", fBairro);
+      if (fCliente.trim()) p.set("cliente", fCliente.trim());
+      if (fPet.trim()) p.set("pet", fPet.trim());
       const r = await fetch(`/api/caixa/vendas-resumo?${p.toString()}`, { cache: "no-store" }).then((x) => x.json()).catch(() => null); setD(r);
     } catch {}
     setLoading(false);
-  }, [from, to, grupo, fProf, fProd, fGrupo, fMarca, fTipo, fTurno, fHIni, fHFim, fPerfil, fNps, fOrigem, fCidade, fBairro]);
-  useEffect(() => { load(); }, [load]);
+  }, [from, to, grupo, fProf, fProd, fGrupo, fMarca, fTipo, fTurno, fHIni, fHFim, fPerfil, fNps, fOrigem, fCidade, fBairro, fCliente, fPet]);
+  useEffect(() => { const t = setTimeout(() => load(), 350); return () => clearTimeout(t); }, [load]); // debounce (texto do cliente/pet)
 
   const money = (v: number) => (olho ? brl(v) : "R$ •••");
   const met = METRICAS.find((m) => m.k === metrica) || METRICAS[0];
@@ -200,6 +203,12 @@ export default function VendasGraficosPage() {
               </div>
               <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: ".05em", color: "#8A938F", fontWeight: 700, margin: "14px 2px 8px" }}>Do cliente</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 10 }}>
+                <label className="vg-fld">👤 Cliente
+                  <input className="vg-in" value={fCliente} onChange={(e) => setFCliente(e.target.value)} placeholder="Nome do cliente…" />
+                </label>
+                <label className="vg-fld">🐾 Pet
+                  <input className="vg-in" value={fPet} onChange={(e) => setFPet(e.target.value)} placeholder="Nome do pet…" />
+                </label>
                 <label className="vg-fld">Perfil
                   <select className="vg-in" value={fPerfil} onChange={(e) => setFPerfil(e.target.value)}><option value="">Todos</option><option value="NOVOS">🆕 Novos</option><option value="RECORRENTES">🔁 Recorrentes</option></select>
                 </label>

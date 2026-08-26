@@ -492,10 +492,14 @@ export class CaixaService {
     const fPerfil = query?.perfil ? String(query.perfil).toUpperCase() : ''; // NOVOS | RECORRENTES
     const fNps = query?.nps ? String(query.nps).toUpperCase() : '';           // PROMOTOR|NEUTRO|DETRATOR
     const fOrigem = query?.origem || '', fCidade = query?.cidade || '', fBairro = query?.bairro || '';
+    const fCliente = String(query?.cliente || '').trim(), fPet = String(query?.pet || '').trim();
     const hasClienteFilter = !!(fPerfil || fNps || fOrigem || fCidade || fBairro);
 
     const where: any = { value: { gt: 0 }, status: { not: 'CANCELLED' } };
     if (from || to) { where.date = {}; if (from) where.date.gte = new Date(String(from) + 'T00:00:00'); if (to) where.date.lte = new Date(String(to) + 'T23:59:59'); }
+    // 🔎 Filtro por nome do CLIENTE e/ou do PET (referência). "contains" case-insensitive.
+    if (fCliente) where.tutor = { name: { contains: fCliente, mode: 'insensitive' } };
+    if (fPet) where.pet = { name: { contains: fPet, mode: 'insensitive' } };
     const appts = await this.prisma.appointment.findMany({
       where,
       select: { value: true, date: true, tutorId: true, items: { select: { grupo: true, marca: true, valorTotal: true, desconto: true, quantidade: true, descricao: true, productId: true, servicoId: true, executorUserId: true } } },
