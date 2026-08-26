@@ -16,6 +16,8 @@ import { PresenteReplyListener } from './presente-reply.listener';
 import { AcessoBloqueioListener } from './acesso-bloqueio.listener';
 import { BillingAlertListener } from './billing-alert.listener';
 import { DocsFilaReplyListener } from './docs-fila-reply.listener';
+import { FollowupReplyListener } from './followup-reply.listener';
+import { FollowupScheduler } from './followup.scheduler';
 import { SurveyAvaliacaoController } from './survey-avaliacao.controller';
 import { GhostSombraController } from './ghost-sombra.controller';
 import { GhostSombraListener } from './ghost-sombra.listener';
@@ -64,6 +66,8 @@ import {
     AcessoBloqueioListener,
     BillingAlertListener,
     DocsFilaReplyListener,
+    FollowupReplyListener,
+    FollowupScheduler,
     GhostSombraListener,
     SurveyAvaliacaoService,
     SurveyAvaliacaoListener,

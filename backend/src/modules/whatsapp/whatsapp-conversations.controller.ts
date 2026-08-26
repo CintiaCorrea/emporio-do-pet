@@ -411,6 +411,24 @@ export class WhatsAppConversationsController {
     return this.whatsAppService.enviarDocumentosProntuario(body.tutorId, body.texto || '', body.anexos || [], body.petNome, body.template, body.templateParams);
   }
 
+  // Follow-up programado (Opção 2): "mensagem seguinte" que dispara na resposta do
+  // cliente (ON_REPLY) ou num dia/hora marcado (SCHEDULED). Texto + documento opcional.
+  @Post('followup')
+  async enfileirarFollowup(
+    @CurrentUser() user: JwtUser,
+    @Body() body: { phone?: string; to?: string; tutorId?: string; texto?: string; midia?: { url: string; nome?: string; tipo?: 'document' | 'image' }; trigger?: 'ON_REPLY' | 'SCHEDULED'; scheduledAt?: string },
+  ) {
+    const phone = body.phone || body.to || '';
+    if (!phone) throw new BadRequestException('Telefone é obrigatório.');
+    try {
+      return await this.whatsAppService.enfileirarFollowup(user?.id || null, {
+        phone, tutorId: body.tutorId, texto: body.texto, midia: body.midia, trigger: body.trigger, scheduledAt: body.scheduledAt,
+      });
+    } catch (e: any) {
+      throw new BadRequestException(e?.message || 'Não consegui programar a mensagem.');
+    }
+  }
+
   @Post('conversations/:id/media')
   @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 60 * 1024 * 1024 } }))
   async sendMedia(

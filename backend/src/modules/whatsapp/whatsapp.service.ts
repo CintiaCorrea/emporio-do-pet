@@ -1872,21 +1872,103 @@ export class WhatsAppService {
   }
 
   /** Entrega texto + anexos numa conversa ABERTA (usado no envio na hora e ao esvaziar a fila). */
-  private async entregarDocumentos(conv: any, texto: string, anexos: Array<{ url: string; tipo?: string; nome?: string }>): Promise<void> {
+  private async entregarDocumentos(conv: any, texto: string, anexos: Array<{ url: string; tipo?: string; nome?: string }>, senderName = 'Prontuário'): Promise<void> {
     if (texto?.trim()) {
-      await this.sendAndSaveMessage(conv.userId, conv.id, texto.trim(), 'TEXT', { senderType: 'SYSTEM', senderName: 'Prontuário' });
+      await this.sendAndSaveMessage(conv.userId, conv.id, texto.trim(), 'TEXT', { senderType: 'SYSTEM', senderName });
     }
     for (const a of anexos || []) {
       if (!a?.url) continue;
       const tipo: 'image' | 'document' = a.tipo === 'image' ? 'image' : 'document';
       const r = await this.enviarMidiaDeUrl(conv.contactPhone, a.url, tipo, undefined, a.nome);
       if (r.success) {
-        await this.saveOutboundMessage(conv.id, a.nome || (tipo === 'image' ? 'imagem' : 'documento'), tipo === 'image' ? 'IMAGE' : 'DOCUMENT', r.messageId, { mediaUrl: a.url, fromSystem: true }, { senderType: 'SYSTEM', senderName: 'Prontuário' });
+        await this.saveOutboundMessage(conv.id, a.nome || (tipo === 'image' ? 'imagem' : 'documento'), tipo === 'image' ? 'IMAGE' : 'DOCUMENT', r.messageId, { mediaUrl: a.url, fromSystem: true }, { senderType: 'SYSTEM', senderName });
       } else {
-        this.logger.warn(`Anexo do prontuário falhou (${a.nome}): ${r.error}`);
+        this.logger.warn(`Anexo (${a.nome}) falhou: ${r.error}`);
       }
     }
     await this.prisma.whatsAppConversation.update({ where: { id: conv.id }, data: { lastMessageAt: new Date() } }).catch(() => undefined);
+  }
+
+  // ==========================================================================
+  // FOLLOW-UP PROGRAMADO (Opção 2): depois do template abridor, uma "mensagem
+  // seguinte" (texto + documento opcional) que dispara ASSIM QUE O CLIENTE
+  // RESPONDE (ON_REPLY) ou num DIA/HORA marcado (SCHEDULED). Se no horário
+  // agendado a janela de 24h estiver FECHADA, SEGURA e entrega na 1ª resposta.
+  // Guardado em listaItem lista='wa_followup' (sem mudança de banco), no mesmo
+  // padrão do docs_fila/boletim_fila.
+  // ==========================================================================
+  async enfileirarFollowup(
+    userId: string | null,
+    dto: { phone: string; tutorId?: string; texto?: string; midia?: { url: string; nome?: string; tipo?: 'document' | 'image' }; trigger?: 'ON_REPLY' | 'SCHEDULED'; scheduledAt?: string },
+  ): Promise<{ id: string }> {
+    const phone = (dto.phone || '').replace(/\D/g, '');
+    const texto = (dto.texto || '').trim();
+    const temMidia = !!dto.midia?.url;
+    if (!phone) throw new Error('Telefone é obrigatório.');
+    if (!texto && !temMidia) throw new Error('Escreva a mensagem seguinte ou anexe um documento.');
+    const trigger = dto.trigger === 'SCHEDULED' ? 'SCHEDULED' : 'ON_REPLY';
+    const scheduledAt = trigger === 'SCHEDULED' && dto.scheduledAt ? new Date(dto.scheduledAt).toISOString() : null;
+    if (trigger === 'SCHEDULED' && !scheduledAt) throw new Error('Escolha o dia e a hora do agendamento.');
+    const midia = temMidia
+      ? { url: dto.midia!.url, nome: dto.midia!.nome || '', tipo: (dto.midia!.tipo === 'image' ? 'image' : 'document') as 'image' | 'document' }
+      : null;
+    const item = await this.prisma.listaItem.create({
+      data: {
+        lista: 'wa_followup',
+        valor: JSON.stringify({ phone, tutorId: dto.tutorId || '', texto, midia, trigger, scheduledAt, status: 'PENDING', criadoPor: userId || '', criadoAt: new Date().toISOString() }),
+      },
+    });
+    this.logger.log(`Follow-up enfileirado (${trigger}${scheduledAt ? ' @' + scheduledAt : ''}) p/ ${phone}`);
+    return { id: item.id };
+  }
+
+  /** Entrega UM follow-up se a janela de 24h estiver ABERTA (senão segura). Apaga da fila ao entregar. */
+  private async _entregarFollowupItem(item: { id: string; valor: string }): Promise<boolean> {
+    let d: any = {};
+    try { d = JSON.parse(item.valor); } catch { await this.prisma.listaItem.delete({ where: { id: item.id } }).catch(() => undefined); return false; }
+    const formatted = this.formatPhoneNumber(d.phone || '');
+    const conv = await this.acharOuCriarConversa(formatted);
+    if (!conv) return false;
+    const lastIn = await this.prisma.whatsAppMessage.findFirst({ where: { conversationId: conv.id, direction: 'INBOUND' }, orderBy: { createdAt: 'desc' }, select: { createdAt: true } });
+    const aberta = !!lastIn && Date.now() - new Date(lastIn.createdAt).getTime() < 24 * 3600 * 1000;
+    if (!aberta) return false; // janela fechada → segura (entrega na próxima resposta do cliente)
+    const anexos = d.midia?.url ? [{ url: d.midia.url, tipo: d.midia.tipo === 'image' ? 'image' : 'document', nome: d.midia.nome }] : [];
+    await this.entregarDocumentos(conv, d.texto || '', anexos as any, 'Mensagem programada');
+    await this.prisma.listaItem.delete({ where: { id: item.id } }).catch(() => undefined);
+    return true;
+  }
+
+  /** Cliente respondeu: entrega follow-ups ON_REPLY e SCHEDULED já vencidos desse tutor/telefone. */
+  async entregarFollowupsDoTutor(tutorId: string | null, phone: string | null): Promise<number> {
+    const tail = (phone || '').replace(/\D/g, '').slice(-8);
+    if (!tutorId && !tail) return 0;
+    const itens = await this.prisma.listaItem.findMany({ where: { lista: 'wa_followup' } });
+    const agora = Date.now();
+    let n = 0;
+    for (const it of itens) {
+      let d: any = {}; try { d = JSON.parse(it.valor); } catch { continue; }
+      const casaTutor = !!tutorId && !!d.tutorId && d.tutorId === tutorId;
+      const casaTel = !!tail && (d.phone || '').replace(/\D/g, '').slice(-8) === tail;
+      if (!casaTutor && !casaTel) continue;
+      // ON_REPLY dispara sempre; SCHEDULED só se a hora marcada já passou (senão espera o horário).
+      if (d.trigger === 'SCHEDULED' && d.scheduledAt && new Date(d.scheduledAt).getTime() > agora) continue;
+      if (await this._entregarFollowupItem(it)) n++;
+    }
+    return n;
+  }
+
+  /** Cron: dispara follow-ups AGENDADOS já vencidos cuja janela esteja aberta (fechada → segura). */
+  async processarFollowupsAgendados(): Promise<number> {
+    const itens = await this.prisma.listaItem.findMany({ where: { lista: 'wa_followup' } });
+    const agora = Date.now();
+    let n = 0;
+    for (const it of itens) {
+      let d: any = {}; try { d = JSON.parse(it.valor); } catch { continue; }
+      if (d.trigger !== 'SCHEDULED' || !d.scheduledAt) continue;
+      if (new Date(d.scheduledAt).getTime() > agora) continue;
+      if (await this._entregarFollowupItem(it)) n++;
+    }
+    return n;
   }
 
   /** Entrega a fila de documentos quando o tutor responde (DocsFilaReplyListener). */

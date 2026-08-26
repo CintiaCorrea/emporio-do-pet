@@ -479,6 +479,12 @@ export default function InboxUnificadoPage() {
   const [novaMsgTemplate, setNovaMsgTemplate] = useState("");
   const [novaMsgVars, setNovaMsgVars] = useState<string[]>([]);
   const [templateSending, setTemplateSending] = useState(false);
+  // Follow-up programado (Opção 2): "mensagem seguinte" ao template abridor.
+  const [fuOn, setFuOn] = useState(false); // ligar/desligar a mensagem seguinte
+  const [fuTexto, setFuTexto] = useState("");
+  const [fuAnexo, setFuAnexo] = useState<File | null>(null);
+  const [fuTrigger, setFuTrigger] = useState<"ON_REPLY" | "SCHEDULED">("ON_REPLY");
+  const [fuAgendaAt, setFuAgendaAt] = useState(""); // datetime-local
 
   // Internas — usuários da clínica
   const [internalUsers, setInternalUsers] = useState<Array<{id: string; name: string; email: string; role: string}>>([]);
@@ -1304,6 +1310,11 @@ export default function InboxUnificadoPage() {
     if (!phone) { alert("Escolha o contato ou digite o telefone."); return; }
     if (!novaMsgTemplate) { alert("Escolha um modelo."); return; }
     if (novaMsgVars.some((v) => !v.trim())) { alert("Preencha todas as variáveis do modelo."); return; }
+    // Valida o follow-up ANTES de enviar o template (pra não mandar a abridora à toa).
+    if (fuOn) {
+      if (!fuTexto.trim() && !fuAnexo) { alert("Escreva a mensagem seguinte ou anexe um documento (ou desmarque a opção)."); return; }
+      if (fuTrigger === "SCHEDULED" && !fuAgendaAt) { alert("Escolha o dia e a hora da mensagem seguinte."); return; }
+    }
     const t = templates.find((x) => x.name === novaMsgTemplate);
     let preview = templateBody(novaMsgTemplate);
     novaMsgVars.forEach((v, i) => { preview = preview.replace(`{{${i + 1}}}`, v); });
@@ -1315,8 +1326,42 @@ export default function InboxUnificadoPage() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d?.success === false) { alert(d?.error || "Não consegui enviar o modelo."); return; }
-      toast.success("Conversa iniciada 🚀");
+
+      // Follow-up (Opção 2): programa a "mensagem seguinte" (texto + documento opcional).
+      if (fuOn) {
+        try {
+          let midia: any = undefined;
+          if (fuAnexo) {
+            const fd = new FormData();
+            fd.append("file", fuAnexo);
+            const ru = await fetch("/api/media/upload?pasta=documentos&origem=followup", { method: "POST", body: fd });
+            const up = await ru.json().catch(() => ({}));
+            if (!ru.ok || !up?.url) throw new Error(up?.message || up?.error || "Falha ao subir o documento");
+            const tipo = (fuAnexo.type || "").startsWith("image/") ? "image" : "document";
+            midia = { url: up.url, nome: up.filename || up.name || fuAnexo.name, tipo };
+          }
+          const rf = await fetch("/api/whatsapp/followup", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              to: phone,
+              tutorId: tutorSel?.id || undefined,
+              texto: fuTexto.trim(),
+              midia,
+              trigger: fuTrigger,
+              scheduledAt: fuTrigger === "SCHEDULED" ? new Date(fuAgendaAt).toISOString() : undefined,
+            }),
+          });
+          if (!rf.ok) { const ej = await rf.json().catch(() => ({})); throw new Error(ej?.message || ej?.error || "Falha ao programar a mensagem seguinte"); }
+          toast.success(fuTrigger === "SCHEDULED" ? "Conversa iniciada 🚀 · seguinte agendada 🗓️" : "Conversa iniciada 🚀 · seguinte pronta ✉️");
+        } catch (e: any) {
+          // A abridora JÁ foi enviada — avisa que só o follow-up falhou (não perde o envio).
+          toast.error("Modelo enviado, mas a mensagem seguinte não foi programada: " + String(e?.message || e).slice(0, 100));
+        }
+      } else {
+        toast.success("Conversa iniciada 🚀");
+      }
       setNovaMsgOpen(false); setNovaMsgPhone(""); setNovaMsgNome(""); setNovaMsgBusca(""); setNovaMsgTemplate(""); setNovaMsgVars([]);
+      setFuOn(false); setFuTexto(""); setFuAnexo(null); setFuTrigger("ON_REPLY"); setFuAgendaAt("");
       setRefreshTick((t) => t + 1);
     } catch { alert("Erro ao enviar o modelo."); }
     finally { setTemplateSending(false); }
@@ -2535,8 +2580,50 @@ export default function InboxUnificadoPage() {
                     placeholder={["Cliente {{1}}", "Pet {{2}}", "Quem atende {{3}}"][i] || `Variável {{${i + 1}}}`}
                     className="w-full px-2.5 py-1.5 border border-[#e8e1d2] rounded-lg text-[12px] mb-1.5 focus:outline-none focus:border-[#009AAC]" />
                 ))}
-                <button onClick={enviarTemplate} disabled={templateSending} className="w-full mt-1 bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium disabled:opacity-50">
-                  {templateSending ? "Enviando…" : "🚀 Enviar modelo (iniciar conversa)"}
+                {/* Follow-up (Opção 2): mensagem seguinte que sai quando o cliente responde ou num dia/hora */}
+                <div className="mt-2 pt-2 border-t" style={{ borderColor: "#cfeef2" }}>
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input type="checkbox" checked={fuOn} onChange={(e) => setFuOn(e.target.checked)} className="accent-[#009AAC]" />
+                    <span className="text-[11.5px] text-[#0E2244] font-medium">✉️ Deixar uma mensagem seguinte pronta</span>
+                  </label>
+                  {fuOn && (
+                    <div className="mt-2">
+                      <textarea value={fuTexto} onChange={(e) => setFuTexto(e.target.value)} rows={3}
+                        placeholder="Ex.: Oi! Segue em anexo o orçamento que combinamos 💛"
+                        className="w-full px-2.5 py-1.5 border border-[#cfeef2] rounded-lg text-[12px] mb-2 focus:outline-none focus:border-[#009AAC] bg-white" />
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="cursor-pointer text-[11px] px-2.5 py-1.5 rounded-lg border border-[#cfeef2] bg-white hover:bg-[#F0FBFC] text-[#00798A]">
+                          📎 {fuAnexo ? "Trocar documento" : "Anexar documento"}
+                          <input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; setFuAnexo(f || null); e.currentTarget.value = ""; }} />
+                        </label>
+                        {fuAnexo && (
+                          <span className="text-[10.5px] text-[#5F5E5A] truncate max-w-[150px]">{fuAnexo.name}
+                            <button onClick={() => setFuAnexo(null)} className="ml-1 text-[#B23B39]">✕</button>
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1 mb-1">
+                        <label className="flex items-center gap-2 cursor-pointer text-[11px] text-[#0E2244]">
+                          <input type="radio" name="futrig" checked={fuTrigger === "ON_REPLY"} onChange={() => setFuTrigger("ON_REPLY")} className="accent-[#009AAC]" />
+                          Assim que o cliente responder
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-[11px] text-[#0E2244]">
+                          <input type="radio" name="futrig" checked={fuTrigger === "SCHEDULED"} onChange={() => setFuTrigger("SCHEDULED")} className="accent-[#009AAC]" />
+                          Num dia e hora
+                        </label>
+                        {fuTrigger === "SCHEDULED" && (
+                          <input type="datetime-local" value={fuAgendaAt} onChange={(e) => setFuAgendaAt(e.target.value)}
+                            className="mt-1 px-2.5 py-1.5 border border-[#cfeef2] rounded-lg text-[12px] focus:outline-none focus:border-[#009AAC] bg-white" />
+                        )}
+                        {fuTrigger === "SCHEDULED" && (
+                          <span className="text-[10px] text-[#888780] mt-0.5">Se nessa hora fizer +24h que o cliente não fala com a gente, seguro e envio assim que ele responder.</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <button onClick={enviarTemplate} disabled={templateSending} className="w-full mt-2 bg-[#009AAC] text-white px-4 py-2 rounded-lg text-xs font-medium disabled:opacity-50">
+                  {templateSending ? "Enviando…" : (fuOn ? "🚀 Enviar modelo + programar seguinte" : "🚀 Enviar modelo (iniciar conversa)")}
                 </button>
               </div>
             )}
