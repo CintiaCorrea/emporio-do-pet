@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsArray } from 'class-validator';
 
 export class AdicionarCreditoDto {
   @IsOptional() @IsString() tutorId?: string;
@@ -7,5 +7,7 @@ export class AdicionarCreditoDto {
   @IsNumber() valor!: number;
   @IsOptional() @IsString() descricao?: string;
   @IsOptional() @IsString() caixaSessaoId?: string;
-  @IsOptional() @IsString() forma?: string; // Dinheiro | Pix | Cartão crédito | Cartão débito — como a caução foi paga
+  @IsOptional() @IsString() forma?: string; // legado — forma simples
+  @IsOptional() @IsArray() formas?: any[]; // forma completa (igual venda): forma+valor+modalidade/bandeira/NSU
+  @IsOptional() @IsString() formasStr?: string; // formas em texto (blindagem contra o bug de serialização [[]])
 }

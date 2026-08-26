@@ -126,6 +126,8 @@ export default function CaixaPage() {
   const [contasFin, setContasFin] = useState<any[]>([]); // contas reais (id+nome) p/ transferência
   const [credOpen, setCredOpen] = useState(false);
   const [credForm, setCredForm] = useState({ appointmentId: '', tipo: 'RECARGA', valor: '', descricao: '', forma: 'Dinheiro' });
+  const [credFormas, setCredFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]); // forma da recarga (igual venda)
+  const credSomaFormas = useMemo(() => credFormas.reduce((s, f) => s + Number(f.valor || 0), 0), [credFormas]);
   const [prevCred, setPrevCred] = useState<{ totalCentavos: number; porData: { data: string; liquidoCentavos: number }[] } | null>(null); // item 10 — previsão de crédito das maquininhas (D+1)
   const [fecharOpen, setFecharOpen] = useState(false);
   const [fecharForm, setFecharForm] = useState({ valorContado: '', observacao: '', data: '', hora: '', semMov: false });
@@ -350,12 +352,17 @@ export default function CaixaPage() {
       toast.success(`${tipoLabel[movTipo]} registrada!`); setMovOpen(false); await fetchDetail(detail.id);
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar movimento'); }
   };
-  const abrirCredito = () => { setCredForm({ appointmentId: appointments[0]?.id || '', tipo: 'RECARGA', valor: '', descricao: '', forma: 'Dinheiro' }); setCredOpen(true); };
+  const abrirCredito = () => { setCredForm({ appointmentId: appointments[0]?.id || '', tipo: 'RECARGA', valor: '', descricao: '', forma: 'Dinheiro' }); setCredFormas([{ forma: 'Dinheiro', valor: 0 }]); setCredOpen(true); };
   const adicionarCredito = async () => {
-    if (!detail) return; const valor = Number(String(credForm.valor).replace(',', '.')) || 0;
-    if (!credForm.appointmentId) { toast.error('Selecione o cliente'); return; } if (valor <= 0) { toast.error('Informe o valor'); return; }
+    if (!detail) return;
+    const recarga = credForm.tipo === 'RECARGA';
+    // RECARGA: valor = soma das formas (igual venda). ESTORNO: valor do campo (sem forma/caixa).
+    const valor = recarga ? credSomaFormas : (Number(String(credForm.valor).replace(',', '.')) || 0);
+    if (!credForm.appointmentId) { toast.error('Selecione o cliente'); return; } if (valor <= 0) { toast.error(recarga ? 'Informe a forma e o valor' : 'Informe o valor'); return; }
+    // Remonta as formas como literais novos (mesma blindagem do recebimento contra o bug [[]]).
+    const formasEnvio = recarga ? (Array.isArray(credFormas) ? credFormas : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f) && Number(f.valor) > 0).map((f: any) => ({ forma: String(f.forma || ''), valor: Number(f.valor) || 0, modalidade: f.modalidade ?? undefined, bandeira: f.bandeira ?? undefined, parcelas: f.parcelas ?? undefined, nsu: f.nsu ?? undefined })) : [];
     try {
-      const r = await fetch('/api/credito', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: credForm.appointmentId, tipo: credForm.tipo, valor, descricao: credForm.descricao || null, caixaSessaoId: detail.id, forma: credForm.forma || 'Dinheiro' }) });
+      const r = await fetch('/api/credito', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: credForm.appointmentId, tipo: credForm.tipo, valor, descricao: credForm.descricao || null, caixaSessaoId: detail.id, formasStr: JSON.stringify(formasEnvio), formas: formasEnvio }) });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao adicionar crédito'); }
       toast.success('Crédito adicionado!'); setCredOpen(false); await fetchDetail(detail.id);
     } catch (e: any) { toast.error(e.message || 'Erro ao adicionar crédito'); }
@@ -779,10 +786,15 @@ export default function CaixaPage() {
           </Field>
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}><Field label="Tipo"><select value={credForm.tipo} onChange={(e) => setCredForm({ ...credForm, tipo: e.target.value })} style={inp}><option value="RECARGA">Recarga / pré-pago</option><option value="ESTORNO">Devolução / estorno</option></select></Field></div>
-            <div style={{ flex: 1 }}><Field label="Valor"><input value={credForm.valor} onChange={(e) => setCredForm({ ...credForm, valor: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field></div>
+            {credForm.tipo !== 'RECARGA' && <div style={{ flex: 1 }}><Field label="Valor"><input value={credForm.valor} onChange={(e) => setCredForm({ ...credForm, valor: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field></div>}
           </div>
           {credForm.tipo === 'RECARGA' && (
-            <Field label="Forma (entra no caixa)"><select value={credForm.forma} onChange={(e) => setCredForm({ ...credForm, forma: e.target.value })} style={inp}>{formasList.map((f) => <option key={f} value={f}>{f}</option>)}</select></Field>
+            <>
+              <Field label="Forma de pagamento (igual venda)"><PagamentoFormas formas={credFormas} onChange={setCredFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} /></Field>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#e8f7f9', borderRadius: 8, padding: '9px 12px', fontSize: 13 }}>
+                <span style={{ color: '#014D5E' }}>Vira crédito do cliente</span><b style={{ color: TEAL_DARK, fontSize: 15 }}>{money(credSomaFormas)}</b>
+              </div>
+            </>
           )}
           <Field label="Descrição"><input value={credForm.descricao} onChange={(e) => setCredForm({ ...credForm, descricao: e.target.value })} style={inp} /></Field>
         </Modal>

@@ -16,14 +16,36 @@ export class CreditoService {
     const q = await this.prisma.contaFinanceira.findFirst({ where: { ativo: true }, orderBy: { createdAt: 'asc' }, select: { id: true } });
     return q?.id ?? null;
   }
+  private norm(s?: string): string { return String(s || '').trim().toLowerCase(); }
+  // Config da forma de recebimento (mesma fonte do PDV/recebimentos): nome → {tipo, contaId, adquirente, taxas}.
+  private async formaCfg(nome?: string): Promise<any | null> {
+    if (!nome) return null;
+    const itens = await this.prisma.listaItem.findMany({ where: { lista: 'formasrecebimento' } });
+    for (const it of itens) { try { const c = JSON.parse(it.valor); if (this.norm(c.nome) === this.norm(nome)) return c; } catch { /* ignore */ } }
+    return null;
+  }
+  private taxaFormaDe(modalidade?: string): string | null {
+    const m = this.norm(modalidade);
+    if (m.includes('parcel')) return 'credito parcelado';
+    if (m.includes('cr')) return 'credito a vista';
+    if (m.includes('d')) return 'debito';
+    return null;
+  }
+  // Taxa EXATA (bps) da maquininha por adquirente|bandeira|forma|parcelas (TaxaContratada).
+  private async taxaBps(adquirente?: string, bandeira?: string, modalidade?: string, parcelas?: number): Promise<number | null> {
+    const tForma = this.taxaFormaDe(modalidade); if (!tForma || !bandeira) return null;
+    const parc = tForma === 'credito parcelado' ? (Number(parcelas) || 1) : 1;
+    const row = await this.prisma.taxaContratada.findFirst({ where: { adquirente: { equals: adquirente || '', mode: 'insensitive' }, bandeira: { equals: bandeira, mode: 'insensitive' }, forma: { equals: tForma, mode: 'insensitive' }, parcelas: parc }, select: { aliquotaBps: true } });
+    return row ? Number(row.aliquotaBps) : null;
+  }
 
   /**
    * Recarga de crédito = ADIANTAMENTO (não é receita). Entra dinheiro agora, mas só vira receita quando
    * o cliente USA o crédito numa venda (lá é feita a baixa do adiantamento — recebimentos.processar).
    * RECARGA → RECEITA "Adiantamento de Clientes" (fora da Receita Bruta). ESTORNO → DESPESA "(baixa)".
    */
-  private async lancarAdiantamento(mov: any, tipo: string): Promise<void> {
-    const contaId = await this.contaDinheiroId();
+  private async lancarAdiantamento(mov: any, tipo: string, opts?: { contaId?: string | null; nsu?: string | null }): Promise<void> {
+    const contaId = opts?.contaId || await this.contaDinheiroId();
     if (!contaId) return;
     const ehRecarga = tipo === 'RECARGA';
     const cat = await this.prisma.categoria.findFirst({
@@ -40,6 +62,7 @@ export class CreditoService {
       data: data.toISOString(), dataPagamento: data.toISOString(),
       descricao: `${ehRecarga ? 'Recarga de crédito' : 'Estorno de crédito'} — adiantamento`,
       contaId, categoriaId: cat.id,
+      ...(opts?.nsu ? { numeroDocumento: String(opts.nsu) } : {}),
       origem: 'CRM', externalId: `credito-mov:${mov.id}`,
       status: 'CONFIRMADO', aplicarRegras: false,
     } as any);
@@ -140,22 +163,50 @@ export class CreditoService {
         createdById: userId,
       },
     });
-    // 💳 Reflete no financeiro como ADIANTAMENTO (fire-and-forget, não trava a recarga).
-    if (tipo === 'RECARGA' || tipo === 'ESTORNO') this.lancarAdiantamento(mov, tipo).catch(() => undefined);
-    // 💰 Caução/recarga ENTRA NO CAIXA: cria um SUPRIMENTO na sessão (aparece nos movimentos e conta na
-    // gaveta quando é dinheiro). Criação direta = sem lançamento extra (o adiantamento acima já reflete o DRE).
+    // Forma como numa VENDA: aceita `formasStr` (texto, blindado), `formas` (array) ou `forma` (string).
+    let formasIn: any = dto.formas;
+    if (dto.formasStr) { try { formasIn = JSON.parse(dto.formasStr); } catch { /* usa dto.formas */ } }
+    const formasArr = (Array.isArray(formasIn) && formasIn.length) ? formasIn : [{ forma: dto.forma || 'Dinheiro', valor }];
+    const f0: any = formasArr[0] || { forma: 'Dinheiro' };
+    const cfg = await this.formaCfg(f0.forma);
+    const contaForma = cfg?.contaId || null; // conta ligada à forma (cartão/pix vão pra conta certa, não "Dinheiro")
+    const ehDinheiro = /dinheiro|esp[eé]cie/i.test(this.norm(f0.forma)) || !cfg || /dinheiro/i.test(this.norm(cfg?.tipo || ''));
+
+    // 💳 ADIANTAMENTO no financeiro — agora na CONTA DA FORMA (não sempre dinheiro) + NSU p/ conciliação.
+    if (tipo === 'RECARGA' || tipo === 'ESTORNO') this.lancarAdiantamento(mov, tipo, { contaId: contaForma, nsu: f0.nsu }).catch(() => undefined);
+
     if (tipo === 'RECARGA' && dto.caixaSessaoId) {
       try {
         const sess = await this.prisma.caixaSessao.findUnique({ where: { id: dto.caixaSessaoId }, select: { abertura: true } });
-        if (sess) await this.prisma.caixaMovimento.create({
-          data: {
-            caixaSessaoId: dto.caixaSessaoId, tipo: 'SUPRIMENTO', valor,
-            forma: dto.forma || 'Dinheiro',
-            descricao: `Caução/crédito${dto.descricao ? ' — ' + dto.descricao : ''}`,
-            data: sess.abertura, createdById: userId,
-          },
-        });
-      } catch (e: any) { console.error('caução → caixaMovimento:', e?.message); }
+        if (sess) {
+          // SUPRIMENTO com a FORMA escolhida. Só conta na "gaveta de dinheiro" se a forma for dinheiro
+          // (o front já filtra por ehDinheiro); cartão/pix aparecem no Resumo na coluna da forma.
+          await this.prisma.caixaMovimento.create({
+            data: {
+              caixaSessaoId: dto.caixaSessaoId, tipo: 'SUPRIMENTO', valor,
+              forma: f0.forma || 'Dinheiro',
+              descricao: `Crédito do pet${dto.descricao ? ' — ' + dto.descricao : ''}`,
+              data: sess.abertura, createdById: userId,
+            },
+          });
+          // 💰 TAXA da maquininha (se cartão) → DESPESA, igual à venda. Desconta do que a clínica recebe.
+          if (!ehDinheiro && cfg && /cart|maquin|cr[eé]dit|d[eé]bit/i.test(this.norm(cfg.tipo || ''))) {
+            try {
+              const bps = await this.taxaBps(cfg.adquirente || f0.forma, f0.bandeira, f0.modalidade, f0.parcelas);
+              const feeCent = bps ? Math.round(valor * (bps / 10000) * 100) : 0;
+              if (feeCent > 0) {
+                const catTax = await this.prisma.categoria.findFirst({ where: { tipo: 'DESPESA' as any, nome: { contains: 'Dedu' } }, select: { id: true } });
+                if (catTax) await this.lancamentos.create({
+                  tipo: 'DESPESA' as any, valorCentavos: feeCent,
+                  data: sess.abertura.toISOString(), dataPagamento: sess.abertura.toISOString(),
+                  descricao: `Taxa ${f0.forma}`, contaId: contaForma || undefined, categoriaId: catTax.id,
+                  origem: 'CRM', externalId: `credito-taxa:${mov.id}`, status: 'CONFIRMADO', aplicarRegras: false,
+                } as any);
+              }
+            } catch (e: any) { console.error('crédito taxa:', e?.message); }
+          }
+        }
+      } catch (e: any) { console.error('crédito → caixaMovimento:', e?.message); }
     }
     return { mov, saldo: await this.saldo(tutorId) };
   }
