@@ -140,32 +140,9 @@ export class AppointmentConfirmationListener {
         `Agendamento ${appt.id} -> ${confirmStatus || apptStatus}${motivo ? ' (' + motivo + ')' : ''} (resposta WhatsApp de ${phone})`,
       );
 
-      // Agradecimento automático a quem CONFIRMOU (a janela de 24h está aberta — texto livre).
-      // Sai UMA vez só: o próximo confirm não acha mais agendamento com status ENVIADA.
-      if (confirmStatus === 'CONFIRMADO') {
-        try {
-          const conv = payload?.conversation;
-          if (conv?.id) {
-            await this.whatsapp.sendAndSaveMessage(
-              conv.userId || payload?.userId,
-              conv.id,
-              this.msgAgradecimento(appt),
-              'TEXT',
-              { senderType: 'SYSTEM', senderName: 'Confirmação' },
-            );
-            // 📴 Depois do agradecimento, ENCERRA a conversa (Cintia 31/07: às 19h já estamos fechados).
-            // PROTEÇÃO: só fecha se o cliente respondeu curto (botão/"sim"); mensagem longa = pergunta real → fica aberta.
-            const textoCliente = String(payload?.content || '').trim();
-            if (textoCliente.length <= 30) {
-              await this.prisma.whatsAppConversation
-                .update({ where: { id: conv.id }, data: { status: 'CLOSED', unreadCount: 0 } })
-                .catch(() => undefined);
-            }
-          }
-        } catch (e: any) {
-          this.logger.warn(`Falha ao mandar o agradecimento de confirmação: ${e?.message || e}`);
-        }
-      }
+      // 🔕 NÃO mandamos mais mensagem automática quando o cliente responde (decisão Cintia 26/08:
+      // a mensagem SÓ deve sair quando a CLÍNICA altera a agenda — marcação/remarcação/cancelamento).
+      // Aqui só atualizamos o STATUS do agendamento (Confirmado/Remarcar/Cancelado) — sem enviar nada.
     } catch (e: any) {
       this.logger.warn(`Falha ao processar confirmação por WhatsApp: ${e?.message || e}`);
     }

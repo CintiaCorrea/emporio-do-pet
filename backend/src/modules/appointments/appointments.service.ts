@@ -161,8 +161,7 @@ export class AppointmentsService {
     const petNome = appt.pet?.name || 'seu pet';
     const { servico, prof } = this.servicoEProf(appt);
     const svc = servico ? ` de ${servico}${prof ? ` com ${prof}` : ''}` : '';
-    const mot = motivo?.trim() ? ` Motivo: ${motivo.trim()}.` : '';
-    const msg = `❌ Agendamento cancelado. O horário${svc} do(a) ${petNome} em ${dia} às ${hora} foi cancelado.${mot}\n\nSe quiser remarcar, é só chamar por aqui! 🐾`;
+    const msg = `❌ Agendamento cancelado. O horário${svc} do(a) ${petNome} em ${dia} às ${hora} foi cancelado.\n\nSe quiser remarcar, é só chamar por aqui! 🐾`;
     const res = await this.whatsapp.enviarTextoRegistrando(phone, msg);
     return res?.success ? { success: true, to: phone } : { success: false, error: res?.error };
   }

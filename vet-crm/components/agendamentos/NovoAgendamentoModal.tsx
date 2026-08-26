@@ -9,7 +9,7 @@ import toast from "react-hot-toast";
 type Defaults = { date?: string; time?: string; userId?: string; duration?: number; tutor?: any; petId?: string; agendaAvulsa?: string; avulsaNome?: string; novoCliente?: { nome?: string; tel?: string } } | null;
 // agendarAposCriar: ao criar um cliente novo aqui, EM VEZ de pular pra ficha, continua pro
 // agendamento (usado no inbox: agendar contato sem cadastro só com nome + telefone + pet).
-type Props = { open: boolean; onClose: () => void; onCreated?: (info?: { date?: string; time?: string; petNome?: string }) => void; defaults?: Defaults; editAppt?: any; inline?: boolean; agendarAposCriar?: boolean };
+type Props = { open: boolean; onClose: () => void; onCreated?: (info?: { date?: string; time?: string; petNome?: string; tipo?: string; profNome?: string }) => void; defaults?: Defaults; editAppt?: any; inline?: boolean; agendarAposCriar?: boolean };
 
 const STATUS = ["Agendado", "Confirmado", "Em espera", "Em atendimento", "Atendido", "Animal pronto", "Atrasado", "Cancelado"];
 const DURACOES = [10, 15, 20, 30, 40, 45, 60, 90, 120];
@@ -298,8 +298,11 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
         // no card da agenda — evita mandar confirmação para agendamento de dias à frente.
       }
       const petNome = (pets.find((p: any) => p.id === petId)?.name) || novoPetNome.trim() || "";
-      // Passa data/hora/pet SEMPRE (novo E remarcação) — quem chama decide se avisa o cliente.
-      fechar(); if (onCreated) onCreated({ date, time, petNome });
+      // Serviço (tipo) + profissional — pra mensagem de confirmação do agendamento incluir os dois.
+      const profSel = profs.find((p: any) => p.userId === userId);
+      const profNome = (profSel?.nomeExibicao || profSel?.nomeCompleto || "").trim();
+      // Passa data/hora/pet/serviço/profissional SEMPRE (novo E remarcação) — quem chama decide se avisa.
+      fechar(); if (onCreated) onCreated({ date, time, petNome, tipo: type || "Consulta", profNome });
     } catch (e: any) { alert("Erro ao criar agendamento: " + (e?.message || e || "desconhecido")); } finally { setSaving(false); }
   };
 

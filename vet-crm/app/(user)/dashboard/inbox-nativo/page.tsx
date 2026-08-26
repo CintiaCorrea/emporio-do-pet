@@ -2384,8 +2384,14 @@ export default function InboxUnificadoPage() {
           if (info?.date && info?.time) {
             const [, mm, dd] = String(info.date).split("-");
             const diaBR = dd && mm ? `${dd}/${mm}` : info.date;
-            const petTxt = info.petNome ? `${info.petNome} — ` : "";
-            const msg = `✅ Agendamento confirmado! ${petTxt}${diaBR} às ${info.time}. Qualquer coisa é só chamar por aqui. 🐾`;
+            const petNome = info.petNome || "seu pet";
+            // Serviço + profissional (fisioterapia aparece só "fisioterapia", sem profissional).
+            const ehFisio = /fisio|reabilit|hidroester/i.test(String(info.tipo || ""));
+            const raw = String(info.tipo || "").trim();
+            const servico = ehFisio ? "fisioterapia" : (raw && raw === raw.toUpperCase() ? raw.charAt(0) + raw.slice(1).toLowerCase() : (raw || "atendimento"));
+            const prof = ehFisio ? "" : String(info.profNome || "").trim();
+            const svc = servico ? ` para ${servico}${prof ? ` com ${prof}` : ""}` : "";
+            const msg = `✅ Agendamento confirmado! ${petNome}${svc} em ${diaBR} às ${info.time}. Qualquer coisa é só chamar por aqui. 🐾`;
             sendMessage(msg);
           }
           // Contato sem cadastro: já deixa o link de cadastro pronto pra mandar ao tutor completar.

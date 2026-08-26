@@ -1238,12 +1238,18 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   const [agendaOpen, setAgendaOpen] = useState(false);
   const [editAppt, setEditAppt] = useState<any>(null); // agendamento sendo editado/cancelado a partir do card
   // 📅 Avisa o cliente na conversa (MESMA mensagem da marcação pelo "+"): vale p/ novo agendamento E remarcação.
-  const avisarAgendado = (info?: { date?: string; time?: string; petNome?: string }) => {
+  const avisarAgendado = (info?: { date?: string; time?: string; petNome?: string; tipo?: string; profNome?: string }) => {
     if (!info?.date || !info?.time || !onEnviarTexto) return;
     const [, mm, dd] = String(info.date).split("-");
     const diaBR = dd && mm ? `${dd}/${mm}` : info.date;
-    const petTxt = info.petNome ? `${info.petNome} — ` : "";
-    onEnviarTexto(`✅ Agendamento confirmado! ${petTxt}${diaBR} às ${info.time}. Qualquer coisa é só chamar por aqui. 🐾`);
+    const petNome = info.petNome || "seu pet";
+    // Serviço + profissional (fisioterapia aparece só "fisioterapia", sem profissional).
+    const ehFisio = /fisio|reabilit|hidroester/i.test(String(info.tipo || ""));
+    const raw = String(info.tipo || "").trim();
+    const servico = ehFisio ? "fisioterapia" : (raw && raw === raw.toUpperCase() ? raw.charAt(0) + raw.slice(1).toLowerCase() : (raw || "atendimento"));
+    const prof = ehFisio ? "" : String(info.profNome || "").trim();
+    const svc = servico ? ` para ${servico}${prof ? ` com ${prof}` : ""}` : "";
+    onEnviarTexto(`✅ Agendamento confirmado! ${petNome}${svc} em ${diaBR} às ${info.time}. Qualquer coisa é só chamar por aqui. 🐾`);
   };
   const [orcRapidoOpen, setOrcRapidoOpen] = useState(false); // popup de orçamento rápido (envia pelo WhatsApp)
   const [proximasTick, setProximasTick] = useState(0);
