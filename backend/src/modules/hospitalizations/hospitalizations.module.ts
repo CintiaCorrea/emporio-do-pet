@@ -9,5 +9,6 @@ import { HospitalizationsService } from './hospitalizations.service';
   imports: [PrismaModule, BoardsModule, AppointmentsModule],
   controllers: [HospitalizationsController],
   providers: [HospitalizationsService],
+  exports: [HospitalizationsService],
 })
 export class HospitalizationsModule {}

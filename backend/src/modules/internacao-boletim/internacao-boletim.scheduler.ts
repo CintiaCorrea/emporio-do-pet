@@ -3,6 +3,9 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { CronHealthService } from '../../common/cron-health.service';
+import { HospitalizationsService } from '../hospitalizations/hospitalizations.service';
+
+const brlBol = (v: number) => Number(v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 /**
  * Boletim de INTERNAÇÃO nos horários programados pelo vet.
@@ -21,6 +24,7 @@ export class InternacaoBoletimScheduler {
     private readonly prisma: PrismaService,
     private readonly whatsapp: WhatsAppService,
     private readonly cronHealth: CronHealthService,
+    private readonly hosp: HospitalizationsService,
   ) {}
 
   @Cron('*/10 * * * *', { timeZone: 'America/Fortaleza' })
@@ -39,6 +43,9 @@ export class InternacaoBoletimScheduler {
         select: { id: true, notes: true, tutorId: true, pet: { select: { name: true } } },
         take: 500,
       });
+      // Usuário p/ faturar a diária no último boletim do dia (sem user no cron).
+      const sysUserId = (await this.prisma.user.findFirst({ where: { role: 'ADMIN' as any }, select: { id: true } }))?.id;
+      const minutosDe = (hhmm: string) => { const [h, m] = String(hhmm).split(':').map((x) => parseInt(x, 10)); return (isNaN(h) ? 0 : h) * 60 + (m || 0); };
 
       for (const apt of appts) {
         let meta: any = null;
@@ -53,6 +60,9 @@ export class InternacaoBoletimScheduler {
         // Cada horário guarda ou um texto puro (formato antigo) ou { texto, midia }.
         let mapa: Record<string, any> = {};
         try { mapa = JSON.parse(prog.valor); } catch { continue; }
+        // Último boletim do dia = maior horário programado (com texto). É nele que faturamos a diária.
+        const horariosComTexto = Object.entries(mapa).filter(([, b]) => String(typeof b === 'string' ? b : b?.texto || '').trim()).map(([hh]) => hh);
+        const ultimoHorario = horariosComTexto.sort((a, b) => minutosDe(b) - minutosDe(a))[0] || null;
 
         for (const [horario, bruto] of Object.entries(mapa)) {
           const texto = typeof bruto === 'string' ? bruto : bruto?.texto;
@@ -68,7 +78,21 @@ export class InternacaoBoletimScheduler {
           const ja = await this.prisma.listaItem.findFirst({ where: { lista: 'intbolprog_sent', valor: chave } });
           if (ja) continue;
 
-          const res = await this.whatsapp.enviarBoletimInternacao(apt.tutorId, String(texto).trim(), apt.pet?.name || 'seu pet', midia);
+          // 💰 No ÚLTIMO boletim do dia: fatura a diária + itens abertos e anexa a conta ao texto
+          // (assim o cliente recebe o valor do dia junto do boletim, como pedido).
+          let contaTxt = '';
+          if (horario === ultimoHorario && sysUserId) {
+            try {
+              const r: any = await this.hosp.gerarComandaDia(apt.id, sysUserId);
+              const linhas = (r.itensResumo || []).map((i: any) => `• ${i.descricao}: ${brlBol(i.total)}`).join('\n');
+              contaTxt = `\n\n━━━━━━━━━━━━━━━\n💰 *Conta do dia*\n${linhas}\n*Total do dia:* ${brlBol(r.total)}\n*Total da internação até aqui:* ${brlBol(r.totalFaturado)}`;
+            } catch {
+              // Nada novo pra faturar hoje — mostra só o acumulado da internação, se houver.
+              const tot = Number((meta as any).totalFaturado || 0);
+              if (tot > 0) contaTxt = `\n\n━━━━━━━━━━━━━━━\n💰 *Total da internação até aqui:* ${brlBol(tot)}`;
+            }
+          }
+          const res = await this.whatsapp.enviarBoletimInternacao(apt.tutorId, (String(texto).trim() + contaTxt), apt.pet?.name || 'seu pet', midia);
           if (res.status === 'erro') {
             this.logger.warn(`Boletim internação ${apt.id} ${horario} falhou: ${res.error}`);
             continue; // não marca — tenta na próxima rodada (ainda dentro da janela)
