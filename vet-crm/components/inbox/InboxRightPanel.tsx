@@ -22,7 +22,7 @@ import ClienteEditModal from "@/components/inbox/ClienteEditModal";
 import PetEditModal from "@/components/inbox/PetEditModal";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { loadExameFases, podeAvisarLab } from "@/lib/exameFases";
-import { loadFuResp, assignFollowUp } from "@/lib/followup";
+import { loadFuResp, assignFollowUp, assignFollowUpFor } from "@/lib/followup";
 
 function scorePie(score: number, max: number, color: string) {
   const f = Math.max(0, Math.min(1, max ? score / max : 0));
@@ -1543,19 +1543,27 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     };
     const res = await fetch("/api/interacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     if (!res.ok) { toast.error("Erro"); return; }
-    // 🔗 FU UNIFICADO: grava o follow-up TAMBÉM no pet (mesma fonte que a ficha/Visão geral lê),
-    // pra inbox e ficha mostrarem sempre a mesma data.
-    if (interacaoForm.proximoFollowupAt && selectedPet) {
+    // 🔗 FU UNIFICADO: grava o follow-up TAMBÉM no pet (cliente) OU no lead — mesma fonte
+    // que a ficha/Meu painel lê, pra inbox e painel mostrarem sempre a mesma data.
+    if (interacaoForm.proximoFollowupAt) {
       const fuISO = new Date(interacaoForm.proximoFollowupAt).toISOString();
-      try { await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: fuISO }) }); } catch {}
-      setSelectedPet((sp) => sp ? ({ ...sp, proximoFollowupAt: fuISO } as Pet) : sp);
-      setPets((ps) => ps.map((pp) => pp.id === selectedPet.id ? ({ ...pp, proximoFollowupAt: fuISO } as Pet) : pp));
+      if (selectedPet) {
+        try { await fetch(`/api/pets/${selectedPet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: fuISO }) }); } catch {}
+        setSelectedPet((sp) => sp ? ({ ...sp, proximoFollowupAt: fuISO } as Pet) : sp);
+        setPets((ps) => ps.map((pp) => pp.id === selectedPet.id ? ({ ...pp, proximoFollowupAt: fuISO } as Pet) : pp));
+      } else if (leadIdReal) {
+        try { await fetch(`/api/leads/${leadIdReal}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ proximoFollowupAt: fuISO }) }); } catch {}
+      }
     }
-    // 👤 quem ACOMPANHA (padrão único da ficha): avisa a pessoa + rastro + KV → cai no painel dela.
-    if (interacaoForm.responsavelUserId && selectedPet) {
+    // 👤 quem ACOMPANHA (padrão único): pet (cliente) OU lead → avisa a pessoa + rastro + KV → cai no painel dela.
+    if (interacaoForm.responsavelUserId) {
       const resp = staff.find((s) => s.id === interacaoForm.responsavelUserId);
       const fuLabel = interacaoForm.proximoFollowupAt ? fmtDate(interacaoForm.proximoFollowupAt) : "";
-      await assignFollowUp({ petId: selectedPet.id, userId: interacaoForm.responsavelUserId, nome: resp?.name || "", petNome: selectedPet.name, fuLabel });
+      if (selectedPet) {
+        await assignFollowUp({ petId: selectedPet.id, userId: interacaoForm.responsavelUserId, nome: resp?.name || "", petNome: selectedPet.name, fuLabel });
+      } else if (leadIdReal) {
+        await assignFollowUpFor({ kind: "lead", id: leadIdReal, userId: interacaoForm.responsavelUserId, nome: resp?.name || "", alvoNome: lead?.name || "", fuLabel });
+      }
     }
     toast.success("Interação registrada");
     setAcaoFeita(true);
