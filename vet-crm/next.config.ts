@@ -32,6 +32,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  // Link "bacana" pro guia do Portal do Tutor: meu.emporiodopet.com.br/guia
+  // serve o arquivo estático public/guia.html (público, sem login).
+  async rewrites() {
+    return [
+      { source: '/guia', destination: '/guia.html' },
+    ];
+  },
 };
 
 export default nextConfig;
