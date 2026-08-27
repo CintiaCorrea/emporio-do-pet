@@ -10,8 +10,10 @@ COPY package*.json ./
 COPY pnpm-lock.yaml ./
 COPY prisma ./prisma/
 
-# Instalar pnpm e dependências
-RUN npm install -g pnpm && pnpm install
+# Instalar pnpm e dependências. Versão FIXA (mesma do packageManager): o pnpm "latest"
+# (10.x) passou a exigir a verificação de identidade do binário (ERR_PNPM_PNPM_ENGINE_
+# IDENTITY_UNVERIFIABLE), que quebra o build com o nosso lockfile 9.x.
+RUN npm install -g pnpm@9.15.4 && pnpm install
 
 # Copiar código fonte
 COPY . .

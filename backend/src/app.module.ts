@@ -42,6 +42,7 @@ import { DietasModule } from './modules/dietas/dietas.module';
 import { LeadsModule } from './modules/leads/leads.module';
 import { InternalNotesModule } from './modules/internal-notes/internal-notes.module';
 import { ScheduledMessagesModule } from './modules/scheduled-messages/scheduled-messages.module';
+import { RhModule } from './modules/rh/rh.module';
 import { ProfissionaisModule } from './modules/profissionais/profissionais.module';
 import { EtiquetasModule } from './modules/etiquetas/etiquetas.module';
 import { ServicosModule } from './modules/servicos/servicos.module';
@@ -200,6 +201,7 @@ import configuration from './config/configuration';
     LeadsModule,
     InternalNotesModule,
     ScheduledMessagesModule,
+    RhModule,
     ProfissionaisModule,
     EtiquetasModule,
     ServicosModule,

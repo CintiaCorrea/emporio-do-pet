@@ -1693,6 +1693,28 @@ enum ProfissionalTipo {
 }
 
 // ============================================
+// RH — Documentos do funcionário (Fatia 1). Dado SENSÍVEL: servir só pelo /rh
+// controlado (funcionário vê só o próprio userId; admin vê todos). NUNCA por /api/listas.
+// Tabela isolada (sem relação com outros models) — criada por SQL manual, sem db push.
+// ============================================
+model RhDocumento {
+  id           String   @id @default(uuid())
+  userId       String // funcionário DONO do documento (User.id)
+  tipo         String // Atestado | Contrato | Holerite | Documentos pessoais | Comprovante | Outros
+  nome         String // título/nome do arquivo
+  url          String // link no storage (Tigris)
+  observacao   String?
+  status       String   @default("ENVIADO") // ENVIADO | VISTO | APROVADO
+  enviadoPorId String? // quem enviou (o próprio funcionário OU o admin)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@map("rh_documentos")
+}
+
+// ============================================
 // Etiquetas (tags) — categorias + templates aplicáveis a Lead/Cliente/Pet
 // ============================================
 model TagCategory {
