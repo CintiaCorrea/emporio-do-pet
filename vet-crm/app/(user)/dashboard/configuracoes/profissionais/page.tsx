@@ -55,6 +55,45 @@ export default function ProfissionaisPage() {
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [showInactive]);
 
+  // 🕓 Funcionários que se cadastraram sozinhos e estão PENDENTES de aprovação (isApproved=false).
+  const [pendentes, setPendentes] = useState<any[]>([]);
+  async function loadPendentes() {
+    try {
+      const r = await fetch("/api/users", { cache: "no-store" });
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.users || d.data || []);
+      setPendentes(arr.filter((u: any) => u && u.isApproved === false && !u.isBlocked));
+    } catch { setPendentes([]); }
+  }
+  useEffect(() => { loadPendentes(); /* eslint-disable-next-line */ }, []);
+  const roleParaTipo = (role?: string): Tipo => role === "VETERINARIAN" ? "VETERINARIO" : role === "ADMIN" ? "GERENTE" : "RECEPCIONISTA";
+  async function aprovarPendente(u: any) {
+    try {
+      // 1) libera o login
+      const ra = await fetch(`/api/users/${u.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isApproved: true }) });
+      if (!ra.ok) throw new Error("Falha ao aprovar o acesso");
+      // 2) cria o Profissional vinculado (o backend liga pelo e-mail) — só se ainda não tiver
+      let novo: any = null;
+      if (!u.profissional) {
+        const nome = (u.name || u.email || "Novo funcionário").trim();
+        const payload = { nomeCompleto: nome, nomeExibicao: nome, iniciais: nome.split(/\s+/).map((x: string) => x[0]).join("").slice(0, 2).toUpperCase(), tipo: roleParaTipo(u.role), email: u.email, criarAcesso: true, role: u.role, ativo: true };
+        const rp = await fetch("/api/profissionais", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        novo = await rp.json().catch(() => null);
+      }
+      await loadPendentes(); await load();
+      // 3) abre o cadastro pra definir ESCALA/AGENDA
+      if (novo?.id) openEdit(novo);
+      else alert("Funcionário aprovado ✅");
+    } catch (e: any) { alert("Erro ao aprovar: " + (e?.message || e)); }
+  }
+  async function recusarPendente(u: any) {
+    if (!confirm(`Recusar o acesso de ${u.name || u.email}? Ele não poderá entrar no sistema.`)) return;
+    try {
+      await fetch(`/api/users/${u.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isBlocked: true }) });
+      await loadPendentes();
+    } catch (e: any) { alert("Erro ao recusar: " + (e?.message || e)); }
+  }
+
   const filtered = useMemo(() => {
     let arr = list;
     if (filterTipo !== "ALL") arr = arr.filter(p => p.tipo === filterTipo);
@@ -145,6 +184,27 @@ export default function ProfissionaisPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-4">
+        {pendentes.length > 0 && (
+          <div className="mb-4 rounded-xl border p-4" style={{ borderColor: "#F0C86B", background: "#FFFBEF" }}>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[15px]">🕓</span>
+              <b style={{ color: "#8a6400" }}>Funcionários pendentes de aprovação ({pendentes.length})</b>
+            </div>
+            <p className="text-[12px] mb-3" style={{ color: "#8a6d3b" }}>Se cadastraram sozinhos e aguardam sua autorização. Ao <b>Aprovar</b>, o acesso é liberado e vira profissional — abre o cadastro pra você definir <b>escala e agenda</b>.</p>
+            <div className="flex flex-col gap-2">
+              {pendentes.map((u) => (
+                <div key={u.id} className="flex items-center gap-3 bg-white rounded-lg border px-3 py-2" style={{ borderColor: "#F0E4C0" }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-[13.5px]" style={{ color: "#0E2244" }}>{u.name || "(sem nome)"}</div>
+                    <div className="text-[11.5px] text-gray-500 truncate">{u.email} · {TIPO_LABEL[roleParaTipo(u.role)]}</div>
+                  </div>
+                  <button onClick={() => aprovarPendente(u)} className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold text-white flex-shrink-0" style={{ background: "#0F9D6E" }}>✅ Aprovar</button>
+                  <button onClick={() => recusarPendente(u)} className="px-3 py-1.5 rounded-lg text-[12.5px] font-semibold border flex-shrink-0" style={{ borderColor: "#E7C3C3", color: "#A32D2D" }}>Recusar</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="bg-white border rounded-xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <table className="w-full text-sm">
             <thead className="border-b" style={{ background: "#FAFAFA", borderColor: "#E8DFC8" }}>
