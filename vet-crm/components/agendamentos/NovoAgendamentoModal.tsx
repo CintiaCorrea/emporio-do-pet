@@ -399,8 +399,11 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
               </div>
               )}
               <div><label className={lbl}>Tipo de atendimento *</label>
-                <input list="ag-tipos" value={type} onChange={(e) => { const v = e.target.value; setType(v); const dm = tipoDur[v]; if (dm) setDuration(dm); }} placeholder="Selecione…" className={inp} />
-                <datalist id="ag-tipos">{tipos.map((t) => <option key={t} value={t} />)}</datalist>
+                <select value={type} onChange={(e) => { const v = e.target.value; setType(v); const dm = tipoDur[v]; if (dm) setDuration(dm); }} className={inp}>
+                  <option value="">Selecione…</option>
+                  {type && !tipos.includes(type) && <option value={type}>{type}</option>}
+                  {tipos.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
               </div>
             </div>
 
