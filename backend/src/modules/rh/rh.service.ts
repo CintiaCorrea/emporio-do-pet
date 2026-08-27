@@ -135,4 +135,60 @@ export class RhService {
     await (this.prisma as any).rhSolicitacao.delete({ where: { id } });
     return { ok: true };
   }
+
+  // ---------------- COMUNICADOS (Fatia 3) ----------------
+  /** Admin publica um comunicado (a TODOS ou a 1 funcionário). Avisa o direcionado. */
+  async criarComunicado(user: any, dto: { titulo?: string; texto?: string; targetUserId?: string }) {
+    if (!isRhAdmin(user)) throw new ForbiddenException('Só a administração publica comunicados.');
+    if (!dto?.titulo?.trim() || !dto?.texto?.trim()) throw new BadRequestException('Título e texto são obrigatórios.');
+    const com = await (this.prisma as any).rhComunicado.create({ data: { titulo: dto.titulo.trim(), texto: dto.texto.trim(), targetUserId: dto.targetUserId || null, createdById: user.id } });
+    if (dto.targetUserId) await this.notificar(user.id, dto.targetUserId, `📢 Novo comunicado do RH: ${com.titulo}`);
+    return com;
+  }
+
+  /** Lista: funcionário → os pra TODOS ou pra ele (com flag `lido`); admin → todos (com nº de leituras). */
+  async listarComunicados(user: any) {
+    if (isRhAdmin(user)) {
+      const coms = await (this.prisma as any).rhComunicado.findMany({ orderBy: { createdAt: 'desc' } });
+      const ids = coms.map((c: any) => c.id);
+      const leituras = ids.length ? await (this.prisma as any).rhComunicadoLeitura.groupBy({ by: ['comunicadoId'], where: { comunicadoId: { in: ids } }, _count: true }) : [];
+      const cont = (cid: string) => leituras.find((l: any) => l.comunicadoId === cid)?._count || 0;
+      const tIds = Array.from(new Set(coms.map((c: any) => c.targetUserId).filter(Boolean))) as string[];
+      const profs = tIds.length ? await this.prisma.profissional.findMany({ where: { userId: { in: tIds } }, select: { userId: true, nomeExibicao: true, nomeCompleto: true } }) : [];
+      const users = tIds.length ? await this.prisma.user.findMany({ where: { id: { in: tIds } }, select: { id: true, name: true } }) : [];
+      const tNome = (uid: string) => { const p = profs.find((x) => x.userId === uid); const u = users.find((x) => x.id === uid); return p?.nomeExibicao || p?.nomeCompleto || u?.name || 'Funcionário'; };
+      return coms.map((c: any) => ({ ...c, totalLeituras: cont(c.id), targetNome: c.targetUserId ? tNome(c.targetUserId) : null }));
+    }
+    const coms = await (this.prisma as any).rhComunicado.findMany({ where: { OR: [{ targetUserId: null }, { targetUserId: user.id }] }, orderBy: { createdAt: 'desc' } });
+    const ids = coms.map((c: any) => c.id);
+    const minhas = ids.length ? await (this.prisma as any).rhComunicadoLeitura.findMany({ where: { userId: user.id, comunicadoId: { in: ids } }, select: { comunicadoId: true } }) : [];
+    const lidoSet = new Set(minhas.map((l: any) => l.comunicadoId));
+    return coms.map((c: any) => ({ ...c, lido: lidoSet.has(c.id) }));
+  }
+
+  /** Funcionário confirma ciência ("Li e estou ciente"). */
+  async marcarLido(user: any, id: string) {
+    const com = await (this.prisma as any).rhComunicado.findUnique({ where: { id } });
+    if (!com) throw new NotFoundException('Comunicado não encontrado.');
+    await (this.prisma as any).rhComunicadoLeitura.upsert({
+      where: { comunicadoId_userId: { comunicadoId: id, userId: user.id } },
+      create: { comunicadoId: id, userId: user.id },
+      update: {},
+    });
+    return { ok: true };
+  }
+
+  async removerComunicado(user: any, id: string) {
+    if (!isRhAdmin(user)) throw new ForbiddenException('Só a administração remove comunicados.');
+    await (this.prisma as any).rhComunicadoLeitura.deleteMany({ where: { comunicadoId: id } }).catch(() => undefined);
+    await (this.prisma as any).rhComunicado.delete({ where: { id } }).catch(() => undefined);
+    return { ok: true };
+  }
+
+  /** Lista de funcionários (admin) — pro seletor de "enviar holerite/documento pra alguém". */
+  async listarFuncionarios(user: any) {
+    if (!isRhAdmin(user)) throw new ForbiddenException('Só a administração.');
+    const profs = await this.prisma.profissional.findMany({ where: { ativo: true, userId: { not: null } }, select: { userId: true, nomeExibicao: true, nomeCompleto: true, tipo: true } });
+    return profs.filter((p) => p.userId).map((p) => ({ userId: p.userId, nome: p.nomeExibicao || p.nomeCompleto, cargo: p.tipo }));
+  }
 }

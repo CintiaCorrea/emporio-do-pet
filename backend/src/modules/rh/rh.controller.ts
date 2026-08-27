@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RhService } from './rh.service';
-import { CriarRhDocumentoDto, AtualizarStatusRhDto, CriarRhSolicitacaoDto, ResponderRhSolicitacaoDto } from './dto/rh-documento.dto';
+import { CriarRhDocumentoDto, AtualizarStatusRhDto, CriarRhSolicitacaoDto, ResponderRhSolicitacaoDto, CriarRhComunicadoDto } from './dto/rh-documento.dto';
 
 /**
  * RH — Fatia 1 (Documentos). Endpoint DEDICADO e protegido: funcionário só enxerga/mexe
@@ -70,5 +70,36 @@ export class RhController {
   @Delete('solicitacoes/:id')
   removerSolic(@CurrentUser() user: any, @Param('id') id: string) {
     return this.rh.removerSolicitacao(user, id);
+  }
+
+  // ---------------- COMUNICADOS + FUNCIONÁRIOS (Fatia 3) ----------------
+  /** Lista: funcionário → os pra ele (com `lido`); admin → todos (com nº de leituras). */
+  @Get('comunicados')
+  listarComunicados(@CurrentUser() user: any) {
+    return this.rh.listarComunicados(user);
+  }
+
+  /** Publica um comunicado (a todos ou a um) — só admin. */
+  @Post('comunicados')
+  criarComunicado(@CurrentUser() user: any, @Body() dto: CriarRhComunicadoDto) {
+    return this.rh.criarComunicado(user, dto);
+  }
+
+  /** Funcionário confirma ciência. */
+  @Post('comunicados/:id/lido')
+  marcarLido(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.rh.marcarLido(user, id);
+  }
+
+  /** Remove um comunicado — só admin. */
+  @Delete('comunicados/:id')
+  removerComunicado(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.rh.removerComunicado(user, id);
+  }
+
+  /** Lista de funcionários (admin) — pro seletor de "enviar documento/holerite". */
+  @Get('funcionarios')
+  listarFuncionarios(@CurrentUser() user: any) {
+    return this.rh.listarFuncionarios(user);
   }
 }

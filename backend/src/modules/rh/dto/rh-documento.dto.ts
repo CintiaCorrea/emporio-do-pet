@@ -40,3 +40,15 @@ export class ResponderRhSolicitacaoDto {
   @IsString()
   resposta?: string;
 }
+
+export class CriarRhComunicadoDto {
+  @IsString()
+  titulo!: string;
+
+  @IsString()
+  texto!: string;
+
+  @IsOptional()
+  @IsString()
+  targetUserId?: string; // vazio = a TODOS
+}

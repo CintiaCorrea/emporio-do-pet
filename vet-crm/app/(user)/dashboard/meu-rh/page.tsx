@@ -52,6 +52,19 @@ export default function MeuRhPage() {
   const [solTexto, setSolTexto] = useState("");
   const [enviandoSolic, setEnviandoSolic] = useState(false);
   const [respDraft, setRespDraft] = useState<Record<string, string>>({});
+  // Comunicados (Fatia 3)
+  const [comunicados, setComunicados] = useState<any[]>([]);
+  const [comTitulo, setComTitulo] = useState("");
+  const [comTexto, setComTexto] = useState("");
+  const [comTarget, setComTarget] = useState("");
+  const [publicando, setPublicando] = useState(false);
+  const [funcionarios, setFuncionarios] = useState<any[]>([]);
+  const [envUser, setEnvUser] = useState("");
+  const [envTipo, setEnvTipo] = useState("Holerite");
+  const [envFile, setEnvFile] = useState<File | null>(null);
+  const [envObs, setEnvObs] = useState("");
+  const [envEnviando, setEnvEnviando] = useState(false);
+  const envRef = useRef<HTMLInputElement>(null);
 
   async function loadPerfil() { try { const r = await fetch("/api/rh/perfil", { cache: "no-store" }); if (r.ok) setPerfil(await r.json()); } catch {} }
   async function loadMeus() { if (!meId) return; try { const r = await fetch(`/api/rh/documentos?userId=${meId}`, { cache: "no-store" }); const d = await r.json(); setMeus(Array.isArray(d) ? d : []); } catch {} }
@@ -109,6 +122,35 @@ export default function MeuRhPage() {
   }
   const minhasSolic = useMemo(() => (perfil?.admin ? (solic as any[]).filter((s) => s.userId === meId) : (solic as any[])), [solic, perfil?.admin, meId]);
 
+  // ---- Comunicados ----
+  async function loadComunicados() { try { const r = await fetch("/api/rh/comunicados", { cache: "no-store" }); const d = await r.json(); setComunicados(Array.isArray(d) ? d : []); } catch {} }
+  useEffect(() => { loadComunicados(); if (perfil?.admin) fetch("/api/rh/funcionarios", { cache: "no-store" }).then(r => r.json()).then(d => setFuncionarios(Array.isArray(d) ? d : [])).catch(() => {}); /* eslint-disable-next-line */ }, [perfil?.admin]);
+  async function publicarComunicado() {
+    if (!comTitulo.trim() || !comTexto.trim()) { toast.error("Preencha título e texto."); return; }
+    setPublicando(true);
+    try { const r = await fetch("/api/rh/comunicados", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ titulo: comTitulo.trim(), texto: comTexto.trim(), targetUserId: comTarget || undefined }) }); if (!r.ok) throw new Error(); toast.success("Comunicado publicado ✅"); setComTitulo(""); setComTexto(""); setComTarget(""); await loadComunicados(); } catch { toast.error("Erro ao publicar."); } finally { setPublicando(false); }
+  }
+  async function confirmarLido(id: string) { try { const r = await fetch(`/api/rh/comunicados/${id}/lido`, { method: "POST" }); if (!r.ok) throw new Error(); await loadComunicados(); } catch { toast.error("Erro."); } }
+  async function removerComunicado(id: string) { if (!confirm("Remover este comunicado?")) return; try { const r = await fetch(`/api/rh/comunicados/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); await loadComunicados(); } catch {} }
+  async function enviarDocParaFunc() {
+    if (!envUser) { toast.error("Escolha o funcionário."); return; }
+    if (!envFile) { toast.error("Escolha o arquivo."); return; }
+    setEnvEnviando(true);
+    try {
+      const fd = new FormData(); fd.append("file", envFile);
+      const ru = await fetch("/api/media/upload?pasta=rh&origem=holerite", { method: "POST", body: fd });
+      const up = await ru.json().catch(() => ({}));
+      if (!ru.ok || !up?.url) throw new Error("Falha ao subir o arquivo");
+      const r = await fetch("/api/rh/documentos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tipo: envTipo, nome: up.filename || envFile.name, url: up.url, observacao: envObs.trim() || undefined, userId: envUser }) });
+      if (!r.ok) throw new Error("Falha ao enviar");
+      toast.success("Documento enviado ao funcionário ✅");
+      setEnvFile(null); setEnvObs(""); if (envRef.current) envRef.current.value = "";
+      await loadEquipe();
+    } catch (e: any) { toast.error(String(e?.message || "Erro").slice(0, 120)); }
+    finally { setEnvEnviando(false); }
+  }
+  const comNaoLidos = useMemo(() => (perfil?.admin ? 0 : (comunicados as any[]).filter((c) => !c.lido).length), [comunicados, perfil?.admin]);
+
   const equipeFiltrada = useMemo(() => filtro === "TODOS" ? equipe : filtro === "NOVOS" ? equipe.filter(d => d.status === "ENVIADO") : equipe.filter(d => d.tipo === filtro), [equipe, filtro]);
 
   return (
@@ -128,6 +170,23 @@ export default function MeuRhPage() {
             </div>
           )}
         </div>
+
+        {/* Comunicados (funcionário lê e confirma) */}
+        {perfil && !perfil.admin && comunicados.length > 0 && (
+          <div className="mb-5">
+            <h2 className="text-[15px] font-bold mb-2 flex items-center gap-1.5" style={{ color: "#0D2048" }}>📢 Comunicados {comNaoLidos > 0 && <span className="text-[10px] font-extrabold px-2 py-[3px] rounded-full" style={{ background: "#FBF3DD", color: "#8a6400" }}>{comNaoLidos} novo{comNaoLidos > 1 ? "s" : ""}</span>}</h2>
+            {comunicados.map((c: any) => (
+              <div key={c.id} className="bg-white rounded-xl border px-4 py-3 mb-2" style={{ borderColor: c.lido ? "#E3EEF0" : "#F0C86B" }}>
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0"><div className="font-bold text-[14px] text-[#0D2048]">{c.titulo}</div><div className="text-[11px] text-[#5C7180]">{dt(c.createdAt)}</div></div>
+                  {c.lido ? <span className="text-[10px] font-extrabold px-2 py-[3px] rounded-full" style={{ background: "#E7F6EF", color: "#0F9D6E" }}>✓ Ciente</span> : <span className="text-[10px] font-extrabold px-2 py-[3px] rounded-full" style={{ background: "#FBF3DD", color: "#8a6400" }}>Novo</span>}
+                </div>
+                <div className="text-[13px] text-[#374151] mt-1.5 whitespace-pre-wrap">{c.texto}</div>
+                {!c.lido && <button onClick={() => confirmarLido(c.id)} className="mt-2 text-[12px] font-bold rounded-lg px-3 py-1.5 text-white" style={{ background: "#0F9D6E" }}>✓ Li e estou ciente</button>}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Enviar documento */}
         <div className="bg-white rounded-2xl border p-5 mb-5" style={{ borderColor: "#E3EEF0" }}>
@@ -260,6 +319,59 @@ export default function MeuRhPage() {
                   )}
                 </div>
               ))}
+          </div>
+        )}
+
+        {/* Admin: publicar comunicado */}
+        {perfil?.admin && (
+          <div className="bg-white rounded-2xl border p-5 mt-5" style={{ borderColor: "#E3EEF0" }}>
+            <h2 className="text-[16px] font-bold mb-3" style={{ color: "#0D2048" }}>📢 Publicar comunicado</h2>
+            <div className="grid gap-3">
+              <input value={comTitulo} onChange={(e) => setComTitulo(e.target.value)} placeholder="Título" className="w-full border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }} />
+              <textarea value={comTexto} onChange={(e) => setComTexto(e.target.value)} rows={3} placeholder="Mensagem para a equipe…" className="w-full border rounded-xl px-3 py-2 text-[14px] resize-none" style={{ borderColor: "#E3EEF0" }} />
+              <div>
+                <label className="text-[10.5px] font-extrabold uppercase tracking-wide text-[#5C7180] block mb-1">Para quem</label>
+                <select value={comTarget} onChange={(e) => setComTarget(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }}>
+                  <option value="">📣 Toda a equipe</option>
+                  {funcionarios.map((f) => <option key={f.userId} value={f.userId}>{f.nome}</option>)}
+                </select>
+              </div>
+              <button onClick={publicarComunicado} disabled={publicando} className="text-white rounded-xl py-2.5 font-bold text-[14.5px] disabled:opacity-50" style={{ background: "#009AAC" }}>{publicando ? "Publicando…" : "Publicar"}</button>
+            </div>
+            {comunicados.length > 0 && (
+              <div className="mt-4">
+                <div className="text-[11px] font-extrabold uppercase tracking-wide text-[#5C7180] mb-1.5">Publicados</div>
+                {comunicados.map((c: any) => (
+                  <div key={c.id} className="flex items-center gap-2 border-b py-2" style={{ borderColor: "#EEF3F5" }}>
+                    <div className="flex-1 min-w-0"><div className="font-bold text-[13px] text-[#0D2048] truncate">{c.titulo}</div><div className="text-[11px] text-[#5C7180]">{c.targetNome ? `Para ${c.targetNome}` : "Toda a equipe"} · {dt(c.createdAt)} · 👁️ {c.totalLeituras || 0}</div></div>
+                    <button onClick={() => removerComunicado(c.id)} className="text-[#b23b39] text-[13px]" title="Remover">🗑️</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Admin: enviar documento a um funcionário (holerite/contrato) */}
+        {perfil?.admin && (
+          <div className="bg-white rounded-2xl border p-5 mt-5 mb-4" style={{ borderColor: "#E3EEF0" }}>
+            <h2 className="text-[16px] font-bold mb-1" style={{ color: "#0D2048" }}>📤 Enviar documento a um funcionário</h2>
+            <p className="text-[12px] text-[#5C7180] mb-3">Ex.: holerite, contrato — aparece em "Meus documentos" do funcionário.</p>
+            <div className="grid gap-3">
+              <select value={envUser} onChange={(e) => setEnvUser(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }}>
+                <option value="">Escolha o funcionário…</option>
+                {funcionarios.map((f) => <option key={f.userId} value={f.userId}>{f.nome}{f.cargo ? ` · ${CARGO_LABEL[f.cargo] || f.cargo}` : ""}</option>)}
+              </select>
+              <select value={envTipo} onChange={(e) => setEnvTipo(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }}>
+                {["Holerite", "Contrato", "Comprovante", "Outros"].map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <label className="border-2 border-dashed rounded-xl px-4 py-4 text-center cursor-pointer block" style={{ borderColor: "#8fd6df", background: "#E8F6F7", color: "#00798A" }}>
+                <div className="text-[13px] font-bold">📄 {envFile ? envFile.name : "Escolher arquivo"}</div>
+                <input ref={envRef} type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx" onChange={(e) => setEnvFile(e.target.files?.[0] || null)} />
+              </label>
+              <input value={envObs} onChange={(e) => setEnvObs(e.target.value)} placeholder="Observação (opcional)" className="w-full border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }} />
+              <button onClick={enviarDocParaFunc} disabled={envEnviando} className="text-white rounded-xl py-2.5 font-bold text-[14.5px] disabled:opacity-50" style={{ background: "#014D5E" }}>{envEnviando ? "Enviando…" : "Enviar ao funcionário"}</button>
+            </div>
           </div>
         )}
       </div>

@@ -1732,6 +1732,33 @@ model RhSolicitacao {
   @@map("rh_solicitacoes")
 }
 
+// RH — Comunicados (Fatia 3): a empresa publica avisos (a todos ou a um funcionário);
+// o funcionário lê e confirma ciência. Holerites/contratos reusam RhDocumento (admin
+// envia com userId do funcionário → aparece em "Meus documentos" dele).
+model RhComunicado {
+  id           String   @id @default(uuid())
+  titulo       String
+  texto        String   @db.Text
+  targetUserId String? // null = TODOS; senão, direcionado a 1 funcionário
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([targetUserId])
+  @@map("rh_comunicados")
+}
+
+model RhComunicadoLeitura {
+  id           String   @id @default(uuid())
+  comunicadoId String
+  userId       String
+  readAt       DateTime @default(now())
+
+  @@unique([comunicadoId, userId])
+  @@index([comunicadoId])
+  @@map("rh_comunicado_leituras")
+}
+
 // ============================================
 // Etiquetas (tags) — categorias + templates aplicáveis a Lead/Cliente/Pet
 // ============================================
