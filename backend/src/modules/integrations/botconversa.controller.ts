@@ -167,6 +167,10 @@ export class BotConversaController {
     ownerId: string | null;
     texto: string;
   }) {
+    // 🔕 Registro AUTOMÁTICO do BotConversa DESLIGADO (Cintia 27/08). Pra religar, crie o
+    // listaItem lista='bc_auto_interacao' valor='on'.
+    const _bc = await this.prisma.listaItem.findFirst({ where: { lista: 'bc_auto_interacao' } });
+    if (!_bc || _bc.valor !== 'on') return;
     if (!opts.ownerId) return;
     if (!opts.leadId && !opts.tutorId) return;
     try {
