@@ -8,6 +8,8 @@ type Doc = { id: string; userId: string; tipo: string; nome: string; url: string
 type Perfil = { nome: string; iniciais: string; cargo: string; dataInicio: string | null; email: string; admin: boolean };
 
 const TIPOS = ["Atestado", "Contrato", "Holerite", "Documentos pessoais", "Comprovante", "Outros"];
+const SOL_TIPOS = ["Férias", "Adiantamento", "Folga", "Troca de escala", "Outro"];
+const SOL_ICO: Record<string, string> = { "Férias": "🏖️", "Adiantamento": "💵", "Folga": "🛋️", "Troca de escala": "🔄", "Outro": "📨" };
 const CARGO_LABEL: Record<string, string> = { VETERINARIO: "Veterinário", RECEPCIONISTA: "Recepção", ESTAGIARIO: "Estagiário", GERENTE: "Gerente", ADMIN: "Administração", OUTRO: "Equipe" };
 const ICO: Record<string, string> = { Atestado: "🩺", Contrato: "📄", Holerite: "💵", "Documentos pessoais": "🆔", Comprovante: "🧾", Outros: "📎" };
 const dt = (s: string) => { try { return new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); } catch { return ""; } };
@@ -19,6 +21,15 @@ function StatusBadge({ s }: { s: string }) {
     APROVADO: { t: "Aprovado", bg: "#E7F6EF", c: "#0F9D6E" },
   };
   const m = map[s] || map.ENVIADO;
+  return <span className="text-[10px] font-extrabold px-2 py-[3px] rounded-full uppercase tracking-wide whitespace-nowrap" style={{ background: m.bg, color: m.c }}>{m.t}</span>;
+}
+function SolBadge({ s }: { s: string }) {
+  const map: Record<string, { t: string; bg: string; c: string }> = {
+    PENDENTE: { t: "Pendente", bg: "#FBF3DD", c: "#8a6400" },
+    APROVADA: { t: "Aprovada", bg: "#E7F6EF", c: "#0F9D6E" },
+    NEGADA: { t: "Não aprovada", bg: "#FBE9E7", c: "#C0392B" },
+  };
+  const m = map[s] || map.PENDENTE;
   return <span className="text-[10px] font-extrabold px-2 py-[3px] rounded-full uppercase tracking-wide whitespace-nowrap" style={{ background: m.bg, color: m.c }}>{m.t}</span>;
 }
 
@@ -35,6 +46,12 @@ export default function MeuRhPage() {
   const [enviando, setEnviando] = useState(false);
   const [filtro, setFiltro] = useState<string>("TODOS");
   const fileRef = useRef<HTMLInputElement>(null);
+  // Solicitações (Fatia 2)
+  const [solic, setSolic] = useState<Doc[] & any[]>([] as any);
+  const [solTipo, setSolTipo] = useState("Férias");
+  const [solTexto, setSolTexto] = useState("");
+  const [enviandoSolic, setEnviandoSolic] = useState(false);
+  const [respDraft, setRespDraft] = useState<Record<string, string>>({});
 
   async function loadPerfil() { try { const r = await fetch("/api/rh/perfil", { cache: "no-store" }); if (r.ok) setPerfil(await r.json()); } catch {} }
   async function loadMeus() { if (!meId) return; try { const r = await fetch(`/api/rh/documentos?userId=${meId}`, { cache: "no-store" }); const d = await r.json(); setMeus(Array.isArray(d) ? d : []); } catch {} }
@@ -68,6 +85,29 @@ export default function MeuRhPage() {
     if (!confirm("Remover este documento?")) return;
     try { const r = await fetch(`/api/rh/documentos/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); toast.success("Removido"); await loadMeus(); await loadEquipe(); } catch { toast.error("Não consegui remover."); }
   }
+
+  // ---- Solicitações ----
+  async function loadSolic() { try { const r = await fetch("/api/rh/solicitacoes", { cache: "no-store" }); const d = await r.json(); setSolic(Array.isArray(d) ? d : []); } catch {} }
+  useEffect(() => { loadSolic(); /* eslint-disable-next-line */ }, [perfil?.admin]);
+  async function enviarSolic() {
+    if (!solTexto.trim()) { toast.error("Descreva a sua solicitação."); return; }
+    setEnviandoSolic(true);
+    try {
+      const r = await fetch("/api/rh/solicitacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tipo: solTipo, texto: solTexto.trim() }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.message || "Falha ao enviar"); }
+      toast.success("Solicitação enviada ✅ — a empresa foi avisada");
+      setSolTexto(""); await loadSolic();
+    } catch (e: any) { toast.error(String(e?.message || "Erro").slice(0, 120)); }
+    finally { setEnviandoSolic(false); }
+  }
+  async function responderSolic(id: string, status: string) {
+    try { const r = await fetch(`/api/rh/solicitacoes/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, resposta: respDraft[id]?.trim() || undefined }) }); if (!r.ok) throw new Error(); toast.success(status === "APROVADA" ? "Aprovada ✅" : "Respondida"); setRespDraft((m) => { const n = { ...m }; delete n[id]; return n; }); await loadSolic(); } catch { toast.error("Não consegui responder."); }
+  }
+  async function cancelarSolic(id: string) {
+    if (!confirm("Cancelar esta solicitação?")) return;
+    try { const r = await fetch(`/api/rh/solicitacoes/${id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); await loadSolic(); } catch { toast.error("Não consegui cancelar."); }
+  }
+  const minhasSolic = useMemo(() => (perfil?.admin ? (solic as any[]).filter((s) => s.userId === meId) : (solic as any[])), [solic, perfil?.admin, meId]);
 
   const equipeFiltrada = useMemo(() => filtro === "TODOS" ? equipe : filtro === "NOVOS" ? equipe.filter(d => d.status === "ENVIADO") : equipe.filter(d => d.tipo === filtro), [equipe, filtro]);
 
@@ -126,6 +166,39 @@ export default function MeuRhPage() {
             ))}
         </div>
 
+        {/* Fazer uma solicitação */}
+        <div className="bg-white rounded-2xl border p-5 mb-5" style={{ borderColor: "#E3EEF0" }}>
+          <h2 className="text-[15px] font-bold mb-3" style={{ color: "#0D2048" }}>📨 Fazer uma solicitação</h2>
+          <div className="grid gap-3">
+            <div>
+              <label className="text-[10.5px] font-extrabold uppercase tracking-wide text-[#5C7180] block mb-1">Tipo</label>
+              <select value={solTipo} onChange={(e) => setSolTipo(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }}>
+                {SOL_TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <textarea value={solTexto} onChange={(e) => setSolTexto(e.target.value)} rows={3} placeholder="Conte os detalhes (datas, motivo…) — ex.: Gostaria de tirar férias de 10 a 20/09" className="w-full border rounded-xl px-3 py-2 text-[14px] resize-none" style={{ borderColor: "#E3EEF0" }} />
+            <button onClick={enviarSolic} disabled={enviandoSolic} className="text-white rounded-xl py-2.5 font-bold text-[14.5px] disabled:opacity-50" style={{ background: "#009AAC" }}>{enviandoSolic ? "Enviando…" : "Enviar solicitação"}</button>
+          </div>
+        </div>
+
+        {/* Minhas solicitações */}
+        <div className="mb-6">
+          <h2 className="text-[15px] font-bold mb-2 flex items-center gap-1.5" style={{ color: "#0D2048" }}>📋 Minhas solicitações</h2>
+          {minhasSolic.length === 0 ? <div className="text-center text-[13px] text-gray-400 py-6 bg-white rounded-2xl border" style={{ borderColor: "#E3EEF0" }}>Nenhuma solicitação ainda.</div> :
+            minhasSolic.map((s: any) => (
+              <div key={s.id} className="bg-white rounded-xl border px-3 py-2.5 mb-2" style={{ borderColor: "#E3EEF0" }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-[16px]">{SOL_ICO[s.tipo] || "📨"}</span>
+                  <div className="flex-1 min-w-0"><div className="font-bold text-[13.5px] text-[#1B2A3A]">{s.tipo}</div><div className="text-[11px] text-[#5C7180]">{dt(s.createdAt)}</div></div>
+                  <SolBadge s={s.status} />
+                  {s.status === "PENDENTE" && <button onClick={() => cancelarSolic(s.id)} className="text-[#b23b39] text-[13px]" title="Cancelar">🗑️</button>}
+                </div>
+                <div className="text-[12.5px] text-[#374151] mt-1.5">{s.texto}</div>
+                {s.resposta && <div className="text-[12px] mt-1.5 rounded-lg px-2.5 py-1.5" style={{ background: "#EAF7F8", color: "#00798A" }}>💬 <b>Resposta:</b> {s.resposta}</div>}
+              </div>
+            ))}
+        </div>
+
         {/* Admin: documentos da equipe */}
         {perfil?.admin && (
           <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E3EEF0" }}>
@@ -151,6 +224,40 @@ export default function MeuRhPage() {
                     <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold border rounded-lg px-2.5 py-1.5 text-[#00798A]" style={{ borderColor: "#E3EEF0" }}>Abrir</a>
                     {d.status !== "APROVADO" && <button onClick={() => marcar(d.id, "VISTO")} className="text-[12px] font-bold rounded-lg px-2.5 py-1.5 text-white" style={{ background: "#0F9D6E" }}>✓ Visto</button>}
                   </div>
+                </div>
+              ))}
+          </div>
+        )}
+
+        {/* Admin: solicitações da equipe */}
+        {perfil?.admin && (
+          <div className="bg-white rounded-2xl border overflow-hidden mt-5" style={{ borderColor: "#E3EEF0" }}>
+            <div className="px-5 py-4 border-b flex items-center gap-2 flex-wrap" style={{ borderColor: "#E3EEF0" }}>
+              <h2 className="text-[16px] font-bold" style={{ color: "#0D2048" }}>📨 RH · Solicitações da equipe</h2>
+              {(solic as any[]).filter((s) => s.status === "PENDENTE").length > 0 && <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full" style={{ background: "#FBF3DD", color: "#8a6400" }}>{(solic as any[]).filter((s) => s.status === "PENDENTE").length} pendentes</span>}
+            </div>
+            {(solic as any[]).length === 0 ? <div className="text-center text-[13px] text-gray-400 py-8">Nenhuma solicitação.</div> :
+              (solic as any[]).map((s: any) => (
+                <div key={s.id} className="px-5 py-3 border-b" style={{ borderColor: "#EEF3F5" }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full grid place-items-center text-white font-extrabold text-[13px] flex-shrink-0" style={{ background: "#0C93A6" }}>{(s.funcionarioNome || "?").split(/\s+/).map((x: string) => x[0]).join("").slice(0, 2).toUpperCase()}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-[14px] text-[#1B2A3A] truncate">{s.funcionarioNome} <span className="font-semibold text-[#5C7180] text-[12px]">· {SOL_ICO[s.tipo] || "📨"} {s.tipo}</span></div>
+                      <div className="text-[12px] text-[#5C7180]">{dt(s.createdAt)}</div>
+                    </div>
+                    <SolBadge s={s.status} />
+                  </div>
+                  <div className="text-[12.5px] text-[#374151] mt-1.5 ml-12">{s.texto}</div>
+                  {s.resposta && <div className="text-[12px] mt-1.5 ml-12 rounded-lg px-2.5 py-1.5" style={{ background: "#EAF7F8", color: "#00798A" }}>💬 {s.resposta}</div>}
+                  {s.status === "PENDENTE" && (
+                    <div className="ml-12 mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                      <input value={respDraft[s.id] || ""} onChange={(e) => setRespDraft((m) => ({ ...m, [s.id]: e.target.value }))} placeholder="Resposta (opcional)" className="flex-1 border rounded-lg px-2.5 py-1.5 text-[12.5px]" style={{ borderColor: "#E3EEF0" }} />
+                      <div className="flex gap-1.5">
+                        <button onClick={() => responderSolic(s.id, "APROVADA")} className="text-[12px] font-bold rounded-lg px-3 py-1.5 text-white" style={{ background: "#0F9D6E" }}>✅ Aprovar</button>
+                        <button onClick={() => responderSolic(s.id, "NEGADA")} className="text-[12px] font-bold rounded-lg px-3 py-1.5 border" style={{ borderColor: "#E7C3C3", color: "#C0392B" }}>Negar</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
           </div>

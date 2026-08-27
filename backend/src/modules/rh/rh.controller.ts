@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RhService } from './rh.service';
-import { CriarRhDocumentoDto, AtualizarStatusRhDto } from './dto/rh-documento.dto';
+import { CriarRhDocumentoDto, AtualizarStatusRhDto, CriarRhSolicitacaoDto, ResponderRhSolicitacaoDto } from './dto/rh-documento.dto';
 
 /**
  * RH — Fatia 1 (Documentos). Endpoint DEDICADO e protegido: funcionário só enxerga/mexe
@@ -45,5 +45,30 @@ export class RhController {
   @Delete('documentos/:id')
   remover(@CurrentUser() user: any, @Param('id') id: string) {
     return this.rh.removerDocumento(user, id);
+  }
+
+  // ---------------- SOLICITAÇÕES (Fatia 2) ----------------
+  /** Lista: funcionário → só as dele; admin → todas (filtro status). */
+  @Get('solicitacoes')
+  listarSolic(@CurrentUser() user: any, @Query('status') status?: string) {
+    return this.rh.listarSolicitacoes(user, { status });
+  }
+
+  /** Abre uma solicitação (funcionário, pra si). */
+  @Post('solicitacoes')
+  criarSolic(@CurrentUser() user: any, @Body() dto: CriarRhSolicitacaoDto) {
+    return this.rh.criarSolicitacao(user, dto);
+  }
+
+  /** Responde (aprovar/negar + observação) — só admin. */
+  @Patch('solicitacoes/:id')
+  responderSolic(@CurrentUser() user: any, @Param('id') id: string, @Body() dto: ResponderRhSolicitacaoDto) {
+    return this.rh.responderSolicitacao(user, id, dto.status, dto.resposta);
+  }
+
+  /** Cancela (dono, se pendente) ou remove (admin). */
+  @Delete('solicitacoes/:id')
+  removerSolic(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.rh.removerSolicitacao(user, id);
   }
 }

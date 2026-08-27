@@ -23,3 +23,20 @@ export class AtualizarStatusRhDto {
   @IsString()
   status!: string; // ENVIADO | VISTO | APROVADO
 }
+
+export class CriarRhSolicitacaoDto {
+  @IsString()
+  tipo!: string; // Férias | Adiantamento | Folga | Troca de escala | Outro
+
+  @IsString()
+  texto!: string;
+}
+
+export class ResponderRhSolicitacaoDto {
+  @IsString()
+  status!: string; // APROVADA | NEGADA | PENDENTE
+
+  @IsOptional()
+  @IsString()
+  resposta?: string;
+}
