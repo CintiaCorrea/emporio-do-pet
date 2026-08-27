@@ -54,9 +54,11 @@ export class ConciliacaoService {
       // 🎯 CONCILIAÇÃO POR NSU (prioritária): se a linha do extrato traz o NSU/autorização e casa
       // EXATO com o numeroDocumento de um lançamento (gravado no recebimento do cartão), concilia
       // direto — independe de pequenas diferenças de valor (taxa) ou de data (D+1/D+30).
-      const nsuLinha = String((linha as any).nsu || (linha as any).documento || '').trim();
+      // Case-insensitive: NSU/autorização de cartão pode ter letras (ex.: "JPQWHD") e vir em
+      // caixa diferente entre a maquininha e o extrato — comparamos sempre em MAIÚSCULAS.
+      const nsuLinha = String((linha as any).nsu || (linha as any).documento || '').trim().toUpperCase();
       if (nsuLinha) {
-        const exato = pendentes.find((p) => !usados.has(p.id) && p.tipo === linha.tipo && String((p as any).numeroDocumento || '').trim() === nsuLinha);
+        const exato = pendentes.find((p) => !usados.has(p.id) && p.tipo === linha.tipo && String((p as any).numeroDocumento || '').trim().toUpperCase() === nsuLinha);
         if (exato) {
           usados.add(exato.id);
           return { linha, eid, sugestao: 'CONCILIAR' as Sugestao, match: exato, diferencaCentavos: linha.valorCentavos - exato.valorCentavos };
