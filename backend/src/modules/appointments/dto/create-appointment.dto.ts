@@ -223,6 +223,14 @@ export class CreateAppointmentItemDto {
   @IsOptional() @IsString()
   catalogoItemId?: string;
 
+  @ApiPropertyOptional({ description: 'Tipo do item (ex.: "EXAME") — usado p/ rotear o exame ao Kanban (petexa_)' })
+  @IsOptional() @IsString()
+  tipoItem?: string;
+
+  @ApiPropertyOptional({ description: 'ID do exame no catálogo ANTIGO (exa_catalogo)' })
+  @IsOptional() @IsString()
+  catalogoExameId?: string;
+
   @ApiPropertyOptional({ description: 'ID do convênio que paga este item (Petlife etc.) — sai do total do tutor e vira a-receber mensal' })
   @IsOptional() @IsString()
   convenioId?: string;
