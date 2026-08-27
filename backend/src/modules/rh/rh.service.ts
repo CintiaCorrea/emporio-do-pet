@@ -191,4 +191,156 @@ export class RhService {
     const profs = await this.prisma.profissional.findMany({ where: { ativo: true, userId: { not: null } }, select: { userId: true, nomeExibicao: true, nomeCompleto: true, tipo: true } });
     return profs.filter((p) => p.userId).map((p) => ({ userId: p.userId, nome: p.nomeExibicao || p.nomeCompleto, cargo: p.tipo }));
   }
+
+  // ---------------- PONTO (Fatia 4) ----------------
+  // Fuso fixo America/Fortaleza = UTC-3 (sem horário de verão). Agrupa o "dia" pelo -3.
+  private static readonly TZ_OFF_MS = 3 * 60 * 60 * 1000; // 3h
+  /** "YYYY-MM-DD" (dia local -3) de um Date. */
+  private diaLocal(d: Date): string {
+    return new Date(d.getTime() - RhService.TZ_OFF_MS).toISOString().slice(0, 10);
+  }
+  /** "HH:MM" (hora local -3) de um Date. */
+  private horaLocal(d: Date): string {
+    return new Date(d.getTime() - RhService.TZ_OFF_MS).toISOString().slice(11, 16);
+  }
+  /** Início do dia local (00:00 -3) como Date UTC. */
+  private inicioDiaLocalUTC(diaISO: string): Date {
+    return new Date(`${diaISO}T03:00:00.000Z`);
+  }
+  private readonly ORDEM_TIPO = ['ENTRADA', 'SAIDA_ALMOCO', 'VOLTA_ALMOCO', 'SAIDA'];
+  private readonly TIPOS_IN = new Set(['ENTRADA', 'VOLTA_ALMOCO']);
+  private readonly TIPOS_OUT = new Set(['SAIDA_ALMOCO', 'SAIDA']);
+
+  /** Soma de minutos trabalhados a partir das batidas de UM dia (pareando IN→OUT). */
+  private minutosDoDia(batidas: any[], liveNow?: Date): number {
+    const orden = [...batidas].sort((a, b) => new Date(a.batidaEm).getTime() - new Date(b.batidaEm).getTime());
+    let total = 0;
+    let entrouEm: number | null = null;
+    for (const b of orden) {
+      const t = new Date(b.batidaEm).getTime();
+      if (this.TIPOS_IN.has(b.tipo)) {
+        if (entrouEm == null) entrouEm = t;
+      } else if (this.TIPOS_OUT.has(b.tipo)) {
+        if (entrouEm != null) { total += Math.max(0, t - entrouEm); entrouEm = null; }
+      }
+    }
+    // ainda "dentro" agora (só faz sentido pro dia de hoje) → conta até agora
+    if (entrouEm != null && liveNow) total += Math.max(0, liveNow.getTime() - entrouEm);
+    return Math.round(total / 60000);
+  }
+  private fmtHoras(min: number): string {
+    const h = Math.floor(min / 60), m = min % 60;
+    return `${h}h${String(m).padStart(2, '0')}`;
+  }
+  /** Próximo tipo esperado a partir da ÚLTIMA batida (ciclo Entrada→Almoço→Volta→Saída→Entrada). */
+  private proximoTipo(batidasHoje: any[]): string {
+    const ult = batidasHoje[batidasHoje.length - 1];
+    if (!ult) return 'ENTRADA';
+    const next: Record<string, string> = { ENTRADA: 'SAIDA_ALMOCO', SAIDA_ALMOCO: 'VOLTA_ALMOCO', VOLTA_ALMOCO: 'SAIDA', SAIDA: 'ENTRADA' };
+    return next[ult.tipo] || 'ENTRADA';
+  }
+
+  /** Funcionário bate o ponto (próxima batida do ciclo, ou `tipo` explícito). */
+  async baterPonto(user: any, dto?: { tipo?: string }) {
+    const agora = new Date();
+    const hoje = this.diaLocal(agora);
+    const ini = this.inicioDiaLocalUTC(hoje);
+    const fim = new Date(ini.getTime() + 24 * 60 * 60 * 1000);
+    const batidasHoje = await (this.prisma as any).rhPonto.findMany({ where: { userId: user.id, batidaEm: { gte: ini, lt: fim } }, orderBy: { batidaEm: 'asc' } });
+    const tipo = dto?.tipo && this.ORDEM_TIPO.includes(dto.tipo) ? dto.tipo : this.proximoTipo(batidasHoje);
+    const nova = await (this.prisma as any).rhPonto.create({ data: { userId: user.id, tipo, batidaEm: agora, origem: 'web' } });
+    return { batida: nova, hoje: await this.pontoHoje(user) };
+  }
+
+  /** Estado do ponto de HOJE do funcionário logado (status + batidas + horas ao vivo). */
+  async pontoHoje(user: any) {
+    const agora = new Date();
+    const hoje = this.diaLocal(agora);
+    const ini = this.inicioDiaLocalUTC(hoje);
+    const fim = new Date(ini.getTime() + 24 * 60 * 60 * 1000);
+    const batidas = await (this.prisma as any).rhPonto.findMany({ where: { userId: user.id, batidaEm: { gte: ini, lt: fim } }, orderBy: { batidaEm: 'asc' } });
+    const ultima = batidas[batidas.length - 1];
+    const dentro = ultima ? this.TIPOS_IN.has(ultima.tipo) : false;
+    const emIntervalo = ultima?.tipo === 'SAIDA_ALMOCO';
+    const encerrou = ultima?.tipo === 'SAIDA';
+    const status = !ultima ? 'FORA' : encerrou ? 'ENCERRADO' : emIntervalo ? 'INTERVALO' : dentro ? 'TRABALHANDO' : 'FORA';
+    const min = this.minutosDoDia(batidas, agora);
+    return {
+      dia: hoje,
+      status,
+      minutos: min,
+      horas: this.fmtHoras(min),
+      proximoTipo: this.proximoTipo(batidas),
+      batidas: batidas.map((b: any) => ({ id: b.id, tipo: b.tipo, hora: this.horaLocal(new Date(b.batidaEm)), ajuste: b.ajuste })),
+      desde: dentro && ultima ? this.horaLocal(new Date(ultima.batidaEm)) : null,
+    };
+  }
+
+  /** Espelho de ponto do mês. Funcionário → só o dele; admin → de qualquer userId. */
+  async espelho(user: any, q: { userId?: string; mes?: string }) {
+    const alvo = q.userId && isRhAdmin(user) ? q.userId : user.id;
+    if (!isRhAdmin(user) && alvo !== user.id) throw new ForbiddenException('Você só vê o seu espelho.');
+    const mes = /^\d{4}-\d{2}$/.test(q.mes || '') ? q.mes! : this.diaLocal(new Date()).slice(0, 7);
+    const ini = this.inicioDiaLocalUTC(`${mes}-01`);
+    const fimMes = new Date(ini); fimMes.setUTCMonth(fimMes.getUTCMonth() + 1);
+    const batidas = await (this.prisma as any).rhPonto.findMany({ where: { userId: alvo, batidaEm: { gte: ini, lt: fimMes } }, orderBy: { batidaEm: 'asc' } });
+    const hojeLocal = this.diaLocal(new Date());
+    const porDia = new Map<string, any[]>();
+    for (const b of batidas) { const d = this.diaLocal(new Date(b.batidaEm)); if (!porDia.has(d)) porDia.set(d, []); porDia.get(d)!.push(b); }
+    const dias = Array.from(porDia.keys()).sort().map((d) => {
+      const arr = porDia.get(d)!;
+      const min = this.minutosDoDia(arr, d === hojeLocal ? new Date() : undefined);
+      const de = (tp: string) => { const x = arr.find((b: any) => b.tipo === tp); return x ? this.horaLocal(new Date(x.batidaEm)) : null; };
+      return {
+        dia: d, entrada: de('ENTRADA'), saidaAlmoco: de('SAIDA_ALMOCO'), voltaAlmoco: de('VOLTA_ALMOCO'), saida: de('SAIDA'),
+        minutos: min, horas: this.fmtHoras(min), emCurso: d === hojeLocal && arr.length > 0 && this.TIPOS_IN.has(arr[arr.length - 1].tipo),
+        temAjuste: arr.some((b: any) => b.ajuste),
+        batidas: arr.map((b: any) => ({ tipo: b.tipo, hora: this.horaLocal(new Date(b.batidaEm)), ajuste: b.ajuste })),
+      };
+    });
+    const totalMin = dias.reduce((s, x) => s + x.minutos, 0);
+    // nome do funcionário (pro cabeçalho da folha)
+    const prof = await this.prisma.profissional.findFirst({ where: { userId: alvo }, select: { nomeExibicao: true, nomeCompleto: true, tipo: true } });
+    const u = await this.prisma.user.findUnique({ where: { id: alvo }, select: { name: true } });
+    return { userId: alvo, funcionarioNome: prof?.nomeExibicao || prof?.nomeCompleto || u?.name || 'Funcionário', funcionarioCargo: prof?.tipo || '', mes, dias, totalMinutos: totalMin, totalHoras: this.fmtHoras(totalMin) };
+  }
+
+  /** Painel do admin: ponto de HOJE de toda a equipe (quem está, intervalo, encerrou, não bateu). */
+  async equipeHoje(user: any) {
+    if (!isRhAdmin(user)) throw new ForbiddenException('Só a administração.');
+    const agora = new Date();
+    const hoje = this.diaLocal(agora);
+    const ini = this.inicioDiaLocalUTC(hoje);
+    const fim = new Date(ini.getTime() + 24 * 60 * 60 * 1000);
+    const funcs = await this.prisma.profissional.findMany({ where: { ativo: true, userId: { not: null } }, select: { userId: true, nomeExibicao: true, nomeCompleto: true, tipo: true } });
+    const ids = funcs.map((f) => f.userId).filter(Boolean) as string[];
+    const batidas = ids.length ? await (this.prisma as any).rhPonto.findMany({ where: { userId: { in: ids }, batidaEm: { gte: ini, lt: fim } }, orderBy: { batidaEm: 'asc' } }) : [];
+    const porUser = new Map<string, any[]>();
+    for (const b of batidas) { if (!porUser.has(b.userId)) porUser.set(b.userId, []); porUser.get(b.userId)!.push(b); }
+    return funcs.map((f) => {
+      const arr = porUser.get(f.userId!) || [];
+      const ultima = arr[arr.length - 1];
+      const dentro = ultima ? this.TIPOS_IN.has(ultima.tipo) : false;
+      const status = !ultima ? 'NAO_BATEU' : ultima.tipo === 'SAIDA' ? 'ENCERRADO' : ultima.tipo === 'SAIDA_ALMOCO' ? 'INTERVALO' : dentro ? 'TRABALHANDO' : 'FORA';
+      const min = this.minutosDoDia(arr, new Date());
+      const de = (tp: string) => { const x = arr.find((b: any) => b.tipo === tp); return x ? this.horaLocal(new Date(x.batidaEm)) : null; };
+      return { userId: f.userId, nome: f.nomeExibicao || f.nomeCompleto, cargo: f.tipo, status, horas: this.fmtHoras(min), entrada: de('ENTRADA'), saidaAlmoco: de('SAIDA_ALMOCO'), voltaAlmoco: de('VOLTA_ALMOCO'), saida: de('SAIDA') };
+    });
+  }
+
+  /** Admin lança um AJUSTE (batida corrigida) com justificativa obrigatória — vira linha auditável. */
+  async lancarAjuste(user: any, dto: { userId?: string; data?: string; tipo?: string; hora?: string; justificativa?: string }) {
+    if (!isRhAdmin(user)) throw new ForbiddenException('Só a administração lança ajustes.');
+    if (!dto?.userId) throw new BadRequestException('Selecione o funcionário.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dto.data || '')) throw new BadRequestException('Data inválida.');
+    if (!/^\d{2}:\d{2}$/.test(dto.hora || '')) throw new BadRequestException('Hora inválida.');
+    if (!this.ORDEM_TIPO.includes(dto.tipo || '')) throw new BadRequestException('Tipo de batida inválido.');
+    if (!dto?.justificativa?.trim()) throw new BadRequestException('A justificativa do ajuste é obrigatória.');
+    // data+hora local (-3) → UTC
+    const batidaEm = new Date(`${dto.data}T${dto.hora}:00.000Z`);
+    batidaEm.setTime(batidaEm.getTime() + RhService.TZ_OFF_MS);
+    const nova = await (this.prisma as any).rhPonto.create({ data: { userId: dto.userId, tipo: dto.tipo, batidaEm, origem: 'ajuste', ajuste: true, ajustadoPorId: user.id, justificativa: dto.justificativa.trim() } });
+    await this.notificar(user.id, dto.userId, `⏱️ A administração lançou um ajuste no seu ponto (${dto.tipo} em ${dto.data} ${dto.hora}). Motivo: ${dto.justificativa.trim()}`);
+    return nova;
+  }
 }

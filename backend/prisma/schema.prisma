@@ -1759,6 +1759,24 @@ model RhComunicadoLeitura {
   @@map("rh_comunicado_leituras")
 }
 
+// RH — Ponto (Fatia 4): cada batida do funcionário é UMA linha imutável (não pode ser
+// apagada/editada por ele — é o que faz o ponto valer). Correção só via AJUSTE do admin
+// (ajuste=true + ajustadoPorId + justificativa), que também vira uma linha auditável.
+model RhPonto {
+  id            String   @id @default(uuid())
+  userId        String // funcionário (User.id)
+  tipo          String // ENTRADA | SAIDA_ALMOCO | VOLTA_ALMOCO | SAIDA
+  batidaEm      DateTime // momento da batida (UTC); agrupado por dia em America/Fortaleza (-3)
+  origem        String   @default("web")
+  ajuste        Boolean  @default(false) // true = lançado/corrigido pelo admin
+  ajustadoPorId String? // quem lançou o ajuste (User.id do admin)
+  justificativa String?  @db.Text // obrigatória quando ajuste=true
+  createdAt     DateTime @default(now())
+
+  @@index([userId, batidaEm])
+  @@map("rh_pontos")
+}
+
 // ============================================
 // Etiquetas (tags) — categorias + templates aplicáveis a Lead/Cliente/Pet
 // ============================================

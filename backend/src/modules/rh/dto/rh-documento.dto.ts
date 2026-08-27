@@ -52,3 +52,26 @@ export class CriarRhComunicadoDto {
   @IsString()
   targetUserId?: string; // vazio = a TODOS
 }
+
+export class BaterPontoDto {
+  @IsOptional()
+  @IsString()
+  tipo?: string; // ENTRADA | SAIDA_ALMOCO | VOLTA_ALMOCO | SAIDA (vazio = próxima do ciclo)
+}
+
+export class AjustePontoDto {
+  @IsString()
+  userId!: string; // funcionário
+
+  @IsString()
+  data!: string; // YYYY-MM-DD (dia local)
+
+  @IsString()
+  tipo!: string; // ENTRADA | SAIDA_ALMOCO | VOLTA_ALMOCO | SAIDA
+
+  @IsString()
+  hora!: string; // HH:MM (hora local)
+
+  @IsString()
+  justificativa!: string; // obrigatória
+}

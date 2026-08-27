@@ -3,11 +3,28 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { imprimirDocumento } from "@/lib/print";
 
 type Doc = { id: string; userId: string; tipo: string; nome: string; url: string; observacao?: string | null; status: string; createdAt: string; funcionarioNome?: string; funcionarioCargo?: string };
 type Perfil = { nome: string; iniciais: string; cargo: string; dataInicio: string | null; email: string; admin: boolean };
+type PontoHoje = { dia: string; status: string; minutos: number; horas: string; proximoTipo: string; batidas: { id: string; tipo: string; hora: string; ajuste: boolean }[]; desde: string | null };
+type EspDia = { dia: string; entrada: string | null; saidaAlmoco: string | null; voltaAlmoco: string | null; saida: string | null; horas: string; emCurso: boolean; temAjuste: boolean };
+type Espelho = { userId: string; funcionarioNome: string; funcionarioCargo: string; mes: string; dias: EspDia[]; totalHoras: string };
 
 const TIPOS = ["Atestado", "Contrato", "Holerite", "Documentos pessoais", "Comprovante", "Outros"];
+// Ponto (Fatia 4)
+const PONTO_TIPOS = ["ENTRADA", "SAIDA_ALMOCO", "VOLTA_ALMOCO", "SAIDA"];
+const PONTO_LABEL: Record<string, string> = { ENTRADA: "Entrada", SAIDA_ALMOCO: "Saída almoço", VOLTA_ALMOCO: "Volta", SAIDA: "Saída" };
+const PONTO_BTN: Record<string, string> = { ENTRADA: "▶️ Registrar entrada", SAIDA_ALMOCO: "🍽️ Saída para almoço", VOLTA_ALMOCO: "↩️ Voltar do almoço", SAIDA: "⏹️ Registrar saída" };
+const PONTO_STATUS: Record<string, { t: string; bg: string; c: string }> = {
+  TRABALHANDO: { t: "● em serviço", bg: "#E7F6EF", c: "#0F9D6E" },
+  INTERVALO: { t: "☕ em intervalo", bg: "#FBF3DD", c: "#8a6400" },
+  ENCERRADO: { t: "✔ encerrou", bg: "#EEF1F4", c: "#5C7180" },
+  FORA: { t: "— fora", bg: "#EEF1F4", c: "#5C7180" },
+  NAO_BATEU: { t: "— não bateu", bg: "#EEF1F4", c: "#9aa7b2" },
+};
+const diaBR = (s: string) => { try { const [y, m, d] = s.split("-"); return `${d}/${m}`; } catch { return s; } };
+const diaSemana = (s: string) => { try { return new Date(`${s}T12:00:00`).toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", ""); } catch { return ""; } };
 const SOL_TIPOS = ["Férias", "Adiantamento", "Folga", "Troca de escala", "Outro"];
 const SOL_ICO: Record<string, string> = { "Férias": "🏖️", "Adiantamento": "💵", "Folga": "🛋️", "Troca de escala": "🔄", "Outro": "📨" };
 const CARGO_LABEL: Record<string, string> = { VETERINARIO: "Veterinário", RECEPCIONISTA: "Recepção", ESTAGIARIO: "Estagiário", GERENTE: "Gerente", ADMIN: "Administração", OUTRO: "Equipe" };
@@ -65,6 +82,21 @@ export default function MeuRhPage() {
   const [envObs, setEnvObs] = useState("");
   const [envEnviando, setEnvEnviando] = useState(false);
   const envRef = useRef<HTMLInputElement>(null);
+  // Ponto (Fatia 4)
+  const [ponto, setPonto] = useState<PontoHoje | null>(null);
+  const [batendo, setBatendo] = useState(false);
+  const [relogio, setRelogio] = useState("");
+  const [espUser, setEspUser] = useState("");
+  const [espMes, setEspMes] = useState(() => new Date().toISOString().slice(0, 7));
+  const [espelho, setEspelho] = useState<Espelho | null>(null);
+  const [carregandoEsp, setCarregandoEsp] = useState(false);
+  const [equipeHoje, setEquipeHoje] = useState<any[]>([]);
+  const [ajUser, setAjUser] = useState("");
+  const [ajData, setAjData] = useState(() => new Date().toISOString().slice(0, 10));
+  const [ajTipo, setAjTipo] = useState("ENTRADA");
+  const [ajHora, setAjHora] = useState("08:00");
+  const [ajJust, setAjJust] = useState("");
+  const [ajSalvando, setAjSalvando] = useState(false);
 
   async function loadPerfil() { try { const r = await fetch("/api/rh/perfil", { cache: "no-store" }); if (r.ok) setPerfil(await r.json()); } catch {} }
   async function loadMeus() { if (!meId) return; try { const r = await fetch(`/api/rh/documentos?userId=${meId}`, { cache: "no-store" }); const d = await r.json(); setMeus(Array.isArray(d) ? d : []); } catch {} }
@@ -151,6 +183,85 @@ export default function MeuRhPage() {
   }
   const comNaoLidos = useMemo(() => (perfil?.admin ? 0 : (comunicados as any[]).filter((c) => !c.lido).length), [comunicados, perfil?.admin]);
 
+  // ---- Ponto (Fatia 4) ----
+  async function loadPonto() { try { const r = await fetch("/api/rh/ponto/hoje", { cache: "no-store" }); if (r.ok) setPonto(await r.json()); } catch {} }
+  async function loadEquipeHoje() { try { const r = await fetch("/api/rh/ponto/equipe-hoje", { cache: "no-store" }); const d = await r.json(); setEquipeHoje(Array.isArray(d) ? d : []); } catch {} }
+  useEffect(() => { loadPonto(); /* eslint-disable-next-line */ }, [meId]);
+  useEffect(() => { if (perfil?.admin) loadEquipeHoje(); /* eslint-disable-next-line */ }, [perfil?.admin]);
+  // relógio ao vivo (só HH:MM)
+  useEffect(() => { const tick = () => setRelogio(new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })); tick(); const id = setInterval(tick, 20000); return () => clearInterval(id); }, []);
+  async function baterPonto() {
+    setBatendo(true);
+    try {
+      const r = await fetch("/api/rh/ponto/bater", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || "Falha ao bater ponto");
+      const tp = d?.batida?.tipo; toast.success(`${PONTO_LABEL[tp] || "Ponto"} registrada ✅`);
+      if (d?.hoje) setPonto(d.hoje); else await loadPonto();
+      if (perfil?.admin) loadEquipeHoje();
+    } catch (e: any) { toast.error(String(e?.message || "Erro").slice(0, 120)); }
+    finally { setBatendo(false); }
+  }
+  async function carregarEspelho(userId: string, mes: string) {
+    setCarregandoEsp(true);
+    try {
+      const qs = new URLSearchParams(); if (userId) qs.set("userId", userId); if (mes) qs.set("mes", mes);
+      const r = await fetch(`/api/rh/ponto/espelho?${qs.toString()}`, { cache: "no-store" });
+      const d = await r.json(); setEspelho(d && d.dias ? d : null);
+    } catch { toast.error("Não consegui carregar o espelho."); }
+    finally { setCarregandoEsp(false); }
+  }
+  // funcionário: carrega o próprio espelho ao abrir e ao trocar o mês
+  useEffect(() => { if (perfil && !perfil.admin) carregarEspelho("", espMes); /* eslint-disable-next-line */ }, [perfil?.admin, espMes]);
+  function espelhoHtml(e: Espelho): string {
+    const linhas = e.dias.map((d) => `<tr>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb">${diaBR(d.dia)} <span style="color:#8a97a3">${diaSemana(d.dia)}</span></td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${d.entrada || "—"}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${d.saidaAlmoco || "—"}${d.voltaAlmoco ? `–${d.voltaAlmoco}` : ""}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:center">${d.emCurso ? "<i>em curso</i>" : (d.saida || "—")}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:right;font-weight:700">${d.horas}${d.temAjuste ? " *" : ""}</td>
+    </tr>`).join("");
+    return `<h2 style="margin:0 0 2px">Folha de ponto — ${e.funcionarioNome}</h2>
+      <div style="color:#5C7180;font-size:12px;margin-bottom:10px">${e.funcionarioCargo ? (CARGO_LABEL[e.funcionarioCargo] || e.funcionarioCargo) + " · " : ""}Competência ${e.mes.split("-").reverse().join("/")}</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12.5px">
+        <thead><tr style="background:#f1f5f7">
+          <th style="padding:7px 8px;text-align:left">Dia</th><th style="padding:7px 8px">Entrada</th>
+          <th style="padding:7px 8px">Almoço</th><th style="padding:7px 8px">Saída</th><th style="padding:7px 8px;text-align:right">Horas</th>
+        </tr></thead>
+        <tbody>${linhas || `<tr><td colspan="5" style="padding:14px;text-align:center;color:#8a97a3">Sem batidas neste mês.</td></tr>`}</tbody>
+        <tfoot><tr><td colspan="4" style="padding:8px;text-align:right;font-weight:800">Total do mês</td><td style="padding:8px;text-align:right;font-weight:800">${e.totalHoras}</td></tr></tfoot>
+      </table>
+      <div style="margin-top:8px;color:#8a97a3;font-size:11px">* dia com ajuste lançado pela administração.</div>
+      <div style="margin-top:34px;display:flex;gap:40px">
+        <div style="flex:1;border-top:1px solid #14253a;padding-top:4px;text-align:center;font-size:12px">Assinatura do funcionário</div>
+        <div style="flex:1;border-top:1px solid #14253a;padding-top:4px;text-align:center;font-size:12px">Assinatura da empresa</div>
+      </div>`;
+  }
+  async function imprimirEspelho() { if (!espelho) return; await imprimirDocumento(`Folha de ponto — ${espelho.funcionarioNome} — ${espelho.mes}`, espelhoHtml(espelho)); }
+  function exportarCsv() {
+    if (!espelho) return;
+    const linhas = [["Dia", "Entrada", "Saída almoço", "Volta", "Saída", "Horas"].join(";")];
+    for (const d of espelho.dias) linhas.push([diaBR(d.dia), d.entrada || "", d.saidaAlmoco || "", d.voltaAlmoco || "", d.saida || "", d.horas].join(";"));
+    linhas.push(["", "", "", "", "Total", espelho.totalHoras].join(";"));
+    const blob = new Blob(["﻿" + linhas.join("\n")], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob); const a = document.createElement("a");
+    a.href = url; a.download = `folha-ponto-${espelho.funcionarioNome.replace(/\s+/g, "-")}-${espelho.mes}.csv`; a.click(); URL.revokeObjectURL(url);
+  }
+  async function lancarAjuste() {
+    if (!ajUser) { toast.error("Escolha o funcionário."); return; }
+    if (!ajJust.trim()) { toast.error("A justificativa é obrigatória."); return; }
+    setAjSalvando(true);
+    try {
+      const r = await fetch("/api/rh/ponto/ajuste", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: ajUser, data: ajData, tipo: ajTipo, hora: ajHora, justificativa: ajJust.trim() }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || "Falha no ajuste");
+      toast.success("Ajuste lançado ✅");
+      setAjJust(""); loadEquipeHoje();
+      if (espelho && espelho.userId === ajUser) carregarEspelho(ajUser, espMes);
+    } catch (e: any) { toast.error(String(e?.message || "Erro").slice(0, 120)); }
+    finally { setAjSalvando(false); }
+  }
+
   const equipeFiltrada = useMemo(() => filtro === "TODOS" ? equipe : filtro === "NOVOS" ? equipe.filter(d => d.status === "ENVIADO") : equipe.filter(d => d.tipo === filtro), [equipe, filtro]);
 
   return (
@@ -170,6 +281,72 @@ export default function MeuRhPage() {
             </div>
           )}
         </div>
+
+        {/* Ponto de hoje (funcionário) */}
+        {perfil && !perfil.admin && ponto && (
+          <div className="bg-white rounded-2xl border p-5 mb-5" style={{ borderColor: "#E3EEF0" }}>
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-[10.5px] font-extrabold uppercase tracking-wide text-[#5C7180]">Ponto de hoje</div>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-[19px] font-bold text-[#0D2048]">{ponto.status === "TRABALHANDO" ? "Trabalhando" : ponto.status === "INTERVALO" ? "Em intervalo" : ponto.status === "ENCERRADO" ? "Dia encerrado" : "Fora"}</span>
+                  <span className="text-[10px] font-extrabold px-2 py-[3px] rounded-full" style={{ background: PONTO_STATUS[ponto.status]?.bg, color: PONTO_STATUS[ponto.status]?.c }}>{PONTO_STATUS[ponto.status]?.t}</span>
+                </div>
+                <div className="text-[12px] text-[#5C7180] mt-0.5">{ponto.desde ? `desde ${ponto.desde} · ` : ""}somou {ponto.horas} hoje</div>
+              </div>
+              <div className="text-[34px] font-bold tabular-nums text-[#0D2048] leading-none">{relogio}</div>
+            </div>
+            <button onClick={baterPonto} disabled={batendo} className="w-full mt-4 text-white rounded-xl py-3.5 font-bold text-[16px] disabled:opacity-50" style={{ background: "#009AAC" }}>{batendo ? "Registrando…" : (PONTO_BTN[ponto.proximoTipo] || "Bater ponto")}</button>
+            <div className="grid grid-cols-4 gap-2 mt-3">
+              {PONTO_TIPOS.map((tp) => { const b = ponto.batidas.find((x) => x.tipo === tp); return (
+                <div key={tp} className="rounded-xl border px-2 py-2 text-center" style={{ borderColor: b ? "#E3EEF0" : "#EEF3F5", borderStyle: b ? "solid" : "dashed", background: b ? "#F8FCFC" : "#fff" }}>
+                  <div className="text-[9.5px] font-extrabold uppercase tracking-wide text-[#8a97a3]">{PONTO_LABEL[tp]}</div>
+                  <div className="text-[16px] font-bold tabular-nums mt-0.5" style={{ color: b ? "#0D2048" : "#c3ccd3" }}>{b ? b.hora : "— —"}{b?.ajuste ? " *" : ""}</div>
+                </div>
+              ); })}
+            </div>
+            <div className="text-[11px] text-[#5C7180] mt-3 rounded-lg px-3 py-2" style={{ background: "#F1F7F8" }}>🔒 A batida não pode ser apagada nem editada — é o que faz o ponto valer. Se errar, avise a administração pra lançar um ajuste.</div>
+          </div>
+        )}
+
+        {/* Meu espelho (funcionário) */}
+        {perfil && !perfil.admin && (
+          <div className="bg-white rounded-2xl border p-5 mb-5" style={{ borderColor: "#E3EEF0" }}>
+            <div className="flex items-center justify-between gap-2 flex-wrap mb-3">
+              <h2 className="text-[15px] font-bold" style={{ color: "#0D2048" }}>🗓️ Meu espelho de ponto</h2>
+              <input type="month" value={espMes} onChange={(e) => setEspMes(e.target.value)} className="border rounded-lg px-2.5 py-1.5 text-[13px]" style={{ borderColor: "#E3EEF0" }} />
+            </div>
+            {carregandoEsp ? <div className="text-center text-[13px] text-gray-400 py-6">Carregando…</div> : !espelho || espelho.dias.length === 0 ? <div className="text-center text-[13px] text-gray-400 py-6">Sem batidas neste mês.</div> : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[13px]" style={{ borderCollapse: "collapse" }}>
+                    <thead><tr className="text-[10px] uppercase tracking-wide text-[#8a97a3]">
+                      <th className="text-left font-extrabold py-1.5">Dia</th><th className="font-extrabold py-1.5">Entrada</th><th className="font-extrabold py-1.5">Almoço</th><th className="font-extrabold py-1.5">Saída</th><th className="text-right font-extrabold py-1.5">Horas</th>
+                    </tr></thead>
+                    <tbody>
+                      {espelho.dias.map((d) => (
+                        <tr key={d.dia} className="border-t" style={{ borderColor: "#EEF3F5" }}>
+                          <td className="py-2">{diaBR(d.dia)} <span className="text-[#9aa7b2]">{diaSemana(d.dia)}</span></td>
+                          <td className="text-center tabular-nums">{d.entrada || "—"}</td>
+                          <td className="text-center tabular-nums text-[12px]">{d.saidaAlmoco || "—"}{d.voltaAlmoco ? `–${d.voltaAlmoco}` : ""}</td>
+                          <td className="text-center tabular-nums">{d.emCurso ? <span className="text-[#0F9D6E] font-bold">em curso</span> : (d.saida || "—")}</td>
+                          <td className="text-right font-bold tabular-nums">{d.horas}{d.temAjuste ? " *" : ""}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+                  <div className="flex gap-2">
+                    <button onClick={imprimirEspelho} className="text-[12.5px] font-bold border rounded-lg px-3 py-1.5 text-[#00798A]" style={{ borderColor: "#E3EEF0" }}>🖨️ Imprimir / salvar PDF</button>
+                    <button onClick={exportarCsv} className="text-[12.5px] font-bold border rounded-lg px-3 py-1.5 text-[#5C7180]" style={{ borderColor: "#E3EEF0" }}>⬇️ CSV</button>
+                  </div>
+                  <div className="text-[14px]"><span className="text-[#5C7180] text-[12px]">Total do mês</span> <b className="text-[#0D2048]">{espelho.totalHoras}</b></div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Comunicados (funcionário lê e confirma) */}
         {perfil && !perfil.admin && comunicados.length > 0 && (
@@ -371,6 +548,108 @@ export default function MeuRhPage() {
               </label>
               <input value={envObs} onChange={(e) => setEnvObs(e.target.value)} placeholder="Observação (opcional)" className="w-full border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }} />
               <button onClick={enviarDocParaFunc} disabled={envEnviando} className="text-white rounded-xl py-2.5 font-bold text-[14.5px] disabled:opacity-50" style={{ background: "#014D5E" }}>{envEnviando ? "Enviando…" : "Enviar ao funcionário"}</button>
+            </div>
+          </div>
+        )}
+
+        {/* Admin: ponto da equipe hoje */}
+        {perfil?.admin && (
+          <div className="bg-white rounded-2xl border overflow-hidden mt-5" style={{ borderColor: "#E3EEF0" }}>
+            <div className="px-5 py-4 border-b flex items-center gap-2 flex-wrap" style={{ borderColor: "#E3EEF0" }}>
+              <h2 className="text-[16px] font-bold" style={{ color: "#0D2048" }}>🕐 Ponto da equipe — hoje</h2>
+              <button onClick={loadEquipeHoje} className="ml-auto text-[11.5px] font-bold rounded-full px-3 py-1 border" style={{ color: "#5C7180", borderColor: "#E3EEF0" }}>↻ Atualizar</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px]" style={{ borderCollapse: "collapse" }}>
+                <thead><tr className="text-[10px] uppercase tracking-wide text-[#8a97a3]" style={{ background: "#F8FBFC" }}>
+                  <th className="text-left font-extrabold px-5 py-2">Funcionário</th><th className="font-extrabold py-2">Status</th><th className="font-extrabold py-2">Entrada</th><th className="font-extrabold py-2">Almoço</th><th className="font-extrabold py-2">Saída</th><th className="text-right font-extrabold px-5 py-2">Horas</th>
+                </tr></thead>
+                <tbody>
+                  {equipeHoje.length === 0 ? <tr><td colSpan={6} className="text-center text-gray-400 py-6 text-[13px]">Ninguém bateu ponto ainda hoje.</td></tr> :
+                    equipeHoje.map((f) => (
+                      <tr key={f.userId} className="border-t" style={{ borderColor: "#EEF3F5" }}>
+                        <td className="px-5 py-2.5"><div className="flex items-center gap-2"><div className="w-7 h-7 rounded-full grid place-items-center text-white font-extrabold text-[11px] flex-shrink-0" style={{ background: "#0C93A6" }}>{(f.nome || "?").split(/\s+/).map((x: string) => x[0]).join("").slice(0, 2).toUpperCase()}</div><div className="min-w-0"><div className="font-bold text-[13px] text-[#1B2A3A] truncate">{f.nome}</div><div className="text-[10.5px] text-[#8a97a3]">{CARGO_LABEL[f.cargo] || f.cargo}</div></div></div></td>
+                        <td className="text-center"><span className="text-[10px] font-extrabold px-2 py-[3px] rounded-full whitespace-nowrap" style={{ background: PONTO_STATUS[f.status]?.bg, color: PONTO_STATUS[f.status]?.c }}>{PONTO_STATUS[f.status]?.t}</span></td>
+                        <td className="text-center tabular-nums">{f.entrada || "—"}</td>
+                        <td className="text-center tabular-nums text-[12px]">{f.saidaAlmoco || "—"}{f.voltaAlmoco ? `–${f.voltaAlmoco}` : ""}</td>
+                        <td className="text-center tabular-nums">{f.saida || "—"}</td>
+                        <td className="text-right px-5 font-bold tabular-nums">{f.horas}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Admin: espelho mensal + exportar/imprimir */}
+        {perfil?.admin && (
+          <div className="bg-white rounded-2xl border p-5 mt-5" style={{ borderColor: "#E3EEF0" }}>
+            <h2 className="text-[16px] font-bold mb-3" style={{ color: "#0D2048" }}>📄 Folha de ponto (espelho mensal)</h2>
+            <div className="flex items-end gap-2 flex-wrap">
+              <div className="flex-1 min-w-[160px]">
+                <label className="text-[10.5px] font-extrabold uppercase tracking-wide text-[#5C7180] block mb-1">Funcionário</label>
+                <select value={espUser} onChange={(e) => setEspUser(e.target.value)} className="w-full border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }}>
+                  <option value="">Escolha…</option>
+                  {funcionarios.map((f) => <option key={f.userId} value={f.userId}>{f.nome}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10.5px] font-extrabold uppercase tracking-wide text-[#5C7180] block mb-1">Mês</label>
+                <input type="month" value={espMes} onChange={(e) => setEspMes(e.target.value)} className="border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }} />
+              </div>
+              <button onClick={() => espUser ? carregarEspelho(espUser, espMes) : toast.error("Escolha o funcionário.")} className="text-white rounded-xl px-4 py-2 font-bold text-[13.5px]" style={{ background: "#009AAC" }}>Abrir espelho</button>
+            </div>
+
+            {carregandoEsp ? <div className="text-center text-[13px] text-gray-400 py-6">Carregando…</div> : espelho && espUser === espelho.userId && (
+              <div className="mt-4">
+                <div className="font-bold text-[14px] text-[#0D2048] mb-1">{espelho.funcionarioNome} <span className="text-[12px] font-semibold text-[#5C7180]">· {espelho.mes.split("-").reverse().join("/")}</span></div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-[13px]" style={{ borderCollapse: "collapse" }}>
+                    <thead><tr className="text-[10px] uppercase tracking-wide text-[#8a97a3]"><th className="text-left font-extrabold py-1.5">Dia</th><th className="font-extrabold py-1.5">Entrada</th><th className="font-extrabold py-1.5">Almoço</th><th className="font-extrabold py-1.5">Saída</th><th className="text-right font-extrabold py-1.5">Horas</th></tr></thead>
+                    <tbody>
+                      {espelho.dias.length === 0 ? <tr><td colSpan={5} className="text-center text-gray-400 py-5">Sem batidas neste mês.</td></tr> :
+                        espelho.dias.map((d) => (
+                          <tr key={d.dia} className="border-t" style={{ borderColor: "#EEF3F5" }}>
+                            <td className="py-2">{diaBR(d.dia)} <span className="text-[#9aa7b2]">{diaSemana(d.dia)}</span></td>
+                            <td className="text-center tabular-nums">{d.entrada || "—"}</td>
+                            <td className="text-center tabular-nums text-[12px]">{d.saidaAlmoco || "—"}{d.voltaAlmoco ? `–${d.voltaAlmoco}` : ""}</td>
+                            <td className="text-center tabular-nums">{d.emCurso ? <span className="text-[#0F9D6E] font-bold">em curso</span> : (d.saida || "—")}</td>
+                            <td className="text-right font-bold tabular-nums">{d.horas}{d.temAjuste ? " *" : ""}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+                  <div className="flex gap-2">
+                    <button onClick={imprimirEspelho} className="text-[12.5px] font-bold border rounded-lg px-3 py-1.5 text-[#00798A]" style={{ borderColor: "#E3EEF0" }}>🖨️ Imprimir / salvar PDF</button>
+                    <button onClick={exportarCsv} className="text-[12.5px] font-bold border rounded-lg px-3 py-1.5 text-[#5C7180]" style={{ borderColor: "#E3EEF0" }}>⬇️ CSV</button>
+                  </div>
+                  <div className="text-[14px]"><span className="text-[#5C7180] text-[12px]">Total do mês</span> <b className="text-[#0D2048]">{espelho.totalHoras}</b></div>
+                </div>
+              </div>
+            )}
+
+            {/* Lançar ajuste */}
+            <div className="mt-5 pt-4 border-t" style={{ borderColor: "#EEF3F5" }}>
+              <div className="text-[13px] font-bold text-[#0D2048] mb-2">⏱️ Lançar ajuste (correção)</div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <select value={ajUser} onChange={(e) => setAjUser(e.target.value)} className="border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }}>
+                  <option value="">Funcionário…</option>
+                  {funcionarios.map((f) => <option key={f.userId} value={f.userId}>{f.nome}</option>)}
+                </select>
+                <div className="flex gap-2">
+                  <input type="date" value={ajData} onChange={(e) => setAjData(e.target.value)} className="border rounded-xl px-3 py-2 text-[14px] flex-1" style={{ borderColor: "#E3EEF0" }} />
+                  <input type="time" value={ajHora} onChange={(e) => setAjHora(e.target.value)} className="border rounded-xl px-3 py-2 text-[14px] w-28" style={{ borderColor: "#E3EEF0" }} />
+                </div>
+                <select value={ajTipo} onChange={(e) => setAjTipo(e.target.value)} className="border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }}>
+                  {PONTO_TIPOS.map((t) => <option key={t} value={t}>{PONTO_LABEL[t]}</option>)}
+                </select>
+                <input value={ajJust} onChange={(e) => setAjJust(e.target.value)} placeholder="Justificativa (obrigatória)" className="border rounded-xl px-3 py-2 text-[14px]" style={{ borderColor: "#E3EEF0" }} />
+              </div>
+              <button onClick={lancarAjuste} disabled={ajSalvando} className="mt-2 text-white rounded-xl px-4 py-2 font-bold text-[13.5px] disabled:opacity-50" style={{ background: "#014D5E" }}>{ajSalvando ? "Salvando…" : "Salvar ajuste"}</button>
+              <div className="text-[11px] text-[#8a97a3] mt-2">O ajuste guarda quem lançou e quando — o registro segue auditável (fica marcado com *).</div>
             </div>
           </div>
         )}

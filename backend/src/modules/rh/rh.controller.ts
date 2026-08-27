@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RhService } from './rh.service';
-import { CriarRhDocumentoDto, AtualizarStatusRhDto, CriarRhSolicitacaoDto, ResponderRhSolicitacaoDto, CriarRhComunicadoDto } from './dto/rh-documento.dto';
+import { CriarRhDocumentoDto, AtualizarStatusRhDto, CriarRhSolicitacaoDto, ResponderRhSolicitacaoDto, CriarRhComunicadoDto, BaterPontoDto, AjustePontoDto } from './dto/rh-documento.dto';
 
 /**
  * RH — Fatia 1 (Documentos). Endpoint DEDICADO e protegido: funcionário só enxerga/mexe
@@ -101,5 +101,36 @@ export class RhController {
   @Get('funcionarios')
   listarFuncionarios(@CurrentUser() user: any) {
     return this.rh.listarFuncionarios(user);
+  }
+
+  // ---------------- PONTO (Fatia 4) ----------------
+  /** Estado do ponto de HOJE do funcionário logado. */
+  @Get('ponto/hoje')
+  pontoHoje(@CurrentUser() user: any) {
+    return this.rh.pontoHoje(user);
+  }
+
+  /** Funcionário bate o ponto (próxima batida do ciclo, ou tipo explícito). */
+  @Post('ponto/bater')
+  baterPonto(@CurrentUser() user: any, @Body() dto: BaterPontoDto) {
+    return this.rh.baterPonto(user, dto);
+  }
+
+  /** Espelho do mês. Funcionário → o dele; admin → de qualquer userId (?userId=&mes=YYYY-MM). */
+  @Get('ponto/espelho')
+  espelho(@CurrentUser() user: any, @Query('userId') userId?: string, @Query('mes') mes?: string) {
+    return this.rh.espelho(user, { userId, mes });
+  }
+
+  /** Painel admin: ponto de HOJE de toda a equipe. */
+  @Get('ponto/equipe-hoje')
+  equipeHoje(@CurrentUser() user: any) {
+    return this.rh.equipeHoje(user);
+  }
+
+  /** Admin lança um ajuste (batida corrigida) com justificativa. */
+  @Post('ponto/ajuste')
+  lancarAjuste(@CurrentUser() user: any, @Body() dto: AjustePontoDto) {
+    return this.rh.lancarAjuste(user, dto);
   }
 }
