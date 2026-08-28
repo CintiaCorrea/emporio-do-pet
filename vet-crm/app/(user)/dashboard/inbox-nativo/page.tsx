@@ -654,12 +654,13 @@ export default function InboxUnificadoPage() {
     const match = conversations.find((c) => (c.contactNumber || "").replace(/\D/g, "").slice(-8) === p8);
     autoPhoneDone.current = true;
     if (match) { setSelectedId(match.id); return; }
-    // Não há conversa ainda → abre "Nova conversa" JÁ com o cliente/pet (não só o telefone).
+    // Não há conversa ainda → abre "Nova conversa" JÁ com o cliente SELECIONADO (nome + telefone
+    // preenchidos); só o pet fica pra escolher (cliente pode ter mais de um).
     let nome = "", pet = "";
     try { const u = new URLSearchParams(window.location.search); nome = u.get("nome") || ""; pet = u.get("pet") || ""; } catch {}
     abrirNovaConversa({ phone: phoneParam, busca: nome || phoneParam });
-    if (nome) buscarContatoNova(nome); // mostra o cliente nos resultados pra escolher
-    if (pet) setNovaMsgPet(pet);
+    if (nome) selecionarClientePreenchido(nome, pet, phoneParam); // já deixa o cliente escolhido
+    else if (pet) setNovaMsgPet(pet);
   }, [conversations, phoneParam, loading]);
 
   // Mensagens da conversa selecionada — carrega ao abrir + poll leve (12s).
@@ -1256,6 +1257,26 @@ export default function InboxUnificadoPage() {
   const trocarPet = (pet: string) => {
     setNovaMsgPet(pet);
     setNovaMsgVars((vs) => (vs.length ? vs.map((v, i) => (i === 1 ? pet : v)) : vs));
+  };
+  // Vindo da ficha (💬 WhatsApp): já ESCOLHE o cliente (nome + telefone preenchidos) em vez de só
+  // listar pra clicar. Casa pelo telefone (últimos 8) ou nome exato; senão cai nos resultados.
+  const selecionarClientePreenchido = async (nome: string, pet: string, phone: string) => {
+    try {
+      const rt = await fetch(`/api/tutors?search=${encodeURIComponent(nome.trim())}&take=6`, { cache: "no-store" });
+      const dt = await rt.json().catch(() => ({}));
+      const tuts = (Array.isArray(dt) ? dt : (dt.tutors || dt.data || [])).map((t: any) => ({
+        nome: t.name,
+        tel: (t.contacts?.find((c: any) => c.isPrimary) || t.contacts?.[0])?.number || t.phone || "",
+        tipo: t.classificacao || "Cliente",
+        pets: (t.pets || []).map((p: any) => p.name).filter(Boolean),
+      }));
+      const p8 = (phone || "").replace(/\D/g, "").slice(-8);
+      const match = (p8 && tuts.find((c: any) => (c.tel || "").replace(/\D/g, "").slice(-8) === p8))
+        || tuts.find((c: any) => (c.nome || "").trim().toLowerCase() === nome.trim().toLowerCase())
+        || tuts[0];
+      if (match) pickContatoNova(match, pet || undefined);
+      else if (tuts.length) setNovaMsgResults(tuts); // não deu match claro: deixa escolher
+    } catch { /* silencioso — segue dando pra buscar na mão */ }
   };
   // Busca no campo do PET (só usada quando ainda não escolheram o cliente).
   const buscarPetNova = async (q: string) => {
