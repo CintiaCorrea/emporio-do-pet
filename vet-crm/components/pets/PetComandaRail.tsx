@@ -231,7 +231,11 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
 
   function imprimirComanda() {
     if (!itens.length) { toast.error("Comanda vazia."); return; }
-    imprimirVenda({ itens: itens.map(linhaBody), valor: total, petNome, tutorNome, petId, numeroVenda, date: new Date().toISOString() }, { rotulo: "Comanda" });
+    // Se um MODELO está selecionado (ex.: "Cirúrgico"), o título do documento vira o NOME do modelo
+    // (no lugar de "Comanda") e a OBSERVAÇÃO (do modelo/digitada) sai impressa.
+    const m = modeloSel ? modelosVenda.find((x) => x.id === modeloSel) : null;
+    const rotulo = m?.nome ? String(m.nome).trim() : "Comanda";
+    imprimirVenda({ itens: itens.map(linhaBody), valor: total, petNome, tutorNome, petId, numeroVenda, date: new Date().toISOString(), observacao: obs.trim() || undefined }, { rotulo });
   }
   // Comanda = venda (modelo SimplesVet): SALVA a venda, ela vira independente em "A receber" no Caixa
   // (visível a todos, paga ou não), e a comanda FECHA/LIMPA pra iniciar OUTRA venda na hora.

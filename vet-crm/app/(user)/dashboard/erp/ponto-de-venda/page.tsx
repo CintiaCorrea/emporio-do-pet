@@ -126,7 +126,7 @@ export default function PDVPage() {
   const [salvando, setSalvando] = useState(false);
 
   const [vendas, setVendas] = useState<Venda[]>([]);
-  const [orcamentos, setOrcamentos] = useState<{ id: string; tutor: string; pet: string; valor: number; tutorId?: string; petId?: string; _orc?: any }[]>([]);
+  const [orcamentos, setOrcamentos] = useState<{ id: string; tutor: string; pet: string; valor: number; tutorId?: string; petId?: string; createdAt?: string; _orc?: any }[]>([]);
   const [detOrc, setDetOrc] = useState<any>(null); // orçamento aberto no modal de detalhe
   const [vendaTab, setVendaTab] = useState<'NAO' | 'PAGO'>('NAO');
   // Baixar todas as comandas de um cliente de uma vez (portado do "Em atendimento")
@@ -200,9 +200,12 @@ export default function PDVPage() {
       const arr = Array.isArray(d) ? d : (d.data || d.orcamentos || []);
       setOrcamentos(arr
         .filter((o: any) => !o.appointmentId && o.status !== 'RECUSADO' && o.status !== 'EXPIRADO')
-        .map((o: any) => ({ id: o.id, tutor: o.tutor?.name || 'Cliente', pet: o.pet?.name || '', valor: Number(o.valorTotal) || 0, tutorId: o.tutorId, petId: o.petId, _orc: o })));
+        .map((o: any) => ({ id: o.id, tutor: o.tutor?.name || 'Cliente', pet: o.pet?.name || '', valor: Number(o.valorTotal) || 0, tutorId: o.tutorId, petId: o.petId, createdAt: o.createdAt, _orc: o })));
     } catch { /* */ }
   }, []);
+  // No caixa aparecem só os orçamentos DO DIA selecionado (igual às vendas). Com "ver abertas de
+  // todos os dias" marcado, mostra todos os abertos. Orçamentos antigos: buscar na ficha do pet / no dia.
+  const orcamentosVisiveis = useMemo(() => vendaAbertas ? orcamentos : orcamentos.filter((o) => (o.createdAt || '').slice(0, 10) === vendaDia), [orcamentos, vendaAbertas, vendaDia]);
   async function converterOrcamento(o: { id: string; tutor: string; valor: number }) {
     if (!confirm(`Converter o orçamento de ${o.tutor} (${brl(o.valor)}) em venda?\nEla vai para "Não pago" para receber no caixa.`)) return;
     try {
@@ -232,7 +235,9 @@ export default function PDVPage() {
       const r = await fetch(`/api/atendimentos/${v.id}`, { cache: 'no-store' });
       const d = await r.json().catch(() => ({}));
       const itens = d.items || d.appointmentItems || d.itens || [];
-      setDetVenda((prev: any) => (prev ? { ...prev, itens } : prev));
+      const petId = d.petId || d.pet?.id || null;
+      const tutorId = d.tutorId || d.tutor?.id || null;
+      setDetVenda((prev: any) => (prev ? { ...prev, itens, petId, tutorId } : prev));
     } catch { setDetVenda((prev: any) => (prev ? { ...prev, itens: [] } : prev)); }
     setDetLoad(false);
   }
@@ -314,6 +319,30 @@ export default function PDVPage() {
       await loadVendas();
     } catch { window.alert('Não consegui excluir. Tente de novo.'); }
     setDetExcluindo(false);
+  }
+
+  // 🔄 Troca a VENDA por um ORÇAMENTO: cria o orçamento com os itens da venda e REMOVE a venda
+  // de "A receber". Só quando a venda ainda NÃO teve recebimento (senão bloqueia). Decisão da Cintia.
+  const [savingVirar, setSavingVirar] = useState(false);
+  async function virarOrcamento() {
+    if (!detVenda) return;
+    if (Number(detVenda.pago || 0) > 0.001) { toast.error('Esta venda já tem recebimento — não dá pra virar orçamento.'); return; }
+    const petId = detVenda.petId; const tutorId = detVenda.tutorId;
+    if (!tutorId || !petId) { toast.error('Venda sem cliente/pet — não dá pra virar orçamento.'); return; }
+    const brutos = (detVenda.itens || []).filter((it: any) => (it.descricao || it.nome || '').trim());
+    if (!brutos.length) { toast.error('Venda sem itens.'); return; }
+    if (!confirm(`Trocar a venda${detVenda.numeroVenda ? ` #${detVenda.numeroVenda}` : ''} de ${detVenda.tutor} por um orçamento?\nA venda sai de "A receber" e vira orçamento (fica na aba Compras do pet e na lista de orçamentos do dia).`)) return;
+    setSavingVirar(true);
+    try {
+      const itens = brutos.map((it: any) => ({ servicoId: it.servicoId || undefined, productId: it.productId || undefined, descricao: it.descricao || it.nome, quantidade: Number(it.quantidade ?? it.qtd ?? 1) || 1, valorUnitario: Number(it.valorUnitario ?? 0) || 0, desconto: Number(it.desconto ?? 0) || 0 }));
+      const r = await fetch('/api/orcamentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ petId, tutorId, itens }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao criar orçamento'); }
+      const rd = await fetch(`/api/appointments/${detVenda.id}`, { method: 'DELETE' });
+      if (!rd.ok) toast.error('Orçamento criado, mas não consegui remover a venda — exclua manualmente.');
+      else toast.success('Venda virou orçamento ✅');
+      setDetVenda(null); setEditItens(null);
+      await Promise.all([loadVendas(), loadOrcamentos()]);
+    } catch (e: any) { toast.error(e?.message || 'Erro ao virar orçamento'); } finally { setSavingVirar(false); }
   }
 
   useEffect(() => {
@@ -882,7 +911,7 @@ export default function PDVPage() {
                   <button onClick={() => { setGrupoBaixa(g); setFormaGrupo(formasList[0] || 'Dinheiro'); }} style={{ border: 'none', background: TEAL, color: '#fff', fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>Baixar todas</button>
                 </div>
               ))}
-              {vendasFiltradas.length === 0 && (vendaTab !== 'NAO' || orcamentos.length === 0) && (
+              {vendasFiltradas.length === 0 && (vendaTab !== 'NAO' || orcamentosVisiveis.length === 0) && (
                 <div style={{ textAlign: 'center', padding: '18px 0' }}>
                   <div style={{ fontSize: 22, marginBottom: 4 }}>🧾</div>
                   <p style={{ fontSize: 12, color: MUT, margin: 0 }}>Nenhuma venda {vendaTab === 'PAGO' ? 'paga' : 'pendente'}.</p>
@@ -900,7 +929,7 @@ export default function PDVPage() {
                 </div>
               ))}
               {/* 📄 ORÇAMENTOS em aberto — MESMA lista, valor em ROXO pra diferenciar + botão converter. */}
-              {vendaTab === 'NAO' && orcamentos.slice(0, 8).map((o) => (
+              {vendaTab === 'NAO' && orcamentosVisiveis.slice(0, 8).map((o) => (
                 <div key={o.id} onClick={() => { setEditOrc(null); setDetOrc(o._orc || o); }} title="Abrir orçamento" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderTop: `1px solid ${SOFT}`, borderRadius: 8, cursor: 'pointer' }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAF7')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#EDE9FE', color: '#6D28D9', fontSize: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📄</span>
@@ -1058,8 +1087,9 @@ export default function PDVPage() {
                     <span style={{ color: INK2, fontSize: 13 }}>Total</span>
                     <span style={{ fontSize: 18, fontWeight: 600, color: NAVY }}>{brl(editOrcTotal)}</span>
                   </div>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                  <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                     <button onClick={() => setEditOrc(null)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: MUT }}>Cancelar</button>
+                    <button onClick={() => imprimirOrcamento({ ...detOrc, itens: (editOrc || []).filter((it) => (it.descricao || '').trim()), valorTotal: editOrcTotal })} title="Imprime o orçamento como está na tela" style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>🖨️ Imprimir</button>
                     {isAdmin && detOrc && <button onClick={() => excluirOrcamento({ id: detOrc.id, tutor: detOrc.tutor?.name || 'Cliente', valor: Number(detOrc.valorTotal || 0) })} title="Excluir este orçamento (só administrador)" style={{ border: `1px solid #E7C3C3`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: '#A32D2D' }}>🗑️ Excluir</button>}
                     <button onClick={salvarEdicaoOrc} disabled={savingOrc} style={{ marginLeft: 'auto', border: 'none', borderRadius: 9, background: '#6D28D9', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer', opacity: savingOrc ? .5 : 1 }}>{savingOrc ? 'Salvando…' : '✓ Salvar orçamento'}</button>
                   </div>
@@ -1154,6 +1184,9 @@ export default function PDVPage() {
                     ) : (
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         <button onClick={excluirVenda} disabled={detExcluindo} style={{ flex: 1, minWidth: 120, background: '#fff', color: '#A32D2D', border: '1px solid #F0C9C9', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{detExcluindo ? 'Excluindo…' : '🗑 Excluir'}</button>
+                        {Number(detVenda.pago || 0) <= 0.001 && (
+                          <button onClick={virarOrcamento} disabled={savingVirar} title="Troca esta venda por um orçamento (sai de 'A receber')" style={{ flex: 1.2, minWidth: 140, background: '#fff', color: '#6D28D9', border: '1px solid #6D28D9', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{savingVirar ? '…' : '📄 Virar orçamento'}</button>
+                        )}
                         {aReceber > 0.001 && (
                           <button onClick={abrirRecVenda} style={{ flex: 1.6, minWidth: 150, background: TEAL, color: '#fff', border: 'none', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>💰 Registrar recebimento</button>
                         )}
