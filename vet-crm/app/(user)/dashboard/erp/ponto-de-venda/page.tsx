@@ -1053,7 +1053,7 @@ export default function PDVPage() {
                     <span style={{ color: INK2, fontSize: 13 }}>Total</span>
                     <span style={{ fontSize: 18, fontWeight: 600, color: NAVY }}>{brl(Number(detOrc.valorTotal || 0))}</span>
                   </div>
-                  {detOrc.observacao && <div style={{ marginTop: 10, fontSize: 12, color: '#374151' }}><b>Obs:</b> {detOrc.observacao}</div>}
+                  {detOrc.observacao && <div style={{ marginTop: 10, fontSize: 12, color: '#374151', whiteSpace: 'pre-wrap' }}><b>Obs:</b> {detOrc.observacao}</div>}
                   <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                     <button onClick={abrirEdicaoOrc} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>✏️ Editar</button>
                     <button onClick={() => imprimirOrcamento(detOrc)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>🖨️ Imprimir orçamento</button>

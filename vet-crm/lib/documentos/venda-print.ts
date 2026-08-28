@@ -57,7 +57,7 @@ export async function imprimirVenda(v: any, opts?: { rotulo?: string; preview?: 
     </table>
     <div style="text-align:right;margin-top:12px;font-size:15px;font-weight:700;color:#014D5E">Total: ${BRL(total)}</div>
     ${formasStr ? `<div style="text-align:right;margin-top:5px;font-size:12.5px;color:#374151">Forma de recebimento: <b>${esc(formasStr)}</b></div>` : ""}
-    ${v?.observacao ? `<div style="margin-top:16px;font-size:12.5px;color:#374151"><b>Observação:</b> ${esc(v.observacao)}</div>` : ""}
+    ${v?.observacao ? `<div style="margin-top:16px;font-size:12.5px;color:#374151;white-space:pre-wrap"><b>Observação:</b> ${esc(v.observacao)}</div>` : ""}
     <div style="margin-top:22px;font-size:12px;color:#6B7280">Obrigado pela preferência! 🐾</div>
   `;
 

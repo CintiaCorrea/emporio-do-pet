@@ -47,7 +47,7 @@ export async function imprimirOrcamento(orc: any) {
       <tbody>${linhas || `<tr><td colspan="5" style="padding:10px;text-align:center;color:#9aa0a8">Sem itens</td></tr>`}</tbody>
     </table>
     <div style="text-align:right;margin-top:12px;font-size:15px;font-weight:700;color:#014D5E">Total: ${BRL(total)}</div>
-    ${orc?.observacao ? `<div style="margin-top:16px;font-size:12.5px;color:#374151"><b>Observação:</b> ${esc(orc.observacao)}</div>` : ""}
+    ${orc?.observacao ? `<div style="margin-top:16px;font-size:12.5px;color:#374151;white-space:pre-wrap"><b>Observação:</b> ${esc(orc.observacao)}</div>` : ""}
   `;
 
   // Cabeçalho COMPLETO (padrão receita): busca o pet inteiro pelo id quando houver.
