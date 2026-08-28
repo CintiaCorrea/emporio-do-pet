@@ -39,6 +39,14 @@ export class BoletimReplyListener {
       // "Ver o boletim" / "Enviar o boletim" / "Tirar dúvida" (ou qualquer resposta) → a janela abriu, entrega o boletim.
       await this.whatsapp.entregarBoletimDaFila(tutorId);
       this.logger.log(`Boletim da fila entregue ao tutor ${tutorId}`);
+
+      // 📴 Se a resposta foi só o GATILHO ("ver/enviar o boletim"), a ação está resolvida → fecha a
+      // conversa (decisão Cintia 28/08). "Tirar dúvida" ou texto livre NÃO contém "boletim" → fica
+      // aberta pra equipe atender. Erra pro lado de manter aberto (não perde recado real).
+      const phone = (payload?.contactPhone || '').toString();
+      if (phone && content.includes('boletim')) {
+        await this.whatsapp.fecharConversaResolvida(phone);
+      }
     } catch (e: any) {
       this.logger.warn(`Falha no BoletimReplyListener: ${e?.message || e}`);
     }

@@ -32,6 +32,14 @@ export class DocsFilaReplyListener {
 
       await this.whatsapp.entregarDocsDaFila(tutorId);
       this.logger.log(`Documentos da fila entregues ao tutor ${tutorId}`);
+
+      // 📴 Se a resposta foi só o GATILHO (pede os documentos/exames), ação resolvida → fecha a
+      // conversa (decisão Cintia 28/08). Texto livre (dúvida real) não casa → fica aberta pra equipe.
+      const phone = (payload?.contactPhone || '').toString();
+      const c = content.toLowerCase();
+      if (phone && /(documento|exame|receita|resultado|ver os|receber os)/.test(c)) {
+        await this.whatsapp.fecharConversaResolvida(phone);
+      }
     } catch (e: any) {
       this.logger.warn(`Falha no DocsFilaReplyListener: ${e?.message || e}`);
     }

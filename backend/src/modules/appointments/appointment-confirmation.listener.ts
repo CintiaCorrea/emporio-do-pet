@@ -143,6 +143,13 @@ export class AppointmentConfirmationListener {
       // 🔕 NÃO mandamos mais mensagem automática quando o cliente responde (decisão Cintia 26/08:
       // a mensagem SÓ deve sair quando a CLÍNICA altera a agenda — marcação/remarcação/cancelamento).
       // Aqui só atualizamos o STATUS do agendamento (Confirmado/Remarcar/Cancelado) — sem enviar nada.
+
+      // 📴 Confirmação LIMPA (só "sim/confirmo/👍") = ação resolvida → fecha a conversa pra não virar
+      // pendência no inbox (decisão Cintia 28/08). Remarcar/Cancelar ficam ABERTOS: a recepção pode
+      // precisar agir na agenda. Mensagem longa (texto real junto) também fica aberta.
+      if (confirmStatus === 'CONFIRMADO' && content.length <= 40) {
+        await this.whatsapp.fecharConversaResolvida(phone);
+      }
     } catch (e: any) {
       this.logger.warn(`Falha ao processar confirmação por WhatsApp: ${e?.message || e}`);
     }

@@ -2155,6 +2155,25 @@ export class WhatsAppService {
   }
 
   /**
+   * Fecha a conversa quando a resposta do cliente foi RESOLVIDA automaticamente pelo sistema
+   * (confirmação limpa, entrega de boletim/documentos) — pra não virar conversa pendente no inbox.
+   * Decisão Cintia (28/08): respostas que já têm ação no sistema não precisam abrir conversa.
+   * Só mexe no status/não-lido; se o cliente mandar algo real depois, `saveInboundMessage` reabre.
+   */
+  async fecharConversaResolvida(phone: string): Promise<void> {
+    try {
+      const formatted = this.formatPhoneNumber(phone);
+      const conv = await this.acharConvPorNumero(formatted);
+      if (conv && conv.status !== 'CLOSED') {
+        await this.prisma.whatsAppConversation.update({
+          where: { id: conv.id },
+          data: { status: 'CLOSED', unreadCount: 0, manualUnread: false },
+        });
+      }
+    } catch { /* best-effort — nunca trava o recebimento */ }
+  }
+
+  /**
    * Envia TEXTO livre e REGISTRA na conversa (se já existir), pra avisos do sistema
    * (pesquisa, confirmação em texto, etc.) aparecerem no inbox como enviados.
    */
