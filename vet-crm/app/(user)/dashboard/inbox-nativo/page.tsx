@@ -1569,6 +1569,130 @@ export default function InboxUnificadoPage() {
     finally { setAtendSaving(false); }
   };
 
+  // 🧮 PERFORMANCE: a lista de bolhas (até 200) é memoizada. Só recomputa quando algo
+  // que AFETA a saída renderizada muda (mensagens, seleção, reação aberta, busca).
+  // Estados não relacionados (digitar no campo, abrir menus de ações/scripts) deixam
+  // de re-renderizar as 200 bolhas → fim do travamento. Além disso o "responder a"
+  // (citada) passa a usar um índice O(1) waMessageId→mensagem em vez de messages.find O(n).
+  const listaMensagens = useMemo(() => {
+    const porWaId = new Map<string, Message>();
+    for (const x of messages) { if (x.waMessageId) porWaId.set(x.waMessageId, x); }
+    return messages.map((m, i) => {
+                    const outbound = m.direction === "OUTBOUND";
+                    // A mensagem citada por esta (se ainda estiver carregada na conversa).
+                    const citada = m.replyToWaMessageId
+                      ? (porWaId.get(m.replyToWaMessageId) || null)
+                      : null;
+                    // Separador de data: aparece quando muda o dia em relação à mensagem anterior
+                    // (e sempre na primeira). Assim dá pra saber a data sem repetir em cada mensagem.
+                    const mudouDia = i === 0 || (() => {
+                      try { return new Date(m.createdAt).toDateString() !== new Date(messages[i - 1].createdAt).toDateString(); }
+                      catch { return false; }
+                    })();
+                    // Resultado ATUAL da busca (recebe realce laranja + rolagem).
+                    const ehMatch = buscaChatOpen && buscaMatches.length > 0 && buscaMatches[buscaIdx] === m.id;
+                    return (
+                      <Fragment key={m.id}>
+                      {mudouDia && (
+                        <div className="self-center my-1.5 px-3 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "#F0EBE0", color: "#8A857A" }}>
+                          {rotuloDia(m.createdAt)}
+                        </div>
+                      )}
+                      <div ref={(el) => { msgRefs.current[m.id] = el; }} onClick={selMode ? () => toggleSel(m.id) : undefined} className={`group relative max-w-[75%] ${outbound ? "self-end" : "self-start"} ${selMode ? "cursor-pointer rounded-xl transition" : ""} ${selMode && selIds.has(m.id) ? "ring-2 ring-[#009AAC] ring-offset-2" : ""} ${ehMatch ? "ring-2 ring-[#FFB300] ring-offset-2 rounded-xl" : ""}`}>
+                        <div className={`px-3 py-2 rounded-xl text-[13px] ${outbound ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-white border border-[#e8e1d2] text-[#0E2244] rounded-bl-sm"}`}>
+                          {m.replyToWaMessageId && (
+                            <div
+                              className="mb-1.5 pl-2 py-1 rounded text-[11px] leading-snug"
+                              style={{
+                                borderLeft: `3px solid ${outbound ? "rgba(255,255,255,.6)" : "#009AAC"}`,
+                                background: outbound ? "rgba(255,255,255,.15)" : "#F4F8F9",
+                                color: outbound ? "rgba(255,255,255,.9)" : "#5F5E5A",
+                              }}>
+                              <div className="font-medium text-[9.5px] uppercase opacity-80">
+                                {citada ? (citada.direction === "OUTBOUND" ? "Você" : "Cliente") : "Mensagem citada"}
+                              </div>
+                              <div className="line-clamp-2">
+                                {citada ? (citada.content || "(mídia)") : "— não está nesta parte da conversa —"}
+                              </div>
+                            </div>
+                          )}
+                          {m.fromAgent && (
+                            <div className={`text-[9px] mb-1 ${outbound ? "opacity-85" : "text-[#888780]"} flex items-center gap-1`}>
+                              <span style={{fontSize:"10px"}}>🤖</span>Atendente IA
+                            </div>
+                          )}
+                          {m.type === "IMAGE" && m.hasMedia ? (
+                            <div>
+                              <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="block">
+                                <img src={`/api/whatsapp/messages/${m.id}/media`} alt={m.content || "Imagem"} className="rounded-lg max-w-full max-h-64 object-cover" loading="lazy" />
+                              </a>
+                              {m.content && !m.content.startsWith("[") && <div className="mt-1">{m.content}</div>}
+                              <div className="flex gap-3 mt-1">
+                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
+                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
+                              </div>
+                            </div>
+                          ) : (m.type === "STICKER") && m.hasMedia ? (
+                            <img src={`/api/whatsapp/messages/${m.id}/media`} alt="Figurinha" className="max-w-[120px]" loading="lazy" />
+                          ) : m.type === "AUDIO" && m.hasMedia ? (
+                            <audio controls src={`/api/whatsapp/messages/${m.id}/media`} className="max-w-full" />
+                          ) : m.type === "VIDEO" && m.hasMedia ? (
+                            <div>
+                              <video controls preload="metadata" src={`/api/whatsapp/messages/${m.id}/media`} className="rounded-lg max-w-full max-h-72 bg-black" />
+                              {m.content && !m.content.startsWith("[") && <div className="mt-1">{m.content}</div>}
+                              <div className="flex gap-3 mt-1">
+                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
+                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
+                              </div>
+                            </div>
+                          ) : m.type === "DOCUMENT" && m.hasMedia ? (
+                            <div className="flex flex-col gap-1">
+                              <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1">📎 {m.content && !m.content.startsWith("[") ? m.content : "Abrir arquivo"}</a>
+                              <div className="flex gap-3">
+                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
+                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
+                              </div>
+                            </div>
+                          ) : (m.type === "LOCATION" || m.metadata?.latitude) ? (
+                            <a href={`https://www.google.com/maps?q=${m.metadata?.latitude},${m.metadata?.longitude}`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1" style={{ color: "#009AAC" }}>📍 {m.metadata?.name || m.metadata?.address || "Ver localização no mapa"}</a>
+                          ) : (m.mediaType || m.type === "DOCUMENT" || m.type === "IMAGE" || m.type === "AUDIO" || m.type === "VIDEO") ? (
+                            <span className="italic text-[#888780]">📎 {m.content || "anexo"} <span className="text-[10px]">(não foi possível carregar o arquivo)</span></span>
+                          ) : (
+                            m.content ? (buscaChatOpen && buscaChat.trim() ? renderWaHL(m.content, buscaChat) : renderWa(m.content)) : "(mídia)"
+                          )}
+                        </div>
+                        {(m.reaction || m.myReaction) && (
+                          <div className={`flex gap-1 -mt-1.5 mb-0.5 ${outbound ? "justify-end pr-1" : "pl-1"}`}>
+                            {m.reaction && <span className="text-[12px] bg-white border border-[#e8e1d2] rounded-full px-1.5 py-0.5 shadow-sm" title="Reação do cliente">{m.reaction}</span>}
+                            {m.myReaction && <span className="text-[12px] bg-white border border-[#e8e1d2] rounded-full px-1.5 py-0.5 shadow-sm" title="Sua reação (da equipe)">{m.myReaction}</span>}
+                          </div>
+                        )}
+                        <div className={`text-[9px] text-[#888780] mt-0.5 px-1 flex items-center gap-2 ${outbound ? "justify-end" : ""}`}>
+                          {m.encaminhado && <span className="italic opacity-70">↷ encaminhada</span>}
+                          {(() => { try { return new Date(m.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}
+                          {outbound && statusTick(m)}
+                          {!selMode && m.waMessageId && (
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); setReagindoId(reagindoId === m.id ? null : m.id); }} title="Reagir com emoji" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">😀 Reagir</button>
+                              <button onClick={(e) => { e.stopPropagation(); setRespondendo(m); }} title="Responder citando" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">↩ Responder</button>
+                              <button onClick={(e) => { e.stopPropagation(); abrirEncaminhar(m.id); }} title="Encaminhar esta" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">↷ Encaminhar</button>
+                              <button onClick={(e) => { e.stopPropagation(); entrarSelecao(m.id); }} title="Selecionar várias" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">☑︎ Selecionar</button>
+                            </>
+                          )}
+                        </div>
+                        {reagindoId === m.id && (
+                          <div className={`absolute z-30 -top-8 ${outbound ? "right-0" : "left-0"} bg-white border border-[#e8e1d2] rounded-full shadow-lg px-1.5 py-1 flex items-center gap-1`} onClick={(e) => e.stopPropagation()}>
+                            {EMOJIS_REACAO.map((e) => (
+                              <button key={e} onClick={() => reagir(m.id, e)} title={m.myReaction === e ? "Remover reação" : `Reagir ${e}`} className={`text-[17px] leading-none hover:scale-125 transition ${m.myReaction === e ? "" : "opacity-85"}`}>{e}</button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      </Fragment>
+                    );
+    });
+  }, [messages, selMode, selIds, reagindoId, buscaChatOpen, buscaChat, buscaMatches, buscaIdx]);
+
  return (
     <div className="bg-white border border-[#e8e1d2] rounded-xl overflow-hidden mt-1 mb-3 flex flex-col h-[calc(100vh-84px)]" style={{background:"#ffffff"}}>
       {/* Sessão expirada: aviso GRANDE e impossível de ignorar. Sem isso a lista trava
@@ -1910,120 +2034,7 @@ export default function InboxUnificadoPage() {
                   )}
                   {messages.length === 0 ? (
                     <p className="text-center text-[11px] text-[#888780]">Sem mensagens</p>
-                  ) : messages.map((m, i) => {
-                    const outbound = m.direction === "OUTBOUND";
-                    // A mensagem citada por esta (se ainda estiver carregada na conversa).
-                    const citada = m.replyToWaMessageId
-                      ? messages.find((x) => x.waMessageId && x.waMessageId === m.replyToWaMessageId)
-                      : null;
-                    // Separador de data: aparece quando muda o dia em relação à mensagem anterior
-                    // (e sempre na primeira). Assim dá pra saber a data sem repetir em cada mensagem.
-                    const mudouDia = i === 0 || (() => {
-                      try { return new Date(m.createdAt).toDateString() !== new Date(messages[i - 1].createdAt).toDateString(); }
-                      catch { return false; }
-                    })();
-                    // Resultado ATUAL da busca (recebe realce laranja + rolagem).
-                    const ehMatch = buscaChatOpen && buscaMatches.length > 0 && buscaMatches[buscaIdx] === m.id;
-                    return (
-                      <Fragment key={m.id}>
-                      {mudouDia && (
-                        <div className="self-center my-1.5 px-3 py-0.5 rounded-full text-[10px] font-medium" style={{ background: "#F0EBE0", color: "#8A857A" }}>
-                          {rotuloDia(m.createdAt)}
-                        </div>
-                      )}
-                      <div ref={(el) => { msgRefs.current[m.id] = el; }} onClick={selMode ? () => toggleSel(m.id) : undefined} className={`group relative max-w-[75%] ${outbound ? "self-end" : "self-start"} ${selMode ? "cursor-pointer rounded-xl transition" : ""} ${selMode && selIds.has(m.id) ? "ring-2 ring-[#009AAC] ring-offset-2" : ""} ${ehMatch ? "ring-2 ring-[#FFB300] ring-offset-2 rounded-xl" : ""}`}>
-                        <div className={`px-3 py-2 rounded-xl text-[13px] ${outbound ? "bg-[#009AAC] text-white rounded-br-sm" : "bg-white border border-[#e8e1d2] text-[#0E2244] rounded-bl-sm"}`}>
-                          {m.replyToWaMessageId && (
-                            <div
-                              className="mb-1.5 pl-2 py-1 rounded text-[11px] leading-snug"
-                              style={{
-                                borderLeft: `3px solid ${outbound ? "rgba(255,255,255,.6)" : "#009AAC"}`,
-                                background: outbound ? "rgba(255,255,255,.15)" : "#F4F8F9",
-                                color: outbound ? "rgba(255,255,255,.9)" : "#5F5E5A",
-                              }}>
-                              <div className="font-medium text-[9.5px] uppercase opacity-80">
-                                {citada ? (citada.direction === "OUTBOUND" ? "Você" : "Cliente") : "Mensagem citada"}
-                              </div>
-                              <div className="line-clamp-2">
-                                {citada ? (citada.content || "(mídia)") : "— não está nesta parte da conversa —"}
-                              </div>
-                            </div>
-                          )}
-                          {m.fromAgent && (
-                            <div className={`text-[9px] mb-1 ${outbound ? "opacity-85" : "text-[#888780]"} flex items-center gap-1`}>
-                              <span style={{fontSize:"10px"}}>🤖</span>Atendente IA
-                            </div>
-                          )}
-                          {m.type === "IMAGE" && m.hasMedia ? (
-                            <div>
-                              <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="block">
-                                <img src={`/api/whatsapp/messages/${m.id}/media`} alt={m.content || "Imagem"} className="rounded-lg max-w-full max-h-64 object-cover" loading="lazy" />
-                              </a>
-                              {m.content && !m.content.startsWith("[") && <div className="mt-1">{m.content}</div>}
-                              <div className="flex gap-3 mt-1">
-                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
-                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
-                              </div>
-                            </div>
-                          ) : (m.type === "STICKER") && m.hasMedia ? (
-                            <img src={`/api/whatsapp/messages/${m.id}/media`} alt="Figurinha" className="max-w-[120px]" loading="lazy" />
-                          ) : m.type === "AUDIO" && m.hasMedia ? (
-                            <audio controls src={`/api/whatsapp/messages/${m.id}/media`} className="max-w-full" />
-                          ) : m.type === "VIDEO" && m.hasMedia ? (
-                            <div>
-                              <video controls preload="metadata" src={`/api/whatsapp/messages/${m.id}/media`} className="rounded-lg max-w-full max-h-72 bg-black" />
-                              {m.content && !m.content.startsWith("[") && <div className="mt-1">{m.content}</div>}
-                              <div className="flex gap-3 mt-1">
-                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
-                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
-                              </div>
-                            </div>
-                          ) : m.type === "DOCUMENT" && m.hasMedia ? (
-                            <div className="flex flex-col gap-1">
-                              <a href={`/api/whatsapp/messages/${m.id}/media`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1">📎 {m.content && !m.content.startsWith("[") ? m.content : "Abrir arquivo"}</a>
-                              <div className="flex gap-3">
-                                <a href={`/api/whatsapp/messages/${m.id}/media?download=1`} className="text-[10px] underline opacity-80">⬇️ Baixar</a>
-                                <button onClick={() => abrirEncaminhar(m.id)} className="text-[10px] underline opacity-80">↷ Encaminhar</button>
-                              </div>
-                            </div>
-                          ) : (m.type === "LOCATION" || m.metadata?.latitude) ? (
-                            <a href={`https://www.google.com/maps?q=${m.metadata?.latitude},${m.metadata?.longitude}`} target="_blank" rel="noreferrer" className="underline flex items-center gap-1" style={{ color: "#009AAC" }}>📍 {m.metadata?.name || m.metadata?.address || "Ver localização no mapa"}</a>
-                          ) : (m.mediaType || m.type === "DOCUMENT" || m.type === "IMAGE" || m.type === "AUDIO" || m.type === "VIDEO") ? (
-                            <span className="italic text-[#888780]">📎 {m.content || "anexo"} <span className="text-[10px]">(não foi possível carregar o arquivo)</span></span>
-                          ) : (
-                            m.content ? (buscaChatOpen && buscaChat.trim() ? renderWaHL(m.content, buscaChat) : renderWa(m.content)) : "(mídia)"
-                          )}
-                        </div>
-                        {(m.reaction || m.myReaction) && (
-                          <div className={`flex gap-1 -mt-1.5 mb-0.5 ${outbound ? "justify-end pr-1" : "pl-1"}`}>
-                            {m.reaction && <span className="text-[12px] bg-white border border-[#e8e1d2] rounded-full px-1.5 py-0.5 shadow-sm" title="Reação do cliente">{m.reaction}</span>}
-                            {m.myReaction && <span className="text-[12px] bg-white border border-[#e8e1d2] rounded-full px-1.5 py-0.5 shadow-sm" title="Sua reação (da equipe)">{m.myReaction}</span>}
-                          </div>
-                        )}
-                        <div className={`text-[9px] text-[#888780] mt-0.5 px-1 flex items-center gap-2 ${outbound ? "justify-end" : ""}`}>
-                          {m.encaminhado && <span className="italic opacity-70">↷ encaminhada</span>}
-                          {(() => { try { return new Date(m.createdAt).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } })()}
-                          {outbound && statusTick(m)}
-                          {!selMode && m.waMessageId && (
-                            <>
-                              <button onClick={(e) => { e.stopPropagation(); setReagindoId(reagindoId === m.id ? null : m.id); }} title="Reagir com emoji" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">😀 Reagir</button>
-                              <button onClick={(e) => { e.stopPropagation(); setRespondendo(m); }} title="Responder citando" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">↩ Responder</button>
-                              <button onClick={(e) => { e.stopPropagation(); abrirEncaminhar(m.id); }} title="Encaminhar esta" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">↷ Encaminhar</button>
-                              <button onClick={(e) => { e.stopPropagation(); entrarSelecao(m.id); }} title="Selecionar várias" className="opacity-0 group-hover:opacity-100 transition-opacity text-[#009AAC] font-medium hover:underline">☑︎ Selecionar</button>
-                            </>
-                          )}
-                        </div>
-                        {reagindoId === m.id && (
-                          <div className={`absolute z-30 -top-8 ${outbound ? "right-0" : "left-0"} bg-white border border-[#e8e1d2] rounded-full shadow-lg px-1.5 py-1 flex items-center gap-1`} onClick={(e) => e.stopPropagation()}>
-                            {EMOJIS_REACAO.map((e) => (
-                              <button key={e} onClick={() => reagir(m.id, e)} title={m.myReaction === e ? "Remover reação" : `Reagir ${e}`} className={`text-[17px] leading-none hover:scale-125 transition ${m.myReaction === e ? "" : "opacity-85"}`}>{e}</button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      </Fragment>
-                    );
-                  })}
+                  ) : listaMensagens}
                   <div ref={msgEndRef} />
                 </div>
 
