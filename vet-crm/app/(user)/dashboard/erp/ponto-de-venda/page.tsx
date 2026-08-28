@@ -135,7 +135,7 @@ export default function PDVPage() {
   const [baixandoGrupo, setBaixandoGrupo] = useState(false);
   const buscaTimer = useRef<any>(null);
   const [vendaDia, setVendaDia] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [vendaAbertas, setVendaAbertas] = useState(false); // ver abertas de TODOS os dias
+  // Caixa estritamente POR DIA (padrão SimplesVet): só o dia selecionado, navegado pelas setinhas.
   const vendaDiaRef = useRef<HTMLInputElement>(null);       // date picker escondido do navegador de dia
   const [detVenda, setDetVenda] = useState<any>(null);      // venda aberta no modal de detalhe
   const [detLoad, setDetLoad] = useState(false);
@@ -182,13 +182,10 @@ export default function PDVPage() {
 
   const loadVendas = useCallback(async () => {
     try {
-      const qs = vendaAbertas
-        ? '?abertas=true'
-        : `?from=${vendaDia}&to=${vendaDia}`;
-      const r = await fetch(`/api/caixa/vendas${qs}`, { cache: 'no-store' });
+      const r = await fetch(`/api/caixa/vendas?from=${vendaDia}&to=${vendaDia}`, { cache: 'no-store' });
       if (r.ok) setVendas(await r.json());
     } catch { /* */ }
-  }, [vendaDia, vendaAbertas]);
+  }, [vendaDia]);
 
   // 📄 Orçamentos EM ABERTO (não convertidos) — aparecem na MESMA lista "Não pago", em cor
   // diferente (roxo), pra você converter em venda ali mesmo. Interconecta ficha/PDV/WhatsApp → Caixa.
@@ -205,7 +202,7 @@ export default function PDVPage() {
   }, []);
   // No caixa aparecem só os orçamentos DO DIA selecionado (igual às vendas). Com "ver abertas de
   // todos os dias" marcado, mostra todos os abertos. Orçamentos antigos: buscar na ficha do pet / no dia.
-  const orcamentosVisiveis = useMemo(() => vendaAbertas ? orcamentos : orcamentos.filter((o) => (o.createdAt || '').slice(0, 10) === vendaDia), [orcamentos, vendaAbertas, vendaDia]);
+  const orcamentosVisiveis = useMemo(() => orcamentos.filter((o) => (o.createdAt || '').slice(0, 10) === vendaDia), [orcamentos, vendaDia]);
   async function converterOrcamento(o: { id: string; tutor: string; valor: number }) {
     if (!confirm(`Converter o orçamento de ${o.tutor} (${brl(o.valor)}) em venda?\nEla vai para "Não pago" para receber no caixa.`)) return;
     try {
@@ -871,7 +868,7 @@ export default function PDVPage() {
                 const shiftDia = (delta: number) => { const dt = new Date(vendaDia + 'T12:00:00'); dt.setDate(dt.getDate() + delta); setVendaDia(dt.toISOString().slice(0, 10)); };
                 const btn = { width: 28, height: 28, borderRadius: 8, border: `1px solid ${LINE}`, background: '#fff', color: MUT, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, lineHeight: 1 } as const;
                 return (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, opacity: vendaAbertas ? 0.5 : 1, pointerEvents: vendaAbertas ? 'none' : 'auto' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <button onClick={() => shiftDia(-1)} aria-label="Dia anterior" style={btn}>‹</button>
                     <button
                       onClick={() => { const el = vendaDiaRef.current; if (!el) return; if ((el as any).showPicker) (el as any).showPicker(); else el.click(); }}
@@ -884,10 +881,6 @@ export default function PDVPage() {
                   </div>
                 );
               })()}
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: MUT, cursor: 'pointer' }}>
-                <input type="checkbox" checked={vendaAbertas} onChange={(e) => setVendaAbertas(e.target.checked)} />
-                Abertas (todos os dias)
-              </label>
             </div>
             <div style={{ padding: 13, display: 'flex', gap: 9 }}>
               <div style={{ flex: 1, background: OKB, borderRadius: 11, padding: '10px 12px' }}><div style={{ fontSize: 11, color: OK }}>Recebido</div><div style={{ fontSize: 16, fontWeight: 500, color: OK }}>{brl(recebidoHoje)}</div></div>
