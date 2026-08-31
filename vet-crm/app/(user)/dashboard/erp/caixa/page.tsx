@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { usePodeEditar } from '@/lib/permissions/context';
+import { useRolePreview } from '@/lib/ui/RolePreview';
 import { ehDinheiro, carregarFormasRecebimento, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
 import DecimalInput from '@/components/DecimalInput';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
@@ -45,6 +46,9 @@ const tdStyle: React.CSSProperties = { padding: '9px 8px', borderBottom: '1px so
 
 export default function CaixaPage() {
   usePageTitle('Caixa', 'Controle de recebimentos do dia');
+  // #8 (Cintia): "A receber das maquininhas" (previsão de crédito) só aparece pro ADMIN.
+  const { effectiveRole } = useRolePreview();
+  const isAdmin = effectiveRole === 'ADMIN';
   const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde ações do caixa
 
   const [date, setDate] = useState(hojeStr());
@@ -172,7 +176,7 @@ export default function CaixaPage() {
 
   useEffect(() => { fetchCaixas(); fetchAppointments(); }, [date]); // eslint-disable-line
   useEffect(() => { if (selectedId) fetchDetail(selectedId); }, [selectedId, fetchDetail]);
-  useEffect(() => { fetch('/api/caixa/previsao-credito', { cache: 'no-store' }).then((r) => r.json()).then(setPrevCred).catch(() => setPrevCred(null)); }, [date]);
+  useEffect(() => { if (!isAdmin) { setPrevCred(null); return; } fetch('/api/caixa/previsao-credito', { cache: 'no-store' }).then((r) => r.json()).then(setPrevCred).catch(() => setPrevCred(null)); }, [date, isAdmin]);
   useEffect(() => { // fonte única: formas + contas cadastradas no Financeiro
     (async () => {
       try {
@@ -601,7 +605,7 @@ export default function CaixaPage() {
                         💡 Recebimentos são registrados no <b style={{ color: '#014D5E' }}>Ponto de venda</b> (aba “Não pago”). Aqui você <b>acompanha e confere</b> os recebimentos do dia para o fechamento.
                       </div>
                     )}
-                    {prevCred && prevCred.totalCentavos > 0 && (
+                    {isAdmin && prevCred && prevCred.totalCentavos > 0 && (
                       <div className="no-print" style={{ marginBottom: 12, background: '#F0FAF6', border: '1px solid #BFE6D4', borderRadius: 12, padding: '12px 14px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                           <div style={{ fontSize: 13, color: '#0F5132', fontWeight: 600 }}>💳 A receber das maquininhas <span style={{ fontWeight: 400, color: '#5C6B70' }}>(previsão de crédito · líquido · pelo prazo de cada maquininha)</span></div>
