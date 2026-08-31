@@ -40,10 +40,13 @@ export class CaixaService {
     return movs.reduce((s: number, m: any) => s + (m.tipo === 'USO' ? -Number(m.valor) : Number(m.valor)), 0);
   }
 
-  async findDoDia(dateStr?: string) {
+  async findDoDia(dateStr?: string, user?: any) {
     const { ini, fim } = dayRange(dateStr);
+    const where: any = { abertura: { gte: ini, lte: fim } };
+    // #4 (Cintia): cada operador só enxerga o PRÓPRIO caixa; ADMIN vê todos.
+    if (user?.role !== 'ADMIN' && user?.id) where.userId = user.id;
     return this.prisma.caixaSessao.findMany({
-      where: { abertura: { gte: ini, lte: fim } },
+      where,
       include: { user: { select: { id: true, name: true } }, recebimentos: true },
       orderBy: { abertura: 'asc' },
     });
@@ -808,11 +811,13 @@ export class CaixaService {
   }
 
   // Grade de caixas (todos os dias) filtrável por período + status.
-  async listCaixasGrade(query: any = {}) {
+  async listCaixasGrade(query: any = {}, user?: any) {
     const { from, to, status } = query || {};
     const where: any = {};
     if (from || to) { where.abertura = {}; if (from) where.abertura.gte = new Date(String(from) + 'T00:00:00'); if (to) where.abertura.lte = new Date(String(to) + 'T23:59:59'); }
     if (status) where.status = String(status).toUpperCase();
+    // #4: não-admin só vê a grade dos PRÓPRIOS caixas; ADMIN vê todos.
+    if (user?.role !== 'ADMIN' && user?.id) where.userId = user.id;
     return this.prisma.caixaSessao.findMany({
       where, orderBy: { abertura: 'desc' }, take: 300,
       select: { id: true, numero: true, status: true, abertura: true, fechamento: true, valorEsperado: true, valorContado: true, diferenca: true, user: { select: { name: true } } },

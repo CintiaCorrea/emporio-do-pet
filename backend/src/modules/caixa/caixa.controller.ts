@@ -16,8 +16,8 @@ export class CaixaController {
   constructor(private readonly service: CaixaService) {}
 
   @Get()
-  findDoDia(@Query('date') date?: string) {
-    return this.service.findDoDia(date);
+  findDoDia(@Query('date') date?: string, @CurrentUser() user?: any) {
+    return this.service.findDoDia(date, user);
   }
 
   @Get('recebimentos')
@@ -88,8 +88,8 @@ export class CaixaController {
 
   // Grade de caixas (todos os dias, filtrável por período/status) — antes do :id pra não colidir.
   @Get('grade')
-  grade(@Query() query: any) {
-    return this.service.listCaixasGrade(query);
+  grade(@Query() query: any, @CurrentUser() user?: any) {
+    return this.service.listCaixasGrade(query, user);
   }
 
   @Get(':id')
