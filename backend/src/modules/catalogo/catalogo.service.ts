@@ -81,6 +81,18 @@ export class CatalogoService {
     return item;
   }
 
+  /** Composição dos PACOTES/KITS (só nome + itens que compõem, sem preço) — usado nos documentos
+   *  impressos (orçamento/venda) pra listar o que o pacote inclui. Leve (sem carregar o catálogo todo). */
+  async pacotesComposicao() {
+    const pacotes = await this.prisma.itemCatalogo.findMany({
+      where: { tipo: { in: ['PACOTE', 'KIT'] }, arquivado: false },
+      select: { nome: true, composicao: { select: { quantidade: true, item: { select: { nome: true } } } } },
+    });
+    return pacotes
+      .map((p) => ({ nome: p.nome, itens: p.composicao.map((c) => ({ nome: c.item.nome, quantidade: Number(c.quantidade) || 1 })) }))
+      .filter((p) => p.itens.length > 0);
+  }
+
   private async proximoCodigo(): Promise<number> {
     const max = await this.prisma.itemCatalogo.aggregate({ _max: { codigo: true } });
     return (max._max.codigo || 0) + 1;

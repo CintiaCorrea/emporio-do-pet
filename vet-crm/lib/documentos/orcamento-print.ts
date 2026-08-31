@@ -1,5 +1,6 @@
 import { imprimirDocumento } from "@/lib/print";
 import { carregarPetTutorParaImpressao } from "@/lib/documentos/petCompleto";
+import { carregarComposicaoPacotes, itensDoPacote } from "@/lib/documentos/pacotes";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const esc = (t: any) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -13,19 +14,30 @@ const ST_LABEL: Record<string, string> = { RASCUNHO: "Rascunho", APROVADO: "Apro
  */
 export async function imprimirOrcamento(orc: any) {
   const itens: any[] = Array.isArray(orc?.itens) ? orc.itens : [];
+  const pacMap = await carregarComposicaoPacotes();
   const linhas = itens.map((it) => {
     const nome = it.descricao || it.servico?.nome || it.product?.name || "Item";
     const qtd = Number(it.quantidade ?? 1);
     const vu = Number(it.valorUnitario ?? 0);
     const desc = Number(it.desconto ?? 0);
     const tot = Number(it.valorTotal ?? Math.max(0, qtd * vu - desc));
+    // Pacote: mostra o TOTAL do pacote e, embaixo, a lista "Inclui" (itens que compõem) SEM preço.
+    const comp = itensDoPacote(pacMap, nome);
+    const linhaInclui = comp ? `<tr>
+      <td colspan="5" style="padding:0 8px 8px 8px;border-bottom:1px solid #eee">
+        <div style="border-left:2px solid #BEE3E8;padding:3px 0 1px 9px;margin-top:1px">
+          <div style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#0E5560;margin-bottom:2px">Inclui</div>
+          <div style="font-size:11.5px;color:#5C6B70">${comp.map((c) => `${c.quantidade > 1 ? c.quantidade + "× " : ""}${esc(c.nome)}`).join(" · ")}</div>
+        </div>
+      </td>
+    </tr>` : "";
     return `<tr>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee">${esc(nome)}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center">${qtd}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${BRL(vu)}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right">${desc ? BRL(desc) : "—"}</td>
-      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-weight:600">${BRL(tot)}</td>
-    </tr>`;
+      <td style="padding:6px 8px;${comp ? "" : "border-bottom:1px solid #eee;"}font-weight:${comp ? 700 : 400}">${esc(nome)}</td>
+      <td style="padding:6px 8px;${comp ? "" : "border-bottom:1px solid #eee;"}text-align:center">${qtd}</td>
+      <td style="padding:6px 8px;${comp ? "" : "border-bottom:1px solid #eee;"}text-align:right">${BRL(vu)}</td>
+      <td style="padding:6px 8px;${comp ? "" : "border-bottom:1px solid #eee;"}text-align:right">${desc ? BRL(desc) : "—"}</td>
+      <td style="padding:6px 8px;${comp ? "" : "border-bottom:1px solid #eee;"}text-align:right;font-weight:600">${BRL(tot)}</td>
+    </tr>${linhaInclui}`;
   }).join("");
 
   const total = Number(orc?.valorTotal ?? itens.reduce((s, it) => s + Number(it.valorTotal ?? 0), 0));

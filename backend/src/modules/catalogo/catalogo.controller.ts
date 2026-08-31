@@ -23,6 +23,7 @@ export class CatalogoController {
 
   // Fonte única de venda (catálogo novo, normalizado)
   @Get('vendavel') vendavel() { return this.service.vendavel(); }
+  @Get('pacotes-composicao') pacotesComposicao() { return this.service.pacotesComposicao(); }
 
   // Itens
   @Get('itens') listItens(@Query() q: any) { return this.service.listItens(q); }

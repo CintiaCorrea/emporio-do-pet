@@ -185,7 +185,7 @@ export function construirMapa(ctx: VarContext): Record<string, string> {
     ANIMAL_PELAGEM: pet.coatColor || "",
     ANIMAL_ESPECIE: especieLabel(pet.species),
     ANIMAL_RACA: pet.breed || "",
-    ANIMAL_PESO: pesoLabel(pet.weight),
+    ANIMAL_PESO: pesoLabel(pet.weight ?? pet.pesoAtual), // /api/pets/:id devolve o peso como `pesoAtual`
     ANIMAL_VACINAS_APLICADAS: vac.aplicadas || "",
     ANIMAL_VACINAS_APLICADAS_RESUMO: vac.aplicadasResumo || "",
     ANIMAL_VACINAS_PROGRAMADAS: vac.programadas || "",
