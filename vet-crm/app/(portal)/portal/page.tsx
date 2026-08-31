@@ -31,10 +31,20 @@ interface Internacao {
   previsaoAlta: string | null;
 }
 
+interface Agendamento {
+  id: string;
+  inicio: string;
+  petNome: string;
+  tipo: string;
+  profissional: string;
+  confirmado: boolean;
+}
+
 interface Home {
   tutor: { primeiroNome: string };
   pets: Pet[];
   internacoes: Internacao[];
+  proximosAgendamentos?: Agendamento[];
 }
 
 /** Itens do menu, na ordem do protótipo. `rota: null` = ainda não construída. */
@@ -58,6 +68,17 @@ function dataCurta(iso: string) {
 function descricaoPet(p: Pet) {
   const partes = [p.raca, p.idadeAnos != null ? `${p.idadeAnos} anos` : null].filter(Boolean);
   return partes.join(' · ') || 'ficha em dia';
+}
+
+/** Dia/mês/hora pro cartão de agendamento. */
+function diaMesHora(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return { dia: '', mes: '', hora: '' };
+  return {
+    dia: String(d.getDate()).padStart(2, '0'),
+    mes: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''),
+    hora: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+  };
 }
 
 export default function PortalInicio() {
@@ -183,6 +204,38 @@ export default function PortalInicio() {
               </span>
             </Link>
           ))}
+
+          {/* --------------------------------------------- próximos agendamentos */}
+          {(dados?.proximosAgendamentos || []).length > 0 && (
+            <div>
+              <div className="ptl-label" style={{ marginLeft: 2 }}>
+                próximos agendamentos
+              </div>
+              <div className="ptl-card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {(dados?.proximosAgendamentos || []).map((a) => {
+                  const dh = diaMesHora(a.inicio);
+                  return (
+                    <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 42, flexShrink: 0, textAlign: 'center', borderRight: '1px solid #ECE6DA', paddingRight: 10 }}>
+                        <div style={{ fontSize: 17, fontWeight: 800, color: '#0E5560', lineHeight: 1 }}>{dh.dia}</div>
+                        <div style={{ fontSize: 10, color: '#9aa4aa', textTransform: 'uppercase', letterSpacing: '.03em' }}>{dh.mes}</div>
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: '#243b40', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {a.petNome} <span style={{ fontWeight: 500, color: '#6b767b' }}>· {a.tipo}</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: '#9aa4aa' }}>🕐 {dh.hora}{a.profissional ? ` · ${a.profissional}` : ''}</div>
+                      </div>
+                      {a.confirmado && (
+                        <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 800, color: '#0F6E56', background: '#E4F5EC', border: '1px solid #BFE6D3', borderRadius: 999, padding: '3px 9px' }}>✓ confirmado</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <p style={{ fontSize: 11, color: '#9aa4aa', margin: '6px 2px 0' }}>Precisa mudar? Fale com a gente ou use “Agendar”.</p>
+            </div>
+          )}
 
           {/* --------------------------------------------- menu */}
           <div>

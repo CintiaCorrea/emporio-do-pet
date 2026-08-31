@@ -14,6 +14,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { PortalEscopoService, PetDoPortal } from './portal-escopo.service';
+import { STATUS_NAO_CONFIRMAVEL } from '../appointments/appointment-confirmacao.regras';
 
 interface MetadadosInternacao {
   type?: string;
@@ -87,12 +88,42 @@ export class PortalInicioService {
     return ativas;
   }
 
+  /** TODOS os próximos agendamentos do tutor (marcados pela clínica OU pelo portal) — pra
+   *  aparecerem na home. Exclui cancelados/remarcados/concluídos e as internações (mostradas à parte). */
+  async proximosAgendamentos(tutorId: string) {
+    const appts = await this.prisma.appointment.findMany({
+      where: { tutorId, date: { gte: new Date() }, status: { notIn: STATUS_NAO_CONFIRMAVEL } },
+      orderBy: { date: 'asc' },
+      take: 12,
+      select: {
+        id: true, date: true, type: true, notes: true, confirmacaoStatus: true,
+        pet: { select: { name: true } },
+        user: { select: { name: true, profissional: { select: { nomeExibicao: true, tipo: true } } } },
+      },
+    });
+    return appts
+      .filter((a) => !String(a.notes || '').includes('HOSPITALIZATION'))
+      .map((a) => {
+        const prof = a.user?.profissional;
+        const profissional = prof && prof.tipo === 'VETERINARIO' ? (prof.nomeExibicao || a.user?.name || '') : '';
+        return {
+          id: a.id,
+          inicio: a.date,
+          petNome: a.pet?.name || '',
+          tipo: a.type || 'Atendimento',
+          profissional,
+          confirmado: a.confirmacaoStatus === 'CONFIRMADO',
+        };
+      });
+  }
+
   async home(tutorId: string) {
-    const [tutor, pets] = await Promise.all([
+    const [tutor, pets, proximosAgendamentos] = await Promise.all([
       this.escopo.dadosDoTutor(tutorId),
       this.escopo.petsDoTutor(tutorId),
+      this.proximosAgendamentos(tutorId),
     ]);
     const internacoes = await this.internacoesAtivas(pets);
-    return { tutor, pets, internacoes };
+    return { tutor, pets, internacoes, proximosAgendamentos };
   }
 }
