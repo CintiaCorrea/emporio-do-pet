@@ -47,6 +47,7 @@ interface Conversation {
   metadata?: { source?: string; [k: string]: any };
   lastMessage?: { content: string | null; direction: string; type?: string } | null;
   tags?: string[];
+  canal?: string; // WHATSAPP (padrão) | INSTAGRAM | MESSENGER — inbox multicanal
 }
 
 interface Message {
@@ -617,6 +618,7 @@ export default function InboxUnificadoPage() {
           contactName: c?.contactName || null,
           contactPushName: c?.contactPushName || null,
           contactNumber: c?.contactPhone || c?.contactNumber || "",
+          canal: c?.canal || "WHATSAPP",
           lastMessageAt: c?.lastMessageAt || c?.createdAt || new Date().toISOString(),
           unreadCount: typeof c?.unreadCount === "number" ? c.unreadCount : 0,
           manualUnread: !!c?.manualUnread,
@@ -1070,17 +1072,28 @@ export default function InboxUnificadoPage() {
     // Assinatura: sai o primeiro nome de quem está logado na frente da mensagem
     // (limpo, sem markup — fica legível tanto no WhatsApp quanto na nossa caixa).
     // *texto* = negrito no WhatsApp.
-    if (assinar && assinaturaNome) text = `*${assinaturaNome}*:\n${text}`;
+    // Canal da conversa: WhatsApp (padrão) ou Instagram/Messenger — o envio vai pelo canal certo.
+    const canalAtual = conversations.find((c) => c.id === selectedId)?.canal || "WHATSAPP";
+    // Assinatura: negrito *nome* só vale no WhatsApp; no IG/Messenger sai o nome sem asteriscos.
+    if (assinar && assinaturaNome) text = canalAtual === "WHATSAPP" ? `*${assinaturaNome}*:\n${text}` : `${assinaturaNome}:\n${text}`;
     try {
-      const r = await fetch(`/api/whatsapp/conversations/${selectedId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: text,
-          type: "TEXT",
-          // Só cita se a mensagem escolhida tiver id no WhatsApp (as antigas de teste não têm).
-          ...(respondendo?.waMessageId ? { replyToWaMessageId: respondendo.waMessageId } : {}),
-        })});
+      let r: Response;
+      if (canalAtual !== "WHATSAPP") {
+        r = await fetch(`/api/meta-messaging/conversas/${selectedId}/responder`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ texto: text }),
+        });
+        if (r.ok) { const d = await r.json().catch(() => ({})); if (d && d.success === false) { alert(d.error || "Não consegui enviar por esse canal (Instagram/Messenger)."); return; } }
+      } else {
+        r = await fetch(`/api/whatsapp/conversations/${selectedId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: text,
+            type: "TEXT",
+            // Só cita se a mensagem escolhida tiver id no WhatsApp (as antigas de teste não têm).
+            ...(respondendo?.waMessageId ? { replyToWaMessageId: respondendo.waMessageId } : {}),
+          })});
+      }
       if (!r.ok) {
         const body = await r.text().catch(() => "");
         console.error("Send message failed:", r.status, body);
@@ -1859,6 +1872,8 @@ export default function InboxUnificadoPage() {
                       style={{ background: isLead ? "#B7791F" : "#009AAC" }}>{getInitials(nome)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
+                        {c.canal === "INSTAGRAM" && <span title="Instagram" className="shrink-0 text-[12px]">📷</span>}
+                        {c.canal === "MESSENGER" && <span title="Messenger" className="shrink-0 text-[12px]">💠</span>}
                         <span className={`text-[12.5px] truncate ${naoLida ? "font-bold text-[#0E2244]" : "font-medium text-[#0E2244]"}`}
                           title={c.tutor?.name && c.tutor.name !== nome ? `Cliente cadastrado: ${c.tutor.name}` : undefined}>{nome}</span>
                         {atrasada
