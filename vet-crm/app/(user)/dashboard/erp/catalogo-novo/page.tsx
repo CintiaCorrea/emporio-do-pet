@@ -3,6 +3,7 @@
 // Fonte: /api/catalogo/* (tabelas cat_). NÃO mexe no catálogo antigo (arquivado à parte).
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { invalidarCatalogoVendavel } from "@/lib/catalogoVendavel";
 import toast from "react-hot-toast";
 
 const B = "#014D5E", T = "#009AAC", LINE = "#E8DFC8", PAPER = "#F6F2EA", INK = "#1F2A2E", MUT = "#5C6B70";
@@ -191,6 +192,7 @@ export default function CatalogoNovoPage() {
       const r = await fetch(url, { method: form.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) { const e = await r.json().catch(() => null); throw new Error(e?.message || "Erro ao salvar"); }
       toast.success(form.id ? "Item atualizado ✅" : "Item cadastrado ✅");
+      invalidarCatalogoVendavel(); // reflete na hora no PDV/orçamento (zera o cache do catálogo vendável)
       setForm(null); await carregarItens();
     } catch (e: any) { toast.error(String(e?.message || "Erro").slice(0, 120)); } finally { setSalvando(false); }
   }
@@ -198,6 +200,7 @@ export default function CatalogoNovoPage() {
     try {
       const r = await fetch(`/api/catalogo/itens/${it.id}/arquivar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ arquivar }) });
       if (!r.ok) throw new Error();
+      invalidarCatalogoVendavel();
       toast.success(arquivar ? "Arquivado" : "Reativado"); await carregarItens();
     } catch { toast.error("Erro"); }
   }

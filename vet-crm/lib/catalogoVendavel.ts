@@ -89,79 +89,31 @@ export function itemParaVenda(l: { descricao?: string; valorUnitario?: number; c
   return { ...base, ...(l.servicoId ? { servicoId: l.servicoId, productId: l.productId ?? l.servicoId } : {}) };
 }
 
-/** Carrega o catálogo vendável completo: serviços + produtos + medicamentos/vacinas + EXAMES.
- *  Exames vêm por PADRÃO (aparecem em toda venda/orçamento). Passe `{ exames: false }` só se a
- *  tela realmente não puder vender exame. */
-/** CHAVE DE VIRADA: quando ligada (Config do Catálogo novo), as telas de venda leem o cat_itens novo
- *  em vez do catálogo antigo. Padrão DESLIGADO — nada muda até você virar. */
-export async function usarCatalogoNovo(): Promise<boolean> {
+// Cache curto no cliente pra a BUSCA abrir instantânea. Antes o catálogo (~700 itens, 220KB) era
+// rebaixado do backend a CADA abertura do PDV/comanda (0,2–1,2s) — por isso a busca "não respondia"
+// enquanto carregava. Agora só rebaixa quando o cache expira ou ao salvar no catálogo (invalidar).
+const _cacheCat = new Map<string, { at: number; itens: ItemVendavel[] }>();
+const _TTL_CAT = 60_000; // 60s
+/** Zera o cache do catálogo vendável — chamar ao SALVAR/arquivar item no catálogo pra refletir na hora. */
+export function invalidarCatalogoVendavel() { _cacheCat.clear(); }
+
+/** Carrega o catálogo vendável — FONTE ÚNICA: catálogo NOVO (cat_itens): produtos, serviços,
+ *  vacinas/medicamentos, pacotes e EXAMES, todos ativos. Exames vêm por padrão; `{ exames: false }`
+ *  os tira. `{ force: true }` ignora o cache (recarrega do servidor). */
+export async function carregarCatalogoVendavel(opts?: { exames?: boolean; force?: boolean }): Promise<ItemVendavel[]> {
+  const comExames = opts?.exames !== false;
+  const chave = comExames ? "com" : "sem";
+  const cache = _cacheCat.get(chave);
+  if (!opts?.force && cache && Date.now() - cache.at < _TTL_CAT) return cache.itens;
   try {
-    const d = await fetch("/api/listas?lista=catalogo_config", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
-    const arr: any[] = Array.isArray(d) ? d : (d?.itens || d?.data || []);
-    const raw = arr[0]?.valor;
-    if (!raw) return false;
-    try { return !!JSON.parse(raw)?.usarNovo; } catch { return false; }
-  } catch { return false; }
-}
-
-export async function carregarCatalogoVendavel(opts?: { exames?: boolean }): Promise<ItemVendavel[]> {
-  // Catálogo NOVO ligado? Lê o cat_itens (fonte única). Se estiver ligado mas ainda VAZIO, cai no
-  // antigo pra nenhuma tela ficar sem catálogo (transição segura).
-  if (await usarCatalogoNovo()) {
-    try {
-      const d = await fetch("/api/catalogo/vendavel", { cache: "no-store" }).then((r) => r.json()).catch(() => []);
-      const arr: any[] = Array.isArray(d) ? d : (d?.data || d?.itens || []);
-      if (arr.length) return arr as ItemVendavel[];
-    } catch { /* rede — cai no antigo */ }
+    const d = await fetch("/api/catalogo/vendavel", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+    let arr: any[] = Array.isArray(d) ? d : (d?.data || d?.itens || []);
+    if (!comExames) arr = arr.filter((x) => !(x?._exame || String(x?.tipo || "").toUpperCase() === "EXAME"));
+    const itens = arr as ItemVendavel[];
+    if (itens.length) _cacheCat.set(chave, { at: Date.now(), itens });
+    // Se voltou vazio (falha/rede), mantém o último cache bom em vez de zerar as vendas.
+    return itens.length ? itens : (cache?.itens || []);
+  } catch {
+    return cache?.itens || [];
   }
-
-  const out: ItemVendavel[] = [];
-
-  // Produtos + serviços + medicamentos/vacinas — TODOS de uma vez, sem excludeService, sem truncar.
-  try {
-    const d = await fetch("/api/products?limit=5000", { cache: "no-store" }).then((r) => r.json()).catch(() => null);
-    const arr: any[] = Array.isArray(d?.products) ? d.products : (Array.isArray(d) ? d : (d?.data || d?.itens || []));
-    for (const p of arr) {
-      const nome = p?.name || p?.nome;
-      if (!p || p.ativo === false || !nome) continue;
-      out.push({
-        id: p.id,
-        nome,
-        valorPadrao: Number(p.price ?? p.preco ?? p.valorPadrao ?? 0),
-        custoPadrao: Number(p.custoPadrao ?? p.custo ?? 0) || undefined,
-        tipo: p.type,
-        categoria: p.category?.nome ?? null,
-      });
-    }
-  } catch { /* rede — devolve o que tiver */ }
-
-  // Exames (padrão SIM) — dedup por NOME, preferindo o lab Veter (padrão). Opt-out: { exames: false }.
-  if (opts?.exames !== false) {
-    try {
-      const ex = await fetch("/api/fornecedores/exames/lista", { cache: "no-store" }).then((r) => r.json()).catch(() => []);
-      const exArr: any[] = Array.isArray(ex) ? ex : (ex?.itens || ex?.data || []);
-      const porNome = new Map<string, any>();
-      for (const e of exArr) {
-        const nome = String(e?.nome || "").trim();
-        if (!nome) continue;
-        const chave = nome.toLowerCase();
-        const atual = porNome.get(chave);
-        const ehVeter = /veter/i.test(e?.fornecedor?.nome || "");
-        if (!atual || (ehVeter && !/veter/i.test(atual?.fornecedor?.nome || ""))) porNome.set(chave, e);
-      }
-      for (const e of porNome.values()) {
-        out.push({
-          id: e.id,
-          nome: `🔬 ${e.nome}`,
-          valorPadrao: Number(e.valorClienteSugerido ?? e.valorCliente ?? 0),
-          custoPadrao: Number(e.valorFornecedor ?? 0) || undefined, // custo do lab → alimenta o a-pagar
-          _exame: true,
-          _fornecedorId: e.fornecedorId ?? e.fornecedor?.id ?? null,
-          _fornecedorNome: e.fornecedor?.nome ?? null,
-        });
-      }
-    } catch { /* rede */ }
-  }
-
-  return out;
 }
