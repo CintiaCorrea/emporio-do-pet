@@ -141,6 +141,9 @@ export default function PDVPage() {
   const [detLoad, setDetLoad] = useState(false);
   const [detExcluindo, setDetExcluindo] = useState(false);
   const [editItens, setEditItens] = useState<any[] | null>(null); // itens em edição no detalhe (null = modo leitura)
+  // ✏️ Editar venda NA TELA DE VENDAS (carrinho principal). Quando setado, a venda foi carregada no
+  // carrinho e o botão salva com PATCH na venda existente (não cria outra). Pedido da Cintia.
+  const [editandoVenda, setEditandoVenda] = useState<{ id: string; numero?: number | null; label: string } | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editOrc, setEditOrc] = useState<any[] | null>(null); // itens do ORÇAMENTO em edição (null = leitura)
   const [savingOrc, setSavingOrc] = useState(false);
@@ -237,6 +240,50 @@ export default function PDVPage() {
       setDetVenda((prev: any) => (prev ? { ...prev, itens, petId, tutorId } : prev));
     } catch { setDetVenda((prev: any) => (prev ? { ...prev, itens: [] } : prev)); }
     setDetLoad(false);
+  }
+
+  // ✏️ Abre a venda pra editar NO CARRINHO PRINCIPAL (tela de vendas cheia): carrega os itens,
+  // marca o modo edição e fecha o painel. Salvar depois faz PATCH na MESMA venda. Pedido da Cintia.
+  async function editarNaTelaDeVendas(v: any) {
+    try {
+      const d = await fetch(`/api/atendimentos/${v.id}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => ({}));
+      const itens = d.items || d.appointmentItems || d.itens || [];
+      const cart: CartItem[] = itens.map((it: any) => ({
+        descricao: it.descricao || it.nome || '',
+        servicoId: it.servicoId || undefined,
+        quantidade: Number(it.quantidade ?? it.qtd ?? 1) || 1,
+        valorUnitario: Number(it.valorUnitario ?? 0) || 0,
+        desconto: Number(it.desconto ?? 0) || 0,
+        descTipo: '$',
+      }));
+      setCarrinho(cart.length ? cart : []);
+      setEditandoVenda({ id: v.id, numero: v.numeroVenda ?? null, label: `${v.tutor || ''}${v.pet ? ' · ' + v.pet : ''}`.trim() });
+      setTipo('VENDA');
+      setDetVenda(null); setEditItens(null);
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+      toast('Venda carregada na tela de vendas — altere e clique em "Salvar alterações".', { icon: '✏️' });
+    } catch { toast.error('Não consegui carregar a venda pra editar.'); }
+  }
+  // 💾 Salva a edição feita no carrinho de volta na venda existente (PATCH itens + valor).
+  async function salvarEdicaoVendaCart() {
+    if (!editandoVenda) return;
+    const limpos = carrinho.filter((it) => (it.descricao || '').trim());
+    if (!limpos.length) { toast.error('Adicione ao menos um item.'); return; }
+    setSalvando(true);
+    try {
+      const items = limpos.map((it) => ({
+        servicoId: it.servicoId || undefined,
+        descricao: it.descricao, quantidade: Number(it.quantidade) || 1,
+        valorUnitario: Number(it.valorUnitario) || 0,
+        desconto: Number(descItemVal(it).toFixed(2)),
+        valorTotal: Number(itemTotal(it).toFixed(2)),
+      }));
+      const value = items.reduce((s, it) => s + it.valorTotal, 0);
+      const r = await fetch(`/api/appointments/${editandoVenda.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, value }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao salvar'); }
+      toast.success('Venda atualizada!');
+      setEditandoVenda(null); reset(); loadVendas();
+    } catch (e: any) { toast.error(e.message || 'Erro ao salvar'); } finally { setSalvando(false); }
   }
   // ----- Editar itens da venda existente -----
   function abrirEdicaoItens() {
@@ -661,6 +708,16 @@ export default function PDVPage() {
           </div>
           <div style={{ padding: 18 }}>
 
+            {editandoVenda ? (
+              <div style={{ marginBottom: 20, padding: '12px 15px', borderRadius: 11, background: '#EEF2FF', border: '1px solid #C7D2FE', display: 'flex', alignItems: 'center', gap: 11, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 18 }}>✏️</span>
+                <div style={{ flex: 1, minWidth: 150 }}>
+                  <div style={{ fontWeight: 600, color: '#3730A3', fontSize: 14 }}>Editando a venda{editandoVenda.numero ? ` #${editandoVenda.numero}` : ''}</div>
+                  <div style={{ fontSize: 12, color: '#4F46E5' }}>{editandoVenda.label || 'venda'} · altere itens, quantidades e desconto abaixo</div>
+                </div>
+                <button onClick={() => { setEditandoVenda(null); reset(); }} style={{ border: '1px solid #C7D2FE', background: '#fff', borderRadius: 9, padding: '8px 12px', fontSize: 12.5, cursor: 'pointer', color: '#4F46E5', fontWeight: 500 }}>✕ Cancelar edição</button>
+              </div>
+            ) : (<>
             {/* linha topo */}
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginBottom: 20 }}>
               <div style={{ flex: 1, minWidth: 130 }}>
@@ -705,6 +762,7 @@ export default function PDVPage() {
                 <button onClick={limparCliente} style={{ border: `1px solid ${LINE}`, background: '#fff', borderRadius: 9, padding: '8px 11px', cursor: 'pointer', color: INK2, fontSize: 12 }}>↺ trocar</button>
               </div>
             )}
+            </>)}
 
             {/* 2 produtos */}
             {step('🛒', 'Produtos e serviços')}
@@ -845,11 +903,15 @@ export default function PDVPage() {
 
             {/* rodapé */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: `1px solid ${SOFT}`, paddingTop: 16 }}>
+              {editandoVenda ? (
+                <button onClick={salvarEdicaoVendaCart} disabled={salvando || !carrinho.length} style={{ border: 'none', borderRadius: 9, background: carrinho.length ? TEAL : '#cfd8d9', color: '#fff', padding: '11px 20px', fontSize: 13.5, fontWeight: 500, cursor: carrinho.length ? 'pointer' : 'not-allowed' }}>💾 {salvando ? 'Salvando…' : 'Salvar alterações'}</button>
+              ) : (<>
               <button onClick={abrirRecebimento} disabled={!baseValida || tipo === 'ORCAMENTO'} style={{ border: 'none', borderRadius: 9, background: (baseValida && tipo === 'VENDA') ? TEAL : '#cfd8d9', color: '#fff', padding: '11px 18px', fontSize: 13.5, fontWeight: 500, cursor: (baseValida && tipo === 'VENDA') ? 'pointer' : 'not-allowed' }}>💰 Registrar recebimento</button>
               <button onClick={salvar} disabled={!baseValida || salvando} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '11px 18px', fontSize: 13.5, cursor: baseValida ? 'pointer' : 'not-allowed', color: INK }}>{tipo === 'ORCAMENTO' ? '💾 Salvar orçamento' : '💾 Salvar'}</button>
               <button onClick={() => setOrcModeloOpen(true)} disabled={!cliente || !petId} title={!cliente || !petId ? 'Selecione cliente e pet' : 'Novo orçamento a partir de um modelo (salvar/imprimir/enviar)'} style={{ border: `1px solid #6D28D9`, borderRadius: 9, background: '#fff', padding: '11px 18px', fontSize: 13.5, cursor: (cliente && petId) ? 'pointer' : 'not-allowed', color: '#6D28D9', opacity: (cliente && petId) ? 1 : .5 }}>📄 Orçamento com modelo</button>
-              <button onClick={imprimirAtual} disabled={!carrinho.length} title={tipo === 'ORCAMENTO' ? 'Imprimir o orçamento' : 'Imprimir a venda'} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '11px 16px', fontSize: 13.5, cursor: carrinho.length ? 'pointer' : 'not-allowed', color: INK, opacity: carrinho.length ? 1 : 0.5 }}>🖨️ Imprimir {tipo === 'ORCAMENTO' ? 'orçamento' : 'venda'}</button>
-              <button onClick={reset} style={{ marginLeft: 'auto', border: 'none', background: 'none', color: MUT, padding: '11px', fontSize: 13, cursor: 'pointer' }}>✕ Cancelar</button>
+              </>)}
+              <button onClick={imprimirAtual} disabled={!carrinho.length} title={editandoVenda ? 'Imprimir a venda' : (tipo === 'ORCAMENTO' ? 'Imprimir o orçamento' : 'Imprimir a venda')} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '11px 16px', fontSize: 13.5, cursor: carrinho.length ? 'pointer' : 'not-allowed', color: INK, opacity: carrinho.length ? 1 : 0.5 }}>🖨️ Imprimir {(!editandoVenda && tipo === 'ORCAMENTO') ? 'orçamento' : 'venda'}</button>
+              <button onClick={() => { setEditandoVenda(null); reset(); }} style={{ marginLeft: 'auto', border: 'none', background: 'none', color: MUT, padding: '11px', fontSize: 13, cursor: 'pointer' }}>✕ Cancelar</button>
             </div>
           </div>
         </div>
@@ -1115,7 +1177,7 @@ export default function PDVPage() {
                       <span style={{ fontSize: 11, color: MUT, textTransform: 'uppercase', letterSpacing: 0.4 }}>Itens</span>
                       {editItens === null && !detLoad && (
                         podeEditar
-                          ? <button onClick={abrirEdicaoItens} style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>✏️ Editar</button>
+                          ? <button onClick={() => editarNaTelaDeVendas(detVenda)} title="Abre a venda na tela de vendas para alterar itens, quantidades e desconto" style={{ border: 'none', background: 'none', color: TEAL, fontSize: 12, fontWeight: 500, cursor: 'pointer' }}>✏️ Editar na tela de vendas</button>
                           : <span style={{ fontSize: 11, color: MUT }}>🔒 só administrador</span>
                       )}
                     </div>
