@@ -124,6 +124,10 @@ export class WhatsAppService {
   private readonly baseUrl: string;
   private readonly rateLimiter: RateLimiter;
   private readonly defaultCountry: string;
+  // Cache do nº de variáveis de cada template aprovado na Meta (evita mandar template com params a
+  // menos → erro 132000). Recarrega a cada 1h.
+  private _tplVars = new Map<string, number>();
+  private _tplVarsAt = 0;
 
   constructor(
     private configService: ConfigService,
@@ -1998,7 +2002,19 @@ export class WhatsAppService {
 
     const mandarAbertura = async (): Promise<'enviada' | 'faltando' | 'falhou'> => {
       if (!dto.aberturaTemplate) return 'faltando';
-      const params = (dto.aberturaParams || []).map((t) => ({ type: 'text' as const, text: String(t) }));
+      // 🛡️ O template pode esperar variáveis ({{1}} nome, {{2}} pet…). Se o chamador não mandou (ou
+      // mandou vazio), preenchemos com nome do cliente + pet — senão a Meta rejeita (erro 132000).
+      const need = await this.varsDoTemplate(dto.aberturaTemplate);
+      const dados = (dto.aberturaParams || []).map((t) => String(t ?? '').trim());
+      let primeiro = '', pet = '';
+      if (need > 0 && dto.tutorId && (dados.length < need || dados.some((x) => !x))) {
+        const t = await this.prisma.tutor.findUnique({ where: { id: dto.tutorId }, select: { name: true, pets: { select: { name: true }, take: 1 } } }).catch(() => null);
+        primeiro = (t?.name || '').trim().split(/\s+/)[0] || '';
+        pet = t?.pets?.[0]?.name || '';
+      }
+      const padrao = [primeiro || 'tudo bem', pet || 'seu pet'];
+      const n = need > 0 ? need : dados.length;
+      const params = Array.from({ length: n }, (_, i) => ({ type: 'text' as const, text: dados[i] || padrao[i] || '—' }));
       const res = await this.enviarTemplateRegistrando(formatted, dto.aberturaTemplate, params, `[abertura: ${dto.aberturaTemplate}]`);
       return res.success ? 'enviada' : 'falhou';
     };
@@ -2109,6 +2125,30 @@ export class WhatsAppService {
     const dono = await this.resolverDonoWhatsApp();
     if (!dono) return null;
     return this.createOrGetConversation(dono, formatted);
+  }
+
+  /** Nº de variáveis ({{n}}) que o BODY do template espera (cacheado 1h). Evita mandar template com
+   *  params a menos → erro 132000 da Meta. Devolve 0 se não souber (aí não força nada). */
+  private async varsDoTemplate(nome: string): Promise<number> {
+    try {
+      if (this._tplVars.size === 0 || Date.now() - this._tplVarsAt > 3600_000) {
+        const waba = this.configService.get<string>('whatsapp.businessAccountId') || '';
+        if (waba && this.accessToken) {
+          const r = await fetch(`${this.baseUrl}/${waba}/message_templates?fields=name,components&limit=250`, { headers: { Authorization: `Bearer ${this.accessToken}` } });
+          const d: any = await r.json().catch(() => null);
+          if (Array.isArray(d?.data)) {
+            this._tplVars.clear();
+            for (const t of d.data) {
+              const b = (t.components || []).find((c: any) => c.type === 'BODY');
+              const vs = String(b?.text || '').match(/\{\{\d+\}\}/g);
+              this._tplVars.set(t.name, vs ? vs.length : 0);
+            }
+            this._tplVarsAt = Date.now();
+          }
+        }
+      }
+    } catch { /* mantém o cache anterior */ }
+    return this._tplVars.get(nome) ?? 0;
   }
 
   async enviarTemplateRegistrando(
