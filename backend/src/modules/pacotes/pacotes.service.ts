@@ -10,7 +10,7 @@ export class PacotesService {
   // baixadas pela agenda. Situação: consumido (100%), vencido (passou o prazo com
   // sessões sobrando) ou ativo. Prazo configurável (lista pacote_validade_dias, def. 365).
   // (A tabela Pacote/PacoteSessao — legada, vazia — foi removida na unificação: tudo é petpac_.)
-  async listVendidos() {
+  async listVendidos(todos = false) {
     let validadeDias = 365;
     try {
       const cfg = await this.prisma.listaItem.findFirst({ where: { lista: 'pacote_validade_dias' } });
@@ -55,13 +55,28 @@ export class PacotesService {
     });
     pacotes.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
+    // #9 (Cintia): quando um pacote é RENOVADO (mesmo pet + mesmo pacote), mostra só o MAIS RECENTE
+    // (esconde os antigos já consumidos). `todos=true` mantém o histórico completo.
+    let visiveis = pacotes;
+    if (!todos) {
+      const vistos = new Set<string>();
+      visiveis = pacotes.filter((p) => {
+        const chave = `${p.petId}|${(p.nome || '').trim().toLowerCase()}`;
+        if (vistos.has(chave)) return false; // já mostramos um mais recente deste pet+pacote
+        vistos.add(chave);
+        return true;
+      });
+    }
+
+    const ocultos = pacotes.length - visiveis.length;
     const resumo = {
-      total: pacotes.length,
-      ativos: pacotes.filter((x) => x.situacao === 'ATIVO').length,
-      consumidos: pacotes.filter((x) => x.situacao === 'CONSUMIDO').length,
-      vencidos: pacotes.filter((x) => x.situacao === 'VENCIDO').length,
+      total: visiveis.length,
+      ativos: visiveis.filter((x) => x.situacao === 'ATIVO').length,
+      consumidos: visiveis.filter((x) => x.situacao === 'CONSUMIDO').length,
+      vencidos: visiveis.filter((x) => x.situacao === 'VENCIDO').length,
       validadeDias,
+      ocultosPorRenovacao: todos ? 0 : ocultos, // quantos foram escondidos (renovações antigas)
     };
-    return { resumo, pacotes };
+    return { resumo, pacotes: visiveis };
   }
 }

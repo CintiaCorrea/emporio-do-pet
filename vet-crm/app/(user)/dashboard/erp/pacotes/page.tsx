@@ -15,7 +15,7 @@ interface Pac {
   cliente: string; nome: string; total: number; used: number; restam: number;
   createdAt?: string | null; validade?: string | null; situacao: Situacao;
 }
-interface Resumo { total: number; ativos: number; consumidos: number; vencidos: number; validadeDias: number }
+interface Resumo { total: number; ativos: number; consumidos: number; vencidos: number; validadeDias: number; ocultosPorRenovacao?: number }
 
 const SP_EMOJI = (s?: string | null) => ({ CANINE: "🐶", FELINE: "🐱", BIRD: "🐦", RODENT: "🐹", REPTILE: "🦎", RABBIT: "🐰", FISH: "🐠" } as any)[String(s || "").toUpperCase()] || "🐾";
 const fmtD = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
@@ -34,15 +34,17 @@ export default function PacotesPage() {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<"ALL" | Situacao>("ALL");
   const [busca, setBusca] = useState("");
+  // #9: por padrão mostra só o pacote MAIS ATUAL de cada pet+pacote (renovações antigas escondidas).
+  const [verTodos, setVerTodos] = useState(false);
 
   async function carregar() {
     setLoading(true);
-    const d = await safeJson<any>(await fetch("/api/pacotes/vendidos", { cache: "no-store" }), { resumo: null, pacotes: [] });
+    const d = await safeJson<any>(await fetch(`/api/pacotes/vendidos${verTodos ? "?todos=true" : ""}`, { cache: "no-store" }), { resumo: null, pacotes: [] });
     setPacotes(Array.isArray(d?.pacotes) ? d.pacotes : []);
     if (d?.resumo) setResumo(d.resumo);
     setLoading(false);
   }
-  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, []);
+  useEffect(() => { carregar(); /* eslint-disable-next-line */ }, [verTodos]);
 
   // 🗑️ Remove o pacote (entrada petpac_ da fonte viva). Some da lista, ficha e agenda.
   async function remover(p: Pac) {
@@ -90,9 +92,15 @@ export default function PacotesPage() {
         ))}
       </div>
 
-      <div className="relative max-w-md mb-3">
-        <LuSearch size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por cliente ou pet…" className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} />
+      <div className="flex items-center gap-3 flex-wrap mb-3">
+        <div className="relative flex-1 min-w-[220px] max-w-md">
+          <LuSearch size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por cliente ou pet…" className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-white" style={{ borderColor: "#E8DFC8" }} />
+        </div>
+        <label className="flex items-center gap-2 text-[12.5px] text-gray-600 cursor-pointer select-none" title="Renovado: mesmo pet + mesmo pacote. Por padrão mostramos só o mais atual.">
+          <input type="checkbox" checked={verTodos} onChange={(e) => setVerTodos(e.target.checked)} />
+          Ver histórico (renovados){!verTodos && (resumo.ocultosPorRenovacao || 0) > 0 ? <span className="text-[11px] font-semibold px-2 py-[2px] rounded-full" style={{ background: "#FBF1E2", color: "#B26A00" }}>{resumo.ocultosPorRenovacao} oculto{(resumo.ocultosPorRenovacao || 0) > 1 ? "s" : ""}</span> : null}
+        </label>
       </div>
 
       <div className="bg-white border rounded-2xl overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
