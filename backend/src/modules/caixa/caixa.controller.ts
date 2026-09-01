@@ -92,6 +92,12 @@ export class CaixaController {
     return this.service.listCaixasGrade(query, user);
   }
 
+  // ANTES do @Get(':id') — senão o Nest trataria "abertos-para-transferencia" como um id de caixa (404).
+  @Get('abertos-para-transferencia')
+  abertosParaTransferencia() {
+    return this.service.listAbertosParaTransferencia();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);
@@ -136,12 +142,6 @@ export class CaixaController {
   @Delete(':id/movimento')
   deleteMovimento(@Param('id') id: string, @Query('itemId') itemId: string) {
     return this.service.deleteMovimento(id, itemId);
-  }
-
-  // Caixas ABERTOS (mínimo) pro seletor de destino da transferência entre caixas.
-  @Get('abertos-para-transferencia')
-  abertosParaTransferencia() {
-    return this.service.listAbertosParaTransferencia();
   }
 
   // Transfere dinheiro DESTE caixa para outro caixa aberto (sangria aqui + suprimento lá).
