@@ -138,6 +138,18 @@ export class CaixaController {
     return this.service.deleteMovimento(id, itemId);
   }
 
+  // Caixas ABERTOS (mínimo) pro seletor de destino da transferência entre caixas.
+  @Get('abertos-para-transferencia')
+  abertosParaTransferencia() {
+    return this.service.listAbertosParaTransferencia();
+  }
+
+  // Transfere dinheiro DESTE caixa para outro caixa aberto (sangria aqui + suprimento lá).
+  @Post(':id/transferir-caixa')
+  transferirCaixa(@Param('id') id: string, @Body() dto: any, @CurrentUser('id') userId: string) {
+    return this.service.transferirEntreCaixas(id, dto, userId);
+  }
+
   @Delete(':id/recebimento')
   deleteRecebimento(@Param('id') id: string, @Query('itemId') itemId: string) {
     return this.service.deleteRecebimento(id, itemId);

@@ -1103,6 +1103,39 @@ export class CaixaService {
     return mov;
   }
 
+  /** Caixas ABERTOS (id + nº + operador) — leve, pro seletor de "transferir para outro caixa".
+   *  Visível a todos (só o mínimo), pra qualquer operador escolher o destino. */
+  async listAbertosParaTransferencia() {
+    const cxs = await this.prisma.caixaSessao.findMany({
+      where: { status: 'ABERTO' },
+      orderBy: { abertura: 'asc' },
+      select: { id: true, numero: true, user: { select: { name: true } } },
+    });
+    return cxs.map((c) => ({ id: c.id, numero: c.numero, operador: c.user?.name || `Caixa ${c.numero}` }));
+  }
+
+  /** 💸 Transfere DINHEIRO de um caixa para outro (SANGRIA na origem + SUPRIMENTO no destino).
+   *  É dinheiro→dinheiro (mesma conta Espécie) → NÃO mexe no financeiro, só reatribui entre as gavetas. */
+  async transferirEntreCaixas(origemId: string, dto: { valor?: number; destinoCaixaId?: string; descricao?: string }, userId: string) {
+    const valor = Number(dto.valor || 0);
+    if (!(valor > 0)) throw new BadRequestException('Informe o valor a transferir.');
+    if (!dto.destinoCaixaId || dto.destinoCaixaId === origemId) throw new BadRequestException('Escolha o caixa de destino.');
+    const [origem, destino] = await Promise.all([
+      this.prisma.caixaSessao.findUnique({ where: { id: origemId }, select: { id: true, numero: true, abertura: true, user: { select: { name: true } } } }),
+      this.prisma.caixaSessao.findUnique({ where: { id: dto.destinoCaixaId }, select: { id: true, numero: true, status: true, abertura: true, user: { select: { name: true } } } }),
+    ]);
+    if (!origem || !destino) throw new NotFoundException('Caixa não encontrado.');
+    if (destino.status !== 'ABERTO') throw new BadRequestException('O caixa de destino precisa estar ABERTO.');
+    const nomeOr = origem.user?.name || `caixa #${origem.numero}`;
+    const nomeDe = destino.user?.name || `caixa #${destino.numero}`;
+    const obs = String(dto.descricao || '').trim();
+    await this.prisma.$transaction([
+      this.prisma.caixaMovimento.create({ data: { caixaSessaoId: origemId, tipo: 'SANGRIA', valor, forma: 'Dinheiro', descricao: `Transferência p/ caixa de ${nomeDe}${obs ? ' — ' + obs : ''}`, data: origem.abertura, createdById: userId } }),
+      this.prisma.caixaMovimento.create({ data: { caixaSessaoId: dto.destinoCaixaId, tipo: 'SUPRIMENTO', valor, forma: 'Dinheiro', descricao: `Transferência recebida do caixa de ${nomeOr}${obs ? ' — ' + obs : ''}`, data: destino.abertura, createdById: userId } }),
+    ]);
+    return { ok: true, de: nomeOr, para: nomeDe, valor };
+  }
+
   /** Sangria/Suprimento/Transferência = dinheiro mudando de conta → TRANSFERENCIA (neutra no DRE, mexe no saldo). */
   private async transferenciaCaixaFinanceiro(mov: any, dto: any): Promise<void> {
     const cash = await this.contaDinheiro();

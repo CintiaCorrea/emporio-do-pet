@@ -33,7 +33,7 @@ const FORMAS_PADRAO = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito',
 const CONTAS = ['Caixa', 'Banco', 'Cofre'];
 const ehCredito = (f?: string | null) => /cr[eé]dito do pet/i.test(f || '');
 const ehEntrada = (tipo: string) => tipo === 'SUPRIMENTO';
-const tipoLabel: Record<string, string> = { SUPRIMENTO: 'Suprimento', SANGRIA: 'Sangria', DESPESA: 'Despesa', TRANSFERENCIA: 'Transferência' };
+const tipoLabel: Record<string, string> = { SUPRIMENTO: 'Suprimento', SANGRIA: 'Sangria', DESPESA: 'Despesa', TRANSFERENCIA: 'Transferência', CAIXA: 'Transferir para outro caixa' };
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
 const hora = (s?: string | null) => (s ? new Date(s).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '—');
 const dataHora = (s?: string | null) => s ? new Date(s).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', '') : '—';
@@ -125,9 +125,10 @@ export default function CaixaPage() {
   const [tutorAReceber, setTutorAReceber] = useState<number | null>(null); // total a receber do cliente (todas as vendas)
   const [movOpen, setMovOpen] = useState(false);
   const [movTipo, setMovTipo] = useState('SUPRIMENTO');
-  const [movForm, setMovForm] = useState({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '' });
+  const [movForm, setMovForm] = useState({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '', destinoCaixaId: '' });
   const [categoriasDespesa, setCategoriasDespesa] = useState<any[]>([]); // categorias de DESPESA (DRE)
   const [contasFin, setContasFin] = useState<any[]>([]); // contas reais (id+nome) p/ transferência
+  const [caixasTransfer, setCaixasTransfer] = useState<any[]>([]); // caixas ABERTOS p/ "transferir para outro caixa"
   const [credOpen, setCredOpen] = useState(false);
   const [credForm, setCredForm] = useState({ appointmentId: '', tipo: 'RECARGA', valor: '', descricao: '', forma: 'Dinheiro' });
   const [credFormas, setCredFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]); // forma da recarga (igual venda)
@@ -192,6 +193,10 @@ export default function CaixaPage() {
         if (nomes.length) setContasCfg(nomes);
         setContasFin(list.filter((c: any) => c?.id && c?.nome).map((c: any) => ({ id: c.id, nome: c.nome })));
       } catch { /* usa padrão */ }
+      try {
+        const cx = await fetch('/api/caixa/abertos-para-transferencia', { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
+        setCaixasTransfer(Array.isArray(cx) ? cx : []);
+      } catch { /* sem lista */ }
       try {
         const cats = await fetch('/api/financeiro/categorias', { cache: 'no-store' }).then((r) => r.json()).catch(() => []);
         const arr = Array.isArray(cats) ? cats : (cats.itens || cats.data || []);
@@ -346,10 +351,20 @@ export default function CaixaPage() {
       toast.success('Recebimento registrado!'); setReceberOpen(false); await fetchDetail(detail.id); await fetchAppointments();
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar recebimento'); }
   };
-  const abrirMov = (tipo: string) => { setMovTipo(tipo); setMovForm({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '' }); setMovOpen(true); };
+  const abrirMov = (tipo: string) => { setMovTipo(tipo); setMovForm({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '', destinoCaixaId: '' }); setMovOpen(true); };
   const registrarMovimento = async () => {
     if (!detail) return; const valor = Number(String(movForm.valor).replace(',', '.')) || 0;
     if (valor <= 0) { toast.error('Informe o valor'); return; }
+    // 🔄 Transferir para outro caixa: sai daqui (sangria) e entra no destino (suprimento), num só passo.
+    if (movTipo === 'CAIXA') {
+      if (!movForm.destinoCaixaId) { toast.error('Escolha o caixa de destino.'); return; }
+      try {
+        const r = await fetch(`/api/caixa/${detail.id}/transferir-caixa`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valor, destinoCaixaId: movForm.destinoCaixaId, descricao: movForm.descricao || null }) });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao transferir'); }
+        toast.success('Transferência entre caixas registrada!'); setMovOpen(false); await fetchDetail(detail.id); await fetchCaixas();
+      } catch (e: any) { toast.error(e.message || 'Erro ao transferir'); }
+      return;
+    }
     try {
       const r = await fetch(`/api/caixa/${detail.id}/movimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: movTipo, valor, forma: movForm.forma || null, conta: movTipo === 'TRANSFERENCIA' ? movForm.conta : null, descricao: movForm.descricao || null, observacao: movForm.observacao || null, ...(movTipo === 'DESPESA' && movForm.categoriaId ? { categoriaId: movForm.categoriaId } : {}), ...((movTipo === 'SUPRIMENTO' || movTipo === 'TRANSFERENCIA') && movForm.contaOrigemId ? { contaOrigemId: movForm.contaOrigemId } : {}), ...((movTipo === 'SANGRIA' || movTipo === 'TRANSFERENCIA') && movForm.contaDestinoId ? { contaDestinoId: movForm.contaDestinoId } : {}) }) });
       if (!r.ok) throw new Error('Erro ao registrar movimento');
@@ -532,6 +547,7 @@ export default function CaixaPage() {
                   {podeEditar && <button onClick={() => abrirMov('SANGRIA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Sangria</button>}
                   <button onClick={() => abrirMov('DESPESA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Despesa</button>
                   <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} style={{ background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Transferência</button>
+                  {podeEditar && <button onClick={() => abrirMov('CAIXA')} disabled={!aberto || caixasTransfer.filter((c) => c.id !== detail?.id).length === 0} title="Passar dinheiro deste caixa para outro caixa aberto" style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: (aberto && caixasTransfer.filter((c) => c.id !== detail?.id).length) ? 'pointer' : 'not-allowed', opacity: (aberto && caixasTransfer.filter((c) => c.id !== detail?.id).length) ? 1 : .4 }}>🔄 Transferir para outro caixa</button>}
                   <button onClick={abrirCredito} disabled={!aberto} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL, border: `1px solid ${TEAL}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: aberto ? 1 : .4 }}><LuGift size={14} /> Crédito do pet</button>
                   <button onClick={() => window.print()} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuPrinter size={14} /> Imprimir relatório</button>
                   {aberto ? (
@@ -769,6 +785,14 @@ export default function CaixaPage() {
           {movTipo === 'SUPRIMENTO' && (
             <Field label="Conta de origem (entra no caixa em dinheiro)"><select value={movForm.contaOrigemId} onChange={(e) => setMovForm({ ...movForm, contaOrigemId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
           )}
+          {movTipo === 'CAIXA' && (<>
+            <Field label="Caixa de destino"><select value={movForm.destinoCaixaId} onChange={(e) => setMovForm({ ...movForm, destinoCaixaId: e.target.value })} style={inp}>
+              <option value="">— Escolher caixa —</option>
+              {caixasTransfer.filter((c) => c.id !== detail?.id).map((c) => <option key={c.id} value={c.id}>#{c.numero} · {c.operador}</option>)}
+            </select></Field>
+            <Field label="Descrição (opcional)"><input value={movForm.descricao} onChange={(e) => setMovForm({ ...movForm, descricao: e.target.value })} placeholder="Ex: repasse de troco" style={inp} /></Field>
+            <p style={{ fontSize: 11.5, color: '#5C6B70', margin: '2px 0 0' }}>Sai em dinheiro deste caixa e entra no caixa escolhido — aparece nos dois.</p>
+          </>)}
           {movTipo === 'DESPESA' && (
             <Field label="Forma"><select value={movForm.forma} onChange={(e) => setMovForm({ ...movForm, forma: e.target.value })} style={inp}>{formasList.filter((f) => !ehCredito(f)).map((f) => <option key={f} value={f}>{f}</option>)}</select></Field>
           )}
