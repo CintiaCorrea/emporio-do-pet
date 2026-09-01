@@ -1453,6 +1453,10 @@ model WhatsAppConversation {
   assignedUserId     String?
   humanTakeoverAt    DateTime?
   metadata           Json?
+  // Inbox multicanal: WHATSAPP (padrão) | INSTAGRAM | MESSENGER. Para IG/Messenger, contactPhone
+  // guarda o id externo prefixado ("ig:<IGSID>" / "msg:<PSID>") — não colide com telefone.
+  canal              String                     @default("WHATSAPP")
+  perfilId           String? // qual perfil conectado (MetaCanalPerfil) recebeu — multi-página
 
   // Relacionamentos
   user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -1468,7 +1472,27 @@ model WhatsAppConversation {
   @@index([userId, status])
   @@index([userId, lastMessageAt])
   @@index([contactPhone])
+  @@index([canal])
   @@map("whatsapp_conversations")
+}
+
+// Perfis de Instagram/Messenger conectados ao inbox (multicanal, multi-página). Guarda o token da
+// Página (sensível) + ids. Criado por SQL manual; populado na hora de conectar cada perfil na Meta.
+model MetaCanalPerfil {
+  id          String   @id @default(uuid())
+  canal       String // INSTAGRAM | MESSENGER
+  nome        String // rótulo amigável: "Empório do Pet", "Mundo à Parte", "Dra Vivian"
+  pageId      String // id da Página do Facebook
+  igId        String? // id da conta Instagram (quando canal=INSTAGRAM)
+  accessToken String   @db.Text // token da Página (longo)
+  portfolio   String? // nome do portfólio Meta (referência)
+  ativo       Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([pageId])
+  @@index([igId])
+  @@map("meta_canal_perfis")
 }
 
 // WhatsApp Campaign - Campanhas de envio em massa
