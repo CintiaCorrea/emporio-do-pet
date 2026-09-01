@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 
 export default function ServicosRedirect() {
   const router = useRouter();
-  useEffect(() => { router.replace("/dashboard/erp/catalogo"); }, [router]);
+  useEffect(() => { router.replace("/dashboard/erp/catalogo-novo"); }, [router]);
   return (
     <div className="min-h-screen flex items-center justify-center text-sm" style={{ color: "#5C6B70" }}>
       Levando você para o catálogo de Produtos e Serviços…
