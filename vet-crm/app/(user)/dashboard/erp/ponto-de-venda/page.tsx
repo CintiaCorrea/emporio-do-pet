@@ -271,14 +271,22 @@ export default function PDVPage() {
     if (!limpos.length) { toast.error('Adicione ao menos um item.'); return; }
     setSalvando(true);
     try {
-      const items = limpos.map((it) => ({
-        servicoId: it.servicoId || undefined,
-        descricao: it.descricao, quantidade: Number(it.quantidade) || 1,
-        valorUnitario: Number(it.valorUnitario) || 0,
-        desconto: Number(descItemVal(it).toFixed(2)),
-        valorTotal: Number(itemTotal(it).toFixed(2)),
-      }));
-      const value = items.reduce((s, it) => s + it.valorTotal, 0);
+      // Subtotal já com o desconto POR LINHA. O desconto GERAL (campo único) é rateado
+      // proporcionalmente entre os itens, pra o valor salvo refletir o total certinho.
+      const sub = limpos.reduce((s, it) => s + itemTotal(it), 0);
+      const descG = Math.min(Math.max(0, descGlobalVal()), sub);
+      const items = limpos.map((it) => {
+        const baseTot = itemTotal(it);
+        const rateio = descG > 0 && sub > 0 ? Number(((descG * baseTot) / sub).toFixed(2)) : 0;
+        return {
+          servicoId: it.servicoId || undefined,
+          descricao: it.descricao, quantidade: Number(it.quantidade) || 1,
+          valorUnitario: Number(it.valorUnitario) || 0,
+          desconto: Number((descItemVal(it) + rateio).toFixed(2)),
+          valorTotal: Number(Math.max(0, baseTot - rateio).toFixed(2)),
+        };
+      });
+      const value = Number((sub - descG).toFixed(2)); // total com desconto por linha + desconto geral
       const r = await fetch(`/api/appointments/${editandoVenda.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, value }) });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao salvar'); }
       toast.success('Venda atualizada!');
