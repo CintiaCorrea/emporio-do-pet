@@ -94,6 +94,53 @@ padrao, cards `rounded-2xl` borda #E8DFC8). Regra da Cintia (05/08, fase final):
 **sempre que abrir/mexer numa pagina, conferir se esta no padrao; se NAO estiver,
 arrumar na hora — mesmo que nao seja a tarefa do momento.** Nao deixar passar.
 
+## 12. Correcao pedida = mudanca CIRURGICA (regra da Cintia, 03/09/2026)
+
+Quando a Cintia pede "corrige X", mexer **somente em X**: o arquivo e o trecho
+daquele problema. NAO refatorar de passagem, NAO renomear, NAO "melhorar" o que
+esta em volta, NAO reescrever o arquivo inteiro para trocar uma linha.
+
+Se durante a correcao aparecer outra coisa que precisa mudar: **falar antes,
+esperar o OK, e so entao mexer.** Nunca fazer junto e avisar depois.
+
+Delimitacao da regra 11: o ajuste de largura/visual continua permitido de
+passagem, porque e cosmetico e reversivel. **Comportamento, logica, nomes de
+campo e fluxo nunca mudam fora do que foi pedido.** Na duvida entre "e visual"
+e "e comportamento", tratar como comportamento e perguntar.
+
+Motivo: a Cintia vinha perdendo progresso porque correcoes pontuais traziam
+junto mudancas que ninguem pediu, desfazendo o que ja estava certo.
+
+## 13. Commit ao fim de CADA bloco — sem excecao (03/09/2026)
+
+Bloco de trabalho terminado = `git add` + `git commit` com mensagem que diz o
+que mudou. Nunca deixar trabalho so como arquivo modificado no disco.
+
+Contexto de por que essa regra existe: em 03/09/2026 foram encontrados **33
+arquivos modificados sem commit, 9 dias sem nenhum commit**, com todo o trabalho
+de caixa/estoque/orcamentos/conciliacao existindo em UM unico lugar no mundo —
+o disco da Cintia, dentro do OneDrive. Sem ponto de retorno e sem backup.
+Snapshot de resgate: commit `56f1bc70`, branch `backup/snapshot-2026-09-03`.
+
+Consequencias praticas:
+- **Deploy so do que esta commitado.** `flyctl deploy` publica a pasta como esta
+  no disco, entao codigo nao-commitado vai pra producao sem existir no Git.
+  Commitar ANTES de deployar, sempre.
+- **Push no `main` dispara deploy automatico** (`.github/workflows/deploy-*.yml`
+  disparam em push no main tocando `vet-crm/**`, `backend/**`, `ai-service/**`).
+  Para so guardar sem publicar: `git push origin main:refs/heads/backup/<data>`.
+- Nunca publicar em producao sem OK explicito da Cintia (ver regra 10).
+
+## 14. Nao regredir o que ja funciona (03/09/2026)
+
+Antes de dizer "pronto", verificar que o fluxo continua funcionando ponta a
+ponta — nao so que o arquivo compila. Fluxos criticos que a operacao inteira
+usa: **caixa, venda/PDV, agenda, comanda, internacao**. Mexeu em algo que
+encosta neles, testar antes de entregar.
+
+"Pronto" significa ligado ponta-a-ponta e verificado. Nunca significa
+"o codigo foi escrito".
+
 ---
 
 **Fonte da verdade dos dados:** Base44 (`emporio-vet-flow.base44.app`).
