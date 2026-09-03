@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { usePodeEditar } from '@/lib/permissions/context';
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 import {
   LuArrowLeft,
   LuDownload,

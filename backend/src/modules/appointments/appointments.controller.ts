@@ -125,8 +125,8 @@ export class AppointmentsController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'Remover agendamento' })
-  remove(@Param('id') id: string, @Query('force') force?: string) {
-    return this.appointmentsService.remove(id, force === 'true' || force === '1');
+  @ApiOperation({ summary: 'Remover agendamento (venda só em aberto e no caixa aberto; fora disso, ADMIN)' })
+  remove(@Param('id') id: string, @CurrentUser('role') role: string, @Query('force') force?: string) {
+    return this.appointmentsService.remove(id, force === 'true' || force === '1', { role });
   }
 }

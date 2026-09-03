@@ -18,6 +18,7 @@ import { AiOutlineWarning } from 'react-icons/ai';
 import { toast } from 'sonner';
 import TemplateImportExport from '@/components/protected/ai-agents/TemplateImportExport';
 
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 // Tipos para WhatsApp Templates da Meta API
 type WhatsAppTemplateStatus = 'APPROVED' | 'PENDING' | 'REJECTED' | 'PAUSED' | 'DISABLED' | 'IN_APPEAL';
 type WhatsAppTemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION';

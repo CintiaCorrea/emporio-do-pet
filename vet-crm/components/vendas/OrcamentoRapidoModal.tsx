@@ -100,15 +100,15 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
     const vs = itensValidos();
     if (!vs.length) { toast.error("Adicione ao menos um item."); return; }
     if (!pet?.id) { toast.error("Selecione o pet."); return; }
-    if (!tutor?.id) { toast.error("Cliente sem ficha — a comanda precisa de um cliente cadastrado."); return; }
+    if (!tutor?.id) { toast.error("Cliente sem ficha — a venda precisa de um cliente cadastrado."); return; }
     setSaving(true);
     try {
       const body = { petId: pet.id, tutorId: tutor.id, date: new Date().toISOString(), type: "Venda", status: "COMPLETED", value: total, items: itensVendaBody() };
       const r = await fetch(`/api/appointments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();
-      toast.success("Comanda criada — está no Caixa (a receber) 🧾");
+      toast.success("Venda criada — está no Caixa (a receber) 🧾");
       onClose();
-    } catch { toast.error("Erro ao criar comanda"); } finally { setSaving(false); }
+    } catch { toast.error("Erro ao criar a venda"); } finally { setSaving(false); }
   }
 
   function montarTexto(): string {
@@ -156,7 +156,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
     <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl w-full max-w-md p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>💲 Orçamento / Comanda — {pet?.name || "pet"}</h3>
+          <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>💲 Orçamento / Venda — {pet?.name || "pet"}</h3>
           <button onClick={onClose} className="text-[#94a3b8] text-lg leading-none">×</button>
         </div>
 
@@ -195,7 +195,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
 
         <div className="flex gap-2 mt-3 justify-end flex-wrap">
           <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8E2D6", color: "#64748b" }}>Cancelar</button>
-          <button onClick={mandarProCaixa} disabled={saving} title="Cria a comanda no caixa (a receber) — sem precisar converter" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#014D5E" }}>🧾 {saving ? "..." : "Mandar pro caixa"}</button>
+          <button onClick={mandarProCaixa} disabled={saving} title="Cria a venda no caixa (a receber) — sem precisar converter" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#014D5E" }}>🧾 {saving ? "..." : "Mandar pro caixa"}</button>
           <button onClick={enviar} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#009AAC" }}><LuMessageSquare size={13} /> {saving ? "..." : "Enviar orçamento"}</button>
         </div>
       </div>

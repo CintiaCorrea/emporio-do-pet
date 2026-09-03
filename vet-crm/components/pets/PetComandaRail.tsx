@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem } from "@/lib/catalogoVendavel";
+import { carregarEstoqueComprometido, avisoDeEstoque, MapaEstoque } from "@/lib/estoqueComprometido";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
@@ -34,9 +35,14 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const [aberto, setAberto] = useState(false);
   const [sub, setSub] = useState<"VENDA" | "ORC">("VENDA");
   const [itens, setItens] = useState<Item[]>([]);
+  const [estoque, setEstoque] = useState<MapaEstoque>(new Map()); // núcleo lib/estoqueComprometido
   const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
   const addDoCatalogo = (c: any) => {
     const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? c.valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome });
+    // Aviso (não trava) quando o saldo já está prometido em outra venda aberta — lib/estoqueComprometido.
+    const jaNaVenda = itens.filter((x) => x.catalogoItemId === l.catalogoItemId).reduce((n, x) => n + (Number(x.quantidade) || 0), 0);
+    const aviso = avisoDeEstoque(estoque, l.catalogoItemId, 1, jaNaVenda);
+    if (aviso) toast(`⚠️ ${aviso}`, { duration: 6000 });
     addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 });
   };
   // 📷 Leitura de código de barras: o scanner USB digita o código + Enter. No Enter, se casar com um
@@ -148,7 +154,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       if (data?.numeroVenda != null) setNumeroVenda(Number(data.numeroVenda));
       setSync("saved");
       if (eraNovo) { try { window.dispatchEvent(new Event("pet:venda")); } catch {} } // avisa a ficha só ao CRIAR
-    } catch (e: any) { setSync("error"); toast.error("Não consegui salvar a comanda: " + (e?.message || "erro")); }
+    } catch (e: any) { setSync("error"); toast.error("Não consegui salvar a venda: " + (e?.message || "erro")); }
     finally {
       syncingRef.current = false;
       if (redoRef.current) { redoRef.current = false; setTimeout(sincronizar, 60); }
@@ -175,10 +181,11 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     try { const r = await fetch(`/api/orcamentos?petId=${petId}`, { cache: "no-store" }); const d = await r.json(); setOrcs(Array.isArray(d) ? d : (d.data || d.orcamentos || [])); } catch {}
   }
   useEffect(() => { if (aberto) loadOrcs(); /* eslint-disable-next-line */ }, [aberto, petId]);
+  useEffect(() => { if (aberto) carregarEstoqueComprometido().then(setEstoque); }, [aberto]);
 
   // Gancho p/ outras partes da ficha lançarem itens na comanda
   useEffect(() => {
-    function onAdd(e: any) { const d = e?.detail; if (!d?.descricao) return; addItem({ descricao: d.descricao, servicoId: d.servicoId, valorUnitario: Number(d.valorUnitario) || 0, custoUnitario: d.custoUnitario != null ? Number(d.custoUnitario) : undefined, fornecedorId: d.fornecedorId ?? undefined, fornecedorNome: d.fornecedorNome ?? undefined, catalogoExameId: d.catalogoExameId, _exame: d._exame, _novo: d._novo, catalogoItemId: d.catalogoItemId, quantidade: Number(d.quantidade) || 1 }); setAberto(true); toast.success("Lançado na comanda"); }
+    function onAdd(e: any) { const d = e?.detail; if (!d?.descricao) return; addItem({ descricao: d.descricao, servicoId: d.servicoId, valorUnitario: Number(d.valorUnitario) || 0, custoUnitario: d.custoUnitario != null ? Number(d.custoUnitario) : undefined, fornecedorId: d.fornecedorId ?? undefined, fornecedorNome: d.fornecedorNome ?? undefined, catalogoExameId: d.catalogoExameId, _exame: d._exame, _novo: d._novo, catalogoItemId: d.catalogoItemId, quantidade: Number(d.quantidade) || 1 }); setAberto(true); toast.success("Lançado na venda"); }
     window.addEventListener("comanda:add", onAdd as any);
     return () => window.removeEventListener("comanda:add", onAdd as any);
     // eslint-disable-next-line
@@ -191,20 +198,20 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   function setQtd(i: number, q: number) { setItens((arr) => arr.map((x, idx) => idx === i ? { ...x, quantidade: Math.max(1, q) } : x)); }
   function del(i: number) { setItens((arr) => arr.filter((_, idx) => idx !== i)); }
   async function limpar() {
-    if (apptId && !confirm("Limpar a comanda? Ela também sai do Caixa.")) return;
+    if (apptId && !confirm("Limpar a venda? Ela também sai do Caixa.")) return;
     setItens([]);
   }
   const matches = useMemo(() => { const q = busca.trim().toLowerCase(); if (!q) return cat.slice(0, 20); return cat.filter((c) => c.nome.toLowerCase().includes(q)).slice(0, 20); }, [cat, busca]);
 
   function imprimirComanda() {
-    if (!itens.length) { toast.error("Comanda vazia."); return; }
-    imprimirVenda({ itens: itens.map(linhaBody), valor: total, petNome, tutorNome, petId, numeroVenda, date: new Date().toISOString() }, { rotulo: "Comanda" });
+    if (!itens.length) { toast.error("Venda sem itens."); return; }
+    imprimirVenda({ itens: itens.map(linhaBody), valor: total, petNome, tutorNome, petId, numeroVenda, date: new Date().toISOString() }, { rotulo: "Venda" });
   }
   // Comanda = venda (modelo SimplesVet): SALVA a venda, ela vira independente em "A receber" no Caixa
   // (visível a todos, paga ou não), e a comanda FECHA/LIMPA pra iniciar OUTRA venda na hora.
   // NÃO abre a tela de venda (princípio da Cintia). Não apaga a venda salva — só "solta" o vínculo local.
   async function salvarVenda() {
-    if (!itens.length) { toast.error("Comanda vazia."); return; }
+    if (!itens.length) { toast.error("Venda sem itens."); return; }
     if (!apptIdRef.current) { pendingRef.current = itens; await sincronizar(); }
     if (!apptIdRef.current) { toast.error("Não consegui salvar a venda. Tente de novo."); return; }
     const num = numeroVenda;
@@ -219,7 +226,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   }
 
   async function gerarOrcamento() {
-    if (!itens.length) { toast.error("Comanda vazia."); return; }
+    if (!itens.length) { toast.error("Venda sem itens."); return; }
     setSaving(true);
     try {
       const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tutorId, itens: itens.map(linhaBody) }) });
@@ -252,7 +259,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     ].filter((l) => l !== null).join("\n");
   }
   async function enviarOrcamentoWhats() {
-    if (!itens.length) { toast.error("Comanda vazia."); return; }
+    if (!itens.length) { toast.error("Venda sem itens."); return; }
     if (!tutorId) { toast.error("Pet sem tutor — não dá pra enviar."); return; }
     setEnviandoWhats(true);
     try {
@@ -272,6 +279,14 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     } catch { toast.error("Erro ao transformar em venda"); }
   }
 
+  // Esc fecha o pop-up.
+  useEffect(() => {
+    if (!aberto) return;
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape") setAberto(false); };
+    window.addEventListener("keydown", onEsc);
+    return () => window.removeEventListener("keydown", onEsc);
+  }, [aberto]);
+
   const nItens = itens.length;
   const statusTxt = !tutorId ? "sem tutor — não vai ao Caixa"
     : sync === "saving" ? "salvando no Caixa…"
@@ -283,26 +298,31 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   // Botão flutuante (canto inferior direito)
   if (!aberto) {
     return (
-      <button onClick={() => setAberto(true)} title="Abrir comanda"
+      <button onClick={() => setAberto(true)} title="Abrir a venda do pet"
         className="fixed z-40 flex items-center gap-2 text-white font-bold shadow-lg print:hidden hover:brightness-105 transition"
         style={{ right: 20, bottom: 20, background: "#009AAC", borderRadius: 999, padding: "12px 18px" }}>
         <LuShoppingCart size={18} />
-        <span style={{ fontSize: 13 }}>Comanda{nItens ? ` (${nItens})` : ""}</span>
+        <span style={{ fontSize: 13 }}>Venda{nItens ? ` (${nItens})` : ""}</span>
       </button>
     );
   }
 
+  // Pop-up CENTRAL (antes era uma faixa lateral de 330px, difícil de ler): fecha no Esc, clicando
+  // fora ou no ✕. O que estava lançado continua salvo — a venda já foi pro Caixa sozinha.
   return (
-    <div className="fixed z-40 bg-white border shadow-2xl flex flex-col print:hidden"
-      style={{ right: 0, top: 64, bottom: 0, width: 330, maxWidth: "92vw", borderColor: "#E8DFC8" }}>
+    <div className="fixed inset-0 z-40 flex items-center justify-center p-4 print:hidden"
+      style={{ background: "rgba(20,26,28,.45)" }} onClick={() => setAberto(false)}>
+      <div className="bg-white border shadow-2xl flex flex-col rounded-2xl overflow-hidden"
+        style={{ width: 720, maxWidth: "96vw", maxHeight: "88vh", borderColor: "#E8DFC8" }}
+        onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
-        <b style={{ color: "#014D5E", fontSize: 14 }}>🛒 Comanda — {petNome || "pet"}</b>
-        <button onClick={() => setAberto(false)} className="text-[#94a3b8]" title="Recolher"><LuX size={18} /></button>
+        <b style={{ color: "#014D5E", fontSize: 15 }}>🛒 Venda — {petNome || "pet"}{tutorNome ? ` · ${tutorNome}` : ""}</b>
+        <button onClick={() => setAberto(false)} className="text-[#94a3b8]" title="Fechar"><LuX size={18} /></button>
       </div>
       <div className="flex" style={{ borderBottom: "1px solid #F0EBE0" }}>
         {(["VENDA", "ORC"] as const).map((k) => (
           <button key={k} onClick={() => setSub(k)} className="flex-1 text-[12.5px] font-semibold py-2" style={{ color: sub === k ? "#009AAC" : "#8A857A", borderBottom: sub === k ? "2px solid #009AAC" : "2px solid transparent" }}>
-            {k === "VENDA" ? `🛒 Comanda${nItens ? ` (${nItens})` : ""}` : "📄 Orçamentos"}
+            {k === "VENDA" ? `🛒 Venda${nItens ? ` (${nItens})` : ""}` : "📄 Orçamentos"}
           </button>
         ))}
       </div>
@@ -356,12 +376,18 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
             </div>
           )}
 
-          <div className="flex-1 overflow-auto px-3 py-2">
+          <div className="flex-1 overflow-auto px-4 py-2">
+            {itens.length > 0 && (
+              <div className="grid items-center gap-3 py-1.5 text-[10px] uppercase tracking-wide text-gray-400"
+                style={{ gridTemplateColumns: "1fr 64px 96px 24px" }}>
+                <span>Item</span><span className="text-center">Qtd</span><span className="text-right">Valor</span><span></span>
+              </div>
+            )}
             {itens.length === 0 ? (
-              <div className="text-center text-[12px] text-gray-400 py-8">Nada lançado ainda.<br />Use “Adicionar item”.</div>
+              <div className="text-center text-[12px] text-gray-400 py-10">Nada lançado ainda.<br />Use “Adicionar item”.</div>
             ) : itens.map((it, i) => (
-              <div key={i} className="flex items-center gap-2 py-1.5 border-b" style={{ borderColor: "#F5F1E8" }}>
-                <div className="flex-1 min-w-0">
+              <div key={i} className="grid items-center gap-3 py-2 border-b" style={{ gridTemplateColumns: "1fr 64px 96px 24px", borderColor: "#F5F1E8" }}>
+                <div className="min-w-0">
                   <div className="text-[12.5px] text-[#1F2A2E] truncate flex items-center gap-1.5" title={it.descricao}>
                     <span className="truncate">{it.descricao}</span>
                     {it._convenio ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: "#E0F0F2", color: "#0E5560" }}>🏥 {it._convLabel} paga</span>
@@ -369,8 +395,8 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                   </div>
                   <div className="text-[11px] text-gray-400">{BRL(it.valorUnitario)} cada</div>
                 </div>
-                <input type="number" min={1} value={it.quantidade} onChange={(e) => setQtd(i, Number(e.target.value))} className="w-11 border rounded text-center text-[12px] py-0.5" style={{ borderColor: "#E8DFC8" }} />
-                <span className="text-[12.5px] font-semibold text-[#0F6E56] w-16 text-right tabular-nums">{BRL((Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0))}</span>
+                <input type="number" min={1} value={it.quantidade} onChange={(e) => setQtd(i, Number(e.target.value))} className="w-full border rounded-lg text-center text-[12.5px] py-1" style={{ borderColor: "#E8DFC8" }} />
+                <span className="text-[13.5px] font-semibold text-[#0F6E56] text-right tabular-nums">{BRL((Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0))}</span>
                 <button onClick={() => del(i)} className="text-[#b23b39]" title="Remover"><LuTrash size={13} /></button>
               </div>
             ))}
@@ -385,18 +411,18 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
             )}
             <div className="flex justify-between items-center">
               <span className="text-[13px] font-semibold text-[#014D5E]">{totalConvenio > 0 ? "👤 Tutor paga" : "Total"}</span>
-              <span className="text-[16px] font-bold text-[#014D5E] tabular-nums">{BRL(totalTutor)}</span>
+              <span className="text-[22px] font-bold text-[#014D5E] tabular-nums">{BRL(totalTutor)}</span>
             </div>
             <div className="text-[10.5px] mb-2 mt-0.5" style={{ color: statusCor }}>{statusTxt}</div>
             <div className="flex gap-2">
-              <button onClick={imprimirComanda} disabled={!itens.length} className="flex-1 border-2 rounded-lg py-2 text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={13} /> Imprimir comanda</button>
-              <button onClick={salvarVenda} disabled={!itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salva a venda (vai pra ‘A receber’ no Caixa) e limpa a comanda pra iniciar outra.">💰 Salvar a venda</button>
+              <button onClick={imprimirComanda} disabled={!itens.length} className="flex-1 border-2 rounded-lg py-2 text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={13} /> Imprimir</button>
+              <button onClick={salvarVenda} disabled={!itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salva a venda (vai pra ‘A receber’ no Caixa) e limpa a tela pra iniciar outra.">💰 Salvar a venda</button>
             </div>
             <div className="flex gap-2 mt-2">
               <button onClick={gerarOrcamento} disabled={saving || !itens.length} className="flex-1 border-2 rounded-lg py-1.5 text-[12px] font-semibold disabled:opacity-50" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#F0FBFC" }}>📄 Salvar como orçamento</button>
               <button onClick={enviarOrcamentoWhats} disabled={enviandoWhats || !itens.length || !tutorId} title="Envia o orçamento pro cliente no WhatsApp" className="flex-1 rounded-lg py-1.5 text-[12px] font-semibold text-white disabled:opacity-50" style={{ background: "#25D366" }}>{enviandoWhats ? "Enviando…" : "💬 Enviar no WhatsApp"}</button>
             </div>
-            {itens.length > 0 && <button onClick={limpar} className="w-full text-[11px] text-gray-400 mt-2">limpar comanda</button>}
+            {itens.length > 0 && <button onClick={limpar} className="w-full text-[11px] text-gray-400 mt-2">limpar</button>}
           </div>
         </>
       ) : (
@@ -422,6 +448,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
             })}
         </div>
       )}
+      </div>
     </div>
   );
 }

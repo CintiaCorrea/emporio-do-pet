@@ -991,8 +991,62 @@ export class AppointmentsService {
     return result;
   }
 
-  async remove(id: string, force = false) {
+  /**
+   * Quem pode excluir uma VENDA (atendimento com nº de venda ou valor).
+   * Regra da Cintia (02/09): só dá pra excluir enquanto a venda está EM ABERTO e dentro do
+   * CAIXA DE AGORA. Passou disso (já recebeu, ou o caixa daquele dia fechou), só ADMIN.
+   * Atendimento clínico sem venda não entra nessa regra.
+   * Fica no backend de propósito: vale pra toda tela, não é botão escondido.
+   */
+  private async checarPermissaoExclusaoVenda(
+    appt: { id: string; value: number | null; numeroVenda: number | null; paymentStatus: string; createdAt: Date },
+    autor?: { role?: string },
+  ) {
+    if (autor?.role === 'ADMIN') return; // ADM pode sempre
+    const ehVenda = appt.numeroVenda != null || Number(appt.value || 0) > 0;
+    if (!ehVenda) return; // atendimento clínico puro: regra de hoje
+
+    // 1) a venda ainda está EM ABERTO?
+    const recebimentos = await this.prisma.recebimento.count({ where: { appointmentId: appt.id } });
+    if (recebimentos > 0 || appt.paymentStatus === 'PAID') {
+      throw new ForbiddenException(
+        'VENDA_PAGA: Essa venda já tem recebimento lançado. Apague o recebimento no Caixa (a venda volta a "não paga") ou peça pra um administrador excluir.',
+      );
+    }
+
+    // 2) ela nasceu dentro do caixa que está aberto agora?
+    const caixaAberto = await this.prisma.caixaSessao.findFirst({
+      where: { status: 'ABERTO' },
+      orderBy: { abertura: 'desc' },
+      select: { abertura: true },
+    });
+    if (!caixaAberto) {
+      throw new ForbiddenException(
+        'CAIXA_FECHADO: Não há caixa aberto. Venda de caixa fechado só um administrador pode excluir.',
+      );
+    }
+    // Vale o DIA do caixa aberto, não o instante: a comanda pode ter nascido de manhã, antes de
+    // alguém abrir o caixa. Fortaleza é UTC-3 fixo (sem horário de verão).
+    const FORTALEZA_OFFSET_MS = 3 * 60 * 60 * 1000;
+    const local = new Date(caixaAberto.abertura.getTime() - FORTALEZA_OFFSET_MS);
+    const inicioDoDia = new Date(
+      Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate()) + FORTALEZA_OFFSET_MS,
+    );
+    if (appt.createdAt < inicioDoDia) {
+      throw new ForbiddenException(
+        'CAIXA_FECHADO: Essa venda é de um caixa que já foi fechado. Só um administrador pode excluir.',
+      );
+    }
+  }
+
+  async remove(id: string, force = false, autor?: { role?: string }) {
     await this.findById(id);
+
+    const venda = await this.prisma.appointment.findUnique({
+      where: { id },
+      select: { id: true, value: true, numeroVenda: true, paymentStatus: true, createdAt: true },
+    });
+    if (venda) await this.checarPermissaoExclusaoVenda(venda as any, autor);
 
     // PROTEÇÃO (fase de teste): apagar um atendimento apaga em cascata a gravação de
     // áudio da consulta. Se existir gravação, bloqueia — pra ninguém perder áudio sem querer.

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { inicioDoFinanceiro } from '../../common/financeiro-inicio';
 import { LancamentosService } from './lancamentos.service';
 import { ratearCentavos, competenciaMes, dataExpiracao } from './financeiro.regras';
 
@@ -119,8 +120,11 @@ export class RecebimentosService {
   async processar(appointmentId?: string): Promise<{ vendas: number; lancamentos: number; atualizados: number; taxas: number; semConta: boolean; semDepara: number }> {
     const depara = await this.loadDepara();
 
+    // Trava do INÍCIO DO FINANCEIRO: venda recebida antes da data não vira lançamento (o CRM
+    // guarda a história; o DRE começa na data). Ver common/financeiro-inicio.ts.
+    const inicioFin = await inicioDoFinanceiro(this.prisma as any);
     const itens = await this.prisma.appointmentItem.findMany({
-      where: { valorTotal: { gt: 0 }, appointment: { is: { ...(appointmentId ? { id: appointmentId } : {}), recebimentos: { some: {} } } } },
+      where: { valorTotal: { gt: 0 }, appointment: { is: { ...(appointmentId ? { id: appointmentId } : {}), recebimentos: { some: { data: { gte: inicioFin } } } } } },
       select: {
         id: true, quantidade: true, valorUnitario: true, valorTotal: true, grupo: true, marca: true, descricao: true, convenioId: true,
         servico: { select: { nome: true, category: { select: { nome: true } } } },
@@ -400,6 +404,7 @@ export class RecebimentosService {
     const catServico = await this.catReceita();
     const contaId = await this.contaPadrao();
     if (!catServico || !contaId) return { criados: 0, reconhecidos: 0 };
+    const inicioFin = await inicioDoFinanceiro(this.prisma as any); // pacote vendido antes do início não vira receita
     const pacs = await this.prisma.listaItem.findMany({ where: { lista: { startsWith: 'petpac_' } } });
     let criados = 0, reconhecidos = 0;
     for (const it of pacs) {
@@ -415,6 +420,7 @@ export class RecebimentosService {
       if (valorCent <= 0) continue;
       const appt = await this.prisma.appointment.findUnique({ where: { id: saleAppt }, select: { date: true, tutorId: true, recebimentos: { select: { data: true }, orderBy: { data: 'asc' }, take: 1 } } });
       const saleDate = appt?.recebimentos?.[0]?.data ?? appt?.date ?? new Date();
+      if (saleDate < inicioFin) continue; // antes do início do financeiro: fica só em Vendas
       const parcelas = ratearCentavos(valorCent, total); // rateio unificado (financeiro.regras)
       // 1) garante os N lançamentos diferidos (sentinela)
       for (let i = 0; i < total; i++) {

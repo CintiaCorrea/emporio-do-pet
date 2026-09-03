@@ -12,6 +12,50 @@ interface Match { id: string; tipo: Tipo; valorCentavos: number; vencimento: str
 interface LinhaPreview { linha: Linha; eid: string; sugestao: Sugestao; match: Match | null; diferencaCentavos: number; }
 interface Preview { resumo: { total: number; conciliar: number; criar: number; jaImportadas: number }; linhas: LinhaPreview[]; }
 
+/* ---- Linha do banco em português de gente ----------------------------------
+ * O extrato da maquininha vem como um bloco cru, com JSON no meio e acentos
+ * quebrados: [["Tipo - Origem", "Maquininha"], ...] — Status: Aprovada,
+ * LÁquido (R$): + 231,36, Taxa Aplicada - Valor(R$): - 6,64, Plano: 1 Dia Áštil
+ * Para conciliar interessa só: origem, situação, taxa e líquido. Os rótulos são
+ * escritos AQUI (não copiados do arquivo), então acento quebrado não aparece. */
+function resumoLinhaBanco(desc?: string): { titulo: string; detalhe: string } {
+  const cru = (desc || '').trim();
+  if (!cru) return { titulo: '—', detalhe: '' };
+
+  const num = (re: RegExp): number | null => {
+    const m = cru.match(re);
+    if (!m) return null;
+    const v = parseFloat(m[1].replace(/\s/g, '').replace(/\./g, '').replace(',', '.'));
+    return isNaN(v) ? null : Math.abs(v);
+  };
+  const txt = (re: RegExp): string => (cru.match(re)?.[1] || '').trim();
+
+  // "Líquido" e "Útil" chegam corrompidos conforme o arquivo — casa com qualquer letra no lugar
+  const liquido = num(/L.{0,3}quido[^:]*:\s*([+-]?\s*[\d.,]+)/i);
+  const taxa = num(/Taxa[^:]*Valor\s*\(R\$\)\s*:\s*([+-]?\s*[\d.,]+)/i);
+  const pct = num(/Aplicada\s*\(%\)\s*:\s*([\d.,]+)/i);
+  const status = txt(/Status:\s*([^,\]]+)/i);
+  const origem = txt(/Origem"\s*,\s*"([^"]+)"/i);
+  const plano = txt(/Plano:\s*([^,\]]+)/i);
+
+  // Sem nenhum campo conhecido: mostra a descrição limpa (sem o bloco de colchetes)
+  if (liquido === null && taxa === null && !status) {
+    const limpo = cru.replace(/\[\[[\s\S]*?\]\]/g, '').replace(/^[\s—-]+/, '').trim();
+    return { titulo: limpo.slice(0, 90) || '—', detalhe: '' };
+  }
+
+  const brl = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const partes: string[] = [];
+  if (taxa !== null && taxa > 0) partes.push(`taxa R$ ${brl(taxa)}${pct !== null ? ` (${brl(pct)}%)` : ''}`);
+  else if (taxa === 0) partes.push('sem taxa');
+  if (liquido !== null) partes.push(`líquido R$ ${brl(liquido)}`);
+  // "1 Dia Útil" / "Outro" — só ajuda quando não é o padrão
+  if (plano && !/^outro$/i.test(plano)) partes.push(`recebe em ${plano.replace(/.{0,2}til/i, 'útil').toLowerCase()}`);
+
+  const titulo = [origem || 'Cartão', status].filter(Boolean).join(' · ');
+  return { titulo, detalhe: partes.join(' · ') };
+}
+
 async function getJSON(url: string) {
   const r = await fetch(url);
   const d = await r.json().catch(() => null);
@@ -300,8 +344,11 @@ export default function ConciliacaoPage() {
                       <td>{simbolo(l)}</td>
                       <td className="dt">{fmtDia(l.linha.data)}</td>
                       <td>
-                        <div className="desc">{l.linha.descricao || '—'}</div>
-                        {l.match?.descricao && <div className="sub">↔ {l.match.descricao}</div>}
+                        {(() => { const r = resumoLinhaBanco(l.linha.descricao); return (<>
+                          <div className="desc">{r.titulo}</div>
+                          {r.detalhe && <div className="sub">{r.detalhe}</div>}
+                        </>); })()}
+                        {l.match && <div className="sub">↔ pareado com o lançamento{l.match.descricao ? ` (${l.match.descricao.split('—')[0].trim()})` : ''}</div>}
                       </td>
                       <td>{l.linha.documento || '—'}</td>
                       <td className="dt">{fmtDia(l.match?.vencimento ?? null)}</td>

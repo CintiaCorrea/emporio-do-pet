@@ -351,7 +351,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
               </label>
               <div className="col-span-2 flex items-center gap-2 mt-1 rounded-lg px-3 py-2" style={{ background: "#F0FBFC", border: "1px solid #cfeef1" }}>
                 <input id="lancarComanda" type="checkbox" checked={!!doseModal.lancarComanda} onChange={e => setDoseModal({ ...doseModal, lancarComanda: e.target.checked })} />
-                <label htmlFor="lancarComanda" className="text-[13px] font-medium cursor-pointer" style={{ color: "#014D5E" }}>🛒 Lançar na comanda</label>
+                <label htmlFor="lancarComanda" className="text-[13px] font-medium cursor-pointer" style={{ color: "#014D5E" }}>🛒 Lançar na venda</label>
                 <input type="number" step="0.01" value={doseModal.comandaValor} onChange={e => setDoseModal({ ...doseModal, comandaValor: e.target.value })} placeholder="R$ 0,00" disabled={!doseModal.lancarComanda} className="ml-auto w-24 px-2 py-1 border rounded-lg text-right text-[13px] disabled:opacity-50" style={{ borderColor: "#E8DFC8" }} />
               </div>
             </div>

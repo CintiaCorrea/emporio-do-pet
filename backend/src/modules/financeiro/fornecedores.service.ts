@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { inicioDoFinanceiro } from '../../common/financeiro-inicio';
 import { LancamentosService } from './lancamentos.service';
 
 /**
@@ -85,11 +86,14 @@ export class FornecedoresService {
     faturasTocadas: number;
     ignoradosSemConta: number;
   }> {
+    // Trava do INÍCIO DO FINANCEIRO (common/financeiro-inicio.ts): a-pagar de laboratório/parceiro
+    // só nasce de venda recebida a partir da data. Antes disso a venda existe só no CRM.
+    const inicioFin = await inicioDoFinanceiro(this.prisma as any);
     const brutos = await this.prisma.appointmentItem.findMany({
       where: {
         fornecedorId: { not: null },
         custoUnitario: { gt: 0 },
-        appointment: { is: { recebimentos: { some: {} } } }, // venda concluída no caixa
+        appointment: { is: { recebimentos: { some: { data: { gte: inicioFin } } } } }, // venda concluída no caixa, dentro do financeiro
       },
       select: {
         id: true,

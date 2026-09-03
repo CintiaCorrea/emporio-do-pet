@@ -3,10 +3,12 @@
 // botao de esconder valores e exclusao de registros.
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { usePodeEditar } from '@/lib/permissions/context';
+import { useSession } from 'next-auth/react';
+import { idDoMeuCaixa } from '@/lib/caixaAtual';
 import { ehDinheiro, carregarFormasRecebimento, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
@@ -49,6 +51,9 @@ export default function CaixaPage() {
   const [date, setDate] = useState(hojeStr());
   const [caixas, setCaixas] = useState<Caixa[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const escolhaManual = useRef(false); // true = a pessoa clicou no seletor de caixa
+  const { data: session } = useSession();
+  const meId = (session?.user as any)?.id || '';
   const [detail, setDetail] = useState<Caixa | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [tab, setTab] = useState<'resumo' | 'receb' | 'mov' | 'cred'>('resumo');
@@ -123,10 +128,16 @@ export default function CaixaPage() {
       if (!r.ok) throw new Error('Erro ao carregar caixas');
       const data: Caixa[] = await r.json();
       setCaixas(data || []);
-      if (data && data.length) { const st = data.find((c) => c.id === selectedId); setSelectedId(st ? st.id : data[0].id); }
+      // Abre no caixa de QUEM ESTÁ LOGADA (são dois caixas abertos, um por funcionária).
+      // Antes abria sempre no primeiro do dia — a pessoa via o caixa da colega e achava que
+      // os lançamentos dela tinham sumido.
+      if (data && data.length) {
+        const manteve = escolhaManual.current ? data.find((c) => c.id === selectedId) : null;
+        setSelectedId(manteve ? manteve.id : idDoMeuCaixa(data as any, meId));
+      }
       else { setSelectedId(null); setDetail(null); }
     } catch (e: any) { toast.error(e.message || 'Erro ao carregar caixas'); } finally { setLoading(false); }
-  }, [date, selectedId]);
+  }, [date, selectedId, meId]);
 
   const fetchDetail = useCallback(async (id: string) => {
     try { const r = await fetch(`/api/caixa/${id}`, { cache: 'no-store' }); if (!r.ok) throw new Error('Erro ao carregar caixa'); setDetail(await r.json()); }
@@ -146,6 +157,9 @@ export default function CaixaPage() {
   }, [date]);
 
   useEffect(() => { fetchCaixas(); fetchAppointments(); }, [date]); // eslint-disable-line
+  // A sessão carrega DEPOIS da tela: quando ela chega, reabre no caixa de quem está logada
+  // (a não ser que a pessoa já tenha escolhido outro no seletor).
+  useEffect(() => { if (meId && !escolhaManual.current) fetchCaixas(); }, [meId]); // eslint-disable-line
   useEffect(() => { if (selectedId) fetchDetail(selectedId); }, [selectedId, fetchDetail]);
   useEffect(() => { fetch('/api/caixa/previsao-credito', { cache: 'no-store' }).then((r) => r.json()).then(setPrevCred).catch(() => setPrevCred(null)); }, [date]);
   useEffect(() => { // fonte única: formas + contas cadastradas no Financeiro
@@ -418,7 +432,7 @@ export default function CaixaPage() {
                 {caixas.length > 1 && (
                   <div className="no-print" style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                     {caixas.map((c) => (
-                      <button key={c.id} onClick={() => setSelectedId(c.id)} style={{ flex: 1, fontSize: 11.5, padding: '6px 8px', borderRadius: 8, cursor: 'pointer', border: c.id === selectedId ? `1.5px solid ${TEAL}` : '1px solid #E8E2D6', background: c.id === selectedId ? '#e8f7f9' : '#fff', color: c.id === selectedId ? '#014D5E' : '#5C6B70' }}>nº {c.numero}</button>
+                      <button key={c.id} title={`${c.user?.name || 'sem operador'} · ${c.status === 'ABERTO' ? 'aberto' : 'fechado'}`} onClick={() => { escolhaManual.current = true; setSelectedId(c.id); }} style={{ flex: 1, fontSize: 11.5, padding: '6px 8px', borderRadius: 8, cursor: 'pointer', border: c.id === selectedId ? `1.5px solid ${TEAL}` : '1px solid #E8E2D6', background: c.id === selectedId ? '#e8f7f9' : '#fff', color: c.id === selectedId ? '#014D5E' : '#5C6B70' }}>nº {c.numero}{c.user?.name ? ` · ${c.user.name.split(' ')[0]}` : ''}</button>
                     ))}
                   </div>
                 )}

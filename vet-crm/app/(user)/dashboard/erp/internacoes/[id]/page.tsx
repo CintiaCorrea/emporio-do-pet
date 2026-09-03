@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { carregarMeuCaixa } from "@/lib/caixaAtual";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { imprimirDocumento } from "@/lib/print";
@@ -510,11 +511,12 @@ export default function FichaInternacaoPage() {
     try {
       // Caixa aberto: a caução ENTRA no caixa (vira suprimento, conta na gaveta se dinheiro) — igual à do Caixa.
       let caixaId: string | null = null;
-      try { const rc = await fetch("/api/caixa", { cache: "no-store" }); const dc = await rc.json(); const arr = Array.isArray(dc) ? dc : (dc.data || []); caixaId = (arr.filter((c: any) => c.status === "ABERTO").sort((a: any, b: any) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime())[0])?.id || null; } catch {}
+      // A caução entra no caixa de QUEM ESTÁ LOGADA (núcleo lib/caixaAtual), não no caixa da colega.
+      caixaId = (await carregarMeuCaixa((session?.user as any)?.id)).meu?.id || null;
       const res = await fetch("/api/credito", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, appointmentId: id, tipo: "RECARGA", valor, descricao: caucaoForm.descricao || "Caução de internação", forma: caucaoForm.forma || "Dinheiro", ...(caixaId ? { caixaSessaoId: caixaId } : {}) }) });
       if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.message || ""); }
       setCaucaoOpen(false); setCaucaoForm({ valor: "", descricao: "Caução de internação", forma: "Dinheiro" });
-      alert(caixaId ? "Caução adicionada — entrou no caixa ✅" : "Caução adicionada. ⚠️ Não há caixa aberto, então ela NÃO entrou na gaveta — abra o caixa e registre lá se precisar conferir.");
+      alert(caixaId ? "Caução adicionada — entrou no caixa ✅" : "Caução adicionada. ⚠️ Você não tem caixa aberto, então ela NÃO entrou na gaveta — abra o seu caixa e registre lá se precisar conferir.");
       load();
     } catch (e: any) { alert(e?.message || "Erro ao adicionar caução."); }
     finally { setFinBusy(""); }
@@ -551,12 +553,12 @@ export default function FichaInternacaoPage() {
   // 📅 Comanda do dia: diária(s) não faturada(s) + itens abertos → uma VENDA no "a pagar" do caixa.
   // Não precisa de caixa aberto (é venda a receber). 1 diária por dia é controlada no backend.
   const gerarComandaDia = async () => {
-    if (!confirm("Gerar a comanda do dia (diária de hoje + itens abertos ainda não faturados) e mandar pro 'a pagar' do caixa?")) return;
+    if (!confirm("Gerar a venda do dia (diária de hoje + itens abertos ainda não faturados) e mandar pro 'a receber' do caixa?")) return;
     setFinBusy("comanda");
     try {
       const res = await fetch(`/api/hospitalizations/${id}/comanda-dia`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: "{}" });
       const dd = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(dd?.message || "Erro ao gerar a comanda do dia");
+      if (!res.ok) throw new Error(dd?.message || "Erro ao gerar a venda do dia");
       load();
       // 🧾 Fatia 2 — resumo do dia + saldo (crédito/débito) pro tutor acompanhar, junto com o boletim.
       const saldo = Number(caucaoSaldo) - Number(dd.totalFaturado || 0); // +: crédito a favor · −: a pagar
@@ -570,7 +572,7 @@ export default function FichaInternacaoPage() {
         saldo >= 0 ? `✅ Saldo a favor: ${fmtBRL(saldo)}` : `Saldo a pagar: ${fmtBRL(Math.abs(saldo))}`,
       ].filter(Boolean);
       const texto = linhas.join("\n");
-      if (confirm(`Comanda do dia gerada! ✅${dd.numeroVenda ? ` (venda nº ${dd.numeroVenda})` : ""}\nTotal do dia ${fmtBRL(Number(dd.total) || 0)} — está no “a pagar” do caixa.\n\nEnviar o resumo do dia + saldo pro tutor no WhatsApp (junto com o boletim)?`)) {
+      if (confirm(`Venda do dia gerada! ✅${dd.numeroVenda ? ` (venda nº ${dd.numeroVenda})` : ""}\nTotal do dia ${fmtBRL(Number(dd.total) || 0)} — está no “a pagar” do caixa.\n\nEnviar o resumo do dia + saldo pro tutor no WhatsApp (junto com o boletim)?`)) {
         try {
           const r2 = await fetch("/api/survey-avaliacao/mensagem-tutor", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, texto }) });
           alert(r2.ok ? "Resumo do dia enviado pro tutor ✅" : "Comanda gerada, mas não consegui enviar o resumo (confira a conversa do WhatsApp).");

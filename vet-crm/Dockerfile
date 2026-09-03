@@ -9,14 +9,14 @@ FROM base AS deps
 WORKDIR /app
 COPY package*.json pnpm-lock.yaml ./
 COPY prisma ./prisma/
-RUN npm install -g pnpm@9 && pnpm install --frozen-lockfile
+RUN npm install -g pnpm@9.15.4 && pnpm install --frozen-lockfile
 
 # === builder ===
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm install -g pnpm@9
+RUN npm install -g pnpm@9.15.4
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_BACKEND_URL=https://emporio-pet-api.fly.dev
 RUN pnpm prisma generate

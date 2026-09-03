@@ -16,6 +16,7 @@ import {
 import toast from 'react-hot-toast';
 import DocumentViewer from '@/components/protected/dashboard/clinical-documents/DocumentViewer';
 
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 const TYPE_LABELS: Record<string, string> = {
   ANAMNESIS: 'Anamnese',
   PRESCRIPTION: 'Prescrição',

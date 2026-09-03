@@ -11,7 +11,8 @@ COPY pnpm-lock.yaml ./
 COPY prisma ./prisma/
 
 # Instalar pnpm e dependências
-RUN npm install -g pnpm && pnpm install
+# pnpm FIXO na versão do packageManager (o pnpm novo exige o binário nativo no lockfile e quebra o build)
+RUN npm install -g pnpm@9.15.4 && pnpm install
 
 # Copiar código fonte
 COPY . .

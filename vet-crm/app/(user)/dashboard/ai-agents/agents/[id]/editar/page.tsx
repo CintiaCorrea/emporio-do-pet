@@ -15,6 +15,7 @@ import {
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 type AgentStatus = 'ACTIVE' | 'PAUSED' | 'DRAFT' | 'ERROR';
 type AgentType = 'CHATBOT' | 'AUTOMATION' | 'ASSISTANT' | 'SCHEDULER';
 type AIProvider = 'OPENAI' | 'GEMINI' | 'DEEPSEEK';

@@ -71,6 +71,12 @@ export class CaixaController {
     return this.service.recebimentosResumo(query);
   }
 
+  // Quanto de cada item já está prometido em venda aberta — alimenta o aviso do PDV/comanda.
+  @Get('estoque-comprometido')
+  estoqueComprometido() {
+    return this.service.estoqueComprometido();
+  }
+
   @Get('vendas-resumo')
   vendasResumo(@Query() query: any) {
     return this.service.vendasResumo(query);

@@ -5,6 +5,8 @@
 
 import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { useSession } from "next-auth/react";
+import { carregarMeuCaixa, rotuloCaixa, avisoSemMeuCaixa, CaixaAberto } from "@/lib/caixaAtual";
 
 const FORMAS = ["Dinheiro", "Pix", "Cartão de crédito", "Cartão de débito", "Crédito do cliente"];
 const ORIGEM: Record<string, { lbl: string; bg: string; fg: string }> = {
@@ -17,11 +19,15 @@ function tempoDe(s?: string) { if (!s) return ""; try { const min = Math.max(0, 
 const hojeISO = () => new Date().toISOString().slice(0, 10);
 
 export default function ComandasPage() {
-  usePageTitle("Em atendimento", "Comandas abertas para baixar no caixa");
+  usePageTitle("Vendas em aberto", "Vendas que ainda não foram recebidas no caixa");
   const [loading, setLoading] = useState(true);
   const jaCarregou = useRef(false);
   const [comandas, setComandas] = useState<any[]>([]);
-  const [caixaAberto, setCaixaAberto] = useState<string | null>(null);
+  const [caixaAberto, setCaixaAberto] = useState<string | null>(null); // id do MEU caixa (lib/caixaAtual)
+  const [meuCaixa, setMeuCaixa] = useState<CaixaAberto | null>(null);
+  const [caixasDeOutros, setCaixasDeOutros] = useState<CaixaAberto[]>([]);
+  const { data: session } = useSession();
+  const meId = (session?.user as any)?.id || "";
   const [baixadoHoje, setBaixadoHoje] = useState(0);
   const [olho, setOlho] = useState(false); // valores ocultos por padrão
   const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas configuradas (Fase 2)
@@ -39,14 +45,13 @@ export default function ComandasPage() {
       const hoje = hojeISO();
       const [c, cx, rec, fm] = await Promise.all([
         fetch("/api/caixa/vendas?abertas=1").then((r) => r.json()).catch(() => []),
-        fetch("/api/caixa").then((r) => r.json()).catch(() => []),
+        Promise.resolve([]),  // caixa: quem decide é lib/caixaAtual (abaixo)
+
         fetch(`/api/caixa/recebimentos?from=${hoje}&to=${hoje}`).then((r) => r.json()).catch(() => []),
         fetch("/api/listas?lista=formasrecebimento").then((r) => r.json()).catch(() => []),
       ]);
       setComandas(Array.isArray(c) ? c : (c.data || []));
-      const caixas = Array.isArray(cx) ? cx : (cx.data || []);
-      const aberto = caixas.find((k: any) => (k.status || "").toUpperCase() === "ABERTO");
-      setCaixaAberto(aberto?.id || null);
+      // O caixa NÃO é resolvido aqui: depende da sessão, que carrega depois. Ver o efeito abaixo.
       const recArr = Array.isArray(rec) ? rec : (rec.data || []);
       setBaixadoHoje(recArr.reduce((s: number, r: any) => s + Number(r.valorTotal || 0), 0));
       const fmArr = (Array.isArray(fm) ? fm : (fm.itens || fm.data || [])).map((x: any) => { try { return JSON.parse(x.valor); } catch { return null; } }).filter((v: any) => v && v.ativo !== false).map((v: any) => v.nome);
@@ -55,8 +60,16 @@ export default function ComandasPage() {
     jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  // O recebimento entra no caixa de QUEM ESTÁ LOGADA (lib/caixaAtual). Só dá pra saber depois que a
+  // sessão carrega — por isso este efeito separado, e não dentro do load().
+  useEffect(() => {
+    if (!meId) return;
+    carregarMeuCaixa(meId).then(({ meu, deOutros }) => {
+      setMeuCaixa(meu); setCaixasDeOutros(deOutros); setCaixaAberto(meu?.id || null);
+    });
+  }, [meId]);
 
-  const emAberto = useMemo(() => comandas.reduce((s, c) => s + Number(c.aberto || c.valor || 0), 0), [comandas]);
+  const emAberto = useMemo(() => comandas.filter((c: any) => !c.futura).reduce((s, c) => s + Number(c.aberto || c.valor || 0), 0), [comandas]);
   const money = (v: number) => (olho ? fmtBRL(v) : "R$ •••");
   const formasList = formasCfg.length ? formasCfg : FORMAS;
 
@@ -72,9 +85,10 @@ export default function ComandasPage() {
 
   const baixar = async () => {
     if (!det) return;
-    if (!caixaAberto) { alert("Não há caixa aberto. Abra um caixa antes de baixar."); return; }
+    if (!meId) { alert("Só um instante — ainda estou identificando o seu usuário. Tente de novo em 2 segundos."); return; }
+    if (!caixaAberto) { alert(avisoSemMeuCaixa(caixasDeOutros)); return; }
     const valor = Number(det.aberto || det.valor || 0);
-    if (!confirm(`Baixar a comanda de ${det.tutor} em ${forma}? (${fmtBRL(valor)})`)) return;
+    if (!confirm(`Receber a venda de ${det.tutor} em ${forma}? (${fmtBRL(valor)})`)) return;
     setBaixando(true);
     try {
       const res = await fetch(`/api/caixa/${caixaAberto}/recebimento`, {
@@ -84,25 +98,33 @@ export default function ComandasPage() {
       const dd = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(dd?.message || "Erro ao baixar");
       setDet(null); load();
-    } catch (e: any) { alert(e?.message || "Erro ao baixar a comanda."); }
+    } catch (e: any) { alert(e?.message || "Erro ao receber a venda."); }
     finally { setBaixando(false); }
   };
 
   // 1B — agrupa comandas abertas por cliente (uma linha por cliente; baixa tudo junto)
+  // Venda lançada com data pra frente sai da lista principal e vai pra faixa "a cobrar em breve"
+  // (antes ela sumia da tela — ninguém cobrava). O backend marca com `futura`.
+  const agora = useMemo(() => comandas.filter((c: any) => !c.futura), [comandas]);
+  const futuras = useMemo(
+    () => comandas.filter((c: any) => c.futura).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [comandas],
+  );
   const grupos = useMemo(() => {
     const m = new Map<string, any>();
-    for (const c of comandas) {
+    for (const c of agora) {
       const key = c.tutorId || c.tutor || c.id;
       if (!m.has(key)) m.set(key, { key, tutor: c.tutor, petSpecies: c.petSpecies, comandas: [] as any[], total: 0 });
       const g = m.get(key); g.comandas.push(c); g.total += Number(c.aberto || c.valor || 0);
     }
     return [...m.values()];
-  }, [comandas]);
+  }, [agora]);
 
   const baixarGrupo = async () => {
     if (!detGrupo) return;
-    if (!caixaAberto) { alert("Não há caixa aberto. Abra um caixa antes de baixar."); return; }
-    if (!confirm(`Baixar TODAS as ${detGrupo.comandas.length} comandas de ${detGrupo.tutor} em ${forma}? (${fmtBRL(detGrupo.total)})`)) return;
+    if (!meId) { alert("Só um instante — ainda estou identificando o seu usuário. Tente de novo em 2 segundos."); return; }
+    if (!caixaAberto) { alert(avisoSemMeuCaixa(caixasDeOutros)); return; }
+    if (!confirm(`Receber TODAS as ${detGrupo.comandas.length} vendas de ${detGrupo.tutor} em ${forma}? (${fmtBRL(detGrupo.total)})`)) return;
     setBaixando(true);
     try {
       for (const c of detGrupo.comandas) {
@@ -114,20 +136,20 @@ export default function ComandasPage() {
         if (!res.ok) { const dd = await res.json().catch(() => ({})); throw new Error(dd?.message || "Erro ao baixar"); }
       }
       setDetGrupo(null); load();
-    } catch (e: any) { alert(e?.message || "Erro ao baixar as comandas."); }
+    } catch (e: any) { alert(e?.message || "Erro ao receber as vendas."); }
     finally { setBaixando(false); }
   };
 
   return (
     <div className="p-6 w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="text-[13px] text-[#374151]">{comandas.length} comanda(s) aberta(s){caixaAberto ? "" : " · ⚠️ sem caixa aberto"}</div>
+        <div className="text-[13px] text-[#374151]">{agora.length} venda(s) em aberto{meuCaixa ? ` · ${rotuloCaixa(meuCaixa)}` : (meId ? " · ⚠️ você não tem caixa aberto" : "")}</div>
         <button onClick={() => setOlho((v) => !v)} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-5">
         {[
-          { l: "🟡 Comandas abertas", v: String(comandas.length), plain: true },
+          { l: "🟡 Vendas em aberto", v: String(agora.length), plain: true },
           { l: "💰 Em aberto", v: money(emAberto) },
           { l: "✅ Baixado hoje", v: money(baixadoHoje) },
         ].map((k) => (
@@ -140,11 +162,11 @@ export default function ComandasPage() {
 
       {loading ? (
         <div className="px-6 py-16 text-center text-sm text-[#374151]">Carregando...</div>
-      ) : comandas.length === 0 ? (
+      ) : agora.length === 0 && futuras.length === 0 ? (
         <div className="bg-white border rounded-[14px] px-6 py-14 text-center" style={{ borderColor: "#E8E2D6" }}>
           <div className="text-3xl mb-2">🛎️</div>
-          <div className="text-sm text-[#5C6B70]">Nenhuma comanda aberta no momento.</div>
-          <div className="text-[12px] text-[#374151] mt-1">Vendas em atendimento (consulta, balcão) aparecem aqui para baixar no caixa.</div>
+          <div className="text-sm text-[#5C6B70]">Nenhuma venda em aberto no momento.</div>
+          <div className="text-[12px] text-[#374151] mt-1">Vendas de consulta e balcão aparecem aqui até serem recebidas no caixa.</div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -180,7 +202,7 @@ export default function ComandasPage() {
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>{especieEmoji(g.petSpecies)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[14px] font-medium text-[#014D5E] truncate">{g.tutor}</div>
-                    <div className="text-[11px] text-[#374151]">{g.comandas.length} comandas abertas hoje</div>
+                    <div className="text-[11px] text-[#374151]">{g.comandas.length} vendas em aberto hoje</div>
                   </div>
                   <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: "#E0F4F6", color: "#00707E" }}>🧾 {g.comandas.length}</span>
                 </div>
@@ -203,7 +225,30 @@ export default function ComandasPage() {
         </div>
       )}
 
-      {/* ===== COMANDA (por dentro) ===== */}
+      {/* ===== A COBRAR EM BREVE — venda lançada com data pra frente ===== */}
+      {futuras.length > 0 && (
+        <div className="mt-6">
+          <div className="flex items-baseline gap-2 mb-2">
+            <h2 className="text-[13px] font-medium text-[#014D5E]">🗓️ A cobrar em breve</h2>
+            <span className="text-[11.5px] text-[#374151]">{futuras.length} venda(s) com data pra frente · {money(futuras.reduce((s: number, c: any) => s + Number(c.aberto || c.valor || 0), 0))}</span>
+          </div>
+          <div className="bg-white border rounded-[13px] divide-y" style={{ borderColor: "#E8E2D6" }}>
+            {futuras.map((c: any) => (
+              <div key={c.id} className="flex items-center gap-3 px-4 py-2.5">
+                <span className="text-lg">{especieEmoji(c.petSpecies)}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] text-[#014D5E] truncate">{c.tutor}<span className="text-[11px] text-[#374151]"> · {c.pet || "—"}</span></div>
+                  <div className="text-[11px] text-[#374151]">{new Date(c.date).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</div>
+                </div>
+                <div className="text-[14px] text-[#014D5E] tabular-nums">{money(Number(c.aberto || c.valor || 0))}</div>
+                <button onClick={() => abrir(c)} className="text-[11.5px] font-medium text-[#00798A] bg-[#E0F4F6] px-3 py-1.5 rounded-lg">Abrir</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ===== VENDA (por dentro) ===== */}
       {det && (
         <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setDet(null)}>
           <div className="rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
@@ -219,7 +264,7 @@ export default function ComandasPage() {
               {detLoading ? (
                 <div className="px-5 py-6 text-center text-[12.5px] text-[#374151]">Carregando itens...</div>
               ) : detItens.length === 0 ? (
-                <div className="px-5 py-5 text-[12.5px] text-[#374151]">Sem itens detalhados nesta comanda.</div>
+                <div className="px-5 py-5 text-[12.5px] text-[#374151]">Sem itens detalhados nesta venda.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-[12.5px]">

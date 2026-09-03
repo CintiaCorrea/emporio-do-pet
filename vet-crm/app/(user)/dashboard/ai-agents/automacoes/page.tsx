@@ -246,6 +246,17 @@ export default function AutomacoesPage() {
     }
   };
 
+  // A config do gatilho vem como objeto (JSON). Jogar o objeto direto no JSX derruba a tela
+  // ("Objects are not valid as a React child") — então vira texto legível aqui.
+  const textoDaConfig = (cfg: unknown): string => {
+    if (cfg == null) return '';
+    if (typeof cfg === 'string') return cfg;
+    if (typeof cfg !== 'object') return String(cfg);
+    return Object.entries(cfg as Record<string, unknown>)
+      .map(([k, v]) => `${k}: ${typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}`)
+      .join(' · ');
+  };
+
   const getTriggerText = (trigger: AutomationTrigger) => {
     switch (trigger) {
       case 'SCHEDULE': return 'Agendado';
@@ -376,7 +387,7 @@ export default function AutomacoesPage() {
                     <p className="text-sm text-gray-500 mb-4 line-clamp-2">{automation.description}</p>
                     <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-gray-50 rounded-lg">
                       <span className="text-gray-500">{getTriggerIcon(automation.trigger)}</span>
-                      <span className="text-sm text-gray-600">{getTriggerText(automation.trigger)}: {automation.triggerConfig}</span>
+                      <span className="text-sm text-gray-600">{getTriggerText(automation.trigger)}{textoDaConfig(automation.triggerConfig) ? `: ${textoDaConfig(automation.triggerConfig)}` : ''}</span>
                     </div>
                     <div className="flex items-center gap-1 mb-4 overflow-hidden">
                       {automation.steps.slice(0, 3).map((step, idx) => (
@@ -465,7 +476,7 @@ export default function AutomacoesPage() {
                 <h3 className="text-sm font-medium text-gray-500 mb-2">Gatilho</h3>
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
                   <span className="text-gray-600">{getTriggerIcon(selectedAutomation.trigger)}</span>
-                  <div><p className="text-gray-900 font-medium">{getTriggerText(selectedAutomation.trigger)}</p><p className="text-sm text-gray-500">{selectedAutomation.triggerConfig}</p></div>
+                  <div><p className="text-gray-900 font-medium">{getTriggerText(selectedAutomation.trigger)}</p><p className="text-sm text-gray-500">{textoDaConfig(selectedAutomation.triggerConfig)}</p></div>
                 </div>
               </div>
               <div>

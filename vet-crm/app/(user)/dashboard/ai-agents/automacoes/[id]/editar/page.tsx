@@ -14,6 +14,7 @@ import {
 import { toast } from 'sonner';
 import AutomationStepEditor, { AutomationStep } from '@/components/protected/ai-agents/AutomationStepEditor';
 
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 type AutomationCategory = 'ATENDIMENTO' | 'MARKETING' | 'NOTIFICACAO' | 'INTEGRACAO' | 'AGENDAMENTO';
 type AutomationTrigger = 'SCHEDULE' | 'WEBHOOK' | 'EVENT' | 'MANUAL';
 type AutomationStatus = 'ACTIVE' | 'PAUSED' | 'DRAFT' | 'ERROR';

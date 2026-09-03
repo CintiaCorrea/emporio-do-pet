@@ -115,8 +115,8 @@ export default function RecebimentosPage() {
     try {
       const v = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then((x) => x.json());
       const itens = ((v.items || v.itens || []) as any[]).map((it: any) => ({ descricao: it.descricao || it.nome || "Item", quantidade: it.quantidade || it.qtd || 1, valorUnitario: it.valorUnitario ?? it.valor ?? 0, desconto: it.desconto || 0, valorTotal: it.valorTotal }));
-      imprimirVenda({ itens, valor: v.value ?? r.valorTotal, petId: v.petId, petNome: r.appointment?.pet?.name, tutorNome: r.appointment?.tutor?.name, numeroVenda: r.appointment?.numeroVenda, date: v.date || r.data, formas: r.formas }, { rotulo: "Comanda", preview: true });
-    } catch { toast.error("Não consegui abrir a comanda."); }
+      imprimirVenda({ itens, valor: v.value ?? r.valorTotal, petId: v.petId, petNome: r.appointment?.pet?.name, tutorNome: r.appointment?.tutor?.name, numeroVenda: r.appointment?.numeroVenda, date: v.date || r.data, formas: r.formas }, { rotulo: "Venda", preview: true });
+    } catch { toast.error("Não consegui abrir a venda."); }
   };
 
   const money = (v: number) => (olho ? brl(v) : "R$ •••");
@@ -270,7 +270,7 @@ export default function RecebimentosPage() {
                     <td style={{ color: "#374151" }}>{(r.formas || []).map((f: any) => f.forma).join(" + ") || "—"}</td>
                     <td className="r">{money(Number(r.valorTotal))}</td>
                     <td className="no-print" style={{ whiteSpace: "nowrap", textAlign: "right" }}>
-                      <button onClick={() => abrirComanda(r)} title="Visualizar a comanda (itens da venda)" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", marginRight: 4, fontSize: 13 }}>👁️</button>
+                      <button onClick={() => abrirComanda(r)} title="Ver os itens da venda" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", marginRight: 4, fontSize: 13 }}>👁️</button>
                       <button onClick={() => excluir(r)} title="Excluir recebimento" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", color: "#b23b3b", fontSize: 13 }}>🗑️</button>
                     </td>
                   </tr>

@@ -17,6 +17,7 @@ import {
 } from 'react-icons/lu';
 import { toast } from 'sonner';
 
+import { confirmDelete } from "@/lib/ui/confirmDelete";
 interface KnowledgeDocument {
   id: string;
   fileName: string;

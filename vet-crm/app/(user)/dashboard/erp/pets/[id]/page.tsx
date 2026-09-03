@@ -1061,9 +1061,9 @@ export default function PetDetailPage() {
       await listasAdd(`petexa_${petId}`, JSON.stringify(_exObj));
       if (_valor > 0) {
         try { window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: nome, valorUnitario: _valor, quantidade: 1 } })); } catch {}
-        toast.success(`Exame solicitado e lançado na comanda (${_valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}) 🧾`);
+        toast.success(`Exame solicitado e lançado na venda (${_valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}) 🧾`);
       } else {
-        toast.success((externo ? "Exame solicitado (externo) ✅" : "Exame solicitado na clínica ✅") + " — sem preço no catálogo, não lançou na comanda");
+        toast.success((externo ? "Exame solicitado (externo) ✅" : "Exame solicitado na clínica ✅") + " — sem preço no catálogo, não lançou na venda");
       }
       setExNome(""); await loadPetColecoes(); await loadAtendimentos();
     } catch (e: any) { toast.error("Não solicitou: " + String(e?.message || e).slice(0, 80)); } finally { setSavingEx(false); }
@@ -1101,8 +1101,8 @@ export default function PetDetailPage() {
       window.dispatchEvent(new CustomEvent("comanda:add", { detail: { descricao: x.data?.nome || "Exame", valorUnitario: valor, quantidade: 1 } }));
       // marca cobrado (não duplica no automático) — persiste no item
       try { await fetch(`/api/listas/${x.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify({ ...x.data, cobrado: true, cobradoAt: new Date().toISOString() }) }) }); await loadPetColecoes(); } catch {}
-      toast.success("Exame lançado na comanda 🧾");
-    } catch { toast.error("Não consegui lançar na comanda"); }
+      toast.success("Exame lançado na venda 🧾");
+    } catch { toast.error("Não consegui lançar na venda"); }
   }
   // Solicitar coleta ao laboratório AGORA (urgência — fora do lote automático 11:30/17:00).
   async function avisarLab(itemId: string, resumo?: string) {
@@ -1459,7 +1459,7 @@ export default function PetDetailPage() {
 
   return (
     <div className="p-4 min-h-screen bg-[#F6F2EA]">
-      {/* 🛒 Comanda lateral fixa (Fatia 2) — lança venda/orçamento sem sair da ficha */}
+      {/* 🛒 Venda do pet em pop-up — lança venda/orçamento sem sair da ficha */}
       <PetComandaRail petId={petId} tutorId={pet.tutorId} petNome={pet.name} tutorNome={(pet as any)?.tutor?.name} />
       {/* ── Cabeçalho FIXO (sticky): migalha + card juntos, colam abaixo da barra global (64px) ── */}
       <div className="sticky top-16 z-30 -mx-4 px-4 pt-2" style={{ background: "#F6F2EA" }}>
@@ -2388,10 +2388,10 @@ export default function PetDetailPage() {
                           {x.data.valor != null && x.data.valor !== "" && <span className="text-[11.5px] font-semibold ml-2" style={{ color: "#0F6E56" }}>{Number(x.data.valor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          {/* Cobrar: joga o exame na comanda da ficha pelo preço de venda (automático ao solicitar; manual aqui p/ sem preço/antigos) */}
+                          {/* Cobrar: joga o exame na venda da ficha pelo preço de venda (automático ao solicitar; manual aqui p/ sem preço/antigos) */}
                           {x.data.cobrado
-                            ? <span title={`Já lançado na comanda${x.data.cobradoAt ? " em " + fmtDataBR(x.data.cobradoAt) : ""}`} className="text-[11px] px-2.5 py-1 rounded-full font-semibold" style={{ background: "#E1F5EE", color: "#0F6E56" }}>🧾 Cobrado</span>
-                            : <button onClick={() => cobrarExame(x)} title="Lançar este exame na comanda (caixa)" className="text-[11px] px-2.5 py-1 rounded-full font-semibold text-white hover:opacity-90" style={{ background: "#0F7B5A" }}>💲 Cobrar</button>}
+                            ? <span title={`Já lançado na venda${x.data.cobradoAt ? " em " + fmtDataBR(x.data.cobradoAt) : ""}`} className="text-[11px] px-2.5 py-1 rounded-full font-semibold" style={{ background: "#E1F5EE", color: "#0F6E56" }}>🧾 Cobrado</span>
+                            : <button onClick={() => cobrarExame(x)} title="Lançar este exame na venda (caixa)" className="text-[11px] px-2.5 py-1 rounded-full font-semibold text-white hover:opacity-90" style={{ background: "#0F7B5A" }}>💲 Cobrar</button>}
                           {/* Anexar ARQUIVO — o label é um file picker disfarçado de botão */}
                           <label
                             title="Subir o PDF/foto do laudo (até 20MB)"

@@ -7,6 +7,9 @@ import toast from 'react-hot-toast';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
+import { useSession } from 'next-auth/react';
+import { carregarMeuCaixa, rotuloCaixa, avisoSemMeuCaixa, CaixaAberto } from '@/lib/caixaAtual';
+import { carregarEstoqueComprometido, avisoDeEstoque, MapaEstoque } from '@/lib/estoqueComprometido';
 import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
@@ -55,12 +58,18 @@ export default function PDVPage() {
 
   const { effectiveRole } = useRolePreview();
   const isAdmin = effectiveRole === 'ADMIN';
+  const { data: session } = useSession();
+  const meId = (session?.user as any)?.id || '';
 
   const [data, setData] = useState(hoje());
   const [tipo, setTipo] = useState<'VENDA' | 'ORCAMENTO'>('VENDA');
   const [tipoVenda, setTipoVenda] = useState(TIPOS_VENDA[0]);
   const [caixaAberto, setCaixaAberto] = useState<boolean | null>(null);
   const [caixaAbertoId, setCaixaAbertoId] = useState<string | null>(null);
+  const [caixaAberturaTs, setCaixaAberturaTs] = useState<number | null>(null); // início do caixa aberto (regra de exclusão)
+  const [meuCaixa, setMeuCaixa] = useState<CaixaAberto | null>(null); // núcleo lib/caixaAtual: o caixa de QUEM ESTÁ LOGADA
+  const [caixasDeOutros, setCaixasDeOutros] = useState<CaixaAberto[]>([]);
+  const [estoque, setEstoque] = useState<MapaEstoque>(new Map()); // núcleo lib/estoqueComprometido
 
   const [profs, setProfs] = useState<Prof[]>([]);
   const [profId, setProfId] = useState('');
@@ -94,7 +103,7 @@ export default function PDVPage() {
   const [salvando, setSalvando] = useState(false);
 
   const [vendas, setVendas] = useState<Venda[]>([]);
-  const [orcamentos, setOrcamentos] = useState<{ id: string; tutor: string; pet: string; valor: number; tutorId?: string; petId?: string; _orc?: any }[]>([]);
+  const [orcamentos, setOrcamentos] = useState<{ id: string; tutor: string; pet: string; valor: number; tutorId?: string; petId?: string; dia?: string; _orc?: any }[]>([]);
   const [detOrc, setDetOrc] = useState<any>(null); // orçamento aberto no modal de detalhe
   const [vendaTab, setVendaTab] = useState<'NAO' | 'PAGO'>('NAO');
   // Baixar todas as comandas de um cliente de uma vez (portado do "Em atendimento")
@@ -145,7 +154,7 @@ export default function PDVPage() {
       const arr = Array.isArray(d) ? d : (d.data || d.orcamentos || []);
       setOrcamentos(arr
         .filter((o: any) => !o.appointmentId && o.status !== 'RECUSADO' && o.status !== 'EXPIRADO')
-        .map((o: any) => ({ id: o.id, tutor: o.tutor?.name || 'Cliente', pet: o.pet?.name || '', valor: Number(o.valorTotal) || 0, tutorId: o.tutorId, petId: o.petId, _orc: o })));
+        .map((o: any) => ({ id: o.id, tutor: o.tutor?.name || 'Cliente', pet: o.pet?.name || '', valor: Number(o.valorTotal) || 0, tutorId: o.tutorId, petId: o.petId, dia: String(o.createdAt || '').slice(0, 10), _orc: o })));
     } catch { /* */ }
   }, []);
   async function converterOrcamento(o: { id: string; tutor: string; valor: number }) {
@@ -205,9 +214,19 @@ export default function PDVPage() {
     } catch (e: any) { toast.error(e.message || 'Erro ao salvar'); } finally { setSavingEdit(false); }
   }
 
+  // Núcleo lib/caixaAtual: o caixa é o DE QUEM ESTÁ LOGADA (duas funcionárias, dois caixas abertos).
+  const recarregarMeuCaixa = useCallback(async () => {
+    const { meu, deOutros } = await carregarMeuCaixa(meId);
+    setMeuCaixa(meu); setCaixasDeOutros(deOutros);
+    setCaixaAberto(!!meu); setCaixaAbertoId(meu?.id || null);
+    setCaixaAberturaTs(meu?.abertura ? new Date(meu.abertura).getTime() : null);
+  }, [meId]);
+  // Quando a sessão carrega depois da tela, refaz a escolha do caixa.
+  useEffect(() => { if (meId) recarregarMeuCaixa(); }, [meId, recarregarMeuCaixa]);
+
   // ----- Registrar recebimento de venda existente -----
   function abrirRecVenda() {
-    if (!caixaAbertoId) { toast.error('Abra o caixa primeiro (Outros caixas › Novo caixa).'); return; }
+    if (!caixaAbertoId) { toast.error(avisoSemMeuCaixa(caixasDeOutros)); return; }
     const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
     setRecFormas([{ forma: 'Dinheiro', valor: Number(aReceber.toFixed(2)) }]);
     setRecOpen(true);
@@ -236,17 +255,51 @@ export default function PDVPage() {
     } catch (e: any) { toast.error(e.message || 'Erro ao receber'); } finally { setRecSaving(false); }
   }
 
+  // Quem pode excluir a venda aberta na telinha. ADM sempre; os demais só enquanto a venda está
+  // EM ABERTO (nada recebido) e dentro do caixa que está aberto agora. O backend decide de verdade —
+  // isto aqui é só pra não oferecer um botão que vai dar erro. Ver appointments.service.remove.
+  const exclusaoDaVenda = useMemo(() => {
+    if (!detVenda) return { pode: false, motivo: '' };
+    if (isAdmin) return { pode: true, motivo: '' };
+    if (Number(detVenda.pago || 0) > 0) {
+      return { pode: false, motivo: 'Essa venda já tem recebimento. Apague o recebimento no Caixa (a venda volta a "não paga") ou peça pra um administrador.' };
+    }
+    if (!caixaAbertoId || !caixaAberturaTs) {
+      return { pode: false, motivo: 'Não há caixa aberto. Venda de caixa fechado só um administrador exclui.' };
+    }
+    // vale o DIA do caixa aberto (a comanda pode ter nascido antes de abrirem o caixa)
+    const inicioDoDia = new Date(new Date(caixaAberturaTs).toLocaleDateString('en-CA', { timeZone: 'America/Fortaleza' }) + 'T00:00:00-03:00').getTime();
+    const nascimento = new Date(detVenda.date || 0).getTime();
+    if (!nascimento || nascimento < inicioDoDia) {
+      return { pode: false, motivo: 'Essa venda é de um caixa que já foi fechado. Só um administrador exclui.' };
+    }
+    return { pode: true, motivo: '' };
+  }, [detVenda, isAdmin, caixaAbertoId, caixaAberturaTs]);
+
   // Exclui a venda (appointment) com confirmação.
   async function excluirVenda() {
     if (!detVenda) return;
     if (!window.confirm(`Excluir a venda de ${detVenda.tutor}${detVenda.pet ? ' · ' + detVenda.pet : ''} (${brl(detVenda.valor)})? Não dá pra desfazer.`)) return;
     setDetExcluindo(true);
     try {
-      const r = await fetch(`/api/appointments/${detVenda.id}`, { method: 'DELETE' });
-      if (!r.ok) throw new Error();
+      let r = await fetch(`/api/appointments/${detVenda.id}`, { method: 'DELETE' });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({} as any));
+        const msg = String(e?.message || '');
+        // Atendimento com gravação de áudio: o backend pede confirmação explícita (só ADM).
+        if (msg.startsWith('TEM_GRAVACAO') && isAdmin) {
+          if (!window.confirm('Esse atendimento tem uma gravação de áudio salva. Excluir apaga a gravação junto. Apagar mesmo assim?')) { setDetExcluindo(false); return; }
+          r = await fetch(`/api/appointments/${detVenda.id}?force=true`, { method: 'DELETE' });
+          if (!r.ok) { const e2 = await r.json().catch(() => ({} as any)); throw new Error(String(e2?.message || '').replace(/^[A-Z_]+:\s*/, '') || 'Não consegui excluir.'); }
+        } else {
+          // Tira o código técnico (VENDA_PAGA:, CAIXA_FECHADO:) e mostra o motivo de verdade.
+          throw new Error(msg.replace(/^[A-Z_]+:\s*/, '') || 'Não consegui excluir. Tente de novo.');
+        }
+      }
+      toast.success('Venda excluída.');
       setDetVenda(null);
       await loadVendas();
-    } catch { window.alert('Não consegui excluir. Tente de novo.'); }
+    } catch (e: any) { toast.error(e?.message || 'Não consegui excluir. Tente de novo.'); }
     setDetExcluindo(false);
   }
 
@@ -261,11 +314,9 @@ export default function PDVPage() {
         const r = await fetch('/api/users', { cache: 'no-store' });
         if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.users || d.data || []); setProfs(arr.map((u: any) => ({ id: u.id, name: u.name || u.nome || u.email }))); }
       } catch { /* */ }
-      try {
-        const r = await fetch('/api/caixa', { cache: 'no-store' });
-        if (r.ok) { const d = await r.json(); const arr = Array.isArray(d) ? d : (d.data || []); const ab = arr.filter((c: any) => c.status === 'ABERTO').sort((a: any, b: any) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime())[0]; setCaixaAberto(!!ab); setCaixaAbertoId(ab?.id || null); }
-        else setCaixaAberto(false);
-      } catch { setCaixaAberto(false); }
+      // O recebimento vai pro caixa de QUEM ESTÁ LOGADA (lib/caixaAtual) — nunca pro caixa da colega.
+      await recarregarMeuCaixa();
+      setEstoque(await carregarEstoqueComprometido());
       try {
         // FONTE ÚNICA (lib/formasPagamento): formas de recebimento + tabela de taxas.
         const { formasConfig, formasList, taxas } = await carregarFormasRecebimento();
@@ -348,6 +399,10 @@ export default function PDVPage() {
 
   const addItem = (s: Servico) => {
     const l = linhaDoItem(s as any);   // núcleo único: exame × produto/serviço, id certo, tira "🔬"
+    // Avisa (sem travar) quando o saldo já está prometido em outra venda aberta — lib/estoqueComprometido.
+    const jaNoCarrinho = carrinho.filter((x) => x.catalogoItemId === l.catalogoItemId).reduce((n, x) => n + (Number(x.quantidade) || 0), 0);
+    const aviso = avisoDeEstoque(estoque, l.catalogoItemId, qtd, jaNoCarrinho);
+    if (aviso) toast(`⚠️ ${aviso}`, { duration: 6000 });
     setCarrinho((c) => {
       const i = l._novo ? c.findIndex((x) => x.catalogoItemId === l.catalogoItemId) : l._exame ? c.findIndex((x) => x.catalogoExameId === l.catalogoExameId) : c.findIndex((x) => x.servicoId === l.servicoId);
       if (i >= 0) { const cp = [...c]; cp[i] = { ...cp[i], quantidade: cp[i].quantidade + qtd }; return cp; }
@@ -478,7 +533,16 @@ export default function PDVPage() {
   };
 
   // Só venda com valor (> 0) — atendimentos de R$ 0 (agenda/clínico) não são comanda nem venda.
-  const vendasFiltradas = vendas.filter((v) => Number(v.valor) > 0 && (vendaTab === 'PAGO' ? v.pagoTotal : !v.pagoTotal));
+  // Venda lançada com data pra frente não some: sai da lista de agora e vai pra faixa "a cobrar em
+  // breve" (o backend marca com `futura`). Antes ela não aparecia pra ninguém cobrar.
+  const vendasDaAba = vendas.filter((v) => Number(v.valor) > 0 && (vendaTab === 'PAGO' ? v.pagoTotal : !v.pagoTotal));
+  const vendasFiltradas = vendasDaAba.filter((v: any) => !v.futura);
+  // Orçamento fica no SEU dia, igual à venda: com a lista por dia, só aparece o que foi feito
+  // naquele dia; com "abertas de todos os dias" marcado, aparecem todos os não convertidos.
+  const orcamentosDoDia = vendaAbertas ? orcamentos : orcamentos.filter((o: any) => o.dia === vendaDia);
+  const vendasFuturas = vendaTab === 'NAO'
+    ? vendasDaAba.filter((v: any) => v.futura).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    : [];
   const formasList = formasCfg.length ? formasCfg : FORMAS;
 
   // Clientes com 2+ contas abertas (pra baixar todas de uma vez)
@@ -498,7 +562,7 @@ export default function PDVPage() {
 
   async function baixarGrupoPDV() {
     if (!grupoBaixa) return;
-    if (!caixaAbertoId) { toast.error('Abra o caixa primeiro (Outros caixas › Novo caixa).'); return; }
+    if (!caixaAbertoId) { toast.error(avisoSemMeuCaixa(caixasDeOutros)); return; }
     setBaixandoGrupo(true);
     let ok = 0;
     try {
@@ -511,7 +575,7 @@ export default function PDVPage() {
         });
         if (r.ok) ok++;
       }
-      toast.success(`${ok} comanda(s) de ${grupoBaixa.tutor} baixada(s) em ${formaGrupo}.`);
+      toast.success(`${ok} venda(s) de ${grupoBaixa.tutor} recebida(s) em ${formaGrupo}.`);
       setGrupoBaixa(null);
       await loadVendas();
     } catch (e: any) { toast.error(e?.message || 'Erro ao baixar'); } finally { setBaixandoGrupo(false); }
@@ -537,7 +601,7 @@ export default function PDVPage() {
             <div><div style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>Nova venda</div><div style={{ color: MUT, fontSize: 11.5 }}>{new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</div></div>
             {caixaAberto !== null && (
               <span style={{ marginLeft: 'auto', background: caixaAberto ? OKB : WARNB, color: caixaAberto ? OK : WARN, fontSize: 11.5, fontWeight: 500, padding: '4px 11px', borderRadius: 999 }}>
-                {caixaAberto ? '✅ Caixa aberto' : '⚠️ Caixa fechado'}
+                {meuCaixa ? `✅ ${rotuloCaixa(meuCaixa)}` : '⚠️ Você não tem caixa aberto'}
               </span>
             )}
           </div>
@@ -783,7 +847,7 @@ export default function PDVPage() {
                   <button onClick={() => { setGrupoBaixa(g); setFormaGrupo(formasList[0] || 'Dinheiro'); }} style={{ border: 'none', background: TEAL, color: '#fff', fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>Baixar todas</button>
                 </div>
               ))}
-              {vendasFiltradas.length === 0 && (vendaTab !== 'NAO' || orcamentos.length === 0) && (
+              {vendasFiltradas.length === 0 && (vendaTab !== 'NAO' || orcamentosDoDia.length === 0) && (
                 <div style={{ textAlign: 'center', padding: '18px 0' }}>
                   <div style={{ fontSize: 22, marginBottom: 4 }}>🧾</div>
                   <p style={{ fontSize: 12, color: MUT, margin: 0 }}>Nenhuma venda {vendaTab === 'PAGO' ? 'paga' : 'pendente'}.</p>
@@ -800,8 +864,28 @@ export default function PDVPage() {
                   <span style={{ background: v.pagoTotal ? OKB : WARNB, color: v.pagoTotal ? OK : WARN, fontSize: 11, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(v.valor)}</span>
                 </div>
               ))}
+              {/* 🗓️ A COBRAR EM BREVE — venda com data pra frente (não some mais da tela). */}
+              {vendasFuturas.length > 0 && (
+                <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px dashed ${LINE}` }}>
+                  <div style={{ fontSize: 10.5, color: MUT, textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 2 }}>
+                    🗓️ A cobrar em breve · {vendasFuturas.length}
+                  </div>
+                  {vendasFuturas.slice(0, 6).map((v: any) => (
+                    <div key={v.id} onClick={() => abrirDetVenda(v)} title="Abrir venda" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 4px', cursor: 'pointer', borderRadius: 8 }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAF7')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+                      <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#FBF0DA', color: '#8A5A12', fontSize: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>🗓️</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 500, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.tutor}</div>
+                        <div style={{ fontSize: 11, color: MUT }}>{v.pet} · {new Date(v.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</div>
+                      </div>
+                      <span style={{ background: '#FBF0DA', color: '#8A5A12', fontSize: 11, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(v.valor)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* 📄 ORÇAMENTOS em aberto — MESMA lista, valor em ROXO pra diferenciar + botão converter. */}
-              {vendaTab === 'NAO' && orcamentos.slice(0, 8).map((o) => (
+              {vendaTab === 'NAO' && orcamentosDoDia.slice(0, 8).map((o) => (
                 <div key={o.id} onClick={() => setDetOrc(o._orc || o)} title="Abrir orçamento" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderTop: `1px solid ${SOFT}`, borderRadius: 8, cursor: 'pointer' }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAF7')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#EDE9FE', color: '#6D28D9', fontSize: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📄</span>
@@ -1007,7 +1091,11 @@ export default function PDVPage() {
                       </div>
                     ) : (
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        <button onClick={excluirVenda} disabled={detExcluindo} style={{ flex: 1, minWidth: 120, background: '#fff', color: '#A32D2D', border: '1px solid #F0C9C9', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{detExcluindo ? 'Excluindo…' : '🗑 Excluir'}</button>
+                        {exclusaoDaVenda.pode ? (
+                          <button onClick={excluirVenda} disabled={detExcluindo} style={{ flex: 1, minWidth: 120, background: '#fff', color: '#A32D2D', border: '1px solid #F0C9C9', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{detExcluindo ? 'Excluindo…' : '🗑 Excluir'}</button>
+                        ) : (
+                          <div style={{ flex: 1, minWidth: 200, background: '#FBF7EF', border: `1px solid ${LINE}`, borderRadius: 9, padding: '8px 10px', fontSize: 11.5, color: MUT, lineHeight: 1.35 }}>🔒 {exclusaoDaVenda.motivo}</div>
+                        )}
                         {aReceber > 0.001 && (
                           <button onClick={abrirRecVenda} style={{ flex: 1.6, minWidth: 150, background: TEAL, color: '#fff', border: 'none', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>💰 Registrar recebimento</button>
                         )}

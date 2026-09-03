@@ -4,6 +4,7 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { ExamesService } from '../exames/exames.service';
 import { RecebimentosService } from '../financeiro/recebimentos.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
+import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
 import * as bcrypt from 'bcryptjs';
 
@@ -33,6 +34,7 @@ export class CaixaService {
     private readonly examesService: ExamesService,
     private readonly recebimentos: RecebimentosService,
     private readonly lancamentos: LancamentosService,
+    private readonly catalogo: CatalogoService,
   ) {}
 
   private async saldoTutor(tutorId: string) {
@@ -109,10 +111,9 @@ export class CaixaService {
       // Só VENDAS entram no "a pagar": consulta/alta clínica (sem numeroVenda) fica de fora.
       // O numeroVenda é atribuído a todo atendimento que nasce como venda (PDV, comanda, saldo migrado).
       where.numeroVenda = { not: null };
-      // Agendamento FUTURO não é comanda — só é "conta a receber" o atendimento de hoje/passado
-      // (venda do PDV nasce com data de hoje; agendamento de outro dia fica de fora).
-      const fimHoje = new Date(); fimHoje.setHours(23, 59, 59, 999);
-      where.date = { ...(where.date || {}), lte: fimHoje };
+      // Venda com data FUTURA não some mais: sai da lista principal e volta marcada como
+      // "a cobrar em breve" (futura: true), pra ninguém perder cobrança lançada pra frente.
+      // O agendamento puro continua fora — ele não tem numeroVenda.
     }
     const appts = await this.prisma.appointment.findMany({
       where,
@@ -132,7 +133,9 @@ export class CaixaService {
       const origem = isInternacao
         ? 'INTERNACAO'
         : (a.chiefComplaint || a.diagnosis || a.anamnesis ? 'ATENDIMENTO' : 'VENDA');
+      const fimHoje = new Date(); fimHoje.setHours(23, 59, 59, 999);
       return {
+        futura: new Date(a.date) > fimHoje, // "a cobrar em breve" — a tela mostra numa faixa separada
         id: a.id, numeroVenda: a.numeroVenda ?? null, codigoExterno: a.codigoExterno ?? null,
         tutorId: a.tutor?.id || null, tutor: a.tutor?.name || 'Cliente',
         pet: a.pet?.name || '', petSpecies: a.pet?.species || null,
@@ -923,10 +926,71 @@ export class CaixaService {
         if (!prod || prod.type === 'SERVICE') continue;
         await this.baixarUmItem(it.productId, vendidos, 'Baixa por venda', 'VENDA', appointmentId);
       }
+
+      // CATÁLOGO NOVO (cat_itens): esses itens não têm productId, então nunca baixavam nada — nem o
+      // estoque antigo nem o `estoqueAtual` do item novo. Como hoje TODA venda sai do catálogo novo
+      // (lib/catalogoVendavel), na prática o estoque não se mexia. Usa o motor do próprio catálogo
+      // (catalogo.movimentarEstoque) pra gravar o movimento em cat_estoque_movimentos.
+      await this.baixarEstoqueCatalogoNovo(appointmentId);
     } catch (e: any) {
       // não pode quebrar o recebimento (a venda já foi registrada)
       console.error('baixarEstoqueDaVenda erro:', e?.message);
     }
+  }
+
+  /** Baixa do estoque dos itens do CATÁLOGO NOVO (só os marcados com "controla estoque"). */
+  private async baixarEstoqueCatalogoNovo(appointmentId: string) {
+    const itens = await this.prisma.appointmentItem.findMany({
+      where: { appointmentId, catalogoItemId: { not: null } },
+      select: { catalogoItemId: true, quantidade: true, descricao: true },
+    });
+    for (const it of itens) {
+      if (!it.catalogoItemId) continue;
+      const cat = await this.prisma.itemCatalogo.findUnique({
+        where: { id: it.catalogoItemId },
+        select: { controlaEstoque: true, estoqueAtual: true, nome: true },
+      });
+      if (!cat?.controlaEstoque) continue; // serviço/exame não movimenta
+      const querBaixar = Math.max(1, Math.round(Number(it.quantidade) || 1));
+      const saldo = Number(cat.estoqueAtual) || 0;
+      const baixa = Math.min(querBaixar, Math.max(0, saldo)); // nunca deixa negativar
+      if (baixa <= 0) { console.warn(`[estoque] venda ${appointmentId}: "${cat.nome}" sem saldo (tinha ${saldo}, pedia ${querBaixar}) — não baixou.`); continue; }
+      if (baixa < querBaixar) console.warn(`[estoque] venda ${appointmentId}: "${cat.nome}" saldo insuficiente (tinha ${saldo}, pedia ${querBaixar}) — baixou ${baixa}.`);
+      try {
+        await this.catalogo.movimentarEstoque(it.catalogoItemId, {
+          tipo: 'SAIDA', quantidade: baixa, origem: 'VENDA', refId: appointmentId,
+          obs: `Venda${it.descricao ? ' — ' + it.descricao : ''}`,
+        });
+      } catch (e: any) {
+        console.error(`[estoque] falha ao baixar ${it.catalogoItemId} da venda ${appointmentId}:`, e?.message);
+      }
+    }
+  }
+
+  /** Quanto de cada item já está PROMETIDO em venda aberta (comanda não paga) — alimenta o aviso do PDV. */
+  async estoqueComprometido() {
+    const itens = await this.prisma.appointmentItem.findMany({
+      where: {
+        catalogoItemId: { not: null },
+        appointment: { is: { value: { gt: 0 }, paymentStatus: { not: 'PAID' } } },
+      },
+      select: { catalogoItemId: true, quantidade: true },
+    });
+    const porItem = new Map<string, number>();
+    for (const it of itens) {
+      if (!it.catalogoItemId) continue;
+      porItem.set(it.catalogoItemId, (porItem.get(it.catalogoItemId) || 0) + Math.max(1, Math.round(Number(it.quantidade) || 1)));
+    }
+    if (porItem.size === 0) return [];
+    const cats = await this.prisma.itemCatalogo.findMany({
+      where: { id: { in: [...porItem.keys()] }, controlaEstoque: true },
+      select: { id: true, nome: true, estoqueAtual: true },
+    });
+    return cats.map((c) => {
+      const comprometido = porItem.get(c.id) || 0;
+      const estoque = Number(c.estoqueAtual) || 0;
+      return { itemId: c.id, nome: c.nome, estoque, comprometido, disponivel: estoque - comprometido };
+    });
   }
 
   // #4 — baixa segura de UM item na venda: tudo numa transação (saldo + movimento juntos),
