@@ -1,59 +1,59 @@
 import { describe, it, expect } from "vitest";
-import { ehDinheiro, ehMaquininha, modalidadeToTaxaForma, adquirenteDe, MODALIDADES, PARC } from "@/lib/formasPagamento";
+import { validarPagamentosCartao, adquirenteDaLinha, PagForma, FormaCfg } from "./formasPagamento";
 
-// BLINDAGEM do centro de RECEBIMENTO. Estes helpers mexem em dinheiro:
-// - ehDinheiro decide troco e o que entra na gaveta;
-// - modalidadeToTaxaForma casa a modalidade com a tabela de taxas de cartão (nome sem acento);
-// - ehMaquininha decide se pede bandeira/parcelas.
-// Se alguém quebrar isso, troco/taxa saem errados. O teste trava o comportamento.
+// REGRA DA CASA (04/09/2026, pedido da Cintia): venda no cartão só salva com OPERADORA,
+// NSU e AUT preenchidos. É o que permite casar a venda com a linha do extrato da operadora
+// na conciliação — sem isso a conferência do cartão vira trabalho manual no fim do mês.
+// Este teste existe para a regra não se perder de novo: se alguém tirar a obrigatoriedade,
+// o deploy para aqui.
+describe("validarPagamentosCartao", () => {
+  const cfg: FormaCfg[] = [
+    { nome: "Cielo Crédito", tipo: "Maquininha", adquirente: "Cielo" },
+    { nome: "Dinheiro", tipo: "Espécie" },
+    { nome: "PIX", tipo: "PIX" },
+  ];
+  const cartaoOk: PagForma = {
+    forma: "Cielo Crédito", valor: 150, adquirente: "Cielo",
+    modalidade: "Crédito à vista", bandeira: "Visa", nsu: "123456", aut: "998877",
+  };
 
-describe("formasPagamento — ehDinheiro", () => {
-  it("reconhece dinheiro / espécie (gera troco)", () => {
-    expect(ehDinheiro("Dinheiro")).toBe(true);
-    expect(ehDinheiro("dinheiro")).toBe(true);
-    expect(ehDinheiro("Espécie")).toBe(true);
-    expect(ehDinheiro("Especie")).toBe(true);
+  it("passa quando o cartão tem operadora, NSU e AUT", () => {
+    expect(validarPagamentosCartao([cartaoOk], cfg)).toBeNull();
   });
-  it("NÃO trata cartão/pix como dinheiro", () => {
-    expect(ehDinheiro("Pix")).toBe(false);
-    expect(ehDinheiro("Cartão crédito")).toBe(false);
-    expect(ehDinheiro("Crédito do pet")).toBe(false);
-    expect(ehDinheiro("")).toBe(false);
-    expect(ehDinheiro(undefined)).toBe(false);
-  });
-});
 
-describe("formasPagamento — modalidade → taxa (nome da tabela, sem acento)", () => {
-  it("mapeia as 3 modalidades exatamente como a tabela de taxas espera", () => {
-    expect(modalidadeToTaxaForma("Débito")).toBe("Debito");
-    expect(modalidadeToTaxaForma("Crédito à vista")).toBe("Credito a vista");
-    expect(modalidadeToTaxaForma("Crédito parcelado")).toBe("Credito parcelado");
+  it("recusa cartão sem NSU", () => {
+    expect(validarPagamentosCartao([{ ...cartaoOk, nsu: "" }], cfg)).toMatch(/NSU/i);
   });
-  it("modalidade desconhecida → vazio (não casa taxa errada)", () => {
-    expect(modalidadeToTaxaForma("")).toBe("");
-    expect(modalidadeToTaxaForma(undefined)).toBe("");
-  });
-  it("as 3 modalidades canônicas estão presentes", () => {
-    expect(MODALIDADES).toContain("Débito");
-    expect(MODALIDADES).toContain("Crédito à vista");
-    expect(MODALIDADES).toContain("Crédito parcelado");
-  });
-});
 
-describe("formasPagamento — maquininha e parcelas", () => {
-  it("ehMaquininha detecta cartão pelo tipo", () => {
-    expect(ehMaquininha({ nome: "Cielo", tipo: "maquininha" })).toBe(true);
-    expect(ehMaquininha({ nome: "Cielo", tipo: "cartao" })).toBe(true);
-    expect(ehMaquininha({ nome: "Dinheiro", tipo: "dinheiro" })).toBe(false);
-    expect(ehMaquininha(undefined)).toBe(false);
+  it("recusa cartão sem AUT", () => {
+    expect(validarPagamentosCartao([{ ...cartaoOk, aut: undefined }], cfg)).toMatch(/autoriza/i);
   });
-  it("adquirenteDe usa o adquirente e cai pro nome", () => {
-    expect(adquirenteDe({ nome: "Maq 1", adquirente: "Cielo" })).toBe("Cielo");
-    expect(adquirenteDe({ nome: "Cielo" })).toBe("Cielo");
+
+  it("recusa cartão sem operadora", () => {
+    const semAdq = [{ nome: "Maquininha sem dono", tipo: "Maquininha" }] as FormaCfg[];
+    const f: PagForma = { ...cartaoOk, forma: "Maquininha sem dono", adquirente: undefined };
+    expect(validarPagamentosCartao([f], semAdq)).toMatch(/operadora/i);
   });
-  it("PARC cobre 2..12 parcelas", () => {
-    expect(PARC[0]).toBe(2);
-    expect(PARC[PARC.length - 1]).toBe(12);
-    expect(PARC.length).toBe(11);
+
+  it("NÃO exige nada de dinheiro, PIX ou crédito do cliente", () => {
+    expect(validarPagamentosCartao([{ forma: "Dinheiro", valor: 80 }], cfg)).toBeNull();
+    expect(validarPagamentosCartao([{ forma: "PIX", valor: 80 }], cfg)).toBeNull();
+  });
+
+  it("ignora linha de cartão com valor zero (ainda não preenchida)", () => {
+    expect(validarPagamentosCartao([{ forma: "Cielo Crédito", valor: 0 }], cfg)).toBeNull();
+  });
+
+  it("com várias formas, diz QUAL delas está faltando", () => {
+    const erro = validarPagamentosCartao(
+      [{ forma: "Dinheiro", valor: 50 }, { ...cartaoOk, nsu: "" }],
+      cfg,
+    );
+    expect(erro).toMatch(/2ª forma/);
+  });
+
+  it("a operadora escolhida na baixa vence a configurada na forma", () => {
+    expect(adquirenteDaLinha({ forma: "Cielo Crédito", valor: 10, adquirente: "Stone" }, cfg[0])).toBe("Stone");
+    expect(adquirenteDaLinha({ forma: "Cielo Crédito", valor: 10 }, cfg[0])).toBe("Cielo");
   });
 });

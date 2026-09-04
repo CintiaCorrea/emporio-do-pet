@@ -9,7 +9,7 @@ import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { usePodeEditar } from '@/lib/permissions/context';
 import { useSession } from 'next-auth/react';
 import { idDoMeuCaixa } from '@/lib/caixaAtual';
-import { ehDinheiro, carregarFormasRecebimento, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
+import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
@@ -292,6 +292,9 @@ export default function CaixaPage() {
   const registrarRecebimento = async () => {
     if (!detail || !vendaSel) return;
     if (somaFormas <= 0) { toast.error('Informe ao menos uma forma com valor'); return; }
+    // Cartão exige operadora + NSU + AUT: é o que casa a venda com a linha do extrato.
+    const faltaCartao = validarPagamentosCartao(formas.filter((f) => Number(f.valor) > 0), formasConfig);
+    if (faltaCartao) { toast.error(faltaCartao); return; }
     if (creditoExcede) { toast.error('Crédito do cliente insuficiente'); return; }
     try {
       const r = await fetch(`/api/caixa/${detail.id}/recebimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: vendaSel.id, valorTotal: valorAplicado, desconto, troco, formas, observacao: obsReceb || null }) });

@@ -79,3 +79,37 @@ export function idDoMeuCaixa(
   const aberto = meus.find((c) => String(c.status || '').toUpperCase() === 'ABERTO');
   return (aberto || meus[0] || lista[0]).id;
 }
+
+export type CaixaParaReceber = {
+  /** Onde o recebimento entra. null = não dá pra decidir com segurança. */
+  caixa: CaixaAberto | null;
+  /** Preenchido só quando caixa é null: o que dizer pra pessoa. */
+  erro?: string;
+  /** true quando é o caixa de outra pessoa, aceito por não haver ambiguidade. */
+  deOutraPessoa?: boolean;
+};
+
+/**
+ * MESMA REGRA DO SERVIDOR (backend caixa.regras.resolverCaixaDoRecebimento). Três casos:
+ *
+ *   1. Tenho o meu caixa aberto            -> uso o meu.
+ *   2. Não tenho, mas só há UM aberto      -> uso esse. Com um caixa só é impossível
+ *                                             escolher errado; bloquear aqui só trava o balcão.
+ *   3. Não tenho e há MAIS DE UM aberto    -> recuso: escolher seria cara ou coroa.
+ *
+ * Em 04/09/2026 a tela recusava também no caso 2 e ninguém conseguia dar baixa. A regra vive
+ * nos dois lados de propósito: a tela avisa antes, o servidor garante depois.
+ */
+export function caixaParaReceber(m: MeuCaixa): CaixaParaReceber {
+  if (m?.meu) return { caixa: m.meu };
+  const outros = m?.deOutros || [];
+  if (!outros.length) {
+    return { caixa: null, erro: 'Nenhum caixa aberto. Abra o seu em Vendas › Caixa para receber.' };
+  }
+  if (outros.length === 1) return { caixa: outros[0], deOutraPessoa: true };
+  const nomes = outros.map((c) => c.operadorNome).join(', ');
+  return {
+    caixa: null,
+    erro: `Há mais de um caixa aberto (${nomes}) e nenhum é o seu — o sistema não tem como saber em qual lançar. Abra o seu em Vendas › Caixa.`,
+  };
+}

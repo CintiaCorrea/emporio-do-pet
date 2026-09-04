@@ -5,7 +5,21 @@
 // cadeia. A TAXA de cartão continua sendo calculada no backend (tabela TaxaContratada) — este
 // arquivo NÃO calcula taxa, só padroniza forma/modalidade/parcela e o mapeamento de rótulos.
 
-export type PagForma = { forma: string; valor: number; nsu?: string; modalidade?: string; bandeira?: string; parcelas?: number };
+export type PagForma = {
+  forma: string;
+  valor: number;
+  nsu?: string;
+  /** Código de AUTORIZAÇÃO do comprovante da maquininha. Junto com o NSU é o que permite
+   *  casar a venda com a linha do extrato da operadora na conciliação. */
+  aut?: string;
+  /** Operadora (adquirente) escolhida na hora da baixa. Quando vazio, vale a operadora
+   *  configurada na forma de recebimento. Existe porque a mesma forma pode passar em
+   *  maquininhas diferentes. */
+  adquirente?: string;
+  modalidade?: string;
+  bandeira?: string;
+  parcelas?: number;
+};
 export type FormaCfg = { nome: string; tipo?: string; adquirente?: string; contaId?: string; conta?: string };
 export type TaxaRow = { adquirente: string; bandeira: string; forma: string; parcelas: number; aliquotaBps: number };
 
@@ -22,6 +36,42 @@ export const ehMaquininha = (cfg?: FormaCfg) => /maquin|cart/i.test(cfg?.tipo ||
 
 /** Adquirente (rede da maquininha) que casa com TaxaContratada.adquirente. */
 export const adquirenteDe = (cfg?: FormaCfg) => (cfg?.adquirente || cfg?.nome || "").trim();
+
+/** A operadora que vale pra ESTA linha: a escolhida na baixa vence a configurada na forma. */
+export const adquirenteDaLinha = (f: PagForma, cfg?: FormaCfg) =>
+  (f.adquirente || adquirenteDe(cfg) || "").trim();
+
+/**
+ * Confere o que a maquininha exige antes de deixar salvar. Só olha as linhas de CARTÃO —
+ * dinheiro, PIX e crédito do cliente passam direto.
+ *
+ * Operadora, NSU e autorização são o que permite casar a venda com a linha do extrato na
+ * conciliação. Sem eles a conferência do cartão vira trabalho manual no fim do mês.
+ *
+ * Devolve a mensagem do problema, ou null quando está tudo certo.
+ */
+export function validarPagamentosCartao(
+  formas: PagForma[],
+  formasConfig: FormaCfg[],
+): string | null {
+  const cfgByNome = new Map(formasConfig.map((c) => [c.nome, c]));
+  for (let i = 0; i < (formas || []).length; i++) {
+    const f = formas[i];
+    const cfg = cfgByNome.get(f.forma);
+    if (!ehMaquininha(cfg)) continue;
+    if (!(Number(f.valor) > 0)) continue; // linha de cartão sem valor: nada a conferir
+    const onde = formas.length > 1 ? ` (${i + 1}ª forma de pagamento)` : "";
+    // Operadora DELIBERADA: a escolhida na baixa ou a configurada na forma. O nome da forma
+    // não conta — ele é só um substituto pro cálculo da taxa, e aceitá-lo aqui faria esta
+    // exigência nunca falhar (foi o que o teste pegou em 04/09/2026).
+    if (!String(f.adquirente || cfg?.adquirente || "").trim()) {
+      return `Escolha a operadora do cartão${onde}.`;
+    }
+    if (!String(f.nsu || "").trim()) return `Informe o NSU do comprovante${onde}.`;
+    if (!String(f.aut || "").trim()) return `Informe o código de autorização (AUT)${onde}.`;
+  }
+  return null;
+}
 
 /** É dinheiro (gera troco / entra na gaveta)? Reconhece "Dinheiro", "dinheiro", "Espécie". */
 export const ehDinheiro = (forma?: string) => /dinheiro|especie|espécie/i.test(forma || "");

@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useSession } from "next-auth/react";
-import { carregarMeuCaixa, rotuloCaixa, avisoSemMeuCaixa, CaixaAberto } from "@/lib/caixaAtual";
+import { carregarMeuCaixa, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaParaReceber } from "@/lib/caixaAtual";
 
 const FORMAS = ["Dinheiro", "Pix", "Cartão de crédito", "Cartão de débito", "Crédito do cliente"];
 const ORIGEM: Record<string, { lbl: string; bg: string; fg: string }> = {
@@ -24,6 +24,7 @@ export default function ComandasPage() {
   const jaCarregou = useRef(false);
   const [comandas, setComandas] = useState<any[]>([]);
   const [caixaAberto, setCaixaAberto] = useState<string | null>(null); // id do MEU caixa (lib/caixaAtual)
+  const [caixaUsado, setCaixaUsado] = useState<CaixaParaReceber | null>(null); // decisão dos 3 casos
   const [meuCaixa, setMeuCaixa] = useState<CaixaAberto | null>(null);
   const [caixasDeOutros, setCaixasDeOutros] = useState<CaixaAberto[]>([]);
   const { data: session } = useSession();
@@ -64,8 +65,12 @@ export default function ComandasPage() {
   // sessão carrega — por isso este efeito separado, e não dentro do load().
   useEffect(() => {
     if (!meId) return;
-    carregarMeuCaixa(meId).then(({ meu, deOutros }) => {
-      setMeuCaixa(meu); setCaixasDeOutros(deOutros); setCaixaAberto(meu?.id || null);
+    carregarMeuCaixa(meId).then((m) => {
+      setMeuCaixa(m.meu); setCaixasDeOutros(m.deOutros);
+      // Três casos (lib/caixaAtual): o meu; ou o único aberto; ou recusa se há mais de um
+      // e nenhum é meu. Antes bastava não ter o meu pra travar a baixa.
+      const r = caixaParaReceber(m);
+      setCaixaUsado(r); setCaixaAberto(r.caixa?.id || null);
     });
   }, [meId]);
 
@@ -86,7 +91,7 @@ export default function ComandasPage() {
   const baixar = async () => {
     if (!det) return;
     if (!meId) { alert("Só um instante — ainda estou identificando o seu usuário. Tente de novo em 2 segundos."); return; }
-    if (!caixaAberto) { alert(avisoSemMeuCaixa(caixasDeOutros)); return; }
+    if (!caixaAberto) { alert(caixaUsado?.erro || "Abra o seu caixa para receber."); return; }
     const valor = Number(det.aberto || det.valor || 0);
     if (!confirm(`Receber a venda de ${det.tutor} em ${forma}? (${fmtBRL(valor)})`)) return;
     setBaixando(true);
@@ -123,7 +128,7 @@ export default function ComandasPage() {
   const baixarGrupo = async () => {
     if (!detGrupo) return;
     if (!meId) { alert("Só um instante — ainda estou identificando o seu usuário. Tente de novo em 2 segundos."); return; }
-    if (!caixaAberto) { alert(avisoSemMeuCaixa(caixasDeOutros)); return; }
+    if (!caixaAberto) { alert(caixaUsado?.erro || "Abra o seu caixa para receber."); return; }
     if (!confirm(`Receber TODAS as ${detGrupo.comandas.length} vendas de ${detGrupo.tutor} em ${forma}? (${fmtBRL(detGrupo.total)})`)) return;
     setBaixando(true);
     try {
