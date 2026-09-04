@@ -4,6 +4,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { CloudStorageService } from '../media/cloud-storage.service';
 import { findTutorByPhoneUnique } from '../../common/tutor-match';
+import { inserirNonoDigitoBR } from '../../common/phone';
 import * as crypto from 'crypto';
 import {
   WhatsAppMessageType,
@@ -543,6 +544,10 @@ export class WhatsAppService {
 
     // If already has country code, validate and return
     if (hasPlus || detectedCountry) {
+      // BR com o pais mas SEM o nono digito (12 digitos, formato antigo): a Meta recusa
+      // com "Message undeliverable" (131026). Acontecia porque este return devolvia o
+      // numero como veio -- a insercao do 9 la embaixo so roda pra numero SEM o 55.
+      if (detectedCountry === 'BR') return inserirNonoDigitoBR(digits);
       return digits;
     }
 
