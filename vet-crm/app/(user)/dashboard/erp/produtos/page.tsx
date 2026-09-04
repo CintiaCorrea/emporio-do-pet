@@ -267,11 +267,14 @@ export default function ProductsPage() {
     }
   };
 
-  const getTypeIcon = (type: ProductType) => {
+  // Devolve o EMOJI do tipo (padrão Base44, igual ao resto do sistema).
+  // Antes os três casos eram `return;` — sobra de quando os ícones de linha viraram emoji.
+  // Como a tela renderizava <TypeIcon /> com esse nada, a página inteira quebrava ao abrir.
+  const getTypeIcon = (type: ProductType): string => {
     switch (type) {
-      case 'MEDICINE': return;
-      case 'VACCINE': return;
-      default: return;
+      case 'MEDICINE': return '💊';
+      case 'VACCINE': return '💉';
+      default: return '📦';
     }
   };
 
@@ -501,7 +504,7 @@ export default function ProductsPage() {
                   </thead>
                   <tbody>
                     {filteredProducts.map((product) => {
-                      const TypeIcon = getTypeIcon(product.type);
+                      const tipoEmoji = getTypeIcon(product.type);
                       
                       return (
                         <tr 
@@ -512,7 +515,7 @@ export default function ProductsPage() {
                           <td className="p-6">
                             <div className="flex items-center gap-3">
                               <div className={`p-2 rounded-xl ${getTypeColor(product.type)}`}>
-                                <TypeIcon className="w-5 h-5" />
+                                <span className="text-lg leading-none">{tipoEmoji}</span>
                               </div>
                               <div>
                                 <div className="font-semibold text-gray-900">{product.name}</div>
@@ -524,7 +527,7 @@ export default function ProductsPage() {
                           </td>
                           <td className="p-6">
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getTypeColor(product.type)}`}>
-                              <TypeIcon className="w-3 h-3 mr-1" />
+                              <span className="mr-1">{tipoEmoji}</span>
                               {getTypeLabel(product.type)}
                             </span>
                           </td>

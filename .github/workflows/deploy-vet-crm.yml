@@ -16,6 +16,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 🛡️ CATRACA DE TIPOS (o portão que o frontend não tinha).
+      #
+      # O next.config manda ignorar erros de tipo (ignoreBuildErrors), então qualquer
+      # defeito ia pro ar — foi assim que a tela Produtos, quebrada, chegou em produção
+      # com o verificador apontando o erro na linha certa o tempo todo.
+      #
+      # Exigir ZERO erro travaria todo deploy (havia 73 em 03/09/2026). Então a regra é
+      # OUTRA: o número não pode AUMENTAR. O limite fica em vet-crm/.catraca-tipos.
+      # Ninguém consegue introduzir o próximo erro; e cada vez que consertamos, o número
+      # desce e a catraca desce junto. Nunca sobe.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Instalar pnpm
+        run: npm install -g pnpm@9.15.4
+      - name: Instalar dependências
+        working-directory: vet-crm
+        run: pnpm install --no-frozen-lockfile
+      - name: Prisma generate
+        working-directory: vet-crm
+        run: npx prisma generate
+      - name: 🛡️ Catraca — erros de tipo não podem aumentar
+        working-directory: vet-crm
+        run: |
+          LIMITE=$(tr -d '[:space:]' < .catraca-tipos)
+          ERROS=$(npx tsc --noEmit 2>&1 | grep -cE "error TS" || true)
+          echo "Limite gravado em .catraca-tipos: $LIMITE"
+          echo "Erros encontrados agora:          $ERROS"
+          if [ "$ERROS" -gt "$LIMITE" ]; then
+            echo "::error::A catraca subiu de $LIMITE para $ERROS. Conserte o erro novo — não aumente o limite."
+            npx tsc --noEmit 2>&1 | grep -E "error TS" || true
+            exit 1
+          fi
+          if [ "$ERROS" -lt "$LIMITE" ]; then
+            echo "::notice::Baixou de $LIMITE para $ERROS. Grave $ERROS em vet-crm/.catraca-tipos para travar o ganho."
+          fi
+          echo "Catraca OK."
+
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
       - name: Deploy to Fly.io

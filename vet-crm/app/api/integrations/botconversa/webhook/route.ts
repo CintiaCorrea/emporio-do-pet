@@ -7,7 +7,7 @@ const BC_BASE = 'https://backend.botconversa.com.br/api/v1/webhook';
 /**
  * Normaliza telefone BR.
  */
-function normalizePhoneBR(phone) {
+function normalizePhoneBR(phone: unknown): string | null {
   if (!phone) return null;
   let d = String(phone).replace(/\D/g, '');
   if (!d) return null;
@@ -35,7 +35,7 @@ function normalizePhoneBR(phone) {
   return d;
 }
 
-function normalizePayloadPhones(payload) {
+function normalizePayloadPhones(payload: any) {
   if (!payload || typeof payload !== 'object') return payload;
   const keys = ['phone', 'full_phone', 'telefone', 'fone'];
   for (const k of keys) {
@@ -50,7 +50,7 @@ function normalizePayloadPhones(payload) {
 /**
  * Busca tags atuais do contato no BotConversa.
  */
-async function fetchSubscriberTags(phone) {
+async function fetchSubscriberTags(phone: string) {
   if (!phone) return [];
   try {
     const res = await fetch(`${BC_BASE}/subscriber/get_by_phone/${phone}/`, {
@@ -71,7 +71,7 @@ async function fetchSubscriberTags(phone) {
 /**
  * Verifica se telefone existe como Tutor no backend.
  */
-async function findExistingTutor(apiBase, phone) {
+async function findExistingTutor(apiBase: string, phone: string) {
   if (!phone) return null;
   const d = String(phone).replace(/\D/g, '');
   if (!d) return null;
@@ -97,14 +97,14 @@ async function findExistingTutor(apiBase, phone) {
  * Determina tipo_contato baseado em tags do BC.
  * Tag "Cliente" -> cliente. Senao mantem o que veio.
  */
-function classifyByTags(tags, defaultType) {
+function classifyByTags(tags: unknown, defaultType: string): string {
   if (!Array.isArray(tags) || tags.length === 0) return defaultType;
   const hasClienteTag = tags.some(t => /^cliente$/i.test(String(t).trim()));
   if (hasClienteTag) return 'cliente';
   return defaultType;
 }
 
-async function forward(request, method) {
+async function forward(request: Request, method: string) {
   const backendBase = getBackendBaseUrl();
   if (!backendBase) {
     return NextResponse.json({ ok: false, error: 'Backend nao configurado' }, { status: 500 });
@@ -154,15 +154,15 @@ async function forward(request, method) {
     try { parsed = JSON.parse(txt); } catch { parsed = { ok: res.ok, raw: txt.slice(0, 500) }; }
     return NextResponse.json(parsed, { status: res.status });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: e?.message || String(e) }, { status: 502 });
+    return NextResponse.json({ ok: false, error: (e as any)?.message || String(e) }, { status: 502 });
   }
 }
 
-export async function POST(request) {
+export async function POST(request: Request) {
   return forward(request, 'POST');
 }
 
-export async function GET(request) {
+export async function GET(request: Request) {
   return NextResponse.json({
     ok: true,
     info: 'BotConversa webhook endpoint',

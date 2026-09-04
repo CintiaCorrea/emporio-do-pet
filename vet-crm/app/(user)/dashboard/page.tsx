@@ -255,7 +255,9 @@ export default function DashboardPage() {
 
   const dosesView = useMemo(() => {
     const arr = Array.isArray(dosesPend) ? dosesPend : [];
-    return (effectiveRole === "VET" && meId) ? arr.filter((d: any) => d.vetId === meId) : arr;
+    // Era "VET", papel que NAO existe (os papeis sao ADMIN | VETERINARIAN | RECEPTIONIST),
+    // entao a comparacao nunca dava certo e todo veterinario via as doses de TODO MUNDO.
+    return (effectiveRole === "VETERINARIAN" && meId) ? arr.filter((d: any) => d.vetId === meId) : arr;
   }, [dosesPend, effectiveRole, meId]);
 
   const items: Pendencia[] = useMemo(() => {
