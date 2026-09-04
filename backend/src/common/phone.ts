@@ -67,3 +67,22 @@ export function samePhone(a?: string | null, b?: string | null): boolean {
   const lb8 = lb.slice(-8);
   return la8.length === 8 && la8 === lb8;
 }
+
+/**
+ * Insere o NONO DIGITO num numero brasileiro que ja vem com o codigo do pais mas
+ * ficou no formato antigo (12 digitos: 55 + DDD + 8 digitos).
+ *
+ * Diferente de normalizePhone(), este NAO mexe em telefone fixo: no Brasil os fixos
+ * comecam com 2-5 e nunca receberam o 9. Inserir o 9 num fixo criaria um numero que
+ * nao existe.
+ *
+ * Existe porque a Meta recusa numero sem o 9 com "Message undeliverable" (erro 131026)
+ * -- foi o que aconteceu em 04/09/2026 com 558599522127.
+ */
+export function inserirNonoDigitoBR(raw?: string | null): string {
+  const d = onlyDigits(raw);
+  if (d.length !== 12 || !d.startsWith('55')) return d;
+  const local = d.slice(4); // depois de 55 + DDD
+  if (['2', '3', '4', '5'].includes(local[0])) return d; // fixo: nunca leva 9
+  return d.slice(0, 4) + '9' + local;
+}
