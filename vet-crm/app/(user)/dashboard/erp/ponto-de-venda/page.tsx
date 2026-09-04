@@ -8,13 +8,13 @@ import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
 import { useSession } from 'next-auth/react';
-import { carregarMeuCaixa, rotuloCaixa, avisoSemMeuCaixa, CaixaAberto } from '@/lib/caixaAtual';
+import { carregarMeuCaixa, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaParaReceber } from '@/lib/caixaAtual';
 import { carregarEstoqueComprometido, avisoDeEstoque, MapaEstoque } from '@/lib/estoqueComprometido';
 import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
 import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from '@/lib/catalogoVendavel';
-import { ehDinheiro, carregarFormasRecebimento, PagForma } from '@/lib/formasPagamento';
+import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma } from '@/lib/formasPagamento';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 
 const TEAL = '#009AAC';
@@ -68,6 +68,7 @@ export default function PDVPage() {
   const [caixaAbertoId, setCaixaAbertoId] = useState<string | null>(null);
   const [caixaAberturaTs, setCaixaAberturaTs] = useState<number | null>(null); // início do caixa aberto (regra de exclusão)
   const [meuCaixa, setMeuCaixa] = useState<CaixaAberto | null>(null); // núcleo lib/caixaAtual: o caixa de QUEM ESTÁ LOGADA
+  const [caixaUsado, setCaixaUsado] = useState<CaixaParaReceber | null>(null); // decisão dos 3 casos
   const [caixasDeOutros, setCaixasDeOutros] = useState<CaixaAberto[]>([]);
   const [estoque, setEstoque] = useState<MapaEstoque>(new Map()); // núcleo lib/estoqueComprometido
 
@@ -216,17 +217,21 @@ export default function PDVPage() {
 
   // Núcleo lib/caixaAtual: o caixa é o DE QUEM ESTÁ LOGADA (duas funcionárias, dois caixas abertos).
   const recarregarMeuCaixa = useCallback(async () => {
-    const { meu, deOutros } = await carregarMeuCaixa(meId);
-    setMeuCaixa(meu); setCaixasDeOutros(deOutros);
-    setCaixaAberto(!!meu); setCaixaAbertoId(meu?.id || null);
-    setCaixaAberturaTs(meu?.abertura ? new Date(meu.abertura).getTime() : null);
+    const m = await carregarMeuCaixa(meId);
+    setMeuCaixa(m.meu); setCaixasDeOutros(m.deOutros);
+    // Três casos (lib/caixaAtual): o meu; ou o único aberto quando não tenho o meu; ou
+    // recusa quando há mais de um e nenhum é meu. Antes bastava não ter o meu pra travar.
+    const r = caixaParaReceber(m);
+    setCaixaUsado(r);
+    setCaixaAberto(!!r.caixa); setCaixaAbertoId(r.caixa?.id || null);
+    setCaixaAberturaTs(r.caixa?.abertura ? new Date(r.caixa.abertura).getTime() : null);
   }, [meId]);
   // Quando a sessão carrega depois da tela, refaz a escolha do caixa.
   useEffect(() => { if (meId) recarregarMeuCaixa(); }, [meId, recarregarMeuCaixa]);
 
   // ----- Registrar recebimento de venda existente -----
   function abrirRecVenda() {
-    if (!caixaAbertoId) { toast.error(avisoSemMeuCaixa(caixasDeOutros)); return; }
+    if (!caixaAbertoId) { toast.error(caixaUsado?.erro || 'Abra o seu caixa para receber.'); return; }
     const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
     setRecFormas([{ forma: 'Dinheiro', valor: Number(aReceber.toFixed(2)) }]);
     setRecOpen(true);
@@ -236,6 +241,8 @@ export default function PDVPage() {
     const formasValidas = recFormas.filter((f) => Number(f.valor) > 0);
     const soma = formasValidas.reduce((s, f) => s + Number(f.valor || 0), 0);
     if (soma <= 0.001) { toast.error('Informe o valor recebido.'); return; }
+    const faltaCartao = validarPagamentosCartao(formasValidas, formasConfig);
+    if (faltaCartao) { toast.error(faltaCartao); return; }
     const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
     const temDin = formasValidas.some((f) => ehDinheiro(f.forma));
     const trocoR = temDin && soma > aReceber ? Number((soma - aReceber).toFixed(2)) : 0;
@@ -502,7 +509,12 @@ export default function PDVPage() {
   };
 
   const abrirRecebimento = () => { if (!baseValida) return; setFormas([{ forma: 'Dinheiro', valor: Number(total.toFixed(2)) }]); setModal(true); };
-  const confirmarRecebimento = () => enviar(payload({ tipo: 'VENDA', formas: formas.filter((f) => Number(f.valor) > 0) }), 'Venda registrada!');
+  const confirmarRecebimento = () => {
+    // Cartão exige operadora + NSU + AUT: é o que casa a venda com a linha do extrato.
+    const falta = validarPagamentosCartao(formas.filter((f) => Number(f.valor) > 0), formasConfig);
+    if (falta) { toast.error(falta); return; }
+    return enviar(payload({ tipo: 'VENDA', formas: formas.filter((f) => Number(f.valor) > 0) }), 'Venda registrada!');
+  };
   const salvar = () => { if (tipo === 'ORCAMENTO') return salvarOrcamento(); return enviar(payload({ tipo }), 'Venda salva (a receber)'); };
   // 🖨️ Imprime o que está na tela (venda ou orçamento, conforme o tipo) — mesmo antes de salvar.
   const imprimirAtual = () => {
@@ -562,7 +574,7 @@ export default function PDVPage() {
 
   async function baixarGrupoPDV() {
     if (!grupoBaixa) return;
-    if (!caixaAbertoId) { toast.error(avisoSemMeuCaixa(caixasDeOutros)); return; }
+    if (!caixaAbertoId) { toast.error(caixaUsado?.erro || 'Abra o seu caixa para receber.'); return; }
     setBaixandoGrupo(true);
     let ok = 0;
     try {
