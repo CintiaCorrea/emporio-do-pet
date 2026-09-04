@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import { LuPencil, LuTrash2, LuCalendar, LuRotateCcw, LuStethoscope, LuActivity, LuSyringe, LuFileText, LuFlaskConical, LuVideo, LuPrinter } from "react-icons/lu";
 import { imprimirDocumento } from "@/lib/print";
 import { corDoTipo } from "@/lib/coresProntuario";
+import { entraNaLinhaDoTempo } from "@/lib/timelineClinica";
 
 const ATD_LBL = (t?: string) => (({ CONSULTA: "Consulta", RETORNO: "Retorno", AVALIACAO: "Avaliação", EMERGENCIA: "Emergência", PROCEDIMENTO: "Procedimento", VACINACAO: "Vacinação", SESSAO_FISIO: "Sessão de fisio", CIRURGIA: "Cirurgia", Receitas: "Receita", Documento: "Documento", Video: "Vídeo", OUTRO: "Outro" } as any)[t || ""] || t || "Atendimento");
 const DOC_LBL = (t?: string) => (({ ANAMNESIS: "Anamnese", PRESCRIPTION: "Receita", DIAGNOSIS: "Diagnóstico", TUTOR_REPORT: "Relatório", MEDICAL_CERTIFICATE: "Atestado", EXAM_REQUEST: "Solicitação de exame", SURGICAL_REPORT: "Relatório cirúrgico", DISCHARGE_SUMMARY: "Alta", VACCINATION_CARD: "Carteira de vacina", GENERAL: "Documento" } as any)[t || ""] || "Documento");
@@ -62,8 +63,10 @@ export default function FeedTimeline({ atendimentos = [], clinDocs = [], histori
     const docApptIds = new Set((clinDocs || []).map((x: any) => x.appointmentId).filter(Boolean));
     // A linha do tempo é SÓ clínica: fora VENDA (→ aba Compras) e AGENDAMENTO (→ aba Agenda: agendado/
     // confirmado/remarcado/cancelado/bloqueada/programada/faltou). Ficam só os atendimentos realizados.
-    const EH_AGENDA = /agendad|scheduled|confirmad|remarcad|cancelad|bloquead|programad|missed|compareceu|faltou/i;
-    const a = (atendimentos || []).filter((x: any) => !docApptIds.has(x.id) && x.type !== "Resultado de exames" && x.type !== "Venda" && !EH_AGENDA.test(String(x.status || ""))).map((x: any) => ({ id: "a" + x.id, src: "atd", raw: x, rawId: x.id, kind: x.type, cat: x.type === "VACINACAO" ? "VACINA" : (x.type === "Receitas" ? "RECEITA" : (x.type === "Documento" ? "DOCUMENTO" : "ATENDIMENTO")), date: x.date, title: ATD_LBL(x.type), prof: x.user?.name, summary: x.chiefComplaint || stripHtml(x.prescription || ""), status: x.status }));
+    // Quem decide se o atendimento entra e o nucleo lib/timelineClinica. Antes era uma
+    // expressao unica aqui, e ela escondia "Compareceu" junto com "Nao compareceu" —
+    // foi assim que a avaliacao de fisioterapia sumiu da ficha do Snoopy em 04/09/2026.
+    const a = (atendimentos || []).filter((x: any) => !docApptIds.has(x.id) && x.type !== "Resultado de exames" && x.type !== "Venda" && entraNaLinhaDoTempo(x)).map((x: any) => ({ id: "a" + x.id, src: "atd", raw: x, rawId: x.id, kind: x.type, cat: x.type === "VACINACAO" ? "VACINA" : (x.type === "Receitas" ? "RECEITA" : (x.type === "Documento" ? "DOCUMENTO" : "ATENDIMENTO")), date: x.date, title: ATD_LBL(x.type), prof: x.user?.name, summary: x.chiefComplaint || stripHtml(x.prescription || ""), status: x.status }));
     const d = (clinDocs || []).map((x: any) => ({ id: "d" + x.id, src: "doc", raw: x, rawId: x.id, kind: x.type || "GENERAL", cat: x.type === "PRESCRIPTION" ? "RECEITA" : "DOCUMENTO", date: x.createdAt || x.appointment?.date, title: DOC_LBL(x.type), prof: x.user?.name, summary: x.title || "", status: "", arquivoUrl: x.pdfUrl || x.fileUrl || null, temArquivo: !!(x.pdfUrl || x.fileUrl) }));
     // Histórico importado do SimplesVet (só-leitura)
     const h = (historico || []).map((x: any) => ({ id: "h" + x.id, src: "hist", raw: x, rawId: x.id, kind: x.tipo, cat: x.tipo, date: x.data, title: x.titulo || TIPO_HIST(x.tipo), prof: x.autor, summary: x.resumo || stripHtml(x.texto).slice(0, 140), status: "", imported: x.origem !== "MANUAL", temArquivo: !!x.temArquivo }));

@@ -1,5 +1,8 @@
+import { PESO_MAX_KG, PESO_MIN_KG } from '../../../common/peso';
 import {
   IsString,
+  Max,
+  Min,
   IsUUID,
   IsOptional,
   IsEnum,
@@ -95,9 +98,17 @@ export class CreatePetDto {
   @IsDateString()
   birthDate?: string;
 
-  @ApiPropertyOptional({ example: 12.5 })
+  // Trava do peso (04/09/2026). O Snoopy (#7974), poodle, estava com 8100 kg — 8,1 sem a
+  // virgula. O peso e digitado em CINCO telas e nada validava. Como a diaria, a medicacao e
+  // a caucao passaram a ser cobradas por FAIXA DE PESO, peso errado virou cobranca errada.
+  // A trava no DTO cobre as cinco telas de uma vez. Limites e mensagem em common/peso.
+  @ApiPropertyOptional({ example: 12.5, minimum: PESO_MIN_KG, maximum: PESO_MAX_KG })
   @IsOptional()
   @IsNumber()
+  @Min(0, { message: 'O peso nao pode ser negativo.' })
+  @Max(PESO_MAX_KG, {
+    message: `Peso acima de ${PESO_MAX_KG} kg nao e possivel para um cao ou gato. Confira se a virgula foi digitada.`,
+  })
   weight?: number;
 
   @ApiPropertyOptional({ enum: CoatType })

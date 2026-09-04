@@ -26,7 +26,6 @@ export const PERM_SECTIONS: PermSection[] = [
   {
     titulo: "Dia a dia", emoji: "🗂️", itens: [
       { key: "/dashboard/hoje", label: "Meu painel", emoji: "🏠" },
-      { key: "/dashboard/inbox", label: "Inbox BC", emoji: "💬" },
       { key: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲" },
       { key: "/dashboard/comercial", label: "Comercial", emoji: "🎯" },
       { key: "/dashboard/erp/tutores", label: "Clientes", emoji: "👥" },
@@ -46,6 +45,8 @@ export const PERM_SECTIONS: PermSection[] = [
         ],
       },
       { key: "/dashboard/erp/internacoes", label: "Internação", emoji: "🏥" },
+      { key: "/dashboard/erp/exames-kanban", label: "Exames", emoji: "🔬" },
+      { key: "/dashboard/erp/pesos-suspeitos", label: "Pesos a revisar", emoji: "⚖️" },
     ],
   },
   {
@@ -54,6 +55,8 @@ export const PERM_SECTIONS: PermSection[] = [
         key: "vendas", label: "Vendas", emoji: "💰", children: [
           { key: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒" },
           { key: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵" },
+          { key: "/dashboard/erp/comandas", label: "Vendas em aberto", emoji: "🧾" },
+          { key: "/dashboard/erp/orcamentos", label: "Orçamentos", emoji: "📋" },
           { key: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦" },
           { key: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾" },
           { key: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", emoji: "🔄" },
@@ -122,6 +125,7 @@ export const PERM_SECTIONS: PermSection[] = [
           { key: "/dashboard/ai-agents/automacoes", label: "Automações", emoji: "⚡" },
           { key: "/dashboard/ai-agents/conexoes", label: "Conexões", emoji: "🔌" },
           { key: "/dashboard/ai-agents/templates", label: "Templates", emoji: "📋" },
+          { key: "/dashboard/agente-sombra", label: "Agente Sombra", emoji: "👻" },
         ],
       },
     ],

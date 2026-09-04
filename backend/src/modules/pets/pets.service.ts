@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
+import { pesoSuspeito, sugestoesDeCorrecao, PESO_SUSPEITO_KG } from '../../common/peso';
 import { proximoCodigo, isColisaoCodigo } from '../../common/codigo';
 
 @Injectable()
@@ -340,4 +341,41 @@ export class PetsService {
       timeline,
     };
   }
+
+  /**
+   * Pets com peso implausivel — a varredura pedida pela Cintia em 04/09/2026, depois de
+   * achar o Snoopy (#7974) com 8100 kg.
+   *
+   * A trava do DTO impede NOVOS erros; esta lista mostra os que ja estavam no cadastro
+   * antes dela existir. Cada linha traz as leituras possiveis do numero digitado, mas
+   * NAO corrige nada sozinha: quem sabe o peso do animal e quem esta com ele na frente.
+   *
+   * Importa porque diaria de internacao, medicacao e caucao passaram a ser cobradas por
+   * faixa de peso — cada pet desta lista e uma cobranca errada esperando acontecer.
+   */
+  async pesosSuspeitos() {
+    const pets = await this.prisma.pet.findMany({
+      where: { OR: [{ weight: { gt: PESO_SUSPEITO_KG } }, { weight: { gt: 0, lt: 0.05 } }] },
+      select: {
+        id: true, codigo: true, name: true, weight: true, species: true,
+        tutor: { select: { id: true, name: true } },
+      },
+      orderBy: { weight: 'desc' },
+      take: 500,
+    });
+    const itens = pets
+      .filter((p) => pesoSuspeito(p.weight))
+      .map((p) => ({
+        id: p.id,
+        codigo: p.codigo,
+        nome: p.name,
+        especie: p.species,
+        tutor: p.tutor?.name || null,
+        tutorId: p.tutor?.id || null,
+        pesoAtual: p.weight,
+        leiturasPossiveis: sugestoesDeCorrecao(p.weight),
+      }));
+    return { total: itens.length, limiteKg: PESO_SUSPEITO_KG, itens };
+  }
+
 }
