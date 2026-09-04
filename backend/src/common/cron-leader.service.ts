@@ -20,19 +20,37 @@ export class CronLeaderService implements OnApplicationBootstrap {
   constructor(private readonly registry: SchedulerRegistry) {}
 
   onApplicationBootstrap(): void {
+    const grupo = process.env.FLY_PROCESS_GROUP; // a Fly define sozinha: "app" ou "worker"
     const principal = process.env.PRIMARY_MACHINE_ID;
     const eu = process.env.FLY_MACHINE_ID;
 
-    // Sem designação, ou eu SOU a principal → rodo os crons normalmente.
-    if (!principal || !eu || eu === principal) {
-      this.logger.log(
-        `Rotinas automáticas ATIVAS nesta máquina (${eu || 'local'})` +
-          (principal ? ' — é a principal' : ' — sem PRIMARY_MACHINE_ID definido'),
-      );
+    // ── CRITÉRIO ATUAL: o PAPEL da máquina, não o número de série ──────────────────
+    // O critério antigo (PRIMARY_MACHINE_ID) apontava para UMA máquina específica. Como
+    // cada deploy pode trocar a máquina, o número guardado ficava órfão — e aí NENHUMA
+    // máquina se considerava a principal e as 32 rotinas paravam caladas. Foi o incidente
+    // de 10/08/2026. O grupo de processo vem da própria Fly a cada boot: nunca fica órfão.
+    if (grupo) {
+      if (grupo === 'worker') {
+        this.logger.log(`Rotinas automáticas ATIVAS — esta é a máquina de ROTINAS (${eu || '?'}).`);
+        return;
+      }
+      this.desligarRotinas(`grupo "${grupo}" (máquina de ATENDIMENTO)`);
       return;
     }
 
-    // Máquina secundária: desliga todos os crons e intervalos registrados.
+    // ── COMPATIBILIDADE: sem grupo definido (local, ou app ainda sem [processes]) ──
+    if (!principal || !eu || eu === principal) {
+      this.logger.log(
+        `Rotinas automáticas ATIVAS nesta máquina (${eu || 'local'})` +
+          (principal ? ' — é a principal' : ' — sem grupo e sem PRIMARY_MACHINE_ID'),
+      );
+      return;
+    }
+    this.desligarRotinas(`máquina secundária (principal é ${principal})`);
+  }
+
+  /** Desliga TODOS os crons e intervalos registrados — inclusive os criados no futuro. */
+  private desligarRotinas(motivo: string): void {
     let n = 0;
     try {
       const jobs = this.registry.getCronJobs();
@@ -48,8 +66,8 @@ export class CronLeaderService implements OnApplicationBootstrap {
     } catch { /* sem intervals */ }
 
     this.logger.warn(
-      `Máquina SECUNDÁRIA (${eu}) — ${n} rotina(s) automática(s) DESLIGADA(s). ` +
-        `Só a principal (${principal}) roda cron. Esta máquina serve requisições (inbox, API).`,
+      `${n} rotina(s) automática(s) DESLIGADA(s) — ${motivo}. ` +
+        `Esta máquina só serve requisições (inbox, API, PDV).`,
     );
   }
 }
