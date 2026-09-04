@@ -6,6 +6,7 @@ import { RecebimentosService } from '../financeiro/recebimentos.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
+import { escolherMeuCaixa, avisoSemMeuCaixa } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 
 function dayRange(dateStr?: string) {
@@ -1234,9 +1235,16 @@ export class CaixaService {
     if (somaFormas > 0.001) {
       let caixaId = dto.caixaId || null;
       if (!caixaId) {
-        const aberto = await this.prisma.caixaSessao.findFirst({ where: { status: 'ABERTO' }, orderBy: { abertura: 'desc' } });
-        if (!aberto) throw new BadRequestException('Nenhum caixa aberto. Abra o caixa antes de receber.');
-        caixaId = aberto.id;
+        // Núcleo único (caixa.regras): o recebimento entra no caixa de QUEM está recebendo.
+        // A clínica opera com dois caixas abertos ao mesmo tempo e o PDV não envia caixaId —
+        // então era aqui que a venda de uma funcionária caía na gaveta da outra.
+        const abertos = await this.prisma.caixaSessao.findMany({
+          where: { status: 'ABERTO' },
+          select: { id: true, userId: true, abertura: true },
+        });
+        const meu = escolherMeuCaixa(abertos, userId);
+        if (!meu) throw new BadRequestException(avisoSemMeuCaixa(abertos.length));
+        caixaId = meu.id;
       }
       recebimento = await this.registrarRecebimento(caixaId, {
         appointmentId: appointment.id, valorTotal: valorAplicado,
