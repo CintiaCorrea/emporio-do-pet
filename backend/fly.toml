@@ -20,6 +20,24 @@ primary_region = "gru"  # São Paulo, Brasil
   AI_SERVICE_URL = "http://emporio-pet-ai.internal:8080"
   FRONTEND_URL = "https://emporiodopet.com.br"
 
+# =====================================================
+# DOIS PAPÉIS, O MESMO CÓDIGO E O MESMO DEPLOY (03/09/2026)
+# =====================================================
+# Antes UMA máquina fazia as duas coisas: atender as telas E rodar as 32 rotinas
+# automáticas (lembretes, confirmação de agenda, polling do BotConversa, financeiro
+# de 30 em 30 min, fechamento de caixa, boletins...). Quando uma rotina pesada rodava,
+# a recepcionista esperava no balcão — disputavam o mesmo processador.
+#
+#   app    → atende as telas. NENHUMA rotina roda aqui.
+#   worker → roda as rotinas. NÃO recebe requisição de ninguém.
+#
+# Quem desliga as rotinas no "app" é o CronLeaderService, lendo FLY_PROCESS_GROUP
+# (a Fly define sozinha a cada boot). Não usa mais número de série de máquina —
+# esse era o defeito que parou todas as rotinas em 10/08/2026.
+[processes]
+  app = "node dist/main"
+  worker = "node dist/main"
+
 [http_service]
   internal_port = 8080
   force_https = true
@@ -56,9 +74,20 @@ primary_region = "gru"  # São Paulo, Brasil
 [deploy]
   release_command = "sh -c 'npx prisma db execute --file prisma/pgvector_extension.sql --schema prisma/schema.prisma && npx prisma db push && npx prisma db execute --file prisma/pgvector_setup.sql --schema prisma/schema.prisma'"
 
-# Machine configuration
+# Machine configuration — uma linha por papel.
+# O "app" mantém o que já existia (CPU dedicada, 2 GB), agora em DUAS máquinas.
+# O "worker" é mais modesto de propósito: rotina não tem gente esperando do outro lado,
+# então segundos a mais não incomodam ninguém. Se o monitor de automações
+# (GET /api/health/automations) começar a acusar atraso, é aqui que se aumenta.
 [[vm]]
+  processes = ["app"]
   memory = "2gb"
   cpu_kind = "performance"
+  cpus = 1
+
+[[vm]]
+  processes = ["worker"]
+  memory = "1gb"
+  cpu_kind = "shared"
   cpus = 1
 
