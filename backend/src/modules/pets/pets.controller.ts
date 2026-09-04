@@ -92,6 +92,13 @@ export class PetsController {
     return this.petsService.listaSimples();
   }
 
+  // ANTES do @Get(':id'), senao 'peso-suspeito' seria lido como um id.
+  @Get('peso-suspeito')
+  @ApiOperation({ summary: 'Pets com peso implausivel (provavel virgula esquecida)' })
+  pesosSuspeitos() {
+    return this.petsService.pesosSuspeitos();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar pet por ID' })
   findOne(@Param('id') id: string) {
