@@ -30,13 +30,9 @@ export async function sendNewsletterToRecipients(
       include: {
         recipients: {
           include: {
-            client: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-              },
-            },
+            // Nao existe 'client' em Recipient: o modelo so tem tutor/leadEmail desde a
+            // unificacao cliente/tutor. O include quebrado aqui era a RAIZ de 12 erros de
+            // tipo neste arquivo -- sem ele o Prisma nem sabia dizer o que 'recipients' era.
             tutor: {
               select: {
                 id: true,
@@ -67,13 +63,8 @@ export async function sendNewsletterToRecipients(
     // Coletar todos os e-mails dos destinatários
     const emailRecipients: string[] = [];
 
-    // Para recipients do tipo CLIENT
-    const clientEmails = newsletter.recipients
-      .filter(recipient => recipient.clientId && recipient.client?.email)
-      .map(recipient => recipient.client!.email!)
-      .filter(email => email && email.trim() !== '');
-
-    emailRecipients.push(...clientEmails);
+    // (O bloco CLIENT foi removido: Recipient nao tem clientId/client, entao ele nunca
+    // achava ninguem em execucao -- so atrapalhava a verificacao de tipos.)
 
     // Para recipients do tipo TUTOR
     const tutorEmails = newsletter.recipients

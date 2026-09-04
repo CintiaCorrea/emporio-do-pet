@@ -46,8 +46,15 @@ primary_region = "gru"  # São Paulo, Brasil
 # Release command - sync schema + pgvector setup
 # 1. prisma db push: cria/sincroniza tabelas (ignora campos Unsupported como embedding)
 # 2. prisma db execute: aplica extensão pgvector, coluna embedding e índice HNSW
+#
+# ⚠️ SEM --accept-data-loss (03/09/2026). Antes ele estava aqui e autorizava o deploy a
+# APAGAR dados do banco de produção para fazer o banco caber no desenho do código — sozinho,
+# a cada deploy, sem perguntar. Bastava alguém remover um campo do schema pra coluna sumir
+# em produção. Sem a flag, um deploy que exigiria destruir dado FALHA em vez de executar
+# calado: a gente descobre antes, não depois. Se um deploy parar aqui, NÃO recoloque a flag —
+# olhe o que ele quer destruir primeiro.
 [deploy]
-  release_command = "sh -c 'npx prisma db execute --file prisma/pgvector_extension.sql --schema prisma/schema.prisma && npx prisma db push --accept-data-loss && npx prisma db execute --file prisma/pgvector_setup.sql --schema prisma/schema.prisma'"
+  release_command = "sh -c 'npx prisma db execute --file prisma/pgvector_extension.sql --schema prisma/schema.prisma && npx prisma db push && npx prisma db execute --file prisma/pgvector_setup.sql --schema prisma/schema.prisma'"
 
 # Machine configuration
 [[vm]]
