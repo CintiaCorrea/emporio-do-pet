@@ -116,6 +116,9 @@ const DEFAULT_RETRY_CONFIG: RetryConfig = {
 @Injectable()
 export class WhatsAppService {
   private readonly logger = new Logger(WhatsAppService.name);
+
+  /** Ultima vez que a listagem religou conversas orfas (ver getConversations). */
+  private ultimoReligamentoOrfas = 0;
   private readonly accessToken: string;
   private readonly phoneNumberId: string;
   private readonly webhookVerifyToken: string;
@@ -1325,7 +1328,17 @@ export class WhatsAppService {
     // Assim, corrigir o telefone faz a conversa reconhecer o cliente no próximo refresh, sem
     // depender de uma mensagem nova chegar. Só liga quando o número é de UM único cliente.
     const orfas = conversations.filter((c: any) => !c.tutorId && c.contactPhone);
-    if (orfas.length) {
+    // ESTRANGULADO (03/09/2026): isto rodava a CADA listagem — e o inbox lista de 25 em 25
+    // segundos, por aba aberta, a noite inteira. Com N conversas sem cliente eram N buscas
+    // por telefone MAIS ate 3 gravacoes cada, num caminho que deveria so LER. Os registros do
+    // servidor mostravam 8 listagens por minuto a meia-noite, sem ninguem na clinica.
+    // Agora roda no maximo 1x a cada 5 minutos: quem corrige um telefone na ficha continua
+    // vendo a conversa reconhecer o cliente sozinha, so nao a cada 25 segundos. O religamento
+    // imediato continua acontecendo no webhook, quando chega mensagem nova.
+    const agora = Date.now();
+    const podeReligar = agora - this.ultimoReligamentoOrfas > 5 * 60 * 1000;
+    if (orfas.length && podeReligar) {
+      this.ultimoReligamentoOrfas = agora;
       await Promise.all(
         orfas.map(async (c: any) => {
           try {

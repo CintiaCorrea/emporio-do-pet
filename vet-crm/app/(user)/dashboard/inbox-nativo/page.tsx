@@ -26,6 +26,7 @@ import {
 import EmojiPicker from "@/components/inbox/EmojiPicker";
 import BoletimModal from "@/components/pets/BoletimModal";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
+import { pollVisivel } from "@/lib/pollVisivel";
   import InboxRightPanel from "@/components/inbox/InboxRightPanel";
   import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 type Tab = "conversas" | "internas" | "encaminhadas";
@@ -637,8 +638,8 @@ export default function InboxUnificadoPage() {
       finally { if (!silent) setLoading(false); }
     };
     carregar(false);
-    const id = setInterval(() => carregar(true), 25000);
-    return () => { alive = false; clearInterval(id); };
+    const parar = pollVisivel(() => carregar(true), 25000);
+    return () => { alive = false; parar(); };
   }, [refreshTick, verEncerradas]);
 
   // Botões "💬 WhatsApp" (ficha do cliente/pet) abrem /dashboard/inbox-nativo?phone=<digitos>.
@@ -693,8 +694,8 @@ export default function InboxUnificadoPage() {
     };
     // Abrir a conversa já zera o unreadCount no servidor (getMessages) — avisa o menu p/ sumir o badge na hora.
     carregar().then(() => { if (!cancel) window.dispatchEvent(new Event("whatsapp:read")); });
-    const id = setInterval(carregar, 8000);
-    return () => { cancel = true; clearInterval(id); };
+    const parar = pollVisivel(carregar, 8000);
+    return () => { cancel = true; parar(); };
   }, [selectedId, msgTick]);
 
   // Contexto (cliente) da conversa — só recarrega quando MUDA o cliente selecionado.
@@ -1337,8 +1338,8 @@ export default function InboxUnificadoPage() {
       } catch {}
     };
     load();
-    const id = setInterval(load, 30000);
-    return () => { alive = false; clearInterval(id); };
+    const parar = pollVisivel(load, 30000);
+    return () => { alive = false; parar(); };
   }, [refreshTick, tab]);
 
   // Agrupa as notas internas por colega (conversa contínua) + respostas otimistas
