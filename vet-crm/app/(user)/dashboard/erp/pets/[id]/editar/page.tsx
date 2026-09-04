@@ -6,6 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { LuArrowLeft, LuPawPrint, LuVenetianMask, LuCalendar, LuUser, LuSave, LuCamera, LuLoaderCircle, LuTrash } from "react-icons/lu";
 import toast from "react-hot-toast";
+import { erroDoPeso } from '@/lib/peso';
 
 interface Tutor {
   id: string;
@@ -448,6 +449,10 @@ export default function EditPetPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
+    // Trava do peso (lib/peso), ANTES de marcar como enviando — 8100 kg cadastrado por
+    // engano vira cobranca errada na faixa de porte. Espelha a validacao do servidor.
+    const ePeso = erroDoPeso(pet.weight);
+    if (ePeso) { toast.error(ePeso); setError(ePeso); return; }
     setSubmitting(true);
     setError(null);
     

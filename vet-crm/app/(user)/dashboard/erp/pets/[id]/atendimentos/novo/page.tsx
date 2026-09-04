@@ -17,6 +17,7 @@ import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { assignFollowUp } from "@/lib/followup";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda } from "@/lib/catalogoVendavel";
 import { imprimirDocumento } from "@/lib/print";
+import { erroDoPeso } from '@/lib/peso';
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -403,6 +404,10 @@ export default function NovoAtendimentoPage() {
 
       // Peso: grava no pet + histórico petpeso_
       const kg = form.peso ? Number(String(form.peso).replace(",", ".")) : 0;
+      // Trava do peso (lib/peso): o peso do atendimento vira o peso ATUAL do pet, entao
+      // um erro aqui contamina a faixa de porte usada nas cobrancas.
+      const ePeso = erroDoPeso(form.peso);
+      if (ePeso) { toast.error(ePeso); setSaving(false); return; }
       if (kg > 0 && kg !== pet.weight) {
         try { await fetch(`/api/pets/${pet.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ weight: kg }) }); } catch {}
       }
