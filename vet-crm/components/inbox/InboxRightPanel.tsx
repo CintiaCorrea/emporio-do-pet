@@ -23,6 +23,7 @@ import PetEditModal from "@/components/inbox/PetEditModal";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { loadExameFases, podeAvisarLab } from "@/lib/exameFases";
 import { loadFuResp, assignFollowUp } from "@/lib/followup";
+import { pollVisivel } from "@/lib/pollVisivel";
 
 function scorePie(score: number, max: number, color: string) {
   const f = Math.max(0, Math.min(1, max ? score / max : 0));
@@ -765,8 +766,8 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
 
   useEffect(() => {
     loadIncoming();
-    const id = setInterval(loadIncoming, 30000); // refetch a cada 30s
-    return () => clearInterval(id);
+    // Só recarrega com a aba à vista (núcleo lib/pollVisivel).
+    return pollVisivel(loadIncoming, 30000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
