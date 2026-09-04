@@ -1,4 +1,4 @@
-import { escolherMeuCaixa, avisoSemMeuCaixa } from './caixa.regras';
+import { escolherMeuCaixa, avisoSemMeuCaixa, resolverCaixaDoRecebimento } from './caixa.regras';
 
 // BLINDAGEM do caixa por operadora: com duas funcionárias e dois caixas abertos, a venda
 // de uma não pode cair na gaveta da outra (era o que acontecia até 03/09/2026).
@@ -36,6 +36,40 @@ describe('caixa.regras', () => {
     it('distingue "só a colega abriu" de "ninguém abriu"', () => {
       expect(avisoSemMeuCaixa(1)).toMatch(/de outra pessoa/);
       expect(avisoSemMeuCaixa(0)).toMatch(/Nenhum caixa aberto/);
+    });
+  });
+
+  describe('resolverCaixaDoRecebimento (a regra que a venda usa de verdade)', () => {
+    it('1) usa o caixa da pessoa logada quando ela tem um aberto', () => {
+      const r = resolverCaixaDoRecebimento([caixaAna, caixaBia], ana);
+      expect(r.caixa?.id).toBe('cx-ana');
+      expect(r.deOutraPessoa).toBeFalsy();
+    });
+
+    it('2) com UM caixa aberto que nao e o meu, usa esse mesmo (nao ha ambiguidade)', () => {
+      // Caso da administradora vendendo sem ter aberto caixa proprio. Bloquear aqui
+      // travava o balcao sem proteger nada -- foi o que aconteceu em 04/09/2026.
+      const r = resolverCaixaDoRecebimento([caixaBia], ana);
+      expect(r.caixa?.id).toBe('cx-bia');
+      expect(r.deOutraPessoa).toBe(true);
+      expect(r.erro).toBeUndefined();
+    });
+
+    it('3) com DOIS caixas abertos e nenhum meu, recusa (seria cara ou coroa)', () => {
+      const r = resolverCaixaDoRecebimento([caixaAna, caixaBia], 'user-carla');
+      expect(r.caixa).toBeNull();
+      expect(r.erro).toMatch(/mais de um caixa aberto/i);
+    });
+
+    it('sem nenhum caixa aberto, recusa pedindo pra abrir', () => {
+      const r = resolverCaixaDoRecebimento([], ana);
+      expect(r.caixa).toBeNull();
+      expect(r.erro).toMatch(/Nenhum caixa aberto/i);
+    });
+
+    it('sem usuario logado e com um caixa so, ainda funciona', () => {
+      const r = resolverCaixaDoRecebimento([caixaBia], null);
+      expect(r.caixa?.id).toBe('cx-bia');
     });
   });
 });
