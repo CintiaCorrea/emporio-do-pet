@@ -16,6 +16,7 @@ import ExamesResumoCard from "@/components/exames/ExamesResumoCard";
 import { roleShort } from "@/lib/ui/role";
 import { PageShell, ProgressBar, B44 } from "@/components/ui/base44";
 import { loadExameFases, EXAME_FASES_PADRAO, EXAME_FASES_CONCLUIDAS } from "@/lib/exameFases";
+import { pollVisivel } from "@/lib/pollVisivel";
 
 interface HojeData {
   retornosVencidos: { id: string }[];
@@ -363,8 +364,8 @@ export default function HojePage() {
     load();
     const onCh = () => load();
     window.addEventListener("encfila:changed", onCh);
-    const tid = setInterval(load, 30000);
-    return () => { alive = false; window.removeEventListener("encfila:changed", onCh); clearInterval(tid); };
+    const pararPoll = pollVisivel(load, 30000);
+    return () => { alive = false; window.removeEventListener("encfila:changed", onCh); pararPoll(); };
   }, [meId]);
 
   // Minhas metas (Fatia 2): reusa GET /api/metas (traz valorRealizado calculado)
@@ -411,8 +412,8 @@ export default function HojePage() {
     let a = true;
     const load = async () => { const d = await safeJson<any>(await fetch("/api/health/automations", { cache: "no-store" }), null); if (a) setSaudeAuto(d); };
     load();
-    const t = setInterval(load, 60000);
-    return () => { a = false; clearInterval(t); };
+    const pararPoll = pollVisivel(load, 60000);
+    return () => { a = false; pararPoll(); };
   }, [effectiveRole]);
 
   // Admin: resumo de vendas do mês (faturamento, ticket, marcas) — reusa o BI

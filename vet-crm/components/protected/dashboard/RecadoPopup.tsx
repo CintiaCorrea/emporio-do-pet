@@ -20,6 +20,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { useNotifications } from '@/hooks/useNotifications';
 import { isInternasAberta } from '@/lib/ui/inboxPresence';
+import { pollVisivel } from "@/lib/pollVisivel";
 
 type Item =
   | { tipo: 'recado'; id: string; nome: string; texto: string; conversationId?: string | null; fromUserId?: string; createdAt: string }
@@ -136,8 +137,7 @@ export default function RecadoPopup() {
 
   useEffect(() => {
     carregar();
-    const t = setInterval(carregar, POLL_MS);
-    return () => clearInterval(t);
+    return pollVisivel(carregar, POLL_MS);
   }, [carregar]);
 
   const atual = fila[0];

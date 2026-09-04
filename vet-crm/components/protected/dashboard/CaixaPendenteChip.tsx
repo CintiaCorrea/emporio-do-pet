@@ -3,6 +3,7 @@
 // Padrão SimplesVet (chips coloridos de caixa pendente). Só aparece quando há caixa velho aberto.
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { pollVisivel } from "@/lib/pollVisivel";
 
 type Cx = { id: string; numero?: number; status?: string; abertura?: string };
 
@@ -25,8 +26,8 @@ export default function CaixaPendenteChip() {
       } catch { /* rede */ }
     }
     carregar();
-    const t = setInterval(carregar, 120000); // reconfere a cada 2 min
-    return () => { vivo = false; clearInterval(t); };
+    const pararPoll = pollVisivel(carregar, 120000); // reconfere a cada 2 min, só com a aba à vista
+    return () => { vivo = false; pararPoll(); };
   }, []);
 
   if (pend.length === 0) return null;
