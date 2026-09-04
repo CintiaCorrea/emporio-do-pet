@@ -12,6 +12,7 @@ import { useRolePreview } from "@/lib/ui/RolePreview";
 import { roleShort } from "@/lib/ui/role";
 import AnaliseComercial from "@/components/protected/dashboard/AnaliseComercial";
 import { PageShell, ProgressBar, B44 } from "@/components/ui/base44";
+import { pollVisivel } from "@/lib/pollVisivel";
 
 interface HojeData {
   retornosVencidos: { id: string }[];
@@ -98,8 +99,8 @@ export default function DashboardPage() {
     load();
     const onCh = () => load();
     window.addEventListener("encfila:changed", onCh);
-    const tid = setInterval(load, 30000);
-    return () => { alive = false; window.removeEventListener("encfila:changed", onCh); clearInterval(tid); };
+    const pararPoll = pollVisivel(load, 30000);
+    return () => { alive = false; window.removeEventListener("encfila:changed", onCh); pararPoll(); };
   }, [meId]);
 
   const encHref = (e: any) => e.tipo === "pet" ? `/dashboard/erp/pets/${e.id}` : e.tipo === "lead" ? `/dashboard/crm/leads/${e.id}` : `/dashboard/erp/tutores/${e.id}`;

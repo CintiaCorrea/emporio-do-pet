@@ -8,6 +8,7 @@
    ───────────────────────────────────────────────────────────── */
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { pollVisivel } from "@/lib/pollVisivel";
 
 const AVISO_ANTES_MIN = 15;    // aparece 15 min antes do fim do turno
 const JANELA_DEPOIS_MIN = 90;  // e só até 90 min depois (não pula do nada de madrugada)
@@ -72,8 +73,7 @@ export default function LembreteFimTurno() {
       }
     };
     checar();
-    const t = setInterval(checar, 60 * 1000);
-    return () => clearInterval(t);
+    return pollVisivel(checar, 60 * 1000);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meId]);
 

@@ -13,6 +13,7 @@ import { LOCKED_KEYS } from "@/lib/permissions";
 import { usePermissions } from "@/lib/permissions/context";
 import { useRolePreview } from "@/lib/ui/RolePreview";
 import { useSession } from "next-auth/react";
+import { pollVisivel } from "@/lib/pollVisivel";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -223,10 +224,10 @@ export default function Sidebar({ isOpen, toggleSidebar, isMobile = false, mobil
       } catch {}
     };
     load();
-    const id = setInterval(load, 60000); // badge de fundo a 60s (a ação do próprio usuário atualiza na hora via evento "internas:changed")
+    const pararPoll = pollVisivel(load, 60000); // badge de fundo a 60s, só com a aba à vista (a ação do próprio usuário atualiza na hora via evento "internas:changed")
     const onChanged = () => load();
     window.addEventListener("internas:changed", onChanged);
-    return () => { alive = false; clearInterval(id); window.removeEventListener("internas:changed", onChanged); };
+    return () => { alive = false; pararPoll(); window.removeEventListener("internas:changed", onChanged); };
   }, [pathname, meId]);
 
   useEffect(() => {
@@ -243,10 +244,10 @@ export default function Sidebar({ isOpen, toggleSidebar, isMobile = false, mobil
       } catch {}
     };
     load();
-    const id = setInterval(load, 60000); // badge de fundo a 60s (atualiza na hora via evento "encfila:changed")
+    const pararPoll = pollVisivel(load, 60000); // badge de fundo a 60s, só com a aba à vista (atualiza na hora via evento "encfila:changed")
     const onCh = () => load();
     window.addEventListener("encfila:changed", onCh);
-    return () => { alive = false; clearInterval(id); window.removeEventListener("encfila:changed", onCh); };
+    return () => { alive = false; pararPoll(); window.removeEventListener("encfila:changed", onCh); };
   }, [pathname, meId]);
 
   // Item 2: sinaliza no menu toda mensagem nova no inbox (conversas WhatsApp/Meta com unreadCount > 0).
@@ -268,10 +269,10 @@ export default function Sidebar({ isOpen, toggleSidebar, isMobile = false, mobil
       } catch {}
     };
     load();
-    const id = setInterval(load, 60000); // badge de fundo a 60s (ao abrir/ler conversa, o evento "whatsapp:read" atualiza na hora)
+    const pararPoll = pollVisivel(load, 60000); // badge de fundo a 60s, só com a aba à vista (ao abrir/ler conversa, o evento "whatsapp:read" atualiza na hora)
     const onRead = () => load(); // ao abrir/ler uma conversa, o inbox emite este evento → atualiza na hora
     window.addEventListener("whatsapp:read", onRead);
-    return () => { alive = false; clearInterval(id); window.removeEventListener("whatsapp:read", onRead); };
+    return () => { alive = false; pararPoll(); window.removeEventListener("whatsapp:read", onRead); };
   }, [pathname]);
 
   // Fase B/C: nível de cada tela p/ o perfil atual (via contexto compartilhado)
