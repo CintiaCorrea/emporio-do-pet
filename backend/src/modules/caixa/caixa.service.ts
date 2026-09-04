@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { ExamesService } from '../exames/exames.service';
@@ -6,7 +6,7 @@ import { RecebimentosService } from '../financeiro/recebimentos.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
-import { escolherMeuCaixa, avisoSemMeuCaixa } from './caixa.regras';
+import { resolverCaixaDoRecebimento } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 
 function dayRange(dateStr?: string) {
@@ -28,6 +28,7 @@ function rangeFromQuery(query: any) {
 
 @Injectable()
 export class CaixaService {
+  private readonly logger = new Logger(CaixaService.name);
   private ultimoPersistNivel = 0; // throttle do persist de nível (fire-and-forget)
   constructor(
     private readonly prisma: PrismaService,
@@ -1242,9 +1243,15 @@ export class CaixaService {
           where: { status: 'ABERTO' },
           select: { id: true, userId: true, abertura: true },
         });
-        const meu = escolherMeuCaixa(abertos, userId);
-        if (!meu) throw new BadRequestException(avisoSemMeuCaixa(abertos.length));
-        caixaId = meu.id;
+        const r = resolverCaixaDoRecebimento(abertos, userId);
+        if (!r.caixa) throw new BadRequestException(r.erro);
+        if (r.deOutraPessoa) {
+          this.logger.warn(
+            `Recebimento lancado no caixa ${r.caixa.id}, que nao e de quem esta logada (${userId}) — ` +
+              `era o unico caixa aberto, entao nao ha ambiguidade.`,
+          );
+        }
+        caixaId = r.caixa.id;
       }
       recebimento = await this.registrarRecebimento(caixaId, {
         appointmentId: appointment.id, valorTotal: valorAplicado,
