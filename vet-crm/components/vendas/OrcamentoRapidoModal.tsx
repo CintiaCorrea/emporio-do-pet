@@ -106,12 +106,21 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
       const body = { petId: pet.id, tutorId: tutor.id, date: new Date().toISOString(), type: "Venda", status: "COMPLETED", value: total, items: itensVendaBody() };
       const r = await fetch(`/api/appointments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();
-      toast.success("Venda criada — está no Caixa (a receber) 🧾");
+      // Pedido da Cintia (05/09/2026): a venda vai pro caixa E pro cliente. Antes so o
+      // orcamento avisava o tutor; a venda entrava no caixa em silencio.
+      const texto = montarTexto("VENDA");
+      if (onEnviarTexto) onEnviarTexto(texto);
+      else if (phone) { try { await fetch(`/api/whatsapp/send`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: phone, content: texto, type: "TEXT" }) }); } catch { /* a venda ja foi criada; o aviso e best-effort */ } }
+      toast.success("Venda no Caixa e resumo enviado pro cliente 🧾");
       onClose();
     } catch { toast.error("Erro ao criar a venda"); } finally { setSaving(false); }
   }
 
-  function montarTexto(): string {
+  // O mesmo texto serve pros dois casos, mudando so as palavras: orcamento e proposta
+  // (tem validade), venda e o resumo do que foi feito. Pedido da Cintia em 05/09/2026.
+  function montarTexto(tipo: "ORCAMENTO" | "VENDA" = "ORCAMENTO"): string {
+    const ehVenda = tipo === "VENDA";
+    const titulo = ehVenda ? "Atendimento" : "Orçamento";
     const hoje = new Date().toLocaleDateString("pt-BR");
     const linhas = itensValidos().map((it) => {
       const q = Number(it.qtd) || 1; const v = parseVal(it.valor);
@@ -120,16 +129,16 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
         : `• ${it.descricao.trim()} — *${BRL(v)}*`;
     });
     return [
-      `💰 *Orçamento — ${pet?.name || "seu pet"}*`,
+      `💰 *${titulo} — ${pet?.name || "seu pet"}*`,
       `🏥 Empório do Pet · 🗓️ ${hoje}`,
       tutor?.name ? `👤 Tutor(a): ${tutor.name}` : null,
       ``,
-      `*Itens do orçamento:*`,
+      ehVenda ? `*Itens:*` : `*Itens do orçamento:*`,
       ...linhas,
       ``,
       `━━━━━━━━━━━━━━━`,
       `💵 *Total: ${BRL(total)}*`,
-      validade ? `🗓️ Válido até ${ddmm(validade)}` : null,
+      !ehVenda && validade ? `🗓️ Válido até ${ddmm(validade)}` : null,
       obs.trim() ? `` : null,
       obs.trim() ? `📝 *Observação:* ${obs.trim()}` : null,
       ``,
@@ -195,8 +204,8 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
 
         <div className="flex gap-2 mt-3 justify-end flex-wrap">
           <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs border" style={{ borderColor: "#E8E2D6", color: "#64748b" }}>Cancelar</button>
-          <button onClick={mandarProCaixa} disabled={saving} title="Cria a venda no caixa (a receber) — sem precisar converter" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#014D5E" }}>🧾 {saving ? "..." : "Mandar pro caixa"}</button>
-          <button onClick={enviar} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#009AAC" }}><LuMessageSquare size={13} /> {saving ? "..." : "Enviar orçamento"}</button>
+          <button onClick={mandarProCaixa} disabled={saving} title="Cria a venda no caixa (a receber) E envia o resumo pro cliente no WhatsApp" className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#014D5E" }}>🧾 {saving ? "..." : "Venda: caixa + cliente"}</button>
+          <button onClick={enviar} disabled={saving} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white flex items-center gap-1.5 disabled:opacity-50" style={{ background: "#009AAC" }}><LuMessageSquare size={13} /> {saving ? "..." : "Só o orçamento"}</button>
         </div>
       </div>
     </div>
