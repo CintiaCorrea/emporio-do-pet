@@ -2,6 +2,11 @@
 
 Leitura obrigatoria antes de qualquer mudanca neste repo.
 
+> **Comecando uma sessao? Leia tambem [AGENDA.md](AGENDA.md).**
+> Este arquivo diz COMO trabalhar; a AGENDA diz O QUE esta pendente, quais
+> decisoes a Cintia ja tomou (pra nao perguntar de novo) e o que ficou de fora
+> da versao publicada. Terminou um item? Atualize a AGENDA no mesmo commit.
+
 ## Como este arquivo funciona (leia isto primeiro)
 
 Quem assiste a Cintia neste projeto **nao lembra de nada entre uma conversa e
