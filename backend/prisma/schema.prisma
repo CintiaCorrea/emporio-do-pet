@@ -4001,6 +4001,10 @@ model ItemCatalogo {
   // As faixas sao POR ITEM: a Cerenia tem 7, a Tartarectomia tem 2, e forcar as 5 padrao
   // obrigaria a re-precificar. Ver lib/porte.ts / common/porte.ts (nucleo unico).
   precosPorte         String?
+  // CAUCAO (05/09/2026): item que nao e servico vendido — o valor recebido vira CREDITO do
+  // cliente (RECARGA), contabilizado como Adiantamento de Clientes, fora da Receita Bruta.
+  // Sem isto, caucao vendida no PDV virava receita e o cliente nao ficava com credito nenhum.
+  ehCaucao            Boolean   @default(false)
   exibeListaPreco     Boolean   @default(true)
   permiteAlterarPreco Boolean   @default(true)
   // básico (produto/vacina)

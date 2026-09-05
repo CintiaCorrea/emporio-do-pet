@@ -131,3 +131,30 @@ describe("linhaDoItem com peso do animal", () => {
     expect(itemParaVenda(l).valorUnitario).toBe(51.49);
   });
 });
+
+// 💰 CAUÇÃO (05/09/2026). Vendida como item comum ela virava RECEITA e o cliente não ficava com
+// crédito nenhum — na prática pagava duas vezes. A marca viaja do catálogo até a linha da venda,
+// e é ela que faz o Ponto de venda mandar o dinheiro pro módulo de crédito.
+describe("caução na linha de venda", () => {
+  it("a marca viaja do catálogo até a linha", () => {
+    const l = linhaDoItem({ id: "c1", nome: "Caução", valorPadrao: 600, _novo: true, _ehCaucao: true } as any);
+    expect(l._ehCaucao).toBe(true);
+    expect(l.valorUnitario).toBe(600);
+  });
+  it("item comum não vira caução por engano", () => {
+    const l = linhaDoItem({ id: "s1", nome: "CONSULTA", valorPadrao: 150, _novo: true } as any);
+    expect(l._ehCaucao).toBeUndefined();
+  });
+  it("caução também pode ter preço por porte — a Cintia pediu as duas coisas juntas", () => {
+    const l = linhaDoItem({
+      id: "c2", nome: "Caução", valorPadrao: 300, _novo: true, _ehCaucao: true,
+      _precosPorte: JSON.stringify([
+        { ate: 10, rotulo: "0 a 10 kg", preco: 300 },
+        { ate: null, rotulo: "41 a 50+ kg", preco: 800 },
+      ]),
+    } as any, 45);
+    expect(l._ehCaucao).toBe(true);
+    expect(l.valorUnitario).toBe(800);
+    expect(l._faixaRotulo).toBe("41 a 50+ kg");
+  });
+});
