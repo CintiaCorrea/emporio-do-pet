@@ -102,6 +102,10 @@ export default function PDVPage() {
   const [formasConfig, setFormasConfig] = useState<any[]>([]); // config completa (tipo/adquirente/conta)
   const [taxas, setTaxas] = useState<any[]>([]); // tabela de taxas por bandeira (TaxaContratada)
   const [salvando, setSalvando] = useState(false);
+  // MODO EDICAO (?editar=<id>): a venda que ja existe e carregada AQUI, no formulario grande, e
+  // nao no box estreito do lado. Foi o pedido da Cintia — no box nao dava pra procurar item.
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [editandoNum, setEditandoNum] = useState<number | null>(null);
 
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [orcamentos, setOrcamentos] = useState<{ id: string; tutor: string; pet: string; valor: number; tutorId?: string; petId?: string; dia?: string; _orc?: any }[]>([]);
@@ -357,6 +361,39 @@ export default function PDVPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ?editar=<atendimentoId> — abre a venda JA EXISTENTE dentro deste formulario, com o mesmo
+  // buscador de itens da venda nova. Ao salvar, faz PATCH em vez de criar outra venda.
+  useEffect(() => {
+    const eid = new URLSearchParams(window.location.search).get('editar');
+    if (!eid) return;
+    (async () => {
+      try {
+        const a = await fetch(`/api/atendimentos/${eid}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null);
+        if (!a?.id) { toast.error('Não encontrei essa venda.'); return; }
+        setEditandoId(a.id);
+        setEditandoNum(a.numeroVenda ?? null);
+        if (a.date) setData(String(a.date).slice(0, 10));
+        setObs(a.observacao || '');
+        if (a.userId) setProfId(a.userId);
+        if (a.tutorId) {
+          const t = await fetch(`/api/tutors/${a.tutorId}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null);
+          if (t?.id) { setCliente(t as Tutor); setPetId(a.petId || ''); }
+        }
+        const itens = a.items || a.appointmentItems || a.itens || [];
+        setCarrinho(itens.map((it: any) => ({
+          servicoId: it.servicoId ?? it.productId ?? undefined,
+          descricao: it.descricao || it.nome || '',
+          quantidade: Number(it.quantidade ?? it.qtd ?? 1),
+          valorUnitario: Number(it.valorUnitario ?? 0),
+          desconto: Number(it.desconto ?? 0),
+          descTipo: '$' as const,
+          executorUserId: it.executorUserId || undefined,
+        })));
+      } catch { toast.error('Não consegui abrir essa venda para editar.'); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Pré-seleciona cliente + pet vindos pela URL (ex.: botão Venda do inbox)
   useEffect(() => {
     const sp = new URLSearchParams(window.location.search);
@@ -483,9 +520,18 @@ export default function PDVPage() {
   const recebidoHoje = useMemo(() => vendas.reduce((s, v) => s + v.pago, 0), [vendas]);
   const aReceberHoje = useMemo(() => vendas.reduce((s, v) => s + Math.max(0, v.valor - v.pago), 0), [vendas]);
 
+  // Sai do modo edicao e limpa o ?editar= da barra de enderecos, pra um F5 nao reabrir a venda.
+  const sairDaEdicao = () => {
+    setEditandoId(null); setEditandoNum(null);
+    try {
+      const u = new URL(window.location.href);
+      if (u.searchParams.has('editar')) { u.searchParams.delete('editar'); window.history.replaceState({}, '', u.toString()); }
+    } catch { /* */ }
+  };
   const reset = () => {
     setCliente(null); setPetId(''); setCliBusca(''); setCarrinho([]); setDescontoGlobal(''); setDescontoGlobalTipo('$'); setObs('');
     setFormas([{ forma: 'Dinheiro', valor: 0 }]); setTipo('VENDA'); setQtd(1);
+    sairDaEdicao();
   };
 
   const payload = (extra: any) => ({
@@ -520,7 +566,30 @@ export default function PDVPage() {
     if (falta) { toast.error(falta); return; }
     return enviar(payload({ tipo: 'VENDA', formas: formas.filter((f) => Number(f.valor) > 0) }), 'Venda registrada!');
   };
-  const salvar = () => { if (tipo === 'ORCAMENTO') return salvarOrcamento(); return enviar(payload({ tipo }), 'Venda salva (a receber)'); };
+  // Salvar EDITANDO: PATCH na venda que ja existe, o mesmo endpoint que o box do lado usava.
+  // Muda so de onde os itens vem — e aqui vem do buscador que funciona.
+  const salvarEdicaoVenda = async () => {
+    if (!editandoId) return;
+    if (!baseValida) { toast.error('Escolha o cliente, o pet e ao menos um item.'); return; }
+    setSalvando(true);
+    try {
+      const items = carrinho.map((it) => ({
+        servicoId: (it._exame || it._novo || it._convenio) ? undefined : it.servicoId,
+        productId: (it._exame || it._novo || it._convenio) ? undefined : it.servicoId,
+        descricao: it.descricao, quantidade: Number(it.quantidade) || 1,
+        valorUnitario: Number(it.valorUnitario) || 0,
+        desconto: Number(descItemVal(it).toFixed(2)),
+        valorTotal: Number(itemTotal(it).toFixed(2)),
+        executorUserId: it.executorUserId || profId || undefined,
+      }));
+      const value = Number(total.toFixed(2));
+      const r = await fetch(`/api/appointments/${editandoId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items, value }) });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(String((e as any)?.message || '').replace(/^[A-Z_]+:\s*/, '') || 'Erro ao salvar'); }
+      toast.success(`Venda ${editandoNum ? '#' + editandoNum + ' ' : ''}atualizada!`);
+      reset(); loadVendas();
+    } catch (e: any) { toast.error(e?.message || 'Erro ao salvar'); } finally { setSalvando(false); }
+  };
+  const salvar = () => { if (editandoId) return salvarEdicaoVenda(); if (tipo === 'ORCAMENTO') return salvarOrcamento(); return enviar(payload({ tipo }), 'Venda salva (a receber)'); };
   // 🖨️ Imprime o que está na tela (venda ou orçamento, conforme o tipo) — mesmo antes de salvar.
   const imprimirAtual = () => {
     if (!carrinho.length) { toast.error('Adicione itens primeiro'); return; }
@@ -645,6 +714,19 @@ export default function PDVPage() {
                 </select>
               </div>
             </div>
+
+            {/* Editando uma venda que ja existe: precisa ficar OBVIO, senao a pessoa acha que
+                esta criando outra. Sair volta o formulario pra venda nova. */}
+            {editandoId && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#FBF3E3', border: '1px solid #E8CF97', borderRadius: 11, padding: '10px 13px', marginBottom: 16 }}>
+                <span style={{ fontSize: 16 }}>✏️</span>
+                <div style={{ flex: 1, minWidth: 160 }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: '#8a6400' }}>Editando a venda {editandoNum ? '#' + editandoNum : 'selecionada'}</div>
+                  <div style={{ fontSize: 11.5, color: '#8a6400' }}>Alterou o que precisava? Clique em <b>Salvar alterações</b> no fim da tela. Nenhuma venda nova será criada.</div>
+                </div>
+                <button onClick={reset} style={{ border: '1px solid #E8CF97', background: '#fff', color: '#8a6400', borderRadius: 9, padding: '7px 12px', fontSize: 12.5, cursor: 'pointer', flexShrink: 0 }}>✕ Sair da edição</button>
+              </div>
+            )}
 
             {/* 1 cliente */}
             {step('👤', 'Cliente')}
@@ -802,8 +884,8 @@ export default function PDVPage() {
 
             {/* rodapé */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: `1px solid ${SOFT}`, paddingTop: 16 }}>
-              <button onClick={abrirRecebimento} disabled={!baseValida || tipo === 'ORCAMENTO'} style={{ border: 'none', borderRadius: 9, background: (baseValida && tipo === 'VENDA') ? TEAL : '#cfd8d9', color: '#fff', padding: '11px 18px', fontSize: 13.5, fontWeight: 500, cursor: (baseValida && tipo === 'VENDA') ? 'pointer' : 'not-allowed' }}>💰 Registrar recebimento</button>
-              <button onClick={salvar} disabled={!baseValida || salvando} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '11px 18px', fontSize: 13.5, cursor: baseValida ? 'pointer' : 'not-allowed', color: INK }}>{tipo === 'ORCAMENTO' ? '💾 Salvar orçamento' : '💾 Salvar'}</button>
+              {!editandoId && <button onClick={abrirRecebimento} disabled={!baseValida || tipo === 'ORCAMENTO'} style={{ border: 'none', borderRadius: 9, background: (baseValida && tipo === 'VENDA') ? TEAL : '#cfd8d9', color: '#fff', padding: '11px 18px', fontSize: 13.5, fontWeight: 500, cursor: (baseValida && tipo === 'VENDA') ? 'pointer' : 'not-allowed' }}>💰 Registrar recebimento</button>}
+              <button onClick={salvar} disabled={!baseValida || salvando} style={{ border: editandoId ? 'none' : `1px solid ${LINE}`, borderRadius: 9, background: editandoId ? (baseValida ? TEAL : '#cfd8d9') : '#fff', padding: '11px 18px', fontSize: 13.5, fontWeight: editandoId ? 500 : 400, cursor: baseValida ? 'pointer' : 'not-allowed', color: editandoId ? '#fff' : INK }}>{salvando ? 'Salvando…' : editandoId ? '💾 Salvar alterações' : tipo === 'ORCAMENTO' ? '💾 Salvar orçamento' : '💾 Salvar'}</button>
               <button onClick={imprimirAtual} disabled={!carrinho.length} title={tipo === 'ORCAMENTO' ? 'Imprimir o orçamento' : 'Imprimir a venda'} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '11px 16px', fontSize: 13.5, cursor: carrinho.length ? 'pointer' : 'not-allowed', color: INK, opacity: carrinho.length ? 1 : 0.5 }}>🖨️ Imprimir {tipo === 'ORCAMENTO' ? 'orçamento' : 'venda'}</button>
               <button onClick={reset} style={{ marginLeft: 'auto', border: 'none', background: 'none', color: MUT, padding: '11px', fontSize: 13, cursor: 'pointer' }}>✕ Cancelar</button>
             </div>
