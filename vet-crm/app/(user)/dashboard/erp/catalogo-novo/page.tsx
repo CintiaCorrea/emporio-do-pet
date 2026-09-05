@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import toast from "react-hot-toast";
-import { FAIXAS_PADRAO, lerFaixas, rotuloDaFaixa, erroDasFaixas, ordenarFaixas, type FaixaPorte } from "@/lib/porte";
+import { FAIXAS_PADRAO, ESCADAS, escadaDasFaixas, lerFaixas, rotuloDaFaixa, erroDasFaixas, ordenarFaixas, type FaixaPorte } from "@/lib/porte";
 
 const B = "#014D5E", T = "#009AAC", LINE = "#E8DFC8", PAPER = "#F6F2EA", INK = "#1F2A2E", MUT = "#5C6B70";
 type Tipo = "PRODUTO" | "SERVICO" | "EXAME" | "VACINA" | "PACOTE" | "KIT";
@@ -151,6 +151,22 @@ export default function CatalogoNovoPage() {
   // O item cobra por porte? E o que decide se o campo de preco unico vale.
   const porPorte = ((form?.faixas || []) as FaixaPorte[]).length > 0;
   const erroFaixas = porPorte ? erroDasFaixas(form.faixas) : null;
+  const escadaAtual = porPorte ? escadaDasFaixas(form.faixas) : null;
+  // Troca a escada MANTENDO o que ja foi digitado: preco casado pelo limite de peso. Trocar
+  // "Padrao" por "Detalhada" nao pode apagar os valores — quem digitou 5 precos nao quer
+  // recomecar so porque precisava separar 11-15 de 16-20.
+  const trocarEscada = (chave: string) => {
+    const e = ESCADAS.find((x) => x.chave === chave);
+    if (!e) return;
+    const antigas = ordenarFaixas(form.faixas || []);
+    const novas = e.faixas.map((f) => {
+      const igual = antigas.find((a) => a.ate === f.ate);
+      const cobre = antigas.find((a) => a.ate == null || (f.ate != null && a.ate >= f.ate));
+      const fonte = igual || cobre;
+      return { ...f, preco: fonte?.preco ?? null, custo: fonte?.custo ?? null };
+    });
+    up({ faixas: novas });
+  };
 
   const markupReal = useMemo(() => {
     const c = custoBase(form), p = Number(form?.preco);
@@ -345,10 +361,27 @@ export default function CatalogoNovoPage() {
 
                   {porPorte && (
                     <div className="mt-2.5">
+                      <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                        {ESCADAS.map((e) => (
+                          <button key={e.chave} type="button" onClick={() => trocarEscada(e.chave)} title={e.ajuda}
+                            className="text-[12px] font-medium px-2.5 py-1 rounded-lg border"
+                            style={escadaAtual === e.chave
+                              ? { borderColor: T, background: T, color: "#fff" }
+                              : { borderColor: LINE, background: "#fff", color: B }}>
+                            {e.nome}
+                          </button>
+                        ))}
+                        {escadaAtual === null && (
+                          <span className="text-[12px] font-medium px-2.5 py-1 rounded-lg border" style={{ borderColor: T, background: T, color: "#fff" }}>
+                            Faixas próprias
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[11.5px] mb-2" style={{ color: "#6C7F86" }}>
-                        As cinco faixas abaixo são as suas. Dá pra mudar o limite, renomear, apagar ou
-                        acrescentar — a Cerenia, por exemplo, precisa de sete. <b>Faixa em branco</b> quer
-                        dizer que não vendemos este item para esse porte.
+                        Escolha a escada e preencha os valores. Trocar de escada <b>não apaga</b> o que
+                        você já digitou. Mexer num limite à mão vira “faixas próprias” — é o caso da
+                        Tartarectomia, que vai até 5 kg. <b>Preço em branco</b> quer dizer que não
+                        vendemos este item para esse porte.
                       </div>
 
                       <div className="rounded-xl border overflow-hidden" style={{ borderColor: LINE }}>

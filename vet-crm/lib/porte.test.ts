@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
-  FAIXAS_PADRAO, faixaDoPeso, precoPorPorte, lerFaixas, ordenarFaixas, erroDasFaixas, rotuloDaFaixa,
+  FAIXAS_PADRAO, FAIXAS_DETALHADAS, ESCADAS, escadaDasFaixas,
+  faixaDoPeso, precoPorPorte, lerFaixas, ordenarFaixas, erroDasFaixas, rotuloDaFaixa,
   type FaixaPorte,
 } from "./porte";
 
@@ -21,22 +22,29 @@ describe("preço por porte", () => {
   describe("as bordas das faixas — onde o dinheiro se perde", () => {
     const f = FAIXAS_PADRAO;
     it.each([
-      [0.5, "Pequeno"], [9.9, "Pequeno"], [10, "Pequeno"],
-      [10.1, "Médio"], [15, "Médio"], [20, "Médio"],
-      [20.1, "Grande"], [30, "Grande"],
-      [30.1, "GG"], [40, "GG"],
-      [40.1, "Extra GG"], [75, "Extra GG"],
-    ])("%s kg é %s", (kg, rotulo) => {
+      [0.5, "0 a 10 kg"], [9.9, "0 a 10 kg"], [10, "0 a 10 kg"],
+      [10.1, "11 a 20 kg"], [15, "11 a 20 kg"], [20, "11 a 20 kg"],
+      [20.1, "21 a 30 kg"], [30, "21 a 30 kg"],
+      [30.1, "31 a 40 kg"], [40, "31 a 40 kg"],
+      [40.1, "41 a 50+ kg"], [75, "41 a 50+ kg"],
+    ])("%s kg cai na faixa %s", (kg, rotulo) => {
       expect(faixaDoPeso(kg, f)?.rotulo).toBe(rotulo);
     });
 
-    it("10,0 é Pequeno e 10,1 é Médio — as faixas encostam, sem buraco no meio", () => {
-      expect(faixaDoPeso(10.0, f)?.rotulo).toBe("Pequeno");
-      expect(faixaDoPeso(10.05, f)?.rotulo).toBe("Médio");
+    // O RÓTULO diz "11 a 20", mas o que vale é o limite: a faixa pega de 10,1 em diante.
+    // As faixas ENCOSTAM de propósito — senão um cão de 10,5 kg não cairia em nenhuma.
+    it("10,0 fica na primeira e 10,05 já vai pra segunda — sem buraco no meio", () => {
+      expect(faixaDoPeso(10.0, f)?.rotulo).toBe("0 a 10 kg");
+      expect(faixaDoPeso(10.05, f)?.rotulo).toBe("11 a 20 kg");
     });
 
-    it("gato de 4 kg entra em Pequeno — gato não tem preço próprio", () => {
-      expect(faixaDoPeso(4, f)?.rotulo).toBe("Pequeno");
+    it("cão de 55 kg tem preço — a última faixa não tem teto, apesar do rótulo dizer 50", () => {
+      expect(faixaDoPeso(55, f)?.rotulo).toBe("41 a 50+ kg");
+      expect(faixaDoPeso(120, f)?.rotulo).toBe("41 a 50+ kg");
+    });
+
+    it("gato de 4 kg entra na primeira faixa — gato não tem preço próprio", () => {
+      expect(faixaDoPeso(4, f)?.rotulo).toBe("0 a 10 kg");
     });
   });
 
@@ -71,7 +79,7 @@ describe("preço por porte", () => {
       const r = precoPorPorte({ faixas: acepran }, 45);
       expect(r.preco).toBeNull();
       expect(r.precisaEscolher).toBe(true);
-      expect(r.aviso).toMatch(/Extra GG/);
+      expect(r.aviso).toMatch(/41 a 50\+ kg/);
     });
   });
 
@@ -84,17 +92,11 @@ describe("preço por porte", () => {
     });
   });
 
-  describe("faixas fora do padrão — o catálogo real não cabe nas cinco", () => {
-    // A Cerenia tem SETE faixas na produção. Forçar as cinco obrigaria a re-precificar.
-    const cerenia: FaixaPorte[] = [
-      { ate: 10, rotulo: "até 10 kg", preco: 77.92 },
-      { ate: 15, rotulo: "11 a 15 kg", preco: 91.84 },
-      { ate: 20, rotulo: "16 a 20 kg", preco: 109.93 },
-      { ate: 25, rotulo: "21 a 25 kg", preco: 132.19 },
-      { ate: 30, rotulo: "26 a 30 kg", preco: 154.46 },
-      { ate: 40, rotulo: "31 a 40 kg", preco: 262.99 },
-      { ate: null, rotulo: "acima de 40 kg", preco: 385.99 },
-    ];
+  describe("a escada DETALHADA — medicação cara, de 5 em 5", () => {
+    // A Cintia em 05/09: "de 5 em 5 kg pois é uma medicação muito cara". Os preços são os
+    // que estão na produção hoje (Cerenia — itens #91, #79, #81, #83, #85, #87, #89).
+    const cerenia: FaixaPorte[] = FAIXAS_DETALHADAS.map((f, i) =>
+      ({ ...f, preco: [77.92, 91.84, 109.93, 132.19, 154.46, 262.99, 385.99][i] }));
     it.each([
       [9, 77.92], [13, 91.84], [18, 109.93], [23, 132.19], [28, 154.46], [35, 262.99], [50, 385.99],
     ])("Cerenia para %s kg custa %s", (kg, preco) => {
@@ -168,11 +170,40 @@ describe("preço por porte", () => {
 
   describe("como a faixa aparece escrita", () => {
     const f = ordenarFaixas(FAIXAS_PADRAO);
-    it("a primeira diz 'até'", () => expect(rotuloDaFaixa(f[0])).toBe("Pequeno · até 10 kg"));
-    it("as do meio dizem 'de X a Y'", () => expect(rotuloDaFaixa(f[1], f[0])).toBe("Médio · 10 a 20 kg"));
-    it("a última diz 'acima de'", () => expect(rotuloDaFaixa(f[4], f[3])).toBe("Extra GG · acima de 40 kg"));
-    it("usa vírgula, como se escreve peso no Brasil", () => {
+    it("rótulo que já fala de peso aparece como está — sem repetir o intervalo", () => {
+      expect(rotuloDaFaixa(f[0])).toBe("0 a 10 kg");
+      expect(rotuloDaFaixa(f[1], f[0])).toBe("11 a 20 kg");
+      expect(rotuloDaFaixa(f[4], f[3])).toBe("41 a 50+ kg");
+    });
+    it("rótulo por NOME ganha o intervalo junto — senão ninguém sabe onde ele começa", () => {
       expect(rotuloDaFaixa({ ate: 7.5, rotulo: "Mini", preco: 1 })).toBe("Mini · até 7,5 kg");
+      expect(rotuloDaFaixa({ ate: null, rotulo: "Gigante", preco: 1 }, { ate: 40, rotulo: "x", preco: 1 }))
+        .toBe("Gigante · acima de 40 kg");
+    });
+  });
+
+  describe("as escadas com nome", () => {
+    it("a padrão tem 5 faixas e a detalhada tem 7", () => {
+      expect(FAIXAS_PADRAO).toHaveLength(5);
+      expect(FAIXAS_DETALHADAS).toHaveLength(7);
+    });
+    it("as duas terminam sem teto — nenhum animal fica sem faixa", () => {
+      for (const e of ESCADAS) expect(e.faixas[e.faixas.length - 1].ate).toBeNull();
+    });
+    it("as duas concordam nos limites que compartilham (10, 20, 30, 40)", () => {
+      const daPadrao = FAIXAS_PADRAO.map((f) => f.ate).filter((x) => x != null);
+      const daDetalhada = FAIXAS_DETALHADAS.map((f) => f.ate);
+      for (const l of daPadrao) expect(daDetalhada).toContain(l);
+    });
+    it("reconhece qual escada um item está usando", () => {
+      expect(escadaDasFaixas(FAIXAS_PADRAO)).toBe("padrao");
+      expect(escadaDasFaixas(FAIXAS_DETALHADAS)).toBe("detalhada");
+    });
+    it("faixa montada na mão não é escada nenhuma — a Tartarectomia tem 'até 5 kg'", () => {
+      expect(escadaDasFaixas([
+        { ate: 5, rotulo: "até 5 kg", preco: 360 },
+        { ate: null, rotulo: "acima de 5 kg", preco: 620 },
+      ])).toBeNull();
     });
   });
 });
