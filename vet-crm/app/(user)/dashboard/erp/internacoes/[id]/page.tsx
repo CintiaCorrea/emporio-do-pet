@@ -81,7 +81,23 @@ function estadoDe(h: any): string { return h?.vitalSigns?.estadoClinico || prioT
 function estadoStyle(e: string) { return ESTADOS.find((x) => x.v === e) || ESTADOS[0]; }
 function especieEmoji(s?: string) { const k = (s || "").toUpperCase(); if (k.startsWith("CAN") || k.startsWith("DOG")) return "🐶"; if (k.startsWith("FEL") || k.startsWith("CAT") || k.startsWith("GAT")) return "🐱"; return "🐾"; }
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
-function diasInternado(adm?: string): number { if (!adm) return 1; try { const ms = Date.now() - new Date(adm).getTime(); return Math.max(1, Math.ceil(ms / 86400000)); } catch { return 1; } }
+/**
+ * Dias de internação = 1 a cada 24 HORAS COMEÇADAS desde a entrada (25 h = 2; regra confirmada
+ * pela Cintia em 04/09).
+ *
+ * Depois da ALTA a conta PARA. Antes contava sempre até agora: animal que saiu no dia 1º, ficha
+ * aberta no dia 10, aparecia com nove diárias a mais — e quem enviasse pro caixa naquele momento
+ * cobrava as nove. A conta crescia sozinha, sem ninguém tocar nela.
+ */
+function diasInternado(adm?: string, alta?: string): number {
+  if (!adm) return 1;
+  try {
+    const inicio = new Date(adm).getTime();
+    const fim = alta ? new Date(alta).getTime() : NaN;
+    const ate = Number.isFinite(fim) ? fim : Date.now();
+    return Math.max(1, Math.ceil((ate - inicio) / 86400000));
+  } catch { return 1; }
+}
 function fmtData(s?: string) {
   if (!s) return "—";
   // Data pura "YYYY-MM-DD" é formatada direto — new Date("YYYY-MM-DD") vira meia-noite UTC
@@ -458,7 +474,7 @@ export default function FichaInternacaoPage() {
 
   // ── Financeiro (F5) ───────────────────────────────────────────────
   const contaCalc = () => {
-    const dias = diasInternado(h?.admissionDate);
+    const dias = diasInternado(h?.admissionDate, h?.actualDischargeDate);
     const diariaVU = Number(h?.dailyRate) || 0;
     const diariaTotal = dias * diariaVU;
     const itensFat = conta.filter((i) => i.categoria !== "Insumo");
@@ -780,7 +796,7 @@ export default function FichaInternacaoPage() {
     }
 
     if (tipo === "alta") {
-      const diasAlta = h?.admissionDate ? diasInternado(h.admissionDate) : null;
+      const diasAlta = h?.admissionDate ? diasInternado(h.admissionDate, h?.actualDischargeDate) : null;
       return [
         `🏠 *Alta do ${pet}* — Empório do Pet`,
         `🗓️ ${dataStr} · ${horaStr}${diasAlta != null ? ` · após ${diasAlta} dia(s) de internação` : ""}`,
@@ -806,7 +822,7 @@ export default function FichaInternacaoPage() {
     const especie = ({ CANINE: "Canino", FELINE: "Felino", CANINO: "Canino", FELINO: "Felino" } as any)[h?.pet?.species] || h?.pet?.species || "";
     const petLinha = [especie, h?.pet?.breed || ""].filter(Boolean).join("/");
     const peso = h?.pet?.weight ? `${h.pet.weight} kg` : "";
-    const dias = h?.admissionDate ? diasInternado(h.admissionDate) : null;
+    const dias = h?.admissionDate ? diasInternado(h.admissionDate, h?.actualDischargeDate) : null;
     const diaTxt = dias != null ? ` · ${dias}º dia de internação` : "";
     const xixiFezes = [f.diurese, f.fezes].filter(Boolean).join(" / ") || PLC;
 
@@ -1700,7 +1716,7 @@ export default function FichaInternacaoPage() {
         <div style={{ fontSize: 12, color: "#5C6B70", marginBottom: 16 }}>{[h.pet?.breed, idadeDe(h.pet?.birthDate), h.pet?.weight ? `${h.pet.weight} kg` : null, boxCodigo ? `Box ${boxCodigo}` : null].filter(Boolean).join(" · ")} · Tutor(a): {h.tutor?.name} · {h.tutor?.phone}</div>
         <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
           <tbody>
-            {[["Entrada", fmtDataHora(h.admissionDate)], ["Peso / temp. de entrada", [adm.pesoEntrada ? `${adm.pesoEntrada} kg` : null, adm.tempEntrada ? `${adm.tempEntrada} °C` : null].filter(Boolean).join(" · ") || "—"], ["Motivo / diagnóstico", h.diagnosis || h.reason || "—"], ["Prognóstico", adm.prognostico || "—"], ["Veterinário responsável", h.veterinarian?.name || "—"], ["Estado atual", estado], ["Alta prevista", h.estimatedDischargeDate ? fmtData(h.estimatedDischargeDate) : "—"], ["Dias internado", String(diasInternado(h.admissionDate))], ["Total acumulado", fmtBRL(h.totalCost)]].map(([k, v]) => (
+            {[["Entrada", fmtDataHora(h.admissionDate)], ["Peso / temp. de entrada", [adm.pesoEntrada ? `${adm.pesoEntrada} kg` : null, adm.tempEntrada ? `${adm.tempEntrada} °C` : null].filter(Boolean).join(" · ") || "—"], ["Motivo / diagnóstico", h.diagnosis || h.reason || "—"], ["Prognóstico", adm.prognostico || "—"], ["Veterinário responsável", h.veterinarian?.name || "—"], ["Estado atual", estado], ["Alta prevista", h.estimatedDischargeDate ? fmtData(h.estimatedDischargeDate) : "—"], ["Dias internado", String(diasInternado(h.admissionDate, h.actualDischargeDate))], ["Total acumulado", fmtBRL(h.totalCost)]].map(([k, v]) => (
               <tr key={k as string}><td style={{ padding: "6px 8px", color: "#374151", width: 200, borderBottom: "1px solid #F0EBE0" }}>{k}</td><td style={{ padding: "6px 8px", borderBottom: "1px solid #F0EBE0" }}>{v}</td></tr>
             ))}
           </tbody>

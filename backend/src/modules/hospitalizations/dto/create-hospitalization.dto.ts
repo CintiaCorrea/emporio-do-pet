@@ -52,6 +52,18 @@ export class CreateHospitalizationDto {
   @IsEnum(Priority)
   priority: Priority;
 
+  /**
+   * QUANDO O ANIMAL ENTROU (ISO, com hora). Não é quando alguém digitou a ficha.
+   *
+   * A diária conta 1 a cada 24 horas começadas a partir daqui. Sem este campo o sistema
+   * gravava `new Date()` — a hora da digitação — então um animal que chegou às 8h e foi
+   * cadastrado às 14h tinha a diária virando 6 horas atrasada, todo dia da internação.
+   */
+  @ApiPropertyOptional({ example: '2026-09-05T08:30:00-03:00' })
+  @IsOptional()
+  @IsString()
+  admissionAt?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
