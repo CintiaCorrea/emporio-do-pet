@@ -573,6 +573,7 @@ model Appointment {
   @@index([status])
   @@index([userId])
   @@index([codigoExterno])
+  boxOcupacoes  BoxOcupacao[]
 }
 
 model Treatment {
@@ -3139,7 +3140,16 @@ model BoxOcupacao {
   id            String    @id @default(uuid())
   boxId         String
   box           Box       @relation(fields: [boxId], references: [id], onDelete: Cascade)
-  appointmentId String // referência solta à internação (appointment), SEM FK
+  // LIGAÇÃO FORMAL com a internação (05/09/2026). Antes era referência SOLTA: apagar a
+  // internação deixava a ocupação aberta apontando pro vazio, e o box ficava preso para
+  // sempre — não aceitava paciente novo, aparecia ocupado sem mostrar bicho nenhum e nem
+  // deixava ser excluído. Foi o que prendeu o B02 por 14 dias.
+  //
+  // NULO é permitido de propósito, com onDelete: SetNull. Apagar a internação NÃO apaga a
+  // ocupação: o box esteve ocupado de fato, e isso é histórico. O que some é o ponteiro
+  // quebrado — e o mapa fecha a ocupação órfã sozinho (fecharOcupacoesFantasma).
+  appointmentId String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
   ativa         Boolean   @default(true)
   entradaAt     DateTime  @default(now())
   saidaAt       DateTime?

@@ -33,14 +33,12 @@ export class BoxesService {
    * Fecha ocupações FANTASMA de um box: as que continuam abertas apontando para uma
    * internação que não existe mais.
    *
-   * Isso acontece porque `BoxOcupacao.appointmentId` é uma referência SOLTA, sem chave
-   * estrangeira: apagar a internação não apaga (nem fecha) a ocupação. O box fica preso
-   * para sempre — não aceita novo paciente, não aparece livre no mapa e não deixa ser
-   * excluído, tudo por um paciente que não existe. Foi o que aconteceu com o B02 em
-   * 22/08/2026 e a Cintia descobriu tentando apagar o box em 05/09.
+   * Desde 05/09/2026 existe chave estrangeira com `onDelete: SetNull`, então apagar a
+   * internação zera o ponteiro em vez de deixá-lo quebrado. A ocupação continua aberta,
+   * porém — é aqui que ela fecha, e o box volta a ficar livre.
    *
-   * Em vez de exigir que alguém perceba e limpe na mão, o próprio sistema fecha ao passar
-   * por aqui. Devolve quantas fechou.
+   * A varredura por ponteiro quebrado continua valendo para as ocupações antigas, de antes
+   * da chave existir. Devolve quantas fechou.
    */
   private async fecharOcupacoesFantasma(boxId?: string): Promise<number> {
     const abertas = await this.prisma.boxOcupacao.findMany({
@@ -94,7 +92,7 @@ export class BoxesService {
     });
     const ocupacaoPorBox = new Map(ocupacoes.map((o) => [o.boxId, o]));
 
-    const apptIds = [...new Set(ocupacoes.map((o) => o.appointmentId))];
+    const apptIds = [...new Set(ocupacoes.map((o) => o.appointmentId).filter(Boolean) as string[])];
     const appts = apptIds.length
       ? await this.prisma.appointment.findMany({
           where: { id: { in: apptIds } },
@@ -122,7 +120,7 @@ export class BoxesService {
     // O mapa é a tela que a equipe abre o dia todo: se um box ficou preso por internação
     // apagada, ele se solta aqui, sem ninguém precisar perceber.
     for (const [boxId, oc] of ocupacaoPorBox) {
-      if (oc.appointmentId && !apptById.has(oc.appointmentId)) {
+      if (!oc.appointmentId || !apptById.has(oc.appointmentId)) {
         await this.prisma.boxOcupacao.updateMany({ where: { id: oc.id }, data: { ativa: false, saidaAt: new Date() } }).catch(() => undefined);
         ocupacaoPorBox.delete(boxId);
       }
@@ -133,7 +131,7 @@ export class BoxesService {
       if (!oc) {
         return { box, ocupado: false, internacao: null };
       }
-      const apt: any = apptById.get(oc.appointmentId) || null;
+      const apt: any = (oc.appointmentId ? apptById.get(oc.appointmentId) : null) || null;
       let meta: any = null;
       try {
         meta = apt?.notes ? JSON.parse(apt.notes) : null;
