@@ -41,7 +41,7 @@ interface Pet { id: string; name: string }
 interface Tutor { id: string; name: string; pets?: Pet[] }
 interface Servico { id: string; nome: string; valorPadrao?: number | null; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null }
 interface Prof { id: string; name: string }
-interface CartItem { _faixas?: FaixaPorte[]; _faixaRotulo?: string | null; _avisoPorte?: string | null; servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null; _novo?: boolean; catalogoItemId?: string; descontoModo?: string; descontoLimite?: number | null; _convenio?: boolean; convenioId?: string; _convLabel?: string }
+interface CartItem { _ehCaucao?: boolean; _faixas?: FaixaPorte[]; _faixaRotulo?: string | null; _avisoPorte?: string | null; servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null; _novo?: boolean; catalogoItemId?: string; descontoModo?: string; descontoLimite?: number | null; _convenio?: boolean; convenioId?: string; _convLabel?: string }
 interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string; tutorId?: string }
 
 const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
@@ -597,8 +597,49 @@ export default function PDVPage() {
     } catch (e: any) { toast.error(e.message || 'Erro ao salvar'); } finally { setSalvando(false); }
   };
 
-  const abrirRecebimento = () => { if (!baseValida) return; setFormas([{ forma: 'Dinheiro', valor: Number(total.toFixed(2)) }]); setModal(true); };
+  // 💰 CAUÇÃO — dinheiro adiantado, não serviço vendido.
+  //
+  // Vendida como item comum ela virava RECEITA e o cliente não ficava com crédito nenhum: na
+  // prática pagava duas vezes — a caução e depois a conta inteira. O módulo de crédito já faz o
+  // certo (entra no caixa e conta como "Adiantamento de Clientes", FORA da receita bruta); o que
+  // faltava era o Ponto de venda saber mandar pra lá.
+  const temCaucao = carrinho.some((it) => it._ehCaucao);
+  const soCaucao = temCaucao && carrinho.every((it) => it._ehCaucao);
+
+  const receberCaucao = async () => {
+    if (!cliente) { toast.error('Escolha o cliente.'); return; }
+    if (!caixaAbertoId) { toast.error(caixaUsado?.erro || 'Abra o seu caixa para receber a caução.'); return; }
+    const aReceber = formas.filter((f) => Number(f.valor) > 0);
+    if (!aReceber.length) { toast.error('Informe como a caução foi paga.'); return; }
+    setSalvando(true);
+    try {
+      // Uma recarga por forma de pagamento: o extrato do cliente mostra como cada parte entrou.
+      for (const f of aReceber) {
+        const r = await fetch('/api/credito', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+          body: JSON.stringify({
+            tutorId: cliente.id, tipo: 'RECARGA', valor: Number(Number(f.valor).toFixed(2)),
+            descricao: carrinho.map((it) => it.descricao).join(' · ') || 'Caução',
+            forma: f.forma, caixaSessaoId: caixaAbertoId,
+          }),
+        });
+        if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.message || 'Erro ao registrar a caução'); }
+      }
+      const soma = aReceber.reduce((s2, f) => s2 + Number(f.valor), 0);
+      toast.success(`Caução de ${brl(soma)} virou crédito de ${cliente.name} ✅`);
+      setModal(false); reset();
+    } catch (e: any) { toast.error(e?.message || 'Erro ao registrar a caução'); } finally { setSalvando(false); }
+  };
+
+  const abrirRecebimento = () => {
+    if (!baseValida) return;
+    // Caução misturada com serviço na mesma venda daria uma conta meio receita, meio adiantamento —
+    // e não há como dividir o pagamento entre as duas coisas sem adivinhar. Recebe separado.
+    if (temCaucao && !soCaucao) { toast.error('A caução precisa ser recebida sozinha. Tire os outros itens do carrinho ou tire a caução.'); return; }
+    setFormas([{ forma: 'Dinheiro', valor: Number(total.toFixed(2)) }]); setModal(true);
+  };
   const confirmarRecebimento = () => {
+    if (soCaucao) return receberCaucao();
     // Cartão exige operadora + NSU + AUT: é o que casa a venda com a linha do extrato.
     const falta = validarPagamentosCartao(formas.filter((f) => Number(f.valor) > 0), formasConfig);
     if (falta) { toast.error(falta); return; }
@@ -627,7 +668,10 @@ export default function PDVPage() {
       reset(); loadVendas();
     } catch (e: any) { toast.error(e?.message || 'Erro ao salvar'); } finally { setSalvando(false); }
   };
-  const salvar = () => { if (editandoId) return salvarEdicaoVenda(); if (tipo === 'ORCAMENTO') return salvarOrcamento(); return enviar(payload({ tipo }), 'Venda salva (a receber)'); };
+  const salvar = () => {
+    if (soCaucao) { toast.error('Caução não fica "a receber" — ela é dinheiro que entra agora. Use “Registrar recebimento”.'); return; }
+    if (editandoId) return salvarEdicaoVenda(); if (tipo === 'ORCAMENTO') return salvarOrcamento(); return enviar(payload({ tipo }), 'Venda salva (a receber)');
+  };
   // 🖨️ Imprime o que está na tela (venda ou orçamento, conforme o tipo) — mesmo antes de salvar.
   const imprimirAtual = () => {
     if (!carrinho.length) { toast.error('Adicione itens primeiro'); return; }
@@ -932,6 +976,18 @@ export default function PDVPage() {
                 <span style={{ fontSize: 21, fontWeight: 500, color: NAVY }}>{brl(total)}</span>
               </div>
             </div>
+
+            {/* 💰 o carrinho é uma caução: deixar claro que o dinheiro NÃO é receita de serviço */}
+            {soCaucao && (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9, background: '#E1F5EE', border: '1px solid #A9DFCC', borderRadius: 11, padding: '10px 13px', margin: '0 0 16px' }}>
+                <span style={{ fontSize: 15 }}>💰</span>
+                <div style={{ fontSize: 12.5, color: '#0F6E56' }}>
+                  Isto é uma <b>caução</b>. Ao registrar o recebimento, o dinheiro entra no seu caixa e
+                  vira <b>crédito no nome de {cliente?.name || 'do cliente'}</b>, para abater contas depois —
+                  não conta como serviço vendido.
+                </div>
+              </div>
+            )}
 
             {/* 3 observações */}
             {step('📝', 'Observações')}

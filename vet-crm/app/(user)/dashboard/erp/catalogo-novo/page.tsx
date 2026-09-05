@@ -29,6 +29,7 @@ const FORM0: any = {
   composicao: [] as any[],
   // PRECO POR PORTE: faixas vazias = preco unico (a maioria dos itens).
   faixas: [] as FaixaPorte[],
+  ehCaucao: false,
 };
 
 export default function CatalogoNovoPage() {
@@ -349,6 +350,23 @@ export default function CatalogoNovoPage() {
                       style={{ ...inp, ...(porPorte ? { background: "#F3EFE6", color: "#8C979B" } : null) }} /></div>
                 </div>
                 {markupReal != null && !porPorte && <div className="text-[11.5px] mt-1.5" style={{ color: markupReal < 0 ? "#A32D2D" : "#0F6E56" }}>Markup real: <b>{markupReal}%</b> {markupReal < 0 && "⚠️ preço abaixo do custo"}</div>}
+
+                {/* 💰 CAUCAO — dinheiro adiantado, nao servico vendido. Vendida como item comum,
+                    ela virava receita e o cliente nao ficava com credito nenhum: pagava duas vezes
+                    na pratica. Marcada aqui, o recebimento vai pro modulo de credito. */}
+                <div className="mt-3 pt-3" style={{ borderTop: `1px dashed ${LINE}` }}>
+                  <label className="flex items-center gap-2 cursor-pointer text-[13px]" style={{ color: B }}>
+                    <input type="checkbox" checked={!!form.ehCaucao} onChange={(e) => up({ ehCaucao: e.target.checked })} />
+                    <span>💰 <b>Isto é uma caução</b> — o valor recebido vira crédito do cliente</span>
+                  </label>
+                  {form.ehCaucao && (
+                    <div className="text-[11.5px] mt-1.5" style={{ color: "#0F6E56", background: "#E1F5EE", borderRadius: 9, padding: "8px 11px" }}>
+                      O dinheiro entra no caixa e fica como <b>crédito no nome do cliente</b>, para abater
+                      contas depois. Não conta como serviço vendido — entra em “Adiantamento de Clientes”,
+                      fora da receita. No Ponto de venda, a caução é recebida sozinha.
+                    </div>
+                  )}
+                </div>
 
                 {/* ⚖️ PRECO POR PORTE — junta os cadastros repetidos por faixa de peso num item so.
                     Hoje "ACEPRAN - 11 A 20 KG" e "ACEPRAN ATE 10KG" sao itens diferentes: a recepcao

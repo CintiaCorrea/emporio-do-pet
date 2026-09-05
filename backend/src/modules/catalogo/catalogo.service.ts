@@ -116,6 +116,7 @@ export class CatalogoService {
       // PRECO POR PORTE — a tela sugere, aqui e onde se decide. Faixa mal montada nao entra
       // no banco: item com faixa quebrada cobra errado sem ninguem perceber. Ver common/porte.
       precosPorte: this.faixasParaGravar(dto.precosPorte),
+      ehCaucao: !!dto.ehCaucao,
       exibeListaPreco: dto.exibeListaPreco ?? true,
       permiteAlterarPreco: dto.permiteAlterarPreco ?? true,
       codigoBarras: dto.codigoBarras || null,
@@ -243,6 +244,8 @@ export class CatalogoService {
       _descontoLimite: i.descontoLimite ?? null,
       // Faixas de peso (null = preço único). Quem resolve o preço é lib/porte, com o peso do pet.
       _precosPorte: i.precosPorte ?? null,
+      // Caução: o valor recebido vira CRÉDITO do cliente, não receita de serviço.
+      _ehCaucao: i.ehCaucao,
       };
     });
   }

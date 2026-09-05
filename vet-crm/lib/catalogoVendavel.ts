@@ -23,6 +23,8 @@ export type ItemVendavel = {
   _descontoLimite?: number | null;
   /** Faixas de peso gravadas no item (JSON). Null/vazio = preço único. Ver lib/porte. */
   _precosPorte?: string | null;
+  /** Caução: ao receber, o valor vira crédito do cliente em vez de receita de serviço. */
+  _ehCaucao?: boolean;
 };
 
 // LINHA de venda padronizada — o "centro operacional" de um item, IGUAL em toda tela.
@@ -36,6 +38,8 @@ export type LinhaVendavel = {
   _faixas?: FaixaPorte[];        // as faixas do item (vazio = preço único)
   _faixaRotulo?: string | null;  // a faixa que o peso escolheu ("11 a 20 kg")
   _avisoPorte?: string | null;   // por que o preço não veio sozinho
+  /** Caução: esta linha não é venda — vira crédito do cliente. */
+  _ehCaucao?: boolean;
 };
 
 /** Transforma um item do catálogo numa LINHA de venda/comanda/orçamento PADRÃO — trata exame vs
@@ -79,7 +83,7 @@ export function linhaDoItem(item: ItemVendavel, pesoKg?: number | null): LinhaVe
     if (r.preco != null) base = { ...base, valorUnitario: r.preco, custoUnitario: r.custo ?? base.custoUnitario };
     porte = { _faixas: faixas, _faixaRotulo: r.faixa ? rotuloDaFaixa(r.faixa) : null, _avisoPorte: r.aviso };
   }
-  base = { ...base, ...porte } as any;
+  base = { ...base, ...porte, ...(item._ehCaucao ? { _ehCaucao: true } : {}) } as any;
   if (item._novo) {
     // Catálogo NOVO: vende por descrição+valor+custo + catalogoItemId. Carrega o LAB (fornecedorId) —
     // é o que gera o a-pagar do laboratório (Fatia 5) — e o nome do lab p/ o selo.
