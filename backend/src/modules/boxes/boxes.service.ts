@@ -29,8 +29,43 @@ export class BoxesService {
     return this.prisma.box.update({ where: { id }, data: { ...dto } });
   }
 
+  /**
+   * Fecha ocupações FANTASMA de um box: as que continuam abertas apontando para uma
+   * internação que não existe mais.
+   *
+   * Isso acontece porque `BoxOcupacao.appointmentId` é uma referência SOLTA, sem chave
+   * estrangeira: apagar a internação não apaga (nem fecha) a ocupação. O box fica preso
+   * para sempre — não aceita novo paciente, não aparece livre no mapa e não deixa ser
+   * excluído, tudo por um paciente que não existe. Foi o que aconteceu com o B02 em
+   * 22/08/2026 e a Cintia descobriu tentando apagar o box em 05/09.
+   *
+   * Em vez de exigir que alguém perceba e limpe na mão, o próprio sistema fecha ao passar
+   * por aqui. Devolve quantas fechou.
+   */
+  private async fecharOcupacoesFantasma(boxId?: string): Promise<number> {
+    const abertas = await this.prisma.boxOcupacao.findMany({
+      where: { ativa: true, ...(boxId ? { boxId } : {}) },
+      select: { id: true, appointmentId: true },
+    });
+    if (!abertas.length) return 0;
+    const ids = abertas.map((o) => o.appointmentId).filter(Boolean) as string[];
+    const vivos = ids.length
+      ? await this.prisma.appointment.findMany({ where: { id: { in: ids } }, select: { id: true } })
+      : [];
+    const vivosSet = new Set(vivos.map((a) => a.id));
+    const fantasmas = abertas.filter((o) => !o.appointmentId || !vivosSet.has(o.appointmentId));
+    if (!fantasmas.length) return 0;
+    await this.prisma.boxOcupacao.updateMany({
+      where: { id: { in: fantasmas.map((o) => o.id) } },
+      data: { ativa: false, saidaAt: new Date() },
+    });
+    return fantasmas.length;
+  }
+
   async remove(id: string) {
     await this.findOne(id);
+    // Box preso por paciente que não existe mais não é motivo pra recusar a exclusão.
+    await this.fecharOcupacoesFantasma(id);
     const ocupado = await this.prisma.boxOcupacao.findFirst({
       where: { boxId: id, ativa: true },
     });
@@ -83,6 +118,15 @@ export class BoxesService {
         })
       : [];
     const apptById = new Map(appts.map((a) => [a.id, a]));
+
+    // O mapa é a tela que a equipe abre o dia todo: se um box ficou preso por internação
+    // apagada, ele se solta aqui, sem ninguém precisar perceber.
+    for (const [boxId, oc] of ocupacaoPorBox) {
+      if (oc.appointmentId && !apptById.has(oc.appointmentId)) {
+        await this.prisma.boxOcupacao.updateMany({ where: { id: oc.id }, data: { ativa: false, saidaAt: new Date() } }).catch(() => undefined);
+        ocupacaoPorBox.delete(boxId);
+      }
+    }
 
     const cards = boxes.map((box) => {
       const oc = ocupacaoPorBox.get(box.id);
