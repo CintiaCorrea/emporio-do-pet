@@ -31,9 +31,16 @@ describe("validarPagamentosCartao", () => {
     expect(validarPagamentosCartao([{ ...cartaoOk, nsu: "123456" }], cfg)).toBeNull();
   });
 
-  it("recusa cartão sem AUT — é o número que casa com o extrato", () => {
-    expect(validarPagamentosCartao([{ ...cartaoOk, aut: undefined }], cfg)).toMatch(/autoriza/i);
-    expect(validarPagamentosCartao([{ ...cartaoOk, aut: "  " }], cfg)).toMatch(/autoriza/i);
+  it("NAO recusa cartão sem AUT — o Nubank por link não tem identificador nenhum", () => {
+    // Terceira versão desta regra em dois dias. Exigir NSU travou (o papel não traz);
+    // exigir AUT travou (o Nubank link não tem). Enquanto não houver a marca por operadora,
+    // a tela avisa e deixa salvar: venda barrada é dinheiro que não entra.
+    expect(validarPagamentosCartao([{ ...cartaoOk, aut: undefined }], cfg)).toBeNull();
+    expect(validarPagamentosCartao([{ ...cartaoOk, aut: "", nsu: "" }], cfg)).toBeNull();
+  });
+
+  it("aceita AUT com letras — o comprovante da Infinity traz coisas como EVOQEE", () => {
+    expect(validarPagamentosCartao([{ ...cartaoOk, aut: "EVOQEE" }], cfg)).toBeNull();
   });
 
   it("recusa cartão sem operadora", () => {
@@ -52,9 +59,10 @@ describe("validarPagamentosCartao", () => {
   });
 
   it("com várias formas, diz QUAL delas está faltando", () => {
+    const semAdq = [{ nome: "Maquininha sem dono", tipo: "Maquininha" }] as FormaCfg[];
     const erro = validarPagamentosCartao(
-      [{ forma: "Dinheiro", valor: 50 }, { ...cartaoOk, aut: "" }],
-      cfg,
+      [{ forma: "Dinheiro", valor: 50 }, { forma: "Maquininha sem dono", valor: 10 }],
+      [...cfg, ...semAdq],
     );
     expect(erro).toMatch(/2ª forma/);
   });
