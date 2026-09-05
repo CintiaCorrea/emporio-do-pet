@@ -4,6 +4,7 @@ import { BoardsService } from '../boards/boards.service';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { CreateHospitalizationDto } from './dto/create-hospitalization.dto';
 import { UpdateHospitalizationDto } from './dto/update-hospitalization.dto';
+import { diariasDevidas, diariasAFaturar } from './diaria.regras';
 
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -41,11 +42,18 @@ export class HospitalizationsService {
     const meta: any = this.parseMetadata(appt.notes);
     if (!meta) throw new BadRequestException('Este atendimento não é uma internação');
 
-    // Diárias ainda não faturadas (1 por dia corrido desde a admissão).
+    // Diárias ainda não faturadas — 1 a cada 24 HORAS COMEÇADAS desde a entrada (regra
+    // confirmada pela Cintia em 04/09: 25 h = 2 diárias).
+    //
+    // A CONTA PARA NA ALTA. Antes contava sempre até AGORA: um animal que teve alta no dia 1º
+    // e cuja ficha fosse aberta no dia 10 aparecia com nove diárias a mais, e quem faturasse
+    // naquele momento cobrava as nove. A conta mudava de valor sozinha, com o passar dos dias,
+    // sem ninguém ter tocado nela.
     const admissao = new Date(appt.date);
-    const diasCorridos = Math.max(1, Math.ceil((Date.now() - admissao.getTime()) / 86400000));
+    const alta = meta?.actualDischargeDate ? new Date(meta.actualDischargeDate).getTime() : null;
+    const diasCorridos = diariasDevidas(admissao.getTime(), Date.now(), alta);
     const jaFaturadas = Number(meta.diariasFaturadas || 0);
-    const diariasNovas = Math.max(0, diasCorridos - jaFaturadas);
+    const diariasNovas = diariasAFaturar(diasCorridos, jaFaturadas);
     const dailyRate = Number(meta.dailyRate) || 0;
 
     // Itens abertos da conta (intconta_<id>) — não baixados e que não são Insumo.
@@ -244,7 +252,12 @@ export class HospitalizationsService {
         tutorId: dto.tutorId,
         petId: dto.petId,
         userId: dto.userId,
-        date: new Date(),
+        // A HORA DA ENTRADA manda, não a da digitação — é dela que saem as diárias.
+        // Data inválida cai no agora, que é o comportamento antigo.
+        date: (() => {
+          const d = (dto as any).admissionAt ? new Date((dto as any).admissionAt) : null;
+          return d && !Number.isNaN(d.getTime()) ? d : new Date();
+        })(),
         duration: 0,
         description: dto.reason,
         notes: JSON.stringify(metadata),

@@ -47,8 +47,15 @@ export default function InternacoesPage() {
   // Vindo do atalho "Internação" na ficha do pet (?pet=Nome) → já filtra por ele.
   useEffect(() => { try { const p = new URLSearchParams(window.location.search).get("pet"); if (p) setBusca(p); } catch {} }, []);
 
+  // Hora local no formato do <input type="datetime-local"> — sem passar por UTC, senão a
+  // entrada aparece 3 horas deslocada em Fortaleza.
+  const agoraLocal = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().slice(0, 16);
+  };
   const [novoOpen, setNovoOpen] = useState(false);
-  const [form, setForm] = useState<any>({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", diariaServicoId: "", diariaCatalogoItemId: "", diariaCusto: undefined, diariaNome: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });
+  const [form, setForm] = useState<any>({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", diariaServicoId: "", diariaCatalogoItemId: "", diariaCusto: undefined, diariaNome: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "", admissaoEm: agoraLocal() });
   // 🗂️ Catálogo (p/ escolher a DIÁRIA como serviço/produto — leva custo pro DRE).
   const [catServ, setCatServ] = useState<any[]>([]);
   const [diariaBusca, setDiariaBusca] = useState("");
@@ -194,6 +201,8 @@ export default function InternacoesPage() {
       const est = estadoStyle(form.estado);
       const body = {
         tutorId: form.tutorId, petId: form.petId, userId: form.userId, reason: form.reason.trim(),
+        // A hora da ENTRADA — é dela que saem as diárias, não da hora em que a ficha foi feita.
+        ...(form.admissaoEm ? { admissionAt: new Date(form.admissaoEm).toISOString() } : {}),
         dailyRate: Number(form.dailyRate) || 0, priority: est.prio,
         ...(form.diariaServicoId ? { diariaServicoId: form.diariaServicoId } : {}),
         ...(form.diariaCatalogoItemId ? { diariaCatalogoItemId: form.diariaCatalogoItemId } : {}),
@@ -210,7 +219,7 @@ export default function InternacoesPage() {
       }
       setNovoOpen(false);
       setSelCliente(null); setSelPet(null);
-      setForm({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", diariaServicoId: "", diariaCatalogoItemId: "", diariaCusto: undefined, diariaNome: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });
+      setForm({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", diariaServicoId: "", diariaCatalogoItemId: "", diariaCusto: undefined, diariaNome: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "", admissaoEm: agoraLocal() });
       setDiariaItem(null); setDiariaFaixa(null); setDiariaAviso(null);
       load();
     } catch { alert("Erro ao criar internação."); }
@@ -600,6 +609,24 @@ export default function InternacoesPage() {
                       </div>
                     )}
                     </div>
+                  {/* ⏰ ENTRADA — a diária conta 24h a partir DAQUI. Antes o sistema gravava a hora
+                      em que a ficha foi digitada: animal que chegou às 8h e foi cadastrado às 14h
+                      tinha a diária virando 6 horas atrasada, todo dia da internação. */}
+                  <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Entrada (data e hora) *</label>
+                    <input type="datetime-local" value={form.admissaoEm} onChange={(e) => setForm({ ...form, admissaoEm: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} />
+                    <div className="text-[10.5px] text-[#5C6B70] mt-1">
+                      {(() => {
+                        if (!form.admissaoEm) return "A diária conta 24 horas a partir daqui.";
+                        const d = new Date(form.admissaoEm);
+                        if (Number.isNaN(d.getTime())) return "Data inválida.";
+                        const vira = new Date(d.getTime() + 86400000);
+                        const atras = Math.round((Date.now() - d.getTime()) / 60000);
+                        const hhmm = vira.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+                        if (atras > 24 * 60) return `⚠️ Entrada há mais de um dia — a 1ª diária já venceu. A próxima vira ${hhmm}.`;
+                        return `A 2ª diária começa em ${hhmm}.`;
+                      })()}
+                    </div>
+                  </div>
                   <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Alta prevista</label>
                     <input type="date" value={form.estimatedDischargeDate} onChange={(e) => setForm({ ...form, estimatedDischargeDate: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
                   <div className="col-span-2"><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Horários dos boletins (HH:MM, separados por vírgula)</label>
