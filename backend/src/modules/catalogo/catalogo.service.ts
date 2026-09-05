@@ -241,6 +241,8 @@ export class CatalogoService {
       _fornecedorNome: fid ? (fornMap.get(fid) ?? null) : null,
       _descontoModo: i.descontoModo,     // política de desconto por item (Fatia 6b)
       _descontoLimite: i.descontoLimite ?? null,
+      // Faixas de peso (null = preço único). Quem resolve o preço é lib/porte, com o peso do pet.
+      _precosPorte: i.precosPorte ?? null,
       };
     });
   }

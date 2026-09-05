@@ -75,3 +75,59 @@ describe("catalogoVendavel — labDoItem (lab + estrela na venda)", () => {
     expect(nomeSemMarcador("🔬 HEMOGRAMA")).toBe("HEMOGRAMA");
   });
 });
+
+// ⚖️ PREÇO POR PORTE na hora da venda (05/09/2026). O peso do ANIMAL escolhe o preço; antes a
+// recepção escolhia pelo NOME do item ("ACEPRAN - 11 A 20 KG"), que é como se cobrava errado
+// sem ninguém perceber. Os valores são os do Acepran na produção (#7, #1, #3, #5).
+describe("linhaDoItem com peso do animal", () => {
+  const acepran = {
+    id: "ac", nome: "ACEPRAN", valorPadrao: 37.57, custoPadrao: 5, _novo: true,
+    _precosPorte: JSON.stringify([
+      { ate: 10, rotulo: "0 a 10 kg", preco: 37.57, custo: 5 },
+      { ate: 20, rotulo: "11 a 20 kg", preco: 44.91, custo: 7 },
+      { ate: 30, rotulo: "21 a 30 kg", preco: 51.49, custo: 9 },
+      { ate: 40, rotulo: "31 a 40 kg", preco: 58.44, custo: 11 },
+      { ate: null, rotulo: "41 a 50+ kg", preco: null },
+    ]),
+  };
+
+  it("cão de 14,2 kg leva o preço E o custo da faixa dele", () => {
+    const l = linhaDoItem(acepran as any, 14.2);
+    expect(l.valorUnitario).toBe(44.91);
+    expect(l.custoUnitario).toBe(7);
+    expect(l._faixaRotulo).toBe("11 a 20 kg");
+    expect(l._avisoPorte).toBeNull();
+  });
+
+  it("na borda, 10,0 fica na primeira faixa e 10,05 já vai pra segunda", () => {
+    expect(linhaDoItem(acepran as any, 10).valorUnitario).toBe(37.57);
+    expect(linhaDoItem(acepran as any, 10.05).valorUnitario).toBe(44.91);
+  });
+
+  it("pet SEM peso não vira preço zero — mantém o base e pede a faixa", () => {
+    const l = linhaDoItem(acepran as any, null);
+    expect(l.valorUnitario).toBe(37.57); // preço-base do item, não zero
+    expect(l._avisoPorte).toMatch(/peso do animal não está no cadastro/i);
+    expect(l._faixas).toHaveLength(5);
+  });
+
+  it("faixa cadastrada SEM preço avisa em vez de usar o preço do vizinho", () => {
+    const l = linhaDoItem(acepran as any, 47);
+    expect(l._avisoPorte).toMatch(/41 a 50\+ kg/);
+    expect(l._faixaRotulo).toBe("41 a 50+ kg");
+  });
+
+  it("item sem faixas ignora o peso e segue como sempre foi", () => {
+    const l = linhaDoItem({ id: "x", nome: "CONSULTA", valorPadrao: 150, _novo: true } as any, 33);
+    expect(l.valorUnitario).toBe(150);
+    expect(l._faixas).toBeUndefined();
+    expect(l._avisoPorte).toBeUndefined();
+  });
+
+  it("a faixa viaja junto com a identidade do item — não atrapalha o resto", () => {
+    const l = linhaDoItem(acepran as any, 25);
+    expect(l.catalogoItemId).toBe("ac");
+    expect(l._novo).toBe(true);
+    expect(itemParaVenda(l).valorUnitario).toBe(51.49);
+  });
+});
