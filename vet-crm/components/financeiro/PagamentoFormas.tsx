@@ -102,12 +102,12 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
                   </div>
                 )}
                 <div style={{ flex: 1, minWidth: 88 }}>
-                  <label style={lbl}>NSU *</label>
-                  <input value={f.nsu || ""} placeholder="NSU" title="Número do comprovante da maquininha — usado pra casar com o extrato" onChange={(e) => set(i, { nsu: e.target.value })} style={{ ...inp, ...(String(f.nsu || "").trim() ? null : faltando) }} />
+                  <label style={lbl}>NSU</label>
+                  <input value={f.nsu || ""} placeholder="NSU" title="Opcional — algumas maquininhas imprimem, outras não" onChange={(e) => set(i, { nsu: e.target.value })} style={inp} />
                 </div>
                 <div style={{ flex: 1, minWidth: 88 }}>
                   <label style={lbl}>AUT *</label>
-                  <input value={f.aut || ""} placeholder="Autorização" title="Código de autorização do comprovante" onChange={(e) => set(i, { aut: e.target.value })} style={{ ...inp, ...(String(f.aut || "").trim() ? null : faltando) }} />
+                  <input value={f.aut || ""} placeholder="Autorização" title="Obrigatório — é o número que casa a venda com o extrato da operadora" onChange={(e) => set(i, { aut: e.target.value })} style={{ ...inp, ...(String(f.aut || "").trim() ? null : faltando) }} />
                 </div>
               </div>
             )}

@@ -1,9 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { validarPagamentosCartao, adquirenteDaLinha, PagForma, FormaCfg } from "./formasPagamento";
 
-// REGRA DA CASA (04/09/2026, pedido da Cintia): venda no cartão só salva com OPERADORA,
-// NSU e AUT preenchidos. É o que permite casar a venda com a linha do extrato da operadora
-// na conciliação — sem isso a conferência do cartão vira trabalho manual no fim do mês.
+// REGRA DA CASA (05/09/2026, CORRIGIDA pela Cintia): venda no cartão só salva com OPERADORA
+// e AUT. NSU e autorização são números DIFERENTES, e o papel da maquininha normalmente
+// imprime só a AUT — exigir os dois travava a venda por um dado que a atendente não tem como
+// ler. A AUT é o que casa a venda com a linha do extrato na conciliação.
 // Este teste existe para a regra não se perder de novo: se alguém tirar a obrigatoriedade,
 // o deploy para aqui.
 describe("validarPagamentosCartao", () => {
@@ -17,16 +18,22 @@ describe("validarPagamentosCartao", () => {
     modalidade: "Crédito à vista", bandeira: "Visa", nsu: "123456", aut: "998877",
   };
 
-  it("passa quando o cartão tem operadora, NSU e AUT", () => {
+  it("passa quando o cartão tem operadora e AUT", () => {
     expect(validarPagamentosCartao([cartaoOk], cfg)).toBeNull();
   });
 
-  it("recusa cartão sem NSU", () => {
-    expect(validarPagamentosCartao([{ ...cartaoOk, nsu: "" }], cfg)).toMatch(/NSU/i);
+  it("passa SEM NSU — o papel da maquininha normalmente só traz a AUT", () => {
+    expect(validarPagamentosCartao([{ ...cartaoOk, nsu: "" }], cfg)).toBeNull();
+    expect(validarPagamentosCartao([{ ...cartaoOk, nsu: undefined }], cfg)).toBeNull();
   });
 
-  it("recusa cartão sem AUT", () => {
+  it("mas aceita o NSU quando a maquininha imprime", () => {
+    expect(validarPagamentosCartao([{ ...cartaoOk, nsu: "123456" }], cfg)).toBeNull();
+  });
+
+  it("recusa cartão sem AUT — é o número que casa com o extrato", () => {
     expect(validarPagamentosCartao([{ ...cartaoOk, aut: undefined }], cfg)).toMatch(/autoriza/i);
+    expect(validarPagamentosCartao([{ ...cartaoOk, aut: "  " }], cfg)).toMatch(/autoriza/i);
   });
 
   it("recusa cartão sem operadora", () => {
@@ -46,7 +53,7 @@ describe("validarPagamentosCartao", () => {
 
   it("com várias formas, diz QUAL delas está faltando", () => {
     const erro = validarPagamentosCartao(
-      [{ forma: "Dinheiro", valor: 50 }, { ...cartaoOk, nsu: "" }],
+      [{ forma: "Dinheiro", valor: 50 }, { ...cartaoOk, aut: "" }],
       cfg,
     );
     expect(erro).toMatch(/2ª forma/);
