@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { lerFaixas, erroDasFaixas, ordenarFaixas } from '../../common/porte';
 
 // Catálogo Único (rebuild) — CRUD de itens (produto/serviço/exame/vacina/pacote/kit),
 // grupos (árvore) e marcas. Cadastro só; venda/estoque vêm nas próximas fatias.
@@ -87,6 +88,22 @@ export class CatalogoService {
   }
 
   // Separa os campos próprios do item das extensões (exame/composição/overrides).
+  /**
+   * Confere e normaliza as faixas de peso antes de gravar.
+   *
+   * Devolve null (= preco unico) quando nao vem nada. Recusa quando vem faixa quebrada —
+   * a mais perigosa e a que nao tem a ultima faixa aberta: um animal muito pesado cairia
+   * fora de todas e a venda ficaria sem preco na hora do balcao.
+   */
+  private faixasParaGravar(bruto: any): string | null {
+    if (bruto == null || bruto === '' || bruto === 'null') return null;
+    const faixas = typeof bruto === 'string' ? lerFaixas(bruto) : lerFaixas(JSON.stringify(bruto));
+    if (!faixas.length) return null;
+    const erro = erroDasFaixas(faixas);
+    if (erro) throw new BadRequestException(erro);
+    return JSON.stringify(ordenarFaixas(faixas));
+  }
+
   private camposItem(dto: any) {
     const d: any = {
       tipo: dto.tipo,
@@ -96,6 +113,9 @@ export class CatalogoService {
       fornecedorId: dto.fornecedorId || null,   // terceirizado/parceiro do serviço → a-pagar ao vender
       markup: dto.markup != null ? Number(dto.markup) : null,
       preco: Number(dto.preco) || 0,
+      // PRECO POR PORTE — a tela sugere, aqui e onde se decide. Faixa mal montada nao entra
+      // no banco: item com faixa quebrada cobra errado sem ninguem perceber. Ver common/porte.
+      precosPorte: this.faixasParaGravar(dto.precosPorte),
       exibeListaPreco: dto.exibeListaPreco ?? true,
       permiteAlterarPreco: dto.permiteAlterarPreco ?? true,
       codigoBarras: dto.codigoBarras || null,

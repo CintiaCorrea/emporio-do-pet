@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import toast from "react-hot-toast";
+import { FAIXAS_PADRAO, lerFaixas, rotuloDaFaixa, erroDasFaixas, ordenarFaixas, type FaixaPorte } from "@/lib/porte";
 
 const B = "#014D5E", T = "#009AAC", LINE = "#E8DFC8", PAPER = "#F6F2EA", INK = "#1F2A2E", MUT = "#5C6B70";
 type Tipo = "PRODUTO" | "SERVICO" | "EXAME" | "VACINA" | "PACOTE" | "KIT";
@@ -26,6 +27,8 @@ const FORM0: any = {
   controlePlano: "", planoUnidades: "", planoIntervaloDias: "", // pacote/kit: o que a venda cria
   exame: { fornecedorId: "", custoLab: "", prazoResultadoDias: "", categoria: "", externo: false },
   composicao: [] as any[],
+  // PRECO POR PORTE: faixas vazias = preco unico (a maioria dos itens).
+  faixas: [] as FaixaPorte[],
 };
 
 export default function CatalogoNovoPage() {
@@ -122,6 +125,7 @@ export default function CatalogoNovoPage() {
         controlePlano: it.controlePlano || "", planoUnidades: it.planoUnidades ?? "", planoIntervaloDias: it.planoIntervaloDias ?? "",
         exame: it.exame ? { fornecedorId: it.exame.fornecedorId || "", custoLab: it.exame.custoLab ?? "", prazoResultadoDias: it.exame.prazoResultadoDias ?? "", categoria: it.exame.categoria || "", externo: !!it.exame.externo } : { ...FORM0.exame },
         composicao: (it.composicao || []).map((c: any) => ({ itemId: c.itemId, nome: c.item?.nome, quantidade: c.quantidade })),
+        faixas: lerFaixas(it.precosPorte),
       });
     } catch { toast.error("Não consegui abrir o item"); }
   }
@@ -144,6 +148,10 @@ export default function CatalogoNovoPage() {
     }
     return nf;
   });
+  // O item cobra por porte? E o que decide se o campo de preco unico vale.
+  const porPorte = ((form?.faixas || []) as FaixaPorte[]).length > 0;
+  const erroFaixas = porPorte ? erroDasFaixas(form.faixas) : null;
+
   const markupReal = useMemo(() => {
     const c = custoBase(form), p = Number(form?.preco);
     if (!form || !c || c <= 0 || !p) return null;
@@ -184,7 +192,20 @@ export default function CatalogoNovoPage() {
     if (!form?.grupoId) { toast.error("Escolha um grupo"); return; }
     setSalvando(true);
     try {
-      const body = { ...form };
+      const body: any = { ...form };
+      // Faixas viram o campo que o banco guarda. Vazio = preco unico, e o servidor limpa.
+      if ((form.faixas || []).length) {
+        const erro = erroDasFaixas(form.faixas);
+        if (erro) { toast.error(erro); setSalvando(false); return; }
+        body.precosPorte = JSON.stringify(ordenarFaixas(form.faixas));
+        // O preco unico passa a ser o da PRIMEIRA faixa com preco — assim relatorio, lista de
+        // precos e qualquer tela que ainda nao saiba de porte mostram um numero de verdade.
+        const primeiro = ordenarFaixas(form.faixas).find((f: FaixaPorte) => f.preco != null);
+        if (primeiro) { body.preco = primeiro.preco; body.custo = primeiro.custo ?? body.custo; }
+      } else {
+        body.precosPorte = null;
+      }
+      delete body.faixas;
       const url = form.id ? `/api/catalogo/itens/${form.id}` : "/api/catalogo/itens";
       const r = await fetch(url, { method: form.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) { const e = await r.json().catch(() => null); throw new Error(e?.message || "Erro ao salvar"); }
@@ -306,9 +327,72 @@ export default function CatalogoNovoPage() {
                 <div className="grid grid-cols-3 gap-3">
                   <div><label style={lbl}>Custo</label><input value={form.custo} onChange={(e) => comMarkup({ custo: e.target.value.replace(",", ".") })} inputMode="decimal" style={inp} /></div>
                   <div><label style={lbl}>Markup %</label><input value={form.markup} onChange={(e) => comMarkup({ markup: e.target.value.replace(",", ".") })} inputMode="decimal" style={inp} placeholder="ex.: 100" /></div>
-                  <div><label style={lbl}>Preço venda *</label><input value={form.preco} onChange={(e) => up({ preco: e.target.value.replace(",", ".") })} inputMode="decimal" style={inp} /></div>
+                  <div><label style={lbl}>Preço venda {porPorte ? "" : "*"}</label>
+                    <input value={porPorte ? "" : form.preco} onChange={(e) => up({ preco: e.target.value.replace(",", ".") })} inputMode="decimal" disabled={porPorte}
+                      placeholder={porPorte ? "por faixa, abaixo" : ""} title={porPorte ? "Este item cobra por porte — os preços ficam na tabela abaixo." : ""}
+                      style={{ ...inp, ...(porPorte ? { background: "#F3EFE6", color: "#8C979B" } : null) }} /></div>
                 </div>
-                {markupReal != null && <div className="text-[11.5px] mt-1.5" style={{ color: markupReal < 0 ? "#A32D2D" : "#0F6E56" }}>Markup real: <b>{markupReal}%</b> {markupReal < 0 && "⚠️ preço abaixo do custo"}</div>}
+                {markupReal != null && !porPorte && <div className="text-[11.5px] mt-1.5" style={{ color: markupReal < 0 ? "#A32D2D" : "#0F6E56" }}>Markup real: <b>{markupReal}%</b> {markupReal < 0 && "⚠️ preço abaixo do custo"}</div>}
+
+                {/* ⚖️ PRECO POR PORTE — junta os cadastros repetidos por faixa de peso num item so.
+                    Hoje "ACEPRAN - 11 A 20 KG" e "ACEPRAN ATE 10KG" sao itens diferentes: a recepcao
+                    escolhe pelo NOME em vez de pelo peso do animal, e e assim que se cobra errado. */}
+                <div className="mt-3 pt-3" style={{ borderTop: `1px dashed ${LINE}` }}>
+                  <label className="flex items-center gap-2 cursor-pointer text-[13px]" style={{ color: B }}>
+                    <input type="checkbox" checked={porPorte} onChange={(e) => up({ faixas: e.target.checked ? FAIXAS_PADRAO.map((f) => ({ ...f })) : [] })} />
+                    <span>⚖️ <b>Preço por porte</b> — o peso do animal escolhe o preço</span>
+                  </label>
+
+                  {porPorte && (
+                    <div className="mt-2.5">
+                      <div className="text-[11.5px] mb-2" style={{ color: "#6C7F86" }}>
+                        As cinco faixas abaixo são as suas. Dá pra mudar o limite, renomear, apagar ou
+                        acrescentar — a Cerenia, por exemplo, precisa de sete. <b>Faixa em branco</b> quer
+                        dizer que não vendemos este item para esse porte.
+                      </div>
+
+                      <div className="rounded-xl border overflow-hidden" style={{ borderColor: LINE }}>
+                        <div className="grid gap-2 px-2.5 py-1.5 text-[10.5px] uppercase tracking-wide" style={{ gridTemplateColumns: "1.4fr .9fr .9fr .9fr 26px", background: "#FBFAF7", color: "#6C7F86" }}>
+                          <div>Faixa</div><div>Até (kg)</div><div>Custo</div><div>Preço venda</div><div></div>
+                        </div>
+                        {ordenarFaixas(form.faixas).map((fx: FaixaPorte, i: number, arr: FaixaPorte[]) => {
+                          const mudar = (patch: Partial<FaixaPorte>) => {
+                            const novas = ordenarFaixas(form.faixas).map((x, j) => (j === i ? { ...x, ...patch } : x));
+                            up({ faixas: novas });
+                          };
+                          const numOuNulo = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
+                          return (
+                            <div key={i} className="grid gap-2 px-2.5 py-1.5 items-center" style={{ gridTemplateColumns: "1.4fr .9fr .9fr .9fr 26px", borderTop: `1px solid ${LINE}` }}>
+                              <input value={fx.rotulo} onChange={(e) => mudar({ rotulo: e.target.value })} style={{ ...inp, fontWeight: 500 }} />
+                              <input
+                                value={fx.ate == null ? "" : String(fx.ate).replace(".", ",")}
+                                onChange={(e) => mudar({ ate: numOuNulo(e.target.value) })}
+                                inputMode="decimal" placeholder={i === arr.length - 1 ? "sem limite" : ""}
+                                title={i === arr.length - 1 ? "A última faixa fica sem limite: pega qualquer animal acima da anterior." : ""}
+                                style={{ ...inp, textAlign: "right" }} />
+                              <input value={fx.custo == null ? "" : String(fx.custo)} onChange={(e) => mudar({ custo: numOuNulo(e.target.value) })} inputMode="decimal" placeholder="—" style={{ ...inp, textAlign: "right" }} />
+                              <input value={fx.preco == null ? "" : String(fx.preco)} onChange={(e) => mudar({ preco: numOuNulo(e.target.value) })} inputMode="decimal" placeholder="não vende" style={{ ...inp, textAlign: "right" }} />
+                              <button type="button" title="Tirar esta faixa" onClick={() => up({ faixas: ordenarFaixas(form.faixas).filter((_: any, j: number) => j !== i) })}
+                                style={{ border: "none", background: "none", cursor: "pointer", fontSize: 13, color: "#A32D2D" }}>×</button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
+                        <button type="button" onClick={() => {
+                          const arr = ordenarFaixas(form.faixas);
+                          const penult = arr.length > 1 ? arr[arr.length - 2] : null;
+                          const nova: FaixaPorte = { ate: penult?.ate != null ? penult.ate + 5 : 5, rotulo: "Nova faixa", preco: null };
+                          up({ faixas: ordenarFaixas([...arr, nova]) });
+                        }} className="text-[12px] font-medium px-2.5 py-1 rounded-lg border" style={{ borderColor: T, color: T, background: "#fff" }}>➕ faixa</button>
+                        <div className="text-[11.5px]" style={{ color: erroFaixas ? "#A32D2D" : "#0F6E56" }}>
+                          {erroFaixas || `Como vai aparecer na venda: ${ordenarFaixas(form.faixas).map((f: FaixaPorte, i: number, a: FaixaPorte[]) => rotuloDaFaixa(f, a[i - 1])).join(" · ")}`}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
                 {form.tipo !== "EXAME" && (
                   <div className="mt-2.5">
                     <label style={lbl}>Terceirizado (fornecedor) — opcional</label>
