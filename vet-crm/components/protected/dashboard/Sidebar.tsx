@@ -85,7 +85,7 @@ const NAV: Entry[] = [
     group: true, key: "vendas", label: "Vendas", emoji: "💰", roles: ALL, section: "GESTAO",
     children: [
       { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒", roles: ALL },
-      { href: "/dashboard/erp/vendas", label: "Vendas (lista)", emoji: "📋", roles: ALL },
+      { href: "/dashboard/erp/vendas", label: "Todas as vendas", emoji: "📋", roles: ALL },
       { href: "/dashboard/erp/comandas", label: "Vendas em aberto", emoji: "🧾", roles: ALL },
       { href: "/dashboard/erp/orcamentos", label: "Orçamentos", emoji: "📄", roles: ALL },
       { href: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵", roles: ALL },
