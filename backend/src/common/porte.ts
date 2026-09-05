@@ -33,25 +33,56 @@ export type FaixaPorte = {
   custo?: number | null;
 };
 
-/**
- * As cinco faixas fechadas pela Cintia em 04/09/2026.
- *
- * Ela escreveu "0 a 10 / 11 a 20 / 21 a 30 / 31 a 40 / acima de 40". Os limites foram
- * ENCOSTADOS porque o peso tem decimal: escrito ao pe da letra, um cao de 10,5 kg nao cairia
- * em faixa nenhuma. 10,0 e Pequeno; 10,1 ja e Medio.
- *
- * Gato NAO tem preco proprio — entra na faixa pelo peso, como os caes (confirmado em 04/09).
- */
-export const FAIXAS_PADRAO: FaixaPorte[] = [
-  { ate: 10, rotulo: 'Pequeno', preco: null },
-  { ate: 20, rotulo: 'Médio', preco: null },
-  { ate: 30, rotulo: 'Grande', preco: null },
-  { ate: 40, rotulo: 'GG', preco: null },
-  { ate: null, rotulo: 'Extra GG', preco: null },
+// AS ESCADAS DA CASA — modelos de faixa com nome, pra ninguem remontar na mao.
+//
+// A Cintia, em 05/09/2026: "de 5 em 5 kg pois e uma medicacao muito cara". Isso nao e um caso
+// isolado da Cerenia — e uma REGRA da casa que ainda nao tinha nome. Dando nome, a proxima
+// medicacao cara nao precisa que alguem lembre como a Cerenia foi montada: escolhe a escada.
+//
+// Os rotulos sao POR PESO, nao P/M/G (decidido por ela em 05/09). O catalogo ja e nomeado
+// assim ("ACEPRAN - 11 A 20 KG"), entao a recepcao le a mesma coisa nos dois lugares.
+//
+// ATENCAO ao ler os rotulos: eles sao TEXTO, o que vale e o campo `ate`. O rotulo diz
+// "11 a 20" mas a faixa pega de 10,1 em diante — as faixas precisam ENCOSTAR, senao um cao de
+// 10,5 kg nao cairia em nenhuma. Peso tem decimal; nome de faixa, nao.
+
+const escada = (limites: (number | null)[], rotulos: string[]): FaixaPorte[] =>
+  limites.map((ate, i) => ({ ate, rotulo: rotulos[i], preco: null }));
+
+/** A escada de sempre — 88 dos 93 itens do catalogo usam estes limites. */
+export const FAIXAS_PADRAO: FaixaPorte[] = escada(
+  [10, 20, 30, 40, null],
+  ['0 a 10 kg', '11 a 20 kg', '21 a 30 kg', '31 a 40 kg', '41 a 50+ kg'],
+);
+
+/** Medicacao cara, cobrada de 5 em 5 kg entre 10 e 30. A Cerenia usa esta hoje. */
+export const FAIXAS_DETALHADAS: FaixaPorte[] = escada(
+  [10, 15, 20, 25, 30, 40, null],
+  ['0 a 10 kg', '11 a 15 kg', '16 a 20 kg', '21 a 25 kg', '26 a 30 kg', '31 a 40 kg', '41 a 50+ kg'],
+);
+
+export const ESCADAS: { chave: string; nome: string; ajuda: string; faixas: FaixaPorte[] }[] = [
+  { chave: 'padrao', nome: 'Padrão da casa', ajuda: '5 faixas de 10 em 10 kg — serve pra quase tudo', faixas: FAIXAS_PADRAO },
+  { chave: 'detalhada', nome: 'Detalhada (5 em 5)', ajuda: '7 faixas — pra medicação cara, como a Cerenia', faixas: FAIXAS_DETALHADAS },
 ];
 
-/** Como a faixa aparece escrita pra quem cadastra e pra quem vende. */
+/** Qual escada estas faixas seguem? `null` = o item montou as suas. */
+export function escadaDasFaixas(faixas: FaixaPorte[]): string | null {
+  const limites = ordenarFaixas(faixas).map((f) => f.ate);
+  const igual = (a: (number | null)[], b: (number | null)[]) => a.length === b.length && a.every((x, i) => x === b[i]);
+  for (const e of ESCADAS) if (igual(limites, e.faixas.map((f) => f.ate))) return e.chave;
+  return null;
+}
+
+/**
+ * Como a faixa aparece escrita pra quem cadastra e pra quem vende.
+ *
+ * Rotulo que JA fala de peso ("11 a 20 kg") aparece como esta — repetir o intervalo daria
+ * "11 a 20 kg · 10 a 20 kg", pior do que nao explicar nada. Rotulo por NOME ("Pequeno") ganha
+ * o intervalo junto, senao ninguem sabe onde ele comeca.
+ */
 export function rotuloDaFaixa(f: FaixaPorte, anterior?: FaixaPorte): string {
+  if (/[0-9]/.test(f.rotulo)) return f.rotulo;
   const de = anterior?.ate ?? null;
   const kg = (n: number) => String(n).replace('.', ',');
   if (f.ate == null) return de == null ? f.rotulo : `${f.rotulo} · acima de ${kg(de)} kg`;
