@@ -4,6 +4,8 @@
 // produto + medicamento/vacina), SEM truncar (limit alto — hoje ~1330 itens), e opcionalmente os
 // exames (dedup preferindo o lab Veter). NUNCA usar limit baixo nem excludeService pra vender.
 
+import { lerFaixas, precoPorPorte, rotuloDaFaixa, type FaixaPorte } from "./porte";
+
 export type ItemVendavel = {
   id: string;
   nome: string;
@@ -19,6 +21,8 @@ export type ItemVendavel = {
   _novo?: boolean;        // veio do CATÁLOGO NOVO (cat_itens) — vende por descrição+valor
   _descontoModo?: string; // política de desconto do item (LIMITE_GERAL/LIMITE_ITEM/SEM_DESCONTO/ATE_100)
   _descontoLimite?: number | null;
+  /** Faixas de peso gravadas no item (JSON). Null/vazio = preço único. Ver lib/porte. */
+  _precosPorte?: string | null;
 };
 
 // LINHA de venda padronizada — o "centro operacional" de um item, IGUAL em toda tela.
@@ -28,6 +32,10 @@ export type LinhaVendavel = {
   _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null;
   _novo?: boolean; catalogoItemId?: string; // catálogo novo
   descontoModo?: string; descontoLimite?: number | null;
+  // PREÇO POR PORTE — o que a tela precisa mostrar depois de escolher o item.
+  _faixas?: FaixaPorte[];        // as faixas do item (vazio = preço único)
+  _faixaRotulo?: string | null;  // a faixa que o peso escolheu ("11 a 20 kg")
+  _avisoPorte?: string | null;   // por que o preço não veio sozinho
 };
 
 /** Transforma um item do catálogo numa LINHA de venda/comanda/orçamento PADRÃO — trata exame vs
@@ -52,9 +60,26 @@ export function labDoItem(item?: { _exame?: boolean; tipo?: string; _fornecedorN
   return { nome, veter: ehVeter(nome) };
 }
 
-export function linhaDoItem(item: ItemVendavel): LinhaVendavel {
+/**
+ * Transforma o item do catálogo numa linha de venda.
+ *
+ * `pesoKg` é o peso do ANIMAL da venda. Quando o item cobra por porte, é ele que escolhe o
+ * preço — a recepção não escolhe mais pelo nome do item ("ACEPRAN - 11 A 20 KG"), que é como
+ * se cobrava errado sem ninguém perceber. Item sem faixas ignora o peso e segue como sempre.
+ */
+export function linhaDoItem(item: ItemVendavel, pesoKg?: number | null): LinhaVendavel {
   const descricao = nomeSemMarcador(item.nome);
-  const base = { descricao, valorUnitario: Number(item.valorPadrao) || 0, custoUnitario: Number(item.custoPadrao) || 0 };
+  const faixas = lerFaixas(item._precosPorte);
+  let base = { descricao, valorUnitario: Number(item.valorPadrao) || 0, custoUnitario: Number(item.custoPadrao) || 0 };
+  let porte: Partial<LinhaVendavel> = {};
+  if (faixas.length) {
+    const r = precoPorPorte({ preco: item.valorPadrao, custo: item.custoPadrao, faixas }, pesoKg);
+    // Preço não resolvido NÃO vira zero: fica o preço-base do item e a tela pede a faixa.
+    // Zero silencioso é pior que preço errado — ninguém confere o que já parece resolvido.
+    if (r.preco != null) base = { ...base, valorUnitario: r.preco, custoUnitario: r.custo ?? base.custoUnitario };
+    porte = { _faixas: faixas, _faixaRotulo: r.faixa ? rotuloDaFaixa(r.faixa) : null, _avisoPorte: r.aviso };
+  }
+  base = { ...base, ...porte } as any;
   if (item._novo) {
     // Catálogo NOVO: vende por descrição+valor+custo + catalogoItemId. Carrega o LAB (fornecedorId) —
     // é o que gera o a-pagar do laboratório (Fatia 5) — e o nome do lab p/ o selo.

@@ -14,6 +14,7 @@ import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaCli
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
 import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from '@/lib/catalogoVendavel';
+import { rotuloDaFaixa, ordenarFaixas, type FaixaPorte } from '@/lib/porte';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma } from '@/lib/formasPagamento';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 
@@ -40,7 +41,7 @@ interface Pet { id: string; name: string }
 interface Tutor { id: string; name: string; pets?: Pet[] }
 interface Servico { id: string; nome: string; valorPadrao?: number | null; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null }
 interface Prof { id: string; name: string }
-interface CartItem { servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null; _novo?: boolean; catalogoItemId?: string; descontoModo?: string; descontoLimite?: number | null; _convenio?: boolean; convenioId?: string; _convLabel?: string }
+interface CartItem { _faixas?: FaixaPorte[]; _faixaRotulo?: string | null; _avisoPorte?: string | null; servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null; _novo?: boolean; catalogoItemId?: string; descontoModo?: string; descontoLimite?: number | null; _convenio?: boolean; convenioId?: string; _convLabel?: string }
 interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string; tutorId?: string }
 
 const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
@@ -80,6 +81,10 @@ export default function PDVPage() {
   const [cliAberto, setCliAberto] = useState(false);
   const [cliente, setCliente] = useState<Tutor | null>(null);
   const [petId, setPetId] = useState('');
+
+  // PESO DO PET desta venda — e ele que escolhe a faixa de preco dos itens cobrados por porte.
+  // Vem do cadastro; quando falta, a tela pede a faixa na mao (nao trava a venda).
+  const [pesoPet, setPesoPet] = useState<number | null>(null);
 
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [itemBusca, setItemBusca] = useState('');
@@ -184,6 +189,35 @@ export default function PDVPage() {
     } catch { setDetVenda((prev: any) => (prev ? { ...prev, itens: [] } : prev)); }
     setDetLoad(false);
   }
+  // O peso vem junto do tutor quando a lista traz o pet inteiro; quando nao vem, busca a ficha.
+  // Sem peso ninguem fica travado — os itens por porte e que passam a pedir a faixa.
+  useEffect(() => {
+    if (!petId) { setPesoPet(null); return; }
+    const doCache = (cliente?.pets || []).find((x: any) => x.id === petId) as any;
+    const w = Number(doCache?.weight ?? doCache?.pesoAtual);
+    if (Number.isFinite(w) && w > 0) { setPesoPet(w); return; }
+    let cancelado = false;
+    (async () => {
+      try {
+        const d = await fetch(`/api/pets/${petId}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null);
+        const kg = Number(d?.weight ?? d?.pesoAtual);
+        if (!cancelado) setPesoPet(Number.isFinite(kg) && kg > 0 ? kg : null);
+      } catch { if (!cancelado) setPesoPet(null); }
+    })();
+    return () => { cancelado = true; };
+  }, [petId, cliente]);
+
+  // Troca a faixa de UMA linha na mao — pet sem peso, ou peso que caiu numa faixa sem preco.
+  const trocarFaixa = (i: number, rotulo: string) => {
+    setCarrinho((c) => c.map((x, j) => {
+      if (j !== i) return x;
+      const f = (x._faixas || []).find((y) => y.rotulo === rotulo);
+      if (!f) return x;
+      return { ...x, _faixaRotulo: f.rotulo, _avisoPorte: f.preco == null ? `A faixa ${f.rotulo} não tem preço cadastrado.` : null,
+        valorUnitario: f.preco ?? x.valorUnitario, custoUnitario: f.custo ?? x.custoUnitario };
+    }));
+  };
+
   // ----- Editar itens da venda existente -----
   function abrirEdicaoItens() {
     const its = (detVenda?.itens || []).map((it: any) => ({
@@ -447,7 +481,11 @@ export default function PDVPage() {
   }, [servicos, itemBusca]);
 
   const addItem = (s: Servico) => {
-    const l = linhaDoItem(s as any);   // núcleo único: exame × produto/serviço, id certo, tira "🔬"
+    // O peso do animal escolhe o preco quando o item cobra por porte (lib/porte). Antes, a
+    // recepcao escolhia pelo NOME do item ("ACEPRAN - 11 A 20 KG") — e era assim que se cobrava
+    // errado sem ninguem perceber.
+    const l = linhaDoItem(s as any, pesoPet);   // núcleo único: exame × produto/serviço, id certo, tira "🔬"
+    if (l._avisoPorte) toast(`⚖️ ${l._avisoPorte}`, { duration: 7000 });
     // Avisa (sem travar) quando o saldo já está prometido em outra venda aberta — lib/estoqueComprometido.
     const jaNoCarrinho = carrinho.filter((x) => x.catalogoItemId === l.catalogoItemId).reduce((n, x) => n + (Number(x.quantidade) || 0), 0);
     const aviso = avisoDeEstoque(estoque, l.catalogoItemId, qtd, jaNoCarrinho);
@@ -834,6 +872,24 @@ export default function PDVPage() {
                       <span style={{ fontSize: 13, fontWeight: 500, color: NAVY, minWidth: 78, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
                       <button onClick={() => rmItem(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                     </div>
+                    {/* ⚖️ faixa de peso — só aparece em item cobrado por porte */}
+                    {(it._faixas || []).length > 0 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
+                        <select value={it._faixaRotulo || ''} onChange={(e) => trocarFaixa(i, e.target.value)}
+                          title="Faixa de peso usada no preço deste item"
+                          style={{ ...inp, width: 'auto', padding: '4px 7px', fontSize: 11.5, ...(it._avisoPorte ? { borderColor: '#D9A62B', background: '#FFFBF0' } : { borderColor: SOFT, background: SUAVE }) }}>
+                          <option value="">— escolha a faixa —</option>
+                          {ordenarFaixas(it._faixas || []).map((f) => (
+                            <option key={f.rotulo} value={f.rotulo}>
+                              ⚖️ {rotuloDaFaixa(f)}{f.preco == null ? ' · sem preço' : ` · ${brl(f.preco)}`}
+                            </option>
+                          ))}
+                        </select>
+                        {it._avisoPorte
+                          ? <span style={{ fontSize: 11, color: '#8a6400' }}>{it._avisoPorte}</span>
+                          : <span style={{ fontSize: 11, color: MUT }}>pelo peso do {(cliente?.pets || []).find((x: any) => x.id === petId)?.name || 'pet'}{pesoPet ? ` · ${String(pesoPet).replace('.', ',')} kg` : ''}</span>}
+                      </div>
+                    )}
                     {/* linha 2: qtd × unit · desc · vendedor compacto */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6, flexWrap: 'wrap' }}>
                       <input type="number" min={1} value={it.quantidade} onChange={(e) => updItem(i, { quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} title="Qtd" style={{ ...inp, width: 46, padding: '5px 6px', textAlign: 'center', fontSize: 12 }} />
