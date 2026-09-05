@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import BuscaClientePet from "@/components/common/BuscaClientePet";
 import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
+import { rotuloDaFaixa, ordenarFaixas, lerFaixas, precoPorPorte, type FaixaPorte } from "@/lib/porte";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -51,9 +52,56 @@ export default function InternacoesPage() {
   // 🗂️ Catálogo (p/ escolher a DIÁRIA como serviço/produto — leva custo pro DRE).
   const [catServ, setCatServ] = useState<any[]>([]);
   const [diariaBusca, setDiariaBusca] = useState("");
+  // ⚖️ A DIÁRIA PASSA A VIR DO PESO. Ate 05/09/2026 ela era um numero digitado a mao na
+  // admissao, solto do catalogo: quem admitia escolhia de cabeca entre cinco cadastros
+  // ("Diaria de internamento ate 10K", "de 11 a 20K"...). Agora e um item so, com faixas,
+  // e o peso do animal escolhe. Item 10 da lista da Cintia.
+  const [pesoPet, setPesoPet] = useState<number | null>(null);
+  const [diariaItem, setDiariaItem] = useState<any>(null);   // o item do catalogo escolhido
+  const [diariaFaixa, setDiariaFaixa] = useState<string | null>(null);
+  const [diariaAviso, setDiariaAviso] = useState<string | null>(null);
   useEffect(() => { (async () => { try { const its = await carregarCatalogoVendavel(); setCatServ(its); } catch {} })(); }, []);
   const diariaMatches = useMemo(() => { const q = diariaBusca.trim().toLowerCase(); if (!q) return [] as any[]; return catServ.filter((c) => (c.nome || "").toLowerCase().includes(q)).slice(0, 12); }, [catServ, diariaBusca]);
-  const pickDiaria = (c: any) => { const l = linhaDoItem(c); setForm((f: any) => ({ ...f, dailyRate: String(l.valorUnitario || 0), diariaServicoId: l.servicoId || "", diariaCatalogoItemId: l.catalogoItemId || "", diariaCusto: l.custoUnitario != null ? Number(l.custoUnitario) : undefined, diariaNome: l.descricao || c.nome })); setDiariaBusca(""); };
+  const pickDiaria = (c: any) => {
+    const l = linhaDoItem(c, pesoPet);   // o peso do animal escolhe a faixa (lib/porte)
+    setDiariaItem(c); setDiariaFaixa(l._faixaRotulo ?? null); setDiariaAviso(l._avisoPorte ?? null);
+    setForm((f: any) => ({ ...f, dailyRate: String(l.valorUnitario || 0), diariaServicoId: l.servicoId || "", diariaCatalogoItemId: l.catalogoItemId || "", diariaCusto: l.custoUnitario != null ? Number(l.custoUnitario) : undefined, diariaNome: l.descricao || c.nome }));
+    setDiariaBusca("");
+  };
+  // Troca a faixa na mao — pet sem peso no cadastro, ou peso que caiu numa faixa sem valor.
+  const trocarFaixaDiaria = (rotulo: string) => {
+    const fx = lerFaixas(diariaItem?._precosPorte).find((x) => x.rotulo === rotulo);
+    if (!fx) return;
+    setDiariaFaixa(fx.rotulo);
+    setDiariaAviso(fx.preco == null ? `A faixa ${fx.rotulo} não tem valor cadastrado.` : null);
+    if (fx.preco != null) setForm((f: any) => ({ ...f, dailyRate: String(fx.preco), diariaCusto: fx.custo ?? f.diariaCusto }));
+  };
+  // Peso do animal da internacao — o cadastro sugere, quem admite confirma.
+  useEffect(() => {
+    const pid = form.petId;
+    if (!pid) { setPesoPet(null); return; }
+    let cancelado = false;
+    (async () => {
+      try {
+        const d = await fetch(`/api/pets/${pid}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+        const kg = Number(d?.weight ?? d?.pesoAtual);
+        if (!cancelado) setPesoPet(Number.isFinite(kg) && kg > 0 ? kg : null);
+      } catch { if (!cancelado) setPesoPet(null); }
+    })();
+    return () => { cancelado = true; };
+  }, [form.petId]);
+
+  // Trocou o pet DEPOIS de escolher a diaria? Recalcula — senao ficava o valor do animal
+  // anterior, que e justamente o erro silencioso que este recurso existe pra impedir.
+  useEffect(() => {
+    if (!diariaItem) return;
+    const l = linhaDoItem(diariaItem, pesoPet);
+    setForm((f: any) => ({ ...f, dailyRate: String(l.valorUnitario || 0), diariaCusto: l.custoUnitario != null ? Number(l.custoUnitario) : undefined }));
+    setDiariaFaixa(l._faixaRotulo ?? null);
+    setDiariaAviso(l._avisoPorte ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pesoPet, diariaItem]);
+
   const [salvando, setSalvando] = useState(false);
   const [selCliente, setSelCliente] = useState<{ id: string; name: string } | null>(null);
   const [selPet, setSelPet] = useState<{ id: string; name: string } | null>(null);
@@ -163,6 +211,7 @@ export default function InternacoesPage() {
       setNovoOpen(false);
       setSelCliente(null); setSelPet(null);
       setForm({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", diariaServicoId: "", diariaCatalogoItemId: "", diariaCusto: undefined, diariaNome: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "" });
+      setDiariaItem(null); setDiariaFaixa(null); setDiariaAviso(null);
       load();
     } catch { alert("Erro ao criar internação."); }
     finally { setSalvando(false); }
@@ -532,7 +581,25 @@ export default function InternacoesPage() {
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       {form.diariaNome ? <span className="text-[11px] text-[#0E5560] bg-[#E0F0F2] rounded-full px-2 py-0.5">🗂️ {form.diariaNome}{form.diariaCusto != null ? ` · custo ${fmtBRL(Number(form.diariaCusto))}` : ""}</span> : <span className="text-[11px] text-[#8A857A]">ou digite o valor manual →</span>}
                       <label className="text-[10.5px] text-[#374151] uppercase tracking-wide">Valor/dia (R$)</label>
-                      <input type="number" min={0} step="0.01" value={form.dailyRate} onChange={(e) => setForm({ ...form, dailyRate: e.target.value })} placeholder="0,00" className="w-28 bg-white border rounded-lg px-3 py-1.5 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div></div>
+                      <input type="number" min={0} step="0.01" value={form.dailyRate} onChange={(e) => setForm({ ...form, dailyRate: e.target.value })} placeholder="0,00" className="w-28 bg-white border rounded-lg px-3 py-1.5 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
+                    {/* ⚖️ a faixa que decidiu o valor — só aparece em diária cobrada por porte */}
+                    {lerFaixas(diariaItem?._precosPorte).length > 0 && (
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <select value={diariaFaixa || ""} onChange={(e) => trocarFaixaDiaria(e.target.value)}
+                          title="Faixa de peso usada no valor da diária"
+                          className="bg-white border rounded-lg px-2 py-1 text-[11.5px] text-[#1F2A2E] focus:outline-none"
+                          style={diariaAviso ? { borderColor: "#D9A62B", background: "#FFFBF0" } : { borderColor: "#E8E2D6" }}>
+                          <option value="">— escolha a faixa —</option>
+                          {ordenarFaixas(lerFaixas(diariaItem?._precosPorte)).map((fx: FaixaPorte) => (
+                            <option key={fx.rotulo} value={fx.rotulo}>⚖️ {rotuloDaFaixa(fx)}{fx.preco == null ? " · sem valor" : ` · ${fmtBRL(fx.preco)}`}</option>
+                          ))}
+                        </select>
+                        {diariaAviso
+                          ? <span className="text-[11px] text-[#8a6400]">{diariaAviso}</span>
+                          : <span className="text-[11px] text-[#5C6B70]">pelo peso do {selPet?.name || "pet"}{pesoPet ? ` · ${String(pesoPet).replace(".", ",")} kg` : ""}</span>}
+                      </div>
+                    )}
+                    </div>
                   <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Alta prevista</label>
                     <input type="date" value={form.estimatedDischargeDate} onChange={(e) => setForm({ ...form, estimatedDischargeDate: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
                   <div className="col-span-2"><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Horários dos boletins (HH:MM, separados por vírgula)</label>
