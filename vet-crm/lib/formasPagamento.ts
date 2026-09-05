@@ -45,8 +45,9 @@ export const adquirenteDaLinha = (f: PagForma, cfg?: FormaCfg) =>
  * Confere o que a maquininha exige antes de deixar salvar. Só olha as linhas de CARTÃO —
  * dinheiro, PIX e crédito do cliente passam direto.
  *
- * Operadora, NSU e autorização são o que permite casar a venda com a linha do extrato na
- * conciliação. Sem eles a conferência do cartão vira trabalho manual no fim do mês.
+ * Operadora e AUTORIZAÇÃO são o que permite casar a venda com a linha do extrato na
+ * conciliação — e a AUT é o que o papel da maquininha imprime. O NSU é outro número, nem
+ * sempre impresso: fica opcional, aceito quando existe.
  *
  * Devolve a mensagem do problema, ou null quando está tudo certo.
  */
@@ -67,8 +68,11 @@ export function validarPagamentosCartao(
     if (!String(f.adquirente || cfg?.adquirente || "").trim()) {
       return `Escolha a operadora do cartão${onde}.`;
     }
-    if (!String(f.nsu || "").trim()) return `Informe o NSU do comprovante${onde}.`;
-    if (!String(f.aut || "").trim()) return `Informe o código de autorização (AUT)${onde}.`;
+    // SÓ a AUT é obrigatória. Correção da Cintia em 05/09/2026: NSU e autorização são
+    // números DIFERENTES, e o papel da maquininha normalmente imprime só a AUT. Exigir o
+    // NSU travava a venda por um número que a atendente não tem como ler. O NSU continua
+    // aceito (algumas maquininhas imprimem) — só não bloqueia.
+    if (!String(f.aut || "").trim()) return `Informe a autorização (AUT) do comprovante${onde}.`;
   }
   return null;
 }
