@@ -197,6 +197,11 @@ export default function PDVPage() {
     if (!detVenda || !editItens) return;
     const limpos = editItens.filter((it) => (it.descricao || '').trim());
     if (limpos.length === 0) { toast.error('Adicione ao menos um item.'); return; }
+    // Item da venda so pode vir do catalogo (regra da casa). Antes isso era garantido
+    // APAGANDO o campo assim que a pessoa saia dele — o que parecia que a busca "nao
+    // trazia nada". Agora a conferencia e no salvar, dizendo QUAL item nao serve.
+    const foraDoCatalogo = limpos.find((it) => !servicos.some((x: any) => (x.nome || '') === (it.descricao || '').trim()));
+    if (foraDoCatalogo) { toast.error(`"${foraDoCatalogo.descricao}" nao esta no catalogo. Escolha um item da lista.`); return; }
     setSavingEdit(true);
     try {
       const items = limpos.map((it) => ({
@@ -1052,11 +1057,11 @@ export default function PDVPage() {
                       <div style={{ color: MUT, fontSize: 13, padding: '8px 0' }}>Carregando…</div>
                     ) : editItens !== null ? (
                       <div style={{ border: `1px solid ${LINE}`, borderRadius: 10, overflow: 'hidden', marginBottom: 12, background: '#fff' }}>
-                        <datalist id="pdv-editcat">{servicos.slice(0, 2000).map((s: any) => <option key={s.id} value={s.nome} />)}</datalist>
+                        {/* a lista embutida de 2.000 opcoes virou o ItemPicker (dropdown de 12) — ver o fim do arquivo */}
                         {editItens.map((it: any, i: number) => (
                           <div key={i} style={{ borderBottom: `1px solid ${SOFT}`, padding: '8px 10px' }}>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5 }}>
-                              <input list="pdv-editcat" value={it.descricao} onChange={(e) => { const val = e.target.value; const s = servicos.find((x: any) => (x.nome || '') === val); setEditItens((c) => c!.map((x, j) => j === i ? (s ? { ...x, descricao: s.nome, valorUnitario: Number(s.valorPadrao || x.valorUnitario), _doCat: true } : { ...x, descricao: val, _doCat: false }) : x)); }} onBlur={(e) => { const val = e.target.value.trim(); if (val && !servicos.some((x: any) => (x.nome || '') === val)) { toast.error('Escolha um item do catálogo.'); setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: '', valorUnitario: 0, _doCat: false } : x)); } }} placeholder="Buscar no catálogo…" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                              <ItemPicker value={it.descricao} servicos={servicos} inpStyle={{ ...inp, width: '100%', padding: '6px 8px' }} onType={(val) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: val } : x))} onPick={(nome, valor) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: nome, valorUnitario: valor || x.valorUnitario } : x))} />
                               <button onClick={() => setEditItens((c) => c!.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -1187,6 +1192,43 @@ export default function PDVPage() {
               </div>
             </div>
           </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// Seletor de item do catalogo. Trazido da branch portal-integracao (commit 2afc9e36,
+// 01/09/2026), que existia justamente porque as telas de EDICAO usavam <input list> com
+// ~700 opcoes e digitar travava. Mostra 12 resultados por vez, com o preco ao lado.
+function ItemPicker({ value, servicos, inpStyle, onType, onPick, placeholder }: {
+  value: string; servicos: any[]; inpStyle: React.CSSProperties;
+  onType: (val: string) => void; onPick: (nome: string, valorPadrao: number) => void; placeholder?: string;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const [q, setQ] = useState(value || '');
+  useEffect(() => { setQ(value || ''); }, [value]);
+  const matches = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return [] as any[];
+    return servicos.filter((s) => (s.nome || '').toLowerCase().includes(t)).slice(0, 12);
+  }, [servicos, q]);
+  return (
+    <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+      <input value={q} placeholder={placeholder || 'Buscar no catálogo…'} style={inpStyle}
+        onFocus={() => setAberto(true)} onBlur={() => setTimeout(() => setAberto(false), 150)}
+        onChange={(e) => { setQ(e.target.value); onType(e.target.value); setAberto(true); }} />
+      {aberto && matches.length > 0 && (
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 40, marginTop: 2, background: '#fff', border: '1px solid #E8E2D6', borderRadius: 9, boxShadow: '0 8px 24px -6px rgba(0,0,0,.16)', maxHeight: 200, overflowY: 'auto' }}>
+          {matches.map((s) => (
+            <button key={s.id} type="button" onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onPick(s.nome, Number(s.valorPadrao || 0)); setQ(s.nome); setAberto(false); }}
+              style={{ display: 'flex', width: '100%', justifyContent: 'space-between', gap: 8, padding: '7px 10px', border: 'none', borderBottom: '1px solid #F0EBE0', background: '#fff', cursor: 'pointer', fontSize: 12.5, textAlign: 'left' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nome}</span>
+              <span style={{ color: '#5C6B70', flexShrink: 0 }}>{Number(s.valorPadrao || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+            </button>
+          ))}
         </div>
       )}
     </div>
