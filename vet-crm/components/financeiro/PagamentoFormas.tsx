@@ -5,9 +5,9 @@
 
 import React, { useState } from "react";
 // Fonte única: tipos + modalidades + helpers vêm de lib/formasPagamento (re-exportados aqui p/ compat).
-import { PagForma, FormaCfg, TaxaRow, MODALIDADES, PARC, modalidadeToTaxaForma, ehMaquininha, adquirenteDe, adquirenteDaLinha } from "@/lib/formasPagamento";
+import { PagForma, FormaCfg, TaxaRow, MODALIDADES, PARC, BANDEIRAS_PADRAO, modalidadeToTaxaForma, ehMaquininha, ehCartao, ehLinkPagamento, adquirenteDe, adquirenteDaLinha } from "@/lib/formasPagamento";
 export type { PagForma, FormaCfg, TaxaRow };
-export { modalidadeToTaxaForma, ehMaquininha, adquirenteDe, adquirenteDaLinha };
+export { modalidadeToTaxaForma, ehMaquininha, ehCartao, ehLinkPagamento, adquirenteDe, adquirenteDaLinha };
 
 const C = { teal: "#009AAC", navy: "#014D5E", line: "#E8E2D6", ink: "#112", mut: "#5C6B70" };
 
@@ -27,15 +27,25 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
   const cfgByNome = new Map(formasConfig.map((c) => [c.nome, c]));
   const set = (i: number, patch: Partial<PagForma>) => onChange(formas.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const fmtValor = (v: number) => (v ? v.toFixed(2).replace(".", ",") : "");
-  const bandeirasDe = (adq: string) => [...new Set(taxas.filter((t) => t.adquirente === adq).map((t) => t.bandeira))];
-  // Operadoras que a clínica tem contrato (mesma fonte da taxa oficial). É o que a pessoa escolhe.
-  const OPERADORAS = [...new Set(taxas.map((t) => t.adquirente).filter(Boolean))].sort();
+  // Bandeiras da operadora, pela tabela de taxas. Operadora SEM taxa cadastrada cai na lista
+  // padrão — antes ficava vazia e a recepção não tinha o que escolher (era o caso do Nubank).
+  const bandeirasDe = (adq: string) => {
+    const daTaxa = [...new Set(taxas.filter((t) => t.adquirente === adq).map((t) => t.bandeira))];
+    return daTaxa.length ? daTaxa : [...BANDEIRAS_PADRAO];
+  };
+  // Operadoras oferecidas: as que têm taxa contratada MAIS as configuradas nas próprias formas
+  // de cartão. Só as taxas não bastava — a operadora sem tabela de taxa simplesmente não
+  // aparecia na lista, e a recepção ficava sem como escolher a operadora que o sistema exige.
+  const OPERADORAS = [...new Set([
+    ...taxas.map((t) => t.adquirente),
+    ...formasConfig.filter(ehCartao).map(adquirenteDe),
+  ].filter(Boolean))].sort();
   // 💳 Prévia da taxa (só visual) — MESMA chave da taxa oficial (adquirente|bandeira|forma|parcelas),
   // pra não divergir do lançamento que alimenta a conciliação. Não muda o que é gravado.
   const brl = (n: number) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const nrm = (s?: string) => String(s || "").trim().toLowerCase();
   const taxaBpsDe = (f: PagForma, cfg?: FormaCfg): number | null => {
-    if (!ehMaquininha(cfg) || !f.modalidade || !f.bandeira) return null;
+    if (!ehCartao(cfg) || !f.modalidade || !f.bandeira) return null;
     const adq = adquirenteDaLinha(f, cfg); const formaTaxa = modalidadeToTaxaForma(f.modalidade);
     const parc = f.modalidade === "Crédito parcelado" ? (f.parcelas || 2) : 1;
     const row = taxas.find((t) => nrm(t.adquirente) === nrm(adq) && nrm(t.bandeira) === nrm(f.bandeira) && nrm(t.forma) === nrm(formaTaxa) && Number(t.parcelas) === parc);
@@ -48,7 +58,8 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       {formas.map((f, i) => {
         const cfg = cfgByNome.get(f.forma);
-        const cartao = ehMaquininha(cfg);
+        const cartao = ehCartao(cfg);          // maquininha OU link: os dois pedem bandeira e parcelamento
+        const temComprovante = ehMaquininha(cfg); // so a maquininha imprime papel com NSU/AUT
         const adqLinha = adquirenteDaLinha(f, cfg);
         const bandeiras = cartao ? bandeirasDe(adqLinha) : [];
         const parcelado = f.modalidade === "Crédito parcelado";
@@ -59,7 +70,7 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
                 <label style={lbl}>Forma</label>
                 <select value={f.forma} onChange={(e) => {
                   const nf = e.target.value; const nc = cfgByNome.get(nf); const patch: Partial<PagForma> = { forma: nf };
-                  if (!ehMaquininha(nc)) { patch.modalidade = undefined; patch.bandeira = undefined; patch.parcelas = undefined; patch.nsu = undefined; patch.aut = undefined; patch.adquirente = undefined; }
+                  if (!ehCartao(nc)) { patch.modalidade = undefined; patch.bandeira = undefined; patch.parcelas = undefined; patch.nsu = undefined; patch.aut = undefined; patch.adquirente = undefined; }
                   else { patch.adquirente = adquirenteDe(nc) || undefined; patch.bandeira = undefined; }
                   onChange(formas.map((x, j) => (j === i ? { ...x, ...patch } : x)));
                 }} style={inp}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
@@ -101,14 +112,22 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
                     </select>
                   </div>
                 )}
-                <div style={{ flex: 1, minWidth: 88 }}>
-                  <label style={lbl}>NSU</label>
-                  <input value={f.nsu || ""} placeholder="NSU" title="Opcional — algumas maquininhas imprimem, outras não" onChange={(e) => set(i, { nsu: e.target.value })} style={inp} />
-                </div>
-                <div style={{ flex: 1, minWidth: 88 }}>
-                  <label style={lbl}>AUT *</label>
-                  <input value={f.aut || ""} placeholder="Autorização" title="Obrigatório — é o número que casa a venda com o extrato da operadora" onChange={(e) => set(i, { aut: e.target.value })} style={{ ...inp, ...(String(f.aut || "").trim() ? null : faltando) }} />
-                </div>
+                {temComprovante ? (
+                  <>
+                    <div style={{ flex: 1, minWidth: 88 }}>
+                      <label style={lbl}>NSU</label>
+                      <input value={f.nsu || ""} placeholder="NSU" title="Opcional — algumas maquininhas imprimem, outras não" onChange={(e) => set(i, { nsu: e.target.value })} style={inp} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 88 }}>
+                      <label style={lbl}>AUT *</label>
+                      <input value={f.aut || ""} placeholder="Autorização" title="Obrigatório — é o código de autorização impresso no papel da maquininha, o que casa a venda com o extrato da operadora" onChange={(e) => set(i, { aut: e.target.value })} style={{ ...inp, ...(String(f.aut || "").trim() ? null : faltando) }} />
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ flex: 1.6, minWidth: 150, alignSelf: "flex-end", fontSize: 11, color: C.mut, paddingBottom: 9 }}>
+                    🔗 Link de pagamento não imprime comprovante — a conciliação é por valor e data.
+                  </div>
+                )}
               </div>
             )}
             {(() => { const bps = taxaBpsDe(f, cfg); if (bps == null) return null; const v = Number(f.valor) || 0; const taxa = v * bps / 10000; return <div style={{ marginTop: 6, fontSize: 11, color: "#9A6C1F" }}>💳 taxa ~{(bps / 100).toFixed(2)}% = {brl(taxa)} · líquido {brl(v - taxa)}</div>; })()}

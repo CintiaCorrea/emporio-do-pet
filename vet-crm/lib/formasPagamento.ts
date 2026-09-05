@@ -9,8 +9,8 @@ export type PagForma = {
   forma: string;
   valor: number;
   nsu?: string;
-  /** Código de AUTORIZAÇÃO do comprovante da maquininha. Junto com o NSU é o que permite
-   *  casar a venda com a linha do extrato da operadora na conciliação. */
+  /** Código de AUTORIZAÇÃO impresso no comprovante da maquininha. É o número que a recepção
+   *  digita para casar a venda com a linha do extrato da operadora. */
   aut?: string;
   /** Operadora (adquirente) escolhida na hora da baixa. Quando vazio, vale a operadora
    *  configurada na forma de recebimento. Existe porque a mesma forma pode passar em
@@ -31,8 +31,44 @@ export const PARC = Array.from({ length: 11 }, (_, i) => i + 2); // 2..12
 export const modalidadeToTaxaForma = (m?: string) =>
   m === "Débito" ? "Debito" : m === "Crédito à vista" ? "Credito a vista" : m === "Crédito parcelado" ? "Credito parcelado" : "";
 
-/** A forma é uma maquininha (cartão)? Olha o tipo configurado na tela Formas de recebimento. */
-export const ehMaquininha = (cfg?: FormaCfg) => /maquin|cart/i.test(cfg?.tipo || "");
+// Tipos oferecidos em Configurações → Formas de recebimento. Fonte única: a tela de config
+// escolhe daqui e as telas de recebimento interpretam daqui — antes a lista morava só na tela.
+export const TIPOS_FORMA = ["Dinheiro", "Pix", "Maquininha (cartão)", "Link de pagamento", "Crédito do cliente", "Boleto", "Outro"] as const;
+
+// Bandeiras usadas quando a operadora NÃO tem tabela de taxa cadastrada. Sem isto, uma
+// operadora sem taxa (o Nubank por link, por exemplo) deixava o campo Bandeira vazio e a
+// recepção não tinha o que escolher.
+export const BANDEIRAS_PADRAO = ["Visa", "Mastercard", "Elo", "American Express", "Hipercard"] as const;
+
+// AS TRÊS SITUAÇÕES DO CARTÃO (05/09/2026) — a distinção que faltava.
+//
+// Tentei duas vezes eleger UM campo obrigatório pra toda forma de cartão e travei o balcão as
+// duas vezes: primeiro NSU+AUT (o papel normalmente só traz a AUT), depois só a AUT (o Nubank
+// por LINK não tem identificador nenhum, concilia por valor e data).
+//
+// A saída não é escolher um campo — é separar as formas:
+//
+//   MAQUININHA  cartão físico  → imprime comprovante → TEM AUT  → exigir
+//   LINK        sem cartão     → não imprime nada    → NÃO tem  → não exigir
+//   resto       dinheiro, PIX  → nem entra na conta
+//
+// Nos DOIS primeiros a recepção escolhe bandeira e parcelamento; só o comprovante muda.
+// Quem decide qual é qual é a Cintia, no campo "tipo" de Configurações → Formas de recebimento.
+
+// Pelo TIPO escrito (usado na tela de configuração, que ainda não tem a forma montada).
+export const tipoEhLink = (tipo?: string) => /link/i.test(String(tipo || ""));
+export const tipoEhMaquininha = (tipo?: string) => !tipoEhLink(tipo) && /maquin|cart/i.test(String(tipo || ""));
+export const tipoEhCartao = (tipo?: string) => tipoEhLink(tipo) || tipoEhMaquininha(tipo);
+
+/** Link de pagamento: o cliente paga sem cartão presente. Escolhe bandeira e parcelamento,
+ *  mas não existe comprovante impresso — logo, nenhum identificador pra digitar. */
+export const ehLinkPagamento = (cfg?: FormaCfg) => tipoEhLink(cfg?.tipo);
+
+/** Cartão passado na maquininha. O papel que sai imprime a AUT. */
+export const ehMaquininha = (cfg?: FormaCfg) => tipoEhMaquininha(cfg?.tipo);
+
+/** Pede bandeira, modalidade e parcelas? Maquininha e link pedem os dois. */
+export const ehCartao = (cfg?: FormaCfg) => tipoEhCartao(cfg?.tipo);
 
 /** Adquirente (rede da maquininha) que casa com TaxaContratada.adquirente. */
 export const adquirenteDe = (cfg?: FormaCfg) => (cfg?.adquirente || cfg?.nome || "").trim();
@@ -42,12 +78,11 @@ export const adquirenteDaLinha = (f: PagForma, cfg?: FormaCfg) =>
   (f.adquirente || adquirenteDe(cfg) || "").trim();
 
 /**
- * Confere o que a maquininha exige antes de deixar salvar. Só olha as linhas de CARTÃO —
- * dinheiro, PIX e crédito do cliente passam direto.
+ * Confere o que falta antes de deixar salvar. Só olha as linhas de CARTÃO — dinheiro, PIX e
+ * crédito do cliente passam direto.
  *
- * Operadora e AUTORIZAÇÃO são o que permite casar a venda com a linha do extrato na
- * conciliação — e a AUT é o que o papel da maquininha imprime. O NSU é outro número, nem
- * sempre impresso: fica opcional, aceito quando existe.
+ *   OPERADORA  exigida sempre — a pessoa sabe em qual máquina passou, não depende de papel.
+ *   AUT        exigida só na MAQUININHA, que é onde ela existe impressa.
  *
  * Devolve a mensagem do problema, ou null quando está tudo certo.
  */
@@ -59,7 +94,7 @@ export function validarPagamentosCartao(
   for (let i = 0; i < (formas || []).length; i++) {
     const f = formas[i];
     const cfg = cfgByNome.get(f.forma);
-    if (!ehMaquininha(cfg)) continue;
+    if (!ehCartao(cfg)) continue;
     if (!(Number(f.valor) > 0)) continue; // linha de cartão sem valor: nada a conferir
     const onde = formas.length > 1 ? ` (${i + 1}ª forma de pagamento)` : "";
     // Operadora DELIBERADA: a escolhida na baixa ou a configurada na forma. O nome da forma
@@ -68,18 +103,9 @@ export function validarPagamentosCartao(
     if (!String(f.adquirente || cfg?.adquirente || "").trim()) {
       return `Escolha a operadora do cartão${onde}.`;
     }
-    // O IDENTIFICADOR NAO BLOQUEIA MAIS A VENDA (05/09/2026).
-    //
-    // Historia curta, porque custou caro: primeiro exigi NSU e AUT juntos — mas sao numeros
-    // diferentes e o papel da maquininha normalmente so traz a AUT. Corrigi pra exigir so a
-    // AUT — e a Cintia informou que o Nubank por LINK nao tem identificador NENHUM: concilia
-    // por valor e data. Ou seja: nao existe um campo obrigatorio que sirva pra toda forma de
-    // pagamento, e cada tentativa minha de tornar um deles obrigatorio travou o balcao.
-    //
-    // Enquanto nao houver a marca POR OPERADORA em Formas de recebimento ("esta exige
-    // identificador?"), a tela AVISA mas deixa salvar. Vender sempre vale mais do que
-    // conciliar: uma venda barrada e dinheiro que nao entra; um identificador faltando e
-    // trabalho manual no fim do mes.
+    if (ehMaquininha(cfg) && !String(f.aut || "").trim()) {
+      return `Digite a AUT do comprovante${onde}. É o código de autorização impresso no papel da maquininha — sem ele esta venda não casa com o extrato da operadora.`;
+    }
   }
   return null;
 }
