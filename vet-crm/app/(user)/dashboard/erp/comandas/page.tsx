@@ -32,6 +32,10 @@ export default function ComandasPage() {
   const meId = (session?.user as any)?.id || "";
   const [baixadoHoje, setBaixadoHoje] = useState(0);
   const [olho, setOlho] = useState(false); // valores ocultos por padrão
+  // Cliente com varias vendas comeca FECHADO: uma linha por cliente. A Cintia viu as 7 vendas
+  // da mesma cliente abertas e disse "somente quando clicar no nome abre todas as vendas".
+  const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
+  const alternarGrupo = (k: string) => setGruposAbertos((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas configuradas (Fase 2)
 
   const [det, setDet] = useState<any | null>(null);
@@ -153,20 +157,28 @@ export default function ComandasPage() {
     const org = ORIGEM[c.origem] || ORIGEM.VENDA;
     return (
       <tr key={c.id} className="hover:bg-[#FAFAF7]" style={{ borderTop: "1px solid #F0EBE0" }}>
-        <td className="px-3 py-2.5">
-          <div className="flex items-center gap-2 min-w-0" style={{ paddingLeft: agrupada ? 22 : 0 }}>
-            {!agrupada && <span className="text-base flex-shrink-0">{especieEmoji(c.petSpecies)}</span>}
-            <span className="text-[13px] font-medium text-[#014D5E] truncate">{agrupada ? "↳" : c.tutor}</span>
-          </div>
-        </td>
-        <td className="px-3 py-2.5 text-[12.5px] text-[#5C6B70] truncate">{c.pet || "—"}{c.vet ? ` · ${c.vet}` : ""}</td>
+        {agrupada ? (
+          <td className="px-3 py-2.5 text-[12.5px] text-[#5C6B70] truncate" colSpan={2} style={{ paddingLeft: 34 }}>
+            ↳ {c.pet || "—"}{c.vet ? ` · ${c.vet}` : ""}
+          </td>
+        ) : (
+          <>
+            <td className="px-3 py-2.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-base flex-shrink-0">{especieEmoji(c.petSpecies)}</span>
+                <span className="text-[13px] font-medium text-[#014D5E] truncate">{c.tutor}</span>
+              </div>
+            </td>
+            <td className="px-3 py-2.5 text-[12.5px] text-[#5C6B70] truncate">{c.pet || "—"}{c.vet ? ` · ${c.vet}` : ""}</td>
+          </>
+        )}
         <td className="px-3 py-2.5">
           <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: org.bg, color: org.fg }}>{org.lbl}</span>
         </td>
         <td className="px-3 py-2.5 text-right text-[13.5px] font-medium text-[#014D5E] tabular-nums whitespace-nowrap">{money(Number(c.aberto || c.valor || 0))}</td>
         <td className="px-3 py-2.5 text-[11.5px] text-[#374151] whitespace-nowrap">{tempoDe(c.date)}</td>
         <td className="px-3 py-2.5">
-          <div className="flex gap-1.5 justify-end flex-wrap">
+          <div className="flex gap-1.5 justify-end flex-nowrap">
             <Link href={`/dashboard/erp/ponto-de-venda?editar=${c.id}`} title="Abrir esta venda no formulário do Ponto de venda" className="text-[11.5px] font-medium text-[#00798A] border border-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">✏️ Editar</Link>
             <button onClick={() => abrir(c)} className="text-[11.5px] font-medium text-[#00798A] bg-[#E0F4F6] px-2.5 py-1 rounded-lg whitespace-nowrap">Abrir</button>
             <button onClick={() => abrir(c)} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">💰 Baixar</button>
@@ -225,24 +237,26 @@ export default function ComandasPage() {
                   // Cliente com 2+ vendas: uma linha-titulo com o total e o "baixar tudo", e as
                   // vendas dele logo abaixo, recuadas. Baixar tudo de uma vez continua existindo —
                   // era a unica coisa boa que o cartao agrupado tinha.
+                  const aberto = gruposAbertos.has(g.key);
                   return (
                     <Fragment key={g.key}>
-                      <tr style={{ borderTop: "1px solid #E8E2D6", background: "#F2FBFC" }}>
+                      <tr onClick={() => alternarGrupo(g.key)} title={aberto ? "Fechar as vendas deste cliente" : "Ver as vendas deste cliente"} className="cursor-pointer hover:bg-[#EAF7F8]" style={{ borderTop: "1px solid #E8E2D6", background: "#F2FBFC" }}>
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-[#00798A] text-[11px] w-3 flex-shrink-0">{aberto ? "▾" : "▸"}</span>
                             <span className="text-base flex-shrink-0">{especieEmoji(g.petSpecies)}</span>
                             <span className="text-[13px] font-medium text-[#014D5E] truncate">{g.tutor}</span>
                             <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0" style={{ background: "#E0F4F6", color: "#00707E" }}>🧾 {g.comandas.length}</span>
                           </div>
                         </td>
-                        <td className="px-3 py-2 text-[11.5px] text-[#374151]" colSpan={2}>{g.comandas.length} vendas em aberto</td>
+                        <td className="px-3 py-2 text-[11.5px] text-[#374151]" colSpan={2}>{g.comandas.length} vendas em aberto · <span className="text-[#00798A]">{aberto ? "clique pra fechar" : "clique pra ver"}</span></td>
                         <td className="px-3 py-2 text-right text-[13.5px] font-medium text-[#014D5E] tabular-nums whitespace-nowrap">{money(g.total)}</td>
                         <td className="px-3 py-2"></td>
                         <td className="px-3 py-2 text-right">
-                          <button onClick={() => { setForma("Dinheiro"); setDetGrupo(g); }} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">💰 Baixar tudo</button>
+                          <button onClick={(e) => { e.stopPropagation(); setForma("Dinheiro"); setDetGrupo(g); }} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">💰 Baixar tudo</button>
                         </td>
                       </tr>
-                      {g.comandas.map((c: any) => linhaComanda(c, true))}
+                      {aberto && g.comandas.map((c: any) => linhaComanda(c, true))}
                     </Fragment>
                   );
                 })}
