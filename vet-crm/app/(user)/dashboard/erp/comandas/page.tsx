@@ -3,7 +3,8 @@
 // Comanda aberta = appointment com value>0 e paymentStatus != PAID (exceto internação, faturada pela conta da F5).
 // Baixar = POST /api/caixa/{caixaAberto}/recebimento {appointmentId, valorTotal, formas}. Valores sensíveis com olhinho.
 
-import { useEffect, useMemo, useState , useRef} from "react";
+import { useEffect, useMemo, useState , useRef, Fragment } from "react";
+import Link from "next/link";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useSession } from "next-auth/react";
 import { carregarMeuCaixa, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaParaReceber } from "@/lib/caixaAtual";
@@ -145,6 +146,36 @@ export default function ComandasPage() {
     finally { setBaixando(false); }
   };
 
+  // UMA LINHA da lista. A Cintia pediu lista, nao caixinhas: em cartao cabiam 3 por fileira e
+  // ela precisava rolar a tela inteira pra conferir os valores de um dia. Aqui cabe tudo junto,
+  // com o valor sempre na mesma coluna — que e o que se le de cima a baixo.
+  const linhaComanda = (c: any, agrupada = false) => {
+    const org = ORIGEM[c.origem] || ORIGEM.VENDA;
+    return (
+      <tr key={c.id} className="hover:bg-[#FAFAF7]" style={{ borderTop: "1px solid #F0EBE0" }}>
+        <td className="px-3 py-2.5">
+          <div className="flex items-center gap-2 min-w-0" style={{ paddingLeft: agrupada ? 22 : 0 }}>
+            {!agrupada && <span className="text-base flex-shrink-0">{especieEmoji(c.petSpecies)}</span>}
+            <span className="text-[13px] font-medium text-[#014D5E] truncate">{agrupada ? "↳" : c.tutor}</span>
+          </div>
+        </td>
+        <td className="px-3 py-2.5 text-[12.5px] text-[#5C6B70] truncate">{c.pet || "—"}{c.vet ? ` · ${c.vet}` : ""}</td>
+        <td className="px-3 py-2.5">
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: org.bg, color: org.fg }}>{org.lbl}</span>
+        </td>
+        <td className="px-3 py-2.5 text-right text-[13.5px] font-medium text-[#014D5E] tabular-nums whitespace-nowrap">{money(Number(c.aberto || c.valor || 0))}</td>
+        <td className="px-3 py-2.5 text-[11.5px] text-[#374151] whitespace-nowrap">{tempoDe(c.date)}</td>
+        <td className="px-3 py-2.5">
+          <div className="flex gap-1.5 justify-end flex-wrap">
+            <Link href={`/dashboard/erp/ponto-de-venda?editar=${c.id}`} title="Abrir esta venda no formulário do Ponto de venda" className="text-[11.5px] font-medium text-[#00798A] border border-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">✏️ Editar</Link>
+            <button onClick={() => abrir(c)} className="text-[11.5px] font-medium text-[#00798A] bg-[#E0F4F6] px-2.5 py-1 rounded-lg whitespace-nowrap">Abrir</button>
+            <button onClick={() => abrir(c)} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">💰 Baixar</button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className="p-6 w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
@@ -174,59 +205,50 @@ export default function ComandasPage() {
           <div className="text-[12px] text-[#374151] mt-1">Vendas de consulta e balcão aparecem aqui até serem recebidas no caixa.</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {grupos.map((g) => {
-            // cliente com UMA comanda → card normal
-            if (g.comandas.length === 1) {
-              const c = g.comandas[0]; const org = ORIGEM[c.origem] || ORIGEM.VENDA;
-              return (
-                <div key={c.id} className="bg-white border rounded-[13px] p-3.5 hover:border-[#009AAC] transition-colors" style={{ borderColor: "#E8E2D6" }}>
-                  <div className="flex items-center gap-2.5 mb-2.5">
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>{especieEmoji(c.petSpecies)}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[14px] font-medium text-[#014D5E] truncate">{c.tutor}</div>
-                      <div className="text-[11px] text-[#374151] truncate">{c.pet || "—"}{c.vet ? ` · ${c.vet}` : ""}</div>
-                    </div>
-                    <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: org.bg, color: org.fg }}>{org.lbl}</span>
-                  </div>
-                  <div className="flex items-end justify-between mb-2.5">
-                    <div className="text-[17px] font-medium text-[#014D5E] tabular-nums">{money(Number(c.aberto || c.valor || 0))}</div>
-                    <div className="text-[10.5px] text-[#374151]">{tempoDe(c.date)}</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => abrir(c)} className="flex-1 text-[11.5px] font-medium text-[#00798A] bg-[#E0F4F6] py-1.5 rounded-lg">Abrir</button>
-                    <button onClick={() => abrir(c)} className="flex-1 text-[11.5px] font-medium text-white bg-[#009AAC] py-1.5 rounded-lg">💰 Baixar</button>
-                  </div>
-                </div>
-              );
-            }
-            // cliente com 2+ comandas abertas → card agrupado (1B)
-            return (
-              <div key={g.key} className="bg-white border rounded-[13px] p-3.5" style={{ borderColor: "#009AAC" }}>
-                <div className="flex items-center gap-2.5 mb-2">
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>{especieEmoji(g.petSpecies)}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[14px] font-medium text-[#014D5E] truncate">{g.tutor}</div>
-                    <div className="text-[11px] text-[#374151]">{g.comandas.length} vendas em aberto hoje</div>
-                  </div>
-                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: "#E0F4F6", color: "#00707E" }}>🧾 {g.comandas.length}</span>
-                </div>
-                <div className="mb-2 space-y-1">
-                  {g.comandas.map((c: any) => (
-                    <div key={c.id} className="flex items-center justify-between text-[11.5px]">
-                      <span className="text-[#5C6B70] truncate">{(ORIGEM[c.origem] || ORIGEM.VENDA).lbl} · {c.pet || "—"}</span>
-                      <span className="text-[#014D5E] tabular-nums flex-shrink-0 ml-2">{money(Number(c.aberto || c.valor || 0))}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between mb-2.5 border-t pt-2" style={{ borderColor: "#F0EBE0" }}>
-                  <div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Total</div>
-                  <div className="text-[17px] font-medium text-[#014D5E] tabular-nums">{money(g.total)}</div>
-                </div>
-                <button onClick={() => { setForma("Dinheiro"); setDetGrupo(g); }} className="w-full text-[11.5px] font-medium text-white bg-[#009AAC] py-1.5 rounded-lg">💰 Baixar tudo</button>
-              </div>
-            );
-          })}
+        <div className="bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
+          <div className="overflow-x-auto">
+            <table className="w-full" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr className="text-[10.5px] uppercase tracking-wide text-[#5C6B70]" style={{ background: "#FBF9F4" }}>
+                  <th className="px-3 py-2 text-left font-medium">Cliente</th>
+                  <th className="px-3 py-2 text-left font-medium">Pet</th>
+                  <th className="px-3 py-2 text-left font-medium">Origem</th>
+                  <th className="px-3 py-2 text-right font-medium">Valor</th>
+                  <th className="px-3 py-2 text-left font-medium">Aberta</th>
+                  <th className="px-3 py-2 text-right font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {grupos.map((g) => {
+                  // Cliente com UMA venda: uma linha e pronto.
+                  if (g.comandas.length === 1) return linhaComanda(g.comandas[0]);
+                  // Cliente com 2+ vendas: uma linha-titulo com o total e o "baixar tudo", e as
+                  // vendas dele logo abaixo, recuadas. Baixar tudo de uma vez continua existindo —
+                  // era a unica coisa boa que o cartao agrupado tinha.
+                  return (
+                    <Fragment key={g.key}>
+                      <tr style={{ borderTop: "1px solid #E8E2D6", background: "#F2FBFC" }}>
+                        <td className="px-3 py-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-base flex-shrink-0">{especieEmoji(g.petSpecies)}</span>
+                            <span className="text-[13px] font-medium text-[#014D5E] truncate">{g.tutor}</span>
+                            <span className="text-[10px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap flex-shrink-0" style={{ background: "#E0F4F6", color: "#00707E" }}>🧾 {g.comandas.length}</span>
+                          </div>
+                        </td>
+                        <td className="px-3 py-2 text-[11.5px] text-[#374151]" colSpan={2}>{g.comandas.length} vendas em aberto</td>
+                        <td className="px-3 py-2 text-right text-[13.5px] font-medium text-[#014D5E] tabular-nums whitespace-nowrap">{money(g.total)}</td>
+                        <td className="px-3 py-2"></td>
+                        <td className="px-3 py-2 text-right">
+                          <button onClick={() => { setForma("Dinheiro"); setDetGrupo(g); }} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">💰 Baixar tudo</button>
+                        </td>
+                      </tr>
+                      {g.comandas.map((c: any) => linhaComanda(c, true))}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
