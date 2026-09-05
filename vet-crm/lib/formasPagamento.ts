@@ -68,11 +68,18 @@ export function validarPagamentosCartao(
     if (!String(f.adquirente || cfg?.adquirente || "").trim()) {
       return `Escolha a operadora do cartão${onde}.`;
     }
-    // SÓ a AUT é obrigatória. Correção da Cintia em 05/09/2026: NSU e autorização são
-    // números DIFERENTES, e o papel da maquininha normalmente imprime só a AUT. Exigir o
-    // NSU travava a venda por um número que a atendente não tem como ler. O NSU continua
-    // aceito (algumas maquininhas imprimem) — só não bloqueia.
-    if (!String(f.aut || "").trim()) return `Informe a autorização (AUT) do comprovante${onde}.`;
+    // O IDENTIFICADOR NAO BLOQUEIA MAIS A VENDA (05/09/2026).
+    //
+    // Historia curta, porque custou caro: primeiro exigi NSU e AUT juntos — mas sao numeros
+    // diferentes e o papel da maquininha normalmente so traz a AUT. Corrigi pra exigir so a
+    // AUT — e a Cintia informou que o Nubank por LINK nao tem identificador NENHUM: concilia
+    // por valor e data. Ou seja: nao existe um campo obrigatorio que sirva pra toda forma de
+    // pagamento, e cada tentativa minha de tornar um deles obrigatorio travou o balcao.
+    //
+    // Enquanto nao houver a marca POR OPERADORA em Formas de recebimento ("esta exige
+    // identificador?"), a tela AVISA mas deixa salvar. Vender sempre vale mais do que
+    // conciliar: uma venda barrada e dinheiro que nao entra; um identificador faltando e
+    // trabalho manual no fim do mes.
   }
   return null;
 }
