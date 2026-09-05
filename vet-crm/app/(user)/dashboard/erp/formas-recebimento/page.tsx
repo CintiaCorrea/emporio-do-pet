@@ -5,9 +5,12 @@
 import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { usePodeEditar } from "@/lib/permissions/context";
+// Fonte única dos tipos e do "isto é cartão?" — a mesma que o recebimento usa pra decidir se
+// pede bandeira/parcelas e se cobra a AUT. Ver lib/formasPagamento.
+import { TIPOS_FORMA, tipoEhCartao, tipoEhMaquininha, tipoEhLink } from "@/lib/formasPagamento";
 
-const TIPOS = ["Dinheiro", "Pix", "Maquininha (cartão)", "Crédito do cliente", "Boleto", "Outro"];
-const TIPO_EMOJI: Record<string, string> = { Dinheiro: "💵", Pix: "📱", "Maquininha (cartão)": "💳", "Crédito do cliente": "🏦", Boleto: "🧾", Outro: "💠" };
+const TIPOS = [...TIPOS_FORMA];
+const TIPO_EMOJI: Record<string, string> = { Dinheiro: "💵", Pix: "📱", "Maquininha (cartão)": "💳", "Link de pagamento": "🔗", "Crédito do cliente": "🏦", Boleto: "🧾", Outro: "💠" };
 const PADROES = [
   { nome: "Dinheiro", tipo: "Dinheiro", conta: "Caixa" },
   { nome: "Pix", tipo: "Pix", conta: "" },
@@ -54,7 +57,7 @@ export default function FormasRecebimentoPage() {
     if (!form.nome.trim()) { alert("Informe o nome da forma."); return; }
     setSaving(true);
     try {
-      const isCartao = form.tipo === "Maquininha (cartão)";
+      const isCartao = tipoEhCartao(form.tipo);
       const payload: any = { nome: form.nome.trim(), tipo: form.tipo, conta: form.conta.trim(), contaId: form.contaId || "", ativo: !!form.ativo };
       if (isCartao) { payload.prazoCredito = form.prazoCredito; payload.prazoDebito = form.prazoDebito; payload.adquirente = form.adquirente || ""; } // taxa vem da tabela por bandeira, não da forma
       const url = form.id ? `/api/listas/${form.id}` : "/api/listas";
@@ -77,7 +80,7 @@ export default function FormasRecebimentoPage() {
   };
 
   const resumo = (f: any) => {
-    if (f.tipo === "Maquininha (cartão)") { return `Maquininha${f.adquirente ? ` · ${f.adquirente}` : ""}${f.conta ? ` · ${f.conta}` : ""}`; }
+    if (tipoEhCartao(f.tipo)) { return `${tipoEhLink(f.tipo) ? "Link de pagamento" : "Maquininha"}${f.adquirente ? ` · ${f.adquirente}` : ""}${f.conta ? ` · ${f.conta}` : ""}`; }
     return `${f.tipo}${f.conta ? ` · ${f.conta}` : ""}`;
   };
   const ordenadas = useMemo(() => [...formas].sort((a, b) => (a.nome || "").localeCompare(b.nome || "")), [formas]);
@@ -104,7 +107,7 @@ export default function FormasRecebimentoPage() {
       ) : (
         <div className="space-y-2.5">
           {ordenadas.map((f) => {
-            const cartao = f.tipo === "Maquininha (cartão)"; const aberto = expandido === f.id;
+            const cartao = tipoEhCartao(f.tipo); const aberto = expandido === f.id;
             return (
               <div key={f.id} className="bg-white border rounded-[13px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>
                 <div className="flex items-center gap-3 px-4 py-3 cursor-pointer" onClick={() => cartao && setExpandido(aberto ? null : f.id)}>
@@ -127,7 +130,7 @@ export default function FormasRecebimentoPage() {
                       <span>Prazo débito: <b className="text-[#014D5E]">{f.prazoDebito || "—"} dia(s)</b></span>
                     </div>
                     <div className="flex gap-5 flex-wrap text-[11.5px] text-[#5C6B70]">
-                      <span>Maquininha: <b className="text-[#014D5E]">{f.adquirente || "— não ligada —"}</b></span>
+                      <span>{tipoEhLink(f.tipo) ? "Operadora" : "Maquininha"}: <b className="text-[#014D5E]">{f.adquirente || "— não ligada —"}</b></span>
                       <span>Taxas: <b className="text-[#014D5E]">tabela por bandeira</b> (Financeiro › Taxas)</span>
                     </div>
                     {podeEditar && <button onClick={() => abrir(f)} className="mt-3 text-[11.5px] font-medium text-[#00798A]">✏️ Editar</button>}
@@ -163,7 +166,7 @@ export default function FormasRecebimentoPage() {
                 </div>
               </div>
 
-              {form.tipo === "Maquininha (cartão)" && (
+              {tipoEhCartao(form.tipo) && (
                 <div className="border-t pt-3" style={{ borderColor: "#F0EBE0" }}>
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div><label className="text-[11px] text-[#374151] block mb-1">Prazo crédito (dias)</label>
@@ -171,14 +174,16 @@ export default function FormasRecebimentoPage() {
                     <div><label className="text-[11px] text-[#374151] block mb-1">Prazo débito (dias)</label>
                       <input type="number" value={form.prazoDebito} onChange={(e) => setForm({ ...form, prazoDebito: e.target.value })} placeholder="1" className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
                   </div>
-                  <div><label className="text-[11px] text-[#374151] block mb-1">Maquininha / adquirente <span className="text-[#B45309]">(liga às taxas)</span></label>
-                    <select value={form.adquirente || ""} onChange={(e) => setForm({ ...form, adquirente: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>
-                      <option value="">— Escolher maquininha —</option>
-                      {adquirentes.map((a) => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                    {adquirentes.length === 0 ? <div className="text-[10.5px] text-[#374151] mt-1">Nenhuma taxa cadastrada. Configure em Financeiro › Taxas.</div> : null}
+                  <div><label className="text-[11px] text-[#374151] block mb-1">Operadora <span className="text-[#B45309]">(liga às taxas)</span></label>
+                    <input list="adquirentes-cadastrados" value={form.adquirente || ""} onChange={(e) => setForm({ ...form, adquirente: e.target.value })} placeholder="Ex.: InfinityPay, Nubank" className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                    <datalist id="adquirentes-cadastrados">{adquirentes.map((a) => <option key={a} value={a} />)}</datalist>
+                    <div className="text-[10.5px] text-[#374151] mt-1">Escolha uma da lista ou digite o nome. Operadora sem tabela de taxa funciona — só não calcula a taxa sozinha.</div>
                   </div>
-                  <div className="text-[11.5px] text-[#0F6E56] mt-2.5" style={{ background: "#E1F5EE", borderRadius: 9, padding: "9px 11px" }}>💳 As <b>taxas</b> vêm da tabela por bandeira em <b>Financeiro › Taxas</b> — não precisa digitar aqui. Bandeira e parcelas são escolhidas na hora do recebimento.</div>
+                  <div className="text-[11.5px] text-[#0F6E56] mt-2.5" style={{ background: "#E1F5EE", borderRadius: 9, padding: "9px 11px" }}>
+                    {tipoEhMaquininha(form.tipo)
+                      ? <>💳 <b>Maquininha:</b> na hora de receber, a recepção escolhe bandeira e parcelas e digita a <b>AUT</b> do comprovante — é o número que casa a venda com o extrato. As <b>taxas</b> vêm de <b>Financeiro › Taxas</b>.</>
+                      : <>🔗 <b>Link de pagamento:</b> a recepção escolhe bandeira e parcelas, e <b>não</b> digita identificador — link não imprime comprovante, a conferência é por valor e data.</>}
+                  </div>
                 </div>
               )}
 
