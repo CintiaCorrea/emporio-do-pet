@@ -24,6 +24,7 @@ import { SendEmailModal } from "@/components/email/SendEmailModal";
 import { loadExameFases, podeAvisarLab } from "@/lib/exameFases";
 import { loadFuResp, assignFollowUp } from "@/lib/followup";
 import { pollVisivel } from "@/lib/pollVisivel";
+import { erroDoPeso } from "@/lib/peso";
 
 function scorePie(score: number, max: number, color: string) {
   const f = Math.max(0, Math.min(1, max ? score / max : 0));
@@ -2293,7 +2294,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-gray-400 w-12 flex-shrink-0">Peso</span>
-                                  <input type="number" step="0.1" defaultValue={p.weight ?? ""} placeholder="kg" onBlur={e => { const v = e.target.value.trim(); savePetField(p.id, { weight: v ? Number(v.replace(",", ".")) : null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
+                                  <input type="number" step="0.1" defaultValue={p.weight ?? ""} placeholder="kg" onBlur={e => { const v = e.target.value.trim(); const ePeso = erroDoPeso(v); if (ePeso) { toast.error(ePeso); e.target.value = String(p.weight ?? ""); return; } savePetField(p.id, { weight: v ? Number(v.replace(",", ".")) : null }); }} className="flex-1 text-[10.5px] px-2 py-1 border rounded" style={{ borderColor: "#cfe8eb", color: "#014D5E", background: "white" }} />
                                 </div>
                                 <div className="flex items-center gap-1.5">
                                   <span className="text-gray-400 w-12 flex-shrink-0">Castr.</span>

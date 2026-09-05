@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
+import { erroDoPeso } from "@/lib/peso";
 
 // Edição/cadastro do pet no inbox. inline = renderiza no painel (sem pop-up). Sem pet.id = cadastra novo (POST).
 export default function PetEditModal({ pet, tutorId, onClose, onSaved, inline }: { pet?: any; tutorId?: string; onClose: () => void; onSaved: (patch: any) => void; inline?: boolean }) {
@@ -50,6 +51,7 @@ export default function PetEditModal({ pet, tutorId, onClose, onSaved, inline }:
 
   async function salvar() {
     if (!f.name.trim()) { toast.error("Nome do pet é obrigatório"); return; }
+    const ePeso = erroDoPeso(f.weight); if (ePeso) { toast.error(ePeso); return; }
     setSaving(true);
     const patch: any = {
       name: f.name.trim(),
@@ -57,6 +59,7 @@ export default function PetEditModal({ pet, tutorId, onClose, onSaved, inline }:
       gender: f.gender || null,
       breed: f.breed || null,
       birthDate: f.birthDate ? new Date(f.birthDate).toISOString() : null,
+      // Trava do peso (lib/peso): barra antes de salvar, com a mensagem que explica o engano.
       weight: f.weight.trim() ? Number(f.weight.replace(",", ".")) : null,
       sterilization: f.sterilization || null,
       coatColor: f.coatColor.trim() || null,

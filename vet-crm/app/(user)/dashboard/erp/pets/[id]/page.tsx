@@ -52,6 +52,7 @@ import { loadExameFases, EXAME_FASES_PADRAO, podeAvisarLab } from "@/lib/exameFa
 import { montarPetExame, acharExameNoCatalogo, registrarHistoricoFase } from "@/lib/petExame";
 import BoletimModal from "@/components/pets/BoletimModal";
 import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
+import { erroDoPeso } from '@/lib/peso';
 
 // Emoji da espécie (avatar do cabeçalho — padrão Base44)
 const PET_EMOJI = (species: string) => {
@@ -517,6 +518,9 @@ export default function PetDetailPage() {
   async function salvarPeso() {
     const w = parseFloat(String(pesoVal).replace(",", "."));
     if (!w || w <= 0) { toast.error("Informe o peso"); return; }
+    // Trava do peso (lib/peso) — 8100 kg cadastrado por engano vira cobranca errada na
+    // faixa de porte. Espelha a validacao do servidor pra avisar antes da viagem.
+    const ePeso = erroDoPeso(pesoVal); if (ePeso) { toast.error(ePeso); return; }
     setSavingArt(true);
     try { await patchPet({ weight: w }); toast.success("Peso atualizado"); setArtefato(null); await load(); await loadAtendimentos(); } catch { toast.error("Erro ao salvar peso"); } finally { setSavingArt(false); }
   }
