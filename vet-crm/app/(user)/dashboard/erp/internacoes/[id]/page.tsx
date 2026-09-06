@@ -14,6 +14,7 @@ import { imprimirDocumento } from "@/lib/print";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { usePodeEditar } from "@/lib/permissions/context";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda } from "@/lib/catalogoVendavel";
+import { calcularHorarios as horariosDoDia, horariosDaPrescricao, prescricaoAtivaEm, rotuloDoPeriodo, minutosDaFrequencia, PERIODOS } from "@/lib/internacaoHorarios";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -23,31 +24,36 @@ const ESTADOS = [
 ];
 const PROGNOSTICOS = ["Bom", "Reservado", "Ruim", "Grave"];
 const VIAS = ["IV", "IM", "SC", "VO", "IV (BIC)", "SL", "IN", "Tópico", "Outro"];
-// Frequências clássicas: a partir da 1ª aplicação o sistema calcula os horários do dia.
+// Frequências: a partir da 1ª vez o sistema calcula os horários do dia.
+//
+// Os intervalos CURTOS (15, 30 min, 1h) entraram em 05/09/2026 a pedido da Cintia — paciente
+// grave precisa de aferição de tempo em tempo, e antes o sistema só entendia horas: "15 min"
+// não gerava horário nenhum, sem erro e sem aviso. Ver lib/internacaoHorarios.
 const FREQUENCIAS: Array<{ v: string; h: number }> = [
+  { v: "15 min", h: 0.25 }, { v: "30 min", h: 0.5 }, { v: "1h", h: 1 }, { v: "2/2h", h: 2 },
   { v: "4/4h", h: 4 }, { v: "6/6h", h: 6 }, { v: "8/8h", h: 8 },
   { v: "12/12h", h: 12 }, { v: "24h (1x ao dia)", h: 24 },
 ];
-/** Extrai o intervalo em HORAS do texto da frequência (funciona pra frequências
- *  customizadas em Config › Listas): "8/8h"→8, "24h (1x ao dia)"→24, "10/10h"→10,
- *  "48h"→48. Texto sem horas (ex.: "quando necessário") → 0 (contínua, sem horário fixo). */
-function horasDaFreq(frequencia: string): number {
-  const m = /(\d+)\s*\/?\s*\d*\s*h/i.exec(String(frequencia || ""));
-  return m ? parseInt(m[1], 10) : 0;
-}
-/** "06:00" + 8/8h → "06:00, 14:00, 22:00". Ciclo de 24h a partir da 1ª aplicação. */
+// A conta dos horários saiu daqui e virou lib/internacaoHorarios, com teste: ela decide
+// ALERTA CLÍNICO, e a versão que morava nesta tela só entendia horas.
+/** "06:00" + 8/8h → "06:00, 14:00, 22:00" — texto, como as telas esperam. */
 function calcularHorarios(primeira: string, frequencia: string): string {
-  const h = horasDaFreq(frequencia);
-  const m = /^(\d{1,2}):(\d{2})$/.exec((primeira || "").trim());
-  if (h <= 0 || !m) return "";
-  const ini = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
-  if (isNaN(ini) || ini < 0 || ini >= 1440) return "";
-  const out: string[] = [];
-  for (let t = 0; t < 24 * 60; t += h * 60) {
-    const min = (ini + t) % 1440;
-    out.push(`${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`);
-  }
-  return out.join(", ");
+  return horariosDoDia(primeira, frequencia).join(", ");
+}
+// QUANDO ACONTECEU, no formato do <input type="datetime-local"> — sem passar por UTC,
+// senão o registro aparece 3 horas deslocado em Fortaleza.
+function agoraLocal(): string {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+/** ISO gravado → o mesmo instante no formato do campo. Vazio quando não dá pra ler. */
+function paraCampoLocal(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
 }
 const STATUS_MED: Record<string, { lbl: string; bg: string; fg: string }> = {
   atrasado: { lbl: "Atrasada", bg: "#FCE9EF", fg: "#CC3366" },
@@ -155,7 +161,7 @@ export default function FichaInternacaoPage() {
   const [prescricoes, setPrescricoes] = useState<any[]>([]);
   const [doses, setDoses] = useState<any[]>([]);
   const [prescOpen, setPrescOpen] = useState(false);
-  const [prescForm, setPrescForm] = useState<any>({ id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "", cobrarTipo: "", cobrarId: "", cobrarNome: "", cobrarValor: 0 });
+  const [prescForm, setPrescForm] = useState<any>({ id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "", cobrarTipo: "", cobrarId: "", cobrarNome: "", cobrarValor: 0, periodoTipo: "INTERNACAO", periodoDias: 3 });
   const [cobrancaBusca, setCobrancaBusca] = useState(""); // busca por digitação no vínculo de cobrança da medicação
   const [prescSaving, setPrescSaving] = useState(false);
 
@@ -177,6 +183,8 @@ export default function FichaInternacaoPage() {
   const [fechamentos, setFechamentos] = useState<any[]>([]);
   const [servicos, setServicos] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
+  // Peso do animal: a conta da internação cobra medicação por porte, igual ao balcão.
+  const [pesoPet, setPesoPet] = useState<number | null>(null);
   const [caucaoSaldo, setCaucaoSaldo] = useState(0);
   const [caucaoAplicada, setCaucaoAplicada] = useState(0);
   const [itemOpen, setItemOpen] = useState(false);
@@ -249,6 +257,9 @@ export default function FichaInternacaoPage() {
       setProdutos(catalogo.filter((i) => i.tipo && i.tipo !== "SERVICE" && !i._exame).map((i) => ({ id: i.id, name: i.nome, price: i.valorPadrao, valorPadrao: i.valorPadrao })));
       const tutorId = d?.tutor?.id;
       if (tutorId) { try { const cr = await fetch(`/api/credito/tutor/${tutorId}`).then((r) => r.json()); setCaucaoSaldo(Number(cr?.saldo) || 0); } catch { setCaucaoSaldo(0); } }
+      // Peso do animal — decide o preco dos itens cobrados por porte (lib/porte).
+      const petId = d?.pet?.id;
+      if (petId) { try { const pd = await fetch(`/api/pets/${petId}`, { cache: "no-store" }).then((r) => r.json()); const kg = Number(pd?.weight ?? pd?.pesoAtual); setPesoPet(Number.isFinite(kg) && kg > 0 ? kg : null); } catch { setPesoPet(null); } }
     } catch {}
     jaCarregou.current = true;
     setLoading(false);
@@ -355,20 +366,33 @@ export default function FichaInternacaoPage() {
   // ── Prescrição & plantão (F3) ─────────────────────────────────────
   const abrirPresc = (p?: any) => {
     setPrescForm(p
-      ? { id: p.id, medicamento: p.medicamento || "", via: p.via || "IV", dose: p.dose || "", primeira: p.primeira || "", frequencia: p.frequencia || "", horarios: (p.horarios || []).join(", "), observacao: p.observacao || "", prescritoPor: p.prescritoPor || "", cobrarTipo: p.cobrarTipo || "", cobrarId: p.cobrarId || "", cobrarNome: p.cobrarNome || "", cobrarValor: Number(p.cobrarValor) || 0 }
-      : { id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "", cobrarTipo: "", cobrarId: "", cobrarNome: "", cobrarValor: 0 });
+      ? { id: p.id, medicamento: p.medicamento || "", via: p.via || "IV", dose: p.dose || "", primeira: p.primeira || "", frequencia: p.frequencia || "", horarios: (p.horarios || []).join(", "), observacao: p.observacao || "", prescritoPor: p.prescritoPor || "", cobrarTipo: p.cobrarTipo || "", cobrarId: p.cobrarId || "", cobrarNome: p.cobrarNome || "", cobrarValor: Number(p.cobrarValor) || 0, periodoTipo: p.periodoTipo || "INTERNACAO", periodoDias: Number(p.periodoDias) || 3 }
+      : { id: "", medicamento: "", via: "IV", dose: "", primeira: "", frequencia: "", horarios: "", observacao: "", prescritoPor: "", cobrarTipo: "", cobrarId: "", cobrarNome: "", cobrarValor: 0, periodoTipo: "INTERNACAO", periodoDias: 3 });
     setPrescOpen(true);
   };
   const salvarPresc = async () => {
     if (!prescForm.medicamento.trim()) { alert("Informe a medicação."); return; }
     setPrescSaving(true);
     try {
-      const horarios = String(prescForm.horarios || "").split(",").map((s: string) => s.trim()).filter(Boolean);
+      // DOSE ÚNICA não tem recorrência: o horário é só a 1ª aplicação, mesmo que alguém
+      // tenha preenchido uma frequência antes de mudar o período. Sem isso, um contraste
+      // aplicado uma vez viraria alerta todo dia — e alerta que a equipe aprende a ignorar
+      // deixa de proteger o paciente.
+      const unica = prescForm.periodoTipo === "UNICA";
+      const horarios = unica
+        ? horariosDaPrescricao({ primeira: prescForm.primeira, periodoTipo: "UNICA" })
+        : String(prescForm.horarios || "").split(",").map((s: string) => s.trim()).filter(Boolean);
       // Quem prescreveu = usuário logado. Numa edição, preserva o prescritor original
       // (é registro clínico — quem editou depois não vira o autor da prescrição).
       const payload = {
         medicamento: prescForm.medicamento.trim(), via: prescForm.via, dose: prescForm.dose.trim(),
-        primeira: prescForm.primeira || "", frequencia: prescForm.frequencia.trim(), horarios,
+        primeira: prescForm.primeira || "", frequencia: unica ? "" : prescForm.frequencia.trim(), horarios,
+        // POR QUANTO TEMPO vale (05/09/2026). Antes toda prescrição repetia para sempre,
+        // enquanto a internação existisse — não havia como dizer "isto é uma vez só".
+        periodoTipo: prescForm.periodoTipo || "INTERNACAO",
+        ...(prescForm.periodoTipo === "DIAS" ? { periodoDias: Math.max(1, Number(prescForm.periodoDias) || 1) } : {}),
+        // Quando a prescrição nasceu — é daqui que se conta o período. Preservado na edição.
+        criadaEm: prescForm.id ? (prescricoes.find((x: any) => x.id === prescForm.id)?.criadaEm || new Date().toISOString()) : new Date().toISOString(),
         observacao: prescForm.observacao.trim(),
         prescritoPor: prescForm.prescritoPor || userName || "",
         // Vínculo p/ cobrança automática na conta a cada aplicação (opcional).
@@ -422,51 +446,58 @@ export default function FichaInternacaoPage() {
   };
 
   // ── Sinais vitais & fluidos (F4) ──────────────────────────────────
-  const abrirVital = () => { setVitalEditId(""); setVitalForm({ fc: "", fr: "", temp: "", pa: "", sat: "", mucosa: "Rósea", dor: "0", peso: "" }); setVitalOpen(true); };
-  const abrirVitalEdit = (v: any) => { setVitalEditId(v.id); setVitalForm({ fc: v.fc ?? "", fr: v.fr ?? "", temp: v.temp ?? "", pa: v.pa ?? "", sat: v.sat ?? "", mucosa: v.mucosa || "Rósea", dor: String(v.dor ?? "0"), peso: v.peso ?? "" }); setVitalOpen(true); };
+  const abrirVital = () => { setVitalEditId(""); setVitalForm({ fc: "", fr: "", temp: "", pa: "", sat: "", mucosa: "Rósea", dor: "0", peso: "", quando: agoraLocal() }); setVitalOpen(true); };
+  const abrirVitalEdit = (v: any) => { setVitalEditId(v.id); setVitalForm({ fc: v.fc ?? "", fr: v.fr ?? "", temp: v.temp ?? "", pa: v.pa ?? "", sat: v.sat ?? "", mucosa: v.mucosa || "Rósea", dor: String(v.dor ?? "0"), peso: v.peso ?? "", quando: paraCampoLocal(v.at) || agoraLocal() }); setVitalOpen(true); };
   const registrarVital = async () => {
     if (![vitalForm.fc, vitalForm.fr, vitalForm.temp, vitalForm.pa, vitalForm.peso, vitalForm.sat].some((x) => String(x).trim())) { alert("Preencha ao menos um sinal vital ou o peso."); return; }
     setVitalSaving(true);
     try {
       const campos = { fc: vitalForm.fc, fr: vitalForm.fr, temp: vitalForm.temp, pa: vitalForm.pa, sat: vitalForm.sat, mucosa: vitalForm.mucosa, dor: vitalForm.dor, peso: vitalForm.peso };
+      // QUANDO ACONTECEU, não quando foi digitado. Quem afere às 20h e só senta pra
+      // registrar às 22h precisa poder dizer isso — senão a evolução do paciente fica
+      // com a hora errada, e é por ela que se decide conduta.
+      const quando = vitalForm.quando ? new Date(vitalForm.quando) : new Date();
+      const emQue = Number.isNaN(quando.getTime()) ? new Date() : quando;
       if (vitalEditId) {
         const orig = vitais.find((x: any) => x.id === vitalEditId) || {};
-        const valor = JSON.stringify({ at: orig.at, hora: orig.hora, ...campos, por: orig.por || userName });
+        const valor = JSON.stringify({ at: emQue.toISOString(), hora: emQue.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), ...campos, por: orig.por || userName });
         await fetch(`/api/listas/${vitalEditId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
         await logInterno("editou", "vital", vitalEditId, { fc: orig.fc, fr: orig.fr, temp: orig.temp, pa: orig.pa, mucosa: orig.mucosa, dor: orig.dor, peso: orig.peso }, campos);
       } else {
-        const now = new Date();
-        const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), ...campos, por: userName });
+        const valor = JSON.stringify({ at: emQue.toISOString(), hora: emQue.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), ...campos, por: userName });
         const r = await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intvital_${id}`, valor }) });
         const cd = await r.json().catch(() => null);
         await logInterno("criou", "vital", cd?.id || "", null, campos);
       }
-      setVitalForm({ fc: "", fr: "", temp: "", pa: "", sat: "", mucosa: "Rósea", dor: "0", peso: "" }); setVitalEditId(""); setVitalOpen(false); load();
+      setVitalForm({ fc: "", fr: "", temp: "", pa: "", sat: "", mucosa: "Rósea", dor: "0", peso: "", quando: agoraLocal() }); setVitalEditId(""); setVitalOpen(false); load();
     } catch { alert("Erro ao registrar aferição."); }
     finally { setVitalSaving(false); }
   };
   const excluirVital = async (vId: string) => { if (!confirm("Excluir esta aferição?")) return; const orig = vitais.find((x: any) => x.id === vId); try { await fetch(`/api/listas/${vId}`, { method: "DELETE", credentials: "include" }); await logInterno("excluiu", "vital", vId, orig || null, null); load(); } catch {} };
 
-  const abrirFluido = () => { setFluidoEditId(""); setFluidoForm({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "", observacao: "" }); setFluidoOpen(true); };
-  const abrirFluidoEdit = (f: any) => { setFluidoEditId(f.id); setFluidoForm({ entradaFluido: f.entradaFluido ?? "", agua: f.agua ?? "", diurese: f.diurese ?? "", fezes: f.fezes ?? "", alimentacao: f.alimentacao ?? "", emese: f.emese ?? "", observacao: f.observacao ?? "" }); setFluidoOpen(true); };
+  const abrirFluido = () => { setFluidoEditId(""); setFluidoForm({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "", observacao: "", quando: agoraLocal() }); setFluidoOpen(true); };
+  const abrirFluidoEdit = (f: any) => { setFluidoEditId(f.id); setFluidoForm({ entradaFluido: f.entradaFluido ?? "", agua: f.agua ?? "", diurese: f.diurese ?? "", fezes: f.fezes ?? "", alimentacao: f.alimentacao ?? "", emese: f.emese ?? "", observacao: f.observacao ?? "", quando: paraCampoLocal(f.at) || agoraLocal() }); setFluidoOpen(true); };
   const registrarFluido = async () => {
     if (![fluidoForm.entradaFluido, fluidoForm.agua, fluidoForm.diurese, fluidoForm.fezes, fluidoForm.alimentacao, fluidoForm.emese, fluidoForm.observacao].some((x) => String(x).trim())) { alert("Preencha ao menos um campo."); return; }
     setFluidoSaving(true);
     try {
       const campos = { entradaFluido: fluidoForm.entradaFluido, agua: fluidoForm.agua, diurese: fluidoForm.diurese, fezes: fluidoForm.fezes, alimentacao: fluidoForm.alimentacao, emese: fluidoForm.emese, observacao: fluidoForm.observacao };
+      // QUANDO ACONTECEU. Diurese das 3h da manhã registrada às 7h precisa constar como 3h —
+      // é o intervalo entre um registro e outro que diz se o animal está respondendo.
+      const quandoF = fluidoForm.quando ? new Date(fluidoForm.quando) : new Date();
+      const emQueF = Number.isNaN(quandoF.getTime()) ? new Date() : quandoF;
       if (fluidoEditId) {
         const orig = fluidos.find((x: any) => x.id === fluidoEditId) || {};
-        const valor = JSON.stringify({ at: orig.at, hora: orig.hora, ...campos, por: orig.por || userName });
+        const valor = JSON.stringify({ at: emQueF.toISOString(), hora: emQueF.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), ...campos, por: orig.por || userName });
         await fetch(`/api/listas/${fluidoEditId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor }) });
         await logInterno("editou", "fluido", fluidoEditId, { entradaFluido: orig.entradaFluido, agua: orig.agua, diurese: orig.diurese, fezes: orig.fezes, alimentacao: orig.alimentacao, emese: orig.emese, observacao: orig.observacao }, campos);
       } else {
-        const now = new Date();
-        const valor = JSON.stringify({ at: now.toISOString(), hora: now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), ...campos, por: userName });
+        const valor = JSON.stringify({ at: emQueF.toISOString(), hora: emQueF.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), ...campos, por: userName });
         const r = await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intfluido_${id}`, valor }) });
         const cd = await r.json().catch(() => null);
         await logInterno("criou", "fluido", cd?.id || "", null, campos);
       }
-      setFluidoForm({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "", observacao: "" }); setFluidoEditId(""); setFluidoOpen(false); load();
+      setFluidoForm({ entradaFluido: "", agua: "", diurese: "", fezes: "", alimentacao: "", emese: "", observacao: "", quando: agoraLocal() }); setFluidoEditId(""); setFluidoOpen(false); load();
     } catch { alert("Erro ao registrar controle."); }
     finally { setFluidoSaving(false); }
   };
@@ -484,7 +515,14 @@ export default function FichaInternacaoPage() {
     return { dias, diariaVU, diariaTotal, itensFat, itensInsumo, totalFaturavel };
   };
   const abrirItem = (p?: any) => { setItemForm(p ? { id: p.id, descricao: p.descricao || "", categoria: p.categoria || "Procedimento", quantidade: String(p.quantidade || "1"), valorUnitario: String(p.valorUnitario ?? ""), servicoId: p.servicoId || "", productId: p.productId || "", custoUnitario: p.custoUnitario, fornecedorId: p.fornecedorId ?? null, catalogoExameId: p.catalogoExameId, _exame: p._exame } : { id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "" }); setItemOpen(true); };
-  const pickServico = (sid: string) => { const s = servicos.find((x) => x.id === sid); if (!s) return; const l = linhaDoItem(s); setItemForm((f: any) => ({ ...f, servicoId: l.servicoId || "", descricao: l.descricao, valorUnitario: String(l.valorUnitario), custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId ?? null, catalogoExameId: l.catalogoExameId, _exame: l._exame })); };
+  const pickServico = (sid: string) => {
+    const s = servicos.find((x) => x.id === sid); if (!s) return;
+    // O PESO do animal escolhe o preço quando o item cobra por porte — a mesma regra do
+    // balcão (lib/porte). Medicação de internação é justamente onde isso mais pesa.
+    const l = linhaDoItem(s, pesoPet);
+    if (l._avisoPorte) alert(l._avisoPorte);
+    setItemForm((f: any) => ({ ...f, servicoId: l.servicoId || "", descricao: l.descricao, valorUnitario: String(l.valorUnitario), custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId ?? null, catalogoExameId: l.catalogoExameId, _exame: l._exame, catalogoItemId: l.catalogoItemId, _faixaRotulo: l._faixaRotulo }));
+  };
   const pickProduto = (pid: string) => { const p = produtos.find((x) => x.id === pid); setItemForm((f: any) => ({ ...f, productId: pid, descricao: p?.name || f.descricao })); };
   // Vínculo da PRESCRIÇÃO com o catálogo (serviço OU produto) p/ cobrança automática ao aplicar.
   // val = "" | "s:<id>" (serviço) | "p:<id>" (produto).
@@ -513,7 +551,34 @@ export default function FichaInternacaoPage() {
       const insumo = itemForm.categoria === "Insumo";
       const payload = { descricao: itemForm.descricao.trim(), categoria: itemForm.categoria, quantidade: Number(itemForm.quantidade) || 1, valorUnitario: insumo ? 0 : (Number(itemForm.valorUnitario) || 0), servicoId: itemForm.servicoId || "", productId: itemForm.productId || "", baixado: false, ...(itemForm.custoUnitario != null ? { custoUnitario: Number(itemForm.custoUnitario) } : {}), ...(itemForm.fornecedorId ? { fornecedorId: itemForm.fornecedorId } : {}), ...(itemForm._exame ? { _exame: true, catalogoExameId: itemForm.catalogoExameId } : {}) };
       if (itemForm.id) await fetch(`/api/listas/${itemForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
-      else await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(payload) }) });
+      else {
+        await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(payload) }) });
+        // 🔬 EXAME LANÇADO AQUI ENTRA NO KANBAN, igual ao exame vendido no balcão.
+        //
+        // Até 05/09/2026 ele ficava só na conta: era cobrado, mas ninguém sabia que havia
+        // exame para coletar, mandar ao laboratório e cobrar o resultado. O exame existia
+        // no dinheiro e não existia no fluxo de trabalho.
+        //
+        // Só na criação — editar o item não cria outro cartão. E falhar aqui não desfaz o
+        // lançamento: a conta é o registro que não pode se perder.
+        if (itemForm._exame && h?.pet?.id) {
+          try {
+            const r = await fetch("/api/exames/iniciar", {
+              method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+              body: JSON.stringify({
+                petId: h.pet.id, origem: "INTERNACAO",
+                itens: [{
+                  descricao: payload.descricao, valorUnitario: payload.valorUnitario,
+                  custoUnitario: (payload as any).custoUnitario, fornecedorId: (payload as any).fornecedorId,
+                  catalogoExameId: (payload as any).catalogoExameId, catalogoItemId: itemForm.catalogoItemId,
+                }],
+              }),
+            });
+            const d = await r.json().catch(() => null);
+            if (d?.criados) alert("Exame lançado na conta e aberto no Kanban de exames 🔬");
+          } catch { alert("Item lançado na conta. Não consegui abrir o exame no Kanban — confira lá."); }
+        }
+      }
       setItemOpen(false); load();
     } catch { alert("Erro ao salvar item."); }
     finally { setItemSaving(false); }
@@ -918,6 +983,11 @@ export default function FichaInternacaoPage() {
   const plantao = useMemo(() => {
     const now = new Date(); const hj = hojeISO(); const arr: any[] = [];
     for (const p of prescricoes) {
+      // Prescricao com PERIODO fechado sai do plantao quando o periodo acaba: dose unica
+      // aparece so no dia em que foi prescrita, "por 3 dias" some no quarto. Sem isto, um
+      // contraste aplicado uma vez viraria alerta atrasado para sempre — e alerta que a
+      // equipe aprende a ignorar deixa de proteger o paciente.
+      if (!prescricaoAtivaEm(p, now, h?.admissionDate)) continue;
       for (const hhmm of (p.horarios || [])) {
         const log = doses.find((d) => d.prescId === p.id && d.slot === hhmm && (d.at ? diaFortaleza(d.at) : d.date) === hj);
         let status: "feito" | "atrasado" | "pendente";
@@ -1387,7 +1457,16 @@ export default function FichaInternacaoPage() {
                           <td className="px-4 py-2 font-medium text-[#014D5E] whitespace-nowrap">{p.medicamento}{p.cobrarId ? <span title={`Cobra ${fmtBRL(precoAtualCobranca(p))} na conta a cada aplicação`} className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "#EDE9FA", color: "#5a3b9b" }}>💰 auto</span> : null}</td>
                           <td className="px-2 py-2"><span className="text-[11px] text-[#5C6B70] bg-[#FBF9F4] border rounded px-1.5 py-0.5 whitespace-nowrap" style={{ borderColor: "#E8E2D6" }}>{p.via}</span></td>
                           <td className="px-2 py-2 tabular-nums whitespace-nowrap">{p.dose || "—"}</td>
-                          <td className="px-2 py-2 whitespace-nowrap">{p.frequencia || "—"}</td>
+                          <td className="px-2 py-2 whitespace-nowrap">
+                            {p.frequencia || (p.periodoTipo === "UNICA" ? "—" : "—")}
+                            {/* POR QUANTO TEMPO vale: quem olha a lista precisa distinguir a
+                                dose unica da que repete todo dia. */}
+                            {(p.periodoTipo && p.periodoTipo !== "INTERNACAO") && (
+                              <span className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "#EDE9FE", color: "#6D28D9" }}>
+                                {rotuloDoPeriodo(p)}
+                              </span>
+                            )}
+                          </td>
                           <td className="px-2 py-2 tabular-nums text-[#5C6B70] whitespace-nowrap">{(p.horarios || []).join(" · ") || "contínuo"}</td>
                           <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{p.prescritoPor || "—"}</td>
                           <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && podeEditar && <><button onClick={() => abrirPresc(p)} className="text-[12px] px-1">✏️</button><button onClick={() => excluirPresc(p)} className="text-[12px] px-1">🗑️</button></>}</td>
@@ -1847,7 +1926,38 @@ export default function FichaInternacaoPage() {
                   {prescForm.frequencia && !FREQUENCIAS.some((f) => f.v === prescForm.frequencia) && <option value={prescForm.frequencia}>{prescForm.frequencia}</option>}
                 </select></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Horários (HH:MM)</label>
-                <input value={prescForm.horarios} onChange={(e) => setPrescForm({ ...prescForm, horarios: e.target.value })} placeholder="06:00, 14:00, 22:00" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+                <input value={prescForm.periodoTipo === "UNICA" ? (prescForm.primeira || "") : prescForm.horarios} disabled={prescForm.periodoTipo === "UNICA"} onChange={(e) => setPrescForm({ ...prescForm, horarios: e.target.value })} placeholder="06:00, 14:00, 22:00" title={prescForm.periodoTipo === "UNICA" ? "Dose única acontece só na 1ª aplicação." : ""} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC] disabled:bg-[#F3EFE6] disabled:text-[#8C979B]" style={{ borderColor: "#E8E2D6" }} /></div>
+
+              {/* ⏳ POR QUANTO TEMPO — antes toda prescrição repetia para sempre, enquanto a
+                  internação existisse. Não havia como dizer "isto é uma vez só". */}
+              <div className="col-span-2">
+                <label className="text-[11px] text-[#374151] block mb-1">Por quanto tempo</label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {PERIODOS.map((op) => (
+                    <button key={op.valor} type="button" title={op.ajuda}
+                      onClick={() => setPrescForm({ ...prescForm, periodoTipo: op.valor })}
+                      className="text-[12px] font-medium px-2.5 py-1 rounded-lg border"
+                      style={(prescForm.periodoTipo || "INTERNACAO") === op.valor
+                        ? { borderColor: "#009AAC", background: "#009AAC", color: "#fff" }
+                        : { borderColor: "#E8E2D6", background: "#fff", color: "#014D5E" }}>
+                      {op.rotulo}
+                    </button>
+                  ))}
+                  {prescForm.periodoTipo === "DIAS" && (
+                    <span className="inline-flex items-center gap-1.5 text-[12px] text-[#374151]">
+                      <input type="number" min={1} max={60} value={prescForm.periodoDias}
+                        onChange={(e) => setPrescForm({ ...prescForm, periodoDias: e.target.value })}
+                        className="w-16 border rounded-lg px-2 py-1 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                      dia(s)
+                    </span>
+                  )}
+                </div>
+                {prescForm.periodoTipo === "UNICA" && (
+                  <div className="text-[10.5px] mt-1.5" style={{ color: "#0F6E56", background: "#E1F5EE", borderRadius: 8, padding: "7px 10px" }}>
+                    Aplica <b>uma vez</b>, na hora da 1ª aplicação, e não repete nos próximos dias.
+                  </div>
+                )}
+              </div>
               <div className="col-span-2 -mt-1 text-[10.5px] text-[#374151]">
                 Preencha a <b>1ª aplicação</b> e a <b>frequência</b> que os horários são calculados sozinhos — e você pode editar depois.
                 Deixe os horários vazios para medicação <b>contínua</b> (não gera doses no plantão).
@@ -1898,6 +2008,12 @@ export default function FichaInternacaoPage() {
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
               <div className="col-span-2"><label className="text-[11px] text-[#014D5E] font-medium block mb-1">⚖️ Peso (kg) — base pra dosagem</label>
                 <input type="number" step="0.01" value={vitalForm.peso} onChange={(e) => setVitalForm({ ...vitalForm, peso: e.target.value })} placeholder="Ex.: 6.2" className="w-full border rounded-lg px-3 py-2 text-[14px] font-medium focus:outline-none" style={{ borderColor: "#009AAC", background: "#F0FBFC", color: "#014D5E" }} /></div>
+              {/* ⏰ QUANDO ACONTECEU — não quando foi digitado. Aferiu às 20h e só registrou às 22h? A hora certa é 20h — é pelo intervalo entre uma aferição e outra que se lê a evolução do paciente. */}
+              <div className="col-span-2">
+                <label className="text-[11px] text-[#374151] block mb-1">Quando aconteceu *</label>
+                <input type="datetime-local" value={vitalForm.quando || ""} onChange={(e) => setVitalForm({ ...vitalForm, quando: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                <div className="text-[10.5px] text-[#5C6B70] mt-1">Já vem com agora. Mude se estiver registrando depois.</div>
+              </div>
               <div><label className="text-[11px] text-[#374151] block mb-1">FC (bpm)</label>
                 <input type="number" value={vitalForm.fc} onChange={(e) => setVitalForm({ ...vitalForm, fc: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">FR (mpm)</label>
@@ -1930,6 +2046,12 @@ export default function FichaInternacaoPage() {
               <button onClick={() => { setFluidoOpen(false); setFluidoEditId(""); }} className="text-[#374151]">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
+              {/* ⏰ QUANDO ACONTECEU — não quando foi digitado. Diurese das 3h da manhã anotada às 7h precisa constar como 3h. */}
+              <div className="col-span-2">
+                <label className="text-[11px] text-[#374151] block mb-1">Quando aconteceu *</label>
+                <input type="datetime-local" value={fluidoForm.quando || ""} onChange={(e) => setFluidoForm({ ...fluidoForm, quando: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                <div className="text-[10.5px] text-[#5C6B70] mt-1">Já vem com agora. Mude se estiver registrando depois.</div>
+              </div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Entrada fluido (ml)</label>
                 <input type="number" value={fluidoForm.entradaFluido} onChange={(e) => setFluidoForm({ ...fluidoForm, entradaFluido: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Ingestão água (ml)</label>
