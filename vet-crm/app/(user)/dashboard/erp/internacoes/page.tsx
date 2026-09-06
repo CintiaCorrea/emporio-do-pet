@@ -342,18 +342,24 @@ export default function InternacoesPage() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-        <div className="text-[13px] text-[#374151]">{kpis.ocupados}/{kpis.total} box(es) ocupado(s) · {ativas.length} internado(s)</div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => { novoBox(); setGerOpen(true); }} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>⚙️ Gerenciar boxes</button>
-          <button onClick={() => { setForm((f: any) => ({ ...f, boxId: "" })); setNovoOpen(true); }} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Nova internação</button>
+      {/* O MESMO PADRAO DA FICHA: cabecalho fixo abaixo da barra do sistema (h-16 = 64px)
+          e botoes discretos. Rolando a lista de boxes, as abas e o "nova internacao" saiam
+          da tela — e a Cintia pediu que isto fosse padrao dentro da internacao, nao so na
+          ficha de um paciente. */}
+      <div className="sticky z-30 -mx-6 px-6 pt-2 pb-2 mb-4" style={{ top: 64, background: "#FBF9F4", boxShadow: "0 8px 14px -12px rgba(20,40,45,.55)" }}>
+        <div className="flex items-center justify-between gap-3 mb-2.5 flex-wrap">
+          <div className="text-[13px] text-[#374151]">{kpis.ocupados}/{kpis.total} box(es) ocupado(s) · {ativas.length} internado(s)</div>
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => { novoBox(); setGerOpen(true); }} title="Gerenciar boxes" className="text-[12px] text-[#5C6B70] bg-white border px-2.5 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>⚙️</button>
+            <button onClick={() => { setForm((f: any) => ({ ...f, boxId: "" })); setNovoOpen(true); }} className="text-[12px] font-medium text-white bg-[#009AAC] px-2.5 py-1.5 rounded-lg">➕ Nova internação</button>
+          </div>
         </div>
-      </div>
 
-      <div className="flex gap-1.5 mb-4 border-b" style={{ borderColor: "#E8E2D6" }}>
-        {([["mapa", `🗺️ Mapa`], ["ativas", `Ativas (${ativas.length})`], ["historico", `Histórico (${historico.length})`]] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setTab(k as any)} className="text-[12.5px] px-3.5 py-2 -mb-px border-b-2" style={tab === k ? { color: "#014D5E", borderColor: "#009AAC", fontWeight: 500 } : { color: "#5C6B70", borderColor: "transparent" }}>{label}</button>
-        ))}
+        <div className="flex gap-1.5 border-b" style={{ borderColor: "#E8E2D6" }}>
+          {([["mapa", `🗺️ Mapa`], ["ativas", `Ativas (${ativas.length})`], ["historico", `Histórico (${historico.length})`]] as const).map(([k, label]) => (
+            <button key={k} onClick={() => setTab(k as any)} className="text-[12.5px] px-3.5 py-2 -mb-px border-b-2" style={tab === k ? { color: "#014D5E", borderColor: "#009AAC", fontWeight: 500 } : { color: "#5C6B70", borderColor: "transparent" }}>{label}</button>
+          ))}
+        </div>
       </div>
 
       {/* ===== MAPA ===== */}
