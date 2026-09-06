@@ -1526,6 +1526,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
       {/* ===== APP (oculto na impressão) ===== */}
       <div className="p-6 max-w-6xl mx-auto print:hidden">
         {/* breadcrumb + voltar */}
+        <div className="sticky top-0 z-30 -mx-6 px-6 pt-1 pb-2" style={{ background: "#FBF9F4", boxShadow: "0 6px 12px -10px rgba(20,40,45,.5)" }}>
         <div className="flex items-center gap-2 text-[12.5px] text-[#374151] mb-2">
           <button onClick={() => router.push("/dashboard/erp/internacoes")} className="text-[#374151] hover:text-[#009AAC]">←</button>
           <Link href="/dashboard/erp/internacoes" className="hover:text-[#009AAC]">Internação</Link>
@@ -1545,16 +1546,16 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
               {[h.pet?.breed, h.pet?.gender, idadeDe(h.pet?.birthDate), h.pet?.weight ? `${h.pet.weight} kg` : null, boxCodigo ? `Box ${boxCodigo}` : null, h.tutor?.name ? `Tutor(a): ${h.tutor.name}` : null].filter(Boolean).join(" · ")}
             </div>
           </div>
-          <div className="ml-auto flex gap-2 flex-wrap">
-            {!podeEditar && <span className="text-[11.5px] font-medium px-3 py-2 rounded-lg bg-[#FBF3E3] text-[#8a6400] border self-center" style={{ borderColor: "#F0DCB0" }}>👁️ Somente leitura</span>}
-            <button onClick={() => openWhatsAppMeta(h.tutor?.phone)} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-3 py-2 rounded-lg">💬 WhatsApp</button>
-            {h.pet?.id && <Link href={`/dashboard/erp/pets/${h.pet.id}`} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>📄 Ficha</Link>}
-            <button onClick={() => window.print()} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️ Imprimir</button>
-            <button onClick={enviarResumoWhats} disabled={!!finBusy} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-3 py-2 rounded-lg disabled:opacity-60" title="Manda o mesmo resumo pro tutor pelo WhatsApp">{finBusy === "resumo" ? "Enviando…" : "📲 WhatsApp resumo"}</button>
-            {!alta && podeEditar && <button onClick={darAlta} className="text-[12.5px] font-medium text-[#CC3366] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#EAC3C1" }}>🚪 Dar alta</button>}
+          <div className="ml-auto flex gap-1.5 flex-wrap items-center">
+            {!podeEditar && <span className="text-[11px] font-medium px-2.5 py-1 rounded-lg bg-[#FBF3E3] text-[#8a6400] border" style={{ borderColor: "#F0DCB0" }}>👁️ leitura</span>}
+            <button onClick={() => openWhatsAppMeta(h.tutor?.phone)} title="Abrir a conversa com o tutor" className="text-[12px] font-medium text-white bg-[#009AAC] px-2.5 py-1.5 rounded-lg">💬 WhatsApp</button>
+            <button onClick={enviarResumoWhats} disabled={!!finBusy} className="text-[12px] font-medium px-2.5 py-1.5 rounded-lg border disabled:opacity-60" style={{ borderColor: "#9FD6DD", color: "#00798A", background: "#fff" }} title="Manda o resumo da internação pro tutor">{finBusy === "resumo" ? "…" : "📲 Resumo"}</button>
+            {h.pet?.id && <Link href={`/dashboard/erp/pets/${h.pet.id}`} title="Ficha do pet" className="text-[12px] text-[#5C6B70] bg-white border px-2.5 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>📄</Link>}
+            <button onClick={() => window.print()} title="Imprimir" className="text-[12px] text-[#5C6B70] bg-white border px-2.5 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️</button>
+            {!alta && podeEditar && <button onClick={darAlta} className="text-[12px] font-medium text-[#CC3366] bg-white border px-2.5 py-1.5 rounded-lg" style={{ borderColor: "#EAC3C1" }}>🚪 Dar alta</button>}
             {podeEditar && (
               <div className="relative">
-                <button onClick={() => setMaisAberto((v) => !v)} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>⋯ Mais</button>
+                <button onClick={() => setMaisAberto((v) => !v)} title="Mais ações" className="text-[12px] font-medium text-[#5C6B70] bg-white border px-2.5 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>⋯</button>
                 {maisAberto && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setMaisAberto(false)} />
@@ -1568,6 +1569,8 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
               </div>
             )}
           </div>
+        </div>
+
         </div>
 
         {/* ===== EDITAR O DIA INTEIRO ===== */}
