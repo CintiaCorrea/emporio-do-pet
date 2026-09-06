@@ -2365,64 +2365,46 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                 );
               })}
 
-              {/* A DIÁRIA AUTOMÁTICA, quando ainda não virou item por dia. */}
-              <div className="overflow-x-auto" style={{ display: diariasGeradas ? "none" : undefined }}>
-                <table className="w-full text-[13px]">
-                  <thead><tr className="text-[10.5px] text-[#374151] uppercase tracking-wide">
-                    <th className="text-left font-medium px-3 py-2">Dia</th><th className="text-left font-medium px-2 py-2">Item</th><th className="text-left font-medium px-2 py-2">Categoria</th><th className="text-right font-medium px-2 py-2">Qtd</th><th className="text-right font-medium px-2 py-2">Valor</th><th className="text-right font-medium px-2 py-2">Total</th><th className="px-2 py-2"></th>
-                  </tr></thead>
-                  <tbody>
-                    {!diariasGeradas && <tr className="border-t" style={{ borderColor: "#F0EBE0" }}>
-                      <td className="px-3 py-2 whitespace-nowrap text-[11.5px] text-[#94a3b8]">todos</td>
-                      <td className="px-2 py-2 whitespace-nowrap">Diária internação</td>
-                      <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E8F1F8", color: "#1f5a82" }}>Diária · auto</span></td>
-                      <td className="px-2 py-2 text-right tabular-nums">
-                        {diariaQtdEdit === null ? (
-                          <span className="inline-flex items-center gap-1">
-                            {cc.dias}
-                            {(h as any)?.vitalSigns?.diariasManuais != null && (
-                              <span className="text-[9.5px] font-medium px-1.5 py-0.5 rounded-full" title="Quantidade corrigida à mão — clique no lápis pra voltar ao automático" style={{ background: "#FBF3E3", color: "#8a6400" }}>mão</span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 justify-end">
-                            <input autoFocus type="number" min={0} value={diariaQtdEdit}
-                              onChange={(e) => setDiariaQtdEdit(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") salvarDiariaQtd(); if (e.key === "Escape") setDiariaQtdEdit(null); }}
-                              className="w-16 border rounded-lg px-2 py-1 text-[12.5px] text-right focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
-                            <button onClick={salvarDiariaQtd} disabled={diariaSalvando} className="text-[11px] px-2 py-1 rounded-lg text-white bg-[#009AAC] disabled:opacity-60">ok</button>
-                            <button onClick={voltarDiariaAuto} disabled={diariaSalvando} title="Voltar à contagem automática" className="text-[11px] text-[#007B8A] underline">auto</button>
-                            <button onClick={() => setDiariaQtdEdit(null)} className="text-[11px] text-[#94a3b8]">✕</button>
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 text-right tabular-nums">
-                        {diariaEdit === null ? (
-                          <span className={cc.diariaVU > 0 ? "" : "font-semibold"} style={cc.diariaVU > 0 ? undefined : { color: "#B45309" }}>
-                            {fmtBRL(cc.diariaVU)}
-                            {cc.diariaVU <= 0 && <span className="ml-1" title="Diária sem valor: a conta fica zerada">⚠️</span>}
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 justify-end">
-                            <input autoFocus value={diariaEdit} inputMode="decimal"
-                              onChange={(e) => setDiariaEdit(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === "Enter") salvarDiaria(); if (e.key === "Escape") setDiariaEdit(null); }}
-                              className="w-24 border rounded-lg px-2 py-1 text-[12.5px] text-right focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
-                            <button onClick={salvarDiaria} disabled={diariaSalvando} className="text-[11px] px-2 py-1 rounded-lg text-white bg-[#009AAC] disabled:opacity-60">{diariaSalvando ? "…" : "ok"}</button>
-                            <button onClick={() => setDiariaEdit(null)} className="text-[11px] text-[#94a3b8]">✕</button>
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtBRL(cc.diariaTotal)}</td>
-                      <td className="px-2 py-1">
-                        {!alta && podeEditar && diariaEdit === null && (
-                          <button onClick={() => { setDiariaEdit(String(cc.diariaVU || "")); setDiariaQtdEdit(String(cc.dias)); }} className="text-[11px] text-[#B4BCC0] hover:text-[#009AAC]" title="Corrigir a quantidade de diárias e o valor">✏️</button>
-                        )}
-                      </td>
-                    </tr>}
-                  </tbody>
-                </table>
-              </div>
+              {/* ⚖️ DIÁRIAS AUTOMÁTICAS — faixa, não tabela.
+                  Enquanto não viram itens por dia, elas somam por fora. A faixa mostra
+                  isso sem competir com os blocos de dia, que são o padrão da tela. */}
+              {!diariasGeradas && (
+                <div className="mx-3 mb-2 rounded-xl border flex items-center gap-2.5 px-3 py-2 flex-wrap" style={{ borderColor: cc.diariaVU > 0 ? "#CDE7EA" : "#E8CF97", background: cc.diariaVU > 0 ? "#F4FBFC" : "#FBF3E3" }}>
+                  <span className="text-[13px]">⚖️</span>
+                  <span className="text-[12.5px]" style={{ color: "#014D5E" }}>
+                    <b>Diárias automáticas</b> · {cc.dias} {cc.dias === 1 ? "dia" : "dias"} × {fmtBRL(cc.diariaVU)}
+                    {(h as any)?.vitalSigns?.diariasManuais != null && <span className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "#fff", color: "#8a6400" }}>quantidade na mão</span>}
+                  </span>
+                  {cc.diariaVU <= 0 && <span className="text-[11.5px]" style={{ color: "#8a6400" }}>⚠️ sem valor — a conta soma R$ 0,00</span>}
+                  <span className="ml-auto text-[14px] font-semibold tabular-nums" style={{ color: cc.diariaVU > 0 ? "#014D5E" : "#8a6400" }}>{fmtBRL(cc.diariaTotal)}</span>
+                  {!alta && podeEditar && (
+                    <button onClick={() => { setDiariaEdit(String(cc.diariaVU || "")); setDiariaQtdEdit(String(cc.dias)); }}
+                      title="Corrigir o valor e a quantidade de diárias"
+                      className="text-[11.5px] font-medium px-2.5 py-1 rounded-lg border" style={{ borderColor: "#E8E2D6", background: "#fff", color: "#014D5E" }}>✏️ corrigir</button>
+                  )}
+                </div>
+              )}
+              {/* Diária em edição: os dois campos, sem virar tabela. */}
+              {!diariasGeradas && diariaEdit !== null && (
+                <div className="mx-3 mb-2 rounded-xl border flex items-center gap-2 px-3 py-2 flex-wrap" style={{ borderColor: "#009AAC", background: "#fff" }}>
+                  <span className="text-[11.5px] text-[#5C6B70]">Quantidade</span>
+                  <input type="number" min={0} value={diariaQtdEdit ?? ""} onChange={(e) => setDiariaQtdEdit(e.target.value)}
+                    className="w-16 border rounded-lg px-2 py-1 text-[12.5px] text-right" style={{ borderColor: "#E8E2D6" }} />
+                  <span className="text-[11.5px] text-[#5C6B70]">× valor</span>
+                  <input inputMode="decimal" value={diariaEdit} onChange={(e) => setDiariaEdit(e.target.value)}
+                    className="w-24 border rounded-lg px-2 py-1 text-[12.5px] text-right" style={{ borderColor: "#E8E2D6" }} />
+                  <button onClick={async () => { await salvarDiaria(); await salvarDiariaQtd(); }} disabled={diariaSalvando}
+                    className="text-[11.5px] font-medium text-white bg-[#009AAC] px-3 py-1 rounded-lg disabled:opacity-60">{diariaSalvando ? "…" : "salvar"}</button>
+                  <button onClick={voltarDiariaAuto} disabled={diariaSalvando} title="Voltar à contagem automática de dias" className="text-[11.5px] underline text-[#007B8A]">auto</button>
+                  <button onClick={() => { setDiariaEdit(null); setDiariaQtdEdit(null); }} className="text-[11.5px] text-[#94a3b8]">✕</button>
+                </div>
+              )}
+              {/* Internação sem nada lançado: dizer isso, em vez de mostrar tabela vazia. */}
+              {contaPorDia.length === 0 && (
+                <div className="mx-3 mb-3 px-3 py-6 text-center text-[12.5px] rounded-xl border" style={{ borderColor: "#F0EBE0", color: "#5C6B70", borderStyle: "dashed" }}>
+                  Nenhum item lançado ainda. Medicação aplicada no plantão entra sozinha aqui.
+                </div>
+              )}
               <div className="px-4 py-3 border-t flex flex-col gap-1.5" style={{ borderColor: "#F0EBE0" }}>
                 <div className="flex justify-between text-[13px] text-[#5C6B70]"><span>Total faturável</span><span className="tabular-nums font-medium text-[#1F2A2E]">{fmtBRL(cc.totalFaturavel)}</span></div>
                 {caucAplic > 0 && <div className="flex justify-between text-[13px] text-[#5a3b9b]"><span>Caução aplicada</span><span className="tabular-nums font-medium">− {fmtBRL(caucAplic)}</span></div>}
