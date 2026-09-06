@@ -23,7 +23,7 @@ import { buscarItens, avisoDeCorte } from "@/lib/buscaCatalogo";
 export type ItemBuscavel = { id?: string; nome: string; valorPadrao?: number | null; [k: string]: any };
 
 export default function BuscaItemCatalogo({
-  value, itens, onType, onPick, placeholder, inpStyle, autoFocus, limite = 40, rotuloDe,
+  value, itens, onType, onPick, placeholder, inpStyle, className, disabled, autoFocus, limite = 40, rotuloDe,
 }: {
   value: string;
   itens: readonly ItemBuscavel[];
@@ -31,6 +31,8 @@ export default function BuscaItemCatalogo({
   onPick: (item: ItemBuscavel) => void;
   placeholder?: string;
   inpStyle?: React.CSSProperties;
+  className?: string;
+  disabled?: boolean;
   autoFocus?: boolean;
   limite?: number;
   /** Etiqueta extra à direita do nome (o laboratório do exame, por exemplo). */
@@ -48,13 +50,15 @@ export default function BuscaItemCatalogo({
       <input
         value={q}
         autoFocus={autoFocus}
+        disabled={disabled}
         placeholder={placeholder || "🔍 Produto, serviço ou pacote"}
         style={inpStyle}
+        className={className}
         onFocus={() => setAberto(true)}
         onBlur={() => setTimeout(() => setAberto(false), 150)}
         onChange={(e) => { setQ(e.target.value); onType(e.target.value); setAberto(true); }}
       />
-      {aberto && q.trim().length > 0 && (
+      {aberto && !disabled && q.trim().length > 0 && (
         <div style={{ position: "absolute", top: "100%", left: 0, right: 0, zIndex: 50, marginTop: 2, background: "#fff", border: "1px solid #E8E2D6", borderRadius: 9, boxShadow: "0 8px 24px -6px rgba(0,0,0,.16)", maxHeight: 280, overflowY: "auto" }}>
           {r.itens.length === 0 && (
             <div style={{ padding: "9px 10px", fontSize: 12.5, color: "#8A7F6E" }}>

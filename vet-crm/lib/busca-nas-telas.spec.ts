@@ -45,6 +45,7 @@ const TELAS_DE_VENDA = [
   "app/(user)/dashboard/erp/modelos-orcamento/page.tsx",
   "components/vendas/OrcamentoRapidoModal.tsx",
   "components/pets/PetComandaRail.tsx",
+  "app/(user)/dashboard/erp/pets/[id]/atendimentos/novo/page.tsx",
 ];
 
 describe("a busca de itens é a mesma em toda tela que vende", () => {
@@ -82,8 +83,22 @@ describe("o catálogo chega inteiro em quem vende", () => {
     expect(src).toMatch(/filter\(\(i\) => i\.tipo !== "SERVICE" && !i\._exame\)/);
   });
 
-  it("o orçamento rápido não usa mais <datalist> com o catálogo inteiro", () => {
-    const src = ler("components/vendas/OrcamentoRapidoModal.tsx");
+  it("o \"Editar o dia\" da internação traz os itens de venda", () => {
+    const src = ler("app/(user)/dashboard/erp/internacoes/[id]/page.tsx");
+    // A Cintia, com o print aberto nesta tela: "não traz o item"; e depois: "mas não é para
+    // ser campo puro. É uma tela de venda, tem que trazer os itens de venda!". O campo de
+    // descrição da linha do dia era <input> puro — digitar "trans" não procurava nada. E é
+    // JUSTAMENTE aqui que ela edita a comanda.
+    expect(src).toContain("pickLinhaDoDia");
+    expect(src).not.toMatch(/<input value=\{l\.descricao/);
+  });
+
+  it.each([
+    "components/vendas/OrcamentoRapidoModal.tsx",
+    "app/(user)/dashboard/erp/modelos-orcamento/page.tsx",
+    "app/(user)/dashboard/erp/pets/[id]/atendimentos/novo/page.tsx",
+  ])("%s não entrega o catálogo ao <datalist> do navegador", (tela) => {
+    const src = ler(tela);
     // ~900 <option> jogadas no navegador: quem filtrava era o Chrome, comparando COM acento,
     // e o onBlur limpava o campo quando o texto não batia letra por letra.
     expect(src).not.toMatch(/<datalist[ >]/);

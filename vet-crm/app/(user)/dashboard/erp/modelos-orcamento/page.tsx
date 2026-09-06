@@ -9,6 +9,7 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { usePodeEditar } from "@/lib/permissions/context";
 import { carregarCatalogoVendavel } from "@/lib/catalogoVendavel";
 import { buscarItens } from "@/lib/buscaCatalogo";
+import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const num = (s: any) => Number(String(s ?? "").replace(",", ".")) || 0;
@@ -131,13 +132,23 @@ export default function ModelosOrcamentoPage() {
             <div className="p-5">
               <label className="text-[11px] text-[#374151] block mb-1">Nome do modelo *</label>
               <input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Ex.: Castração de gata" className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC] mb-3" style={{ borderColor: "#E8E2D6" }} />
-              <datalist id="cat-modelo-dl">{servicos.map((s: any) => <option key={s.id} value={s.nome} />)}</datalist>
 
               <div className="border rounded-[11px] overflow-hidden bg-white" style={{ borderColor: "#E8E2D6" }}>
                 {form.itens.length === 0 && <div className="px-4 py-4 text-center text-[12px] text-[#374151]">Adicione itens ao modelo abaixo.</div>}
                 {form.itens.map((it: any, i: number) => (
                   <div key={i} className="flex items-center gap-2 px-3 py-2 border-b last:border-b-0" style={{ borderColor: "#F0EBE0" }}>
-                    <input list="cat-modelo-dl" value={it.descricao} onChange={(e) => { const nome = e.target.value; const cat = servicos.find((x: any) => x.nome === nome); updItem(i, cat ? { descricao: cat.nome, servicoId: cat.id, valorUnitario: Number(cat.valorPadrao || 0) } : { descricao: nome }); }} placeholder="Item ou catálogo…" className="flex-1 min-w-0 border rounded px-2 py-1 text-[12.5px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                    {/* Mesmo caso: <datalist> filtrado pelo navegador, com acento. Virou o
+                        seletor unico — e o modelo do orcamento e justamente o que ela quer
+                        disponivel em todo ponto de venda. */}
+                    <BuscaItemCatalogo
+                      value={it.descricao}
+                      itens={servicos as any}
+                      placeholder="🔍 Produto ou serviço do catálogo"
+                      className="flex-1 min-w-0 border rounded px-2 py-1 text-[12.5px] bg-white focus:outline-none focus:border-[#009AAC]"
+                      inpStyle={{ borderColor: "#E8E2D6" }}
+                      onType={(val) => updItem(i, { descricao: val })}
+                      onPick={(cat: any) => updItem(i, { descricao: cat.nome, servicoId: cat.id, valorUnitario: Number(cat.valorPadrao || 0) })}
+                    />
                     <input value={it.quantidade} onChange={(e) => updItem(i, { quantidade: e.target.value })} title="Qtd" className="w-12 border rounded px-1 py-1 text-[12px] text-center bg-white" style={{ borderColor: "#E8E2D6" }} />
                     <span className="text-[#374151] text-[11px]">×</span>
                     <input value={it.valorUnitario} onChange={(e) => updItem(i, { valorUnitario: num(e.target.value) })} title="Valor" className="w-20 border rounded px-2 py-1 text-[12px] text-right tabular-nums bg-white" style={{ borderColor: "#E8E2D6" }} />

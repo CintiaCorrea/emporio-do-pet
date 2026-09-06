@@ -17,6 +17,7 @@ import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { assignFollowUp } from "@/lib/followup";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda } from "@/lib/catalogoVendavel";
 import { buscarItens } from "@/lib/buscaCatalogo";
+import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { imprimirDocumento } from "@/lib/print";
 import { erroDoPeso } from '@/lib/peso';
 
@@ -768,7 +769,18 @@ export default function NovoAtendimentoPage() {
                 {itens.map((it, i) => (
                   <div key={i} className="border border-[#F0EBE0] rounded-[10px] p-2 bg-[#FBF9F4]">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <input list="srvcat-venda" value={it.descricao} onChange={(e) => { const nome = e.target.value; const sv = servicos.find((x: any) => x.nome === nome); if (sv) pickServico(i, sv.id); else updItem(i, { descricao: nome, servicoId: "" }); }} onBlur={(e) => { const val = e.target.value.trim(); if (val && !servicos.some((x: any) => (x.nome || "") === val)) { toast.error("Escolha um item do catálogo."); updItem(i, { descricao: "", servicoId: "" }); } }} placeholder="Buscar no catálogo…" className="flex-1 min-w-0 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white" />
+                      {/* Era <input list> + <datalist> com ate 1000 <option>: quem filtrava era o
+                          navegador, comparando COM acento — e o onBlur LIMPAVA o campo quando o
+                          texto nao batia letra por letra com o catalogo. Agora e o mesmo seletor
+                          do resto do sistema (lib/buscaCatalogo, com teste). */}
+                      <BuscaItemCatalogo
+                        value={it.descricao}
+                        itens={servicos as any}
+                        placeholder="🔍 Produto ou serviço do catálogo"
+                        className="flex-1 min-w-0 px-2 py-1 border border-[#E8E2D6] rounded text-[12px] bg-white"
+                        onType={(val) => updItem(i, { descricao: val, servicoId: "" })}
+                        onPick={(sv: any) => pickServico(i, sv.id)}
+                      />
                       <button onClick={() => rmItem(i)} title="Remover" className="text-[#b23b39] text-[13px] shrink-0">✕</button>
                     </div>
                     <div className="grid grid-cols-3 gap-1.5">
@@ -778,7 +790,6 @@ export default function NovoAtendimentoPage() {
                     </div>
                   </div>
                 ))}
-                <datalist id="srvcat-venda">{servicos.slice(0, 1000).map((sv: any) => <option key={sv.id} value={sv.nome} />)}</datalist>
                 <button onClick={addItem} className="w-full mt-0.5 px-3 py-1.5 rounded-full border border-dashed text-[12px]" style={{ borderColor: "#009AAC", color: "#009AAC" }}>＋ adicionar serviço</button>
               </div>
               {itens.length > 0 && (

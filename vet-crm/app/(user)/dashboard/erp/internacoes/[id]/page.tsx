@@ -1383,6 +1383,25 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
   };
   const mudarLinha = (idx: number, patch: any) =>
     setDiaEdit((d) => (d ? { ...d, linhas: d.linhas.map((l, i) => (i === idx ? { ...l, ...patch } : l)) } : d));
+  /**
+   * Escolher o item do catalogo direto na linha do "Editar o dia".
+   *
+   * A Cintia, em 06/09/2026, com o print aberto nesta tela: "nao traz o item". O campo de
+   * descricao aqui era <input> puro — digitar "trans" nao procurava nada, porque esta tela
+   * nunca teve catalogo. E e JUSTAMENTE aqui que ela mexe na comanda ("ao inves de editar em
+   * cada item podemos editar na comanda"). Agora e o mesmo seletor do resto do sistema, e o
+   * preco/vinculo vem do nucleo (linhaDoItem) — inclusive o preco por peso.
+   */
+  const pickLinhaDoDia = (idx: number, item: any) => {
+    const l = linhaDoItem(item, pesoPet);
+    if (l._avisoPorte) alert(l._avisoPorte);
+    mudarLinha(idx, {
+      descricao: l.descricao, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario,
+      servicoId: l.servicoId || "", productId: l.productId || "",
+      catalogoItemId: l.catalogoItemId, catalogoExameId: l.catalogoExameId, _exame: l._exame,
+      fornecedorId: l.fornecedorId ?? null,
+    });
+  };
   const novaLinhaDoDia = () =>
     setDiaEdit((d) => {
       if (!d) return d;
@@ -1564,8 +1583,20 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
               </div>
               {diaEdit.linhas.map((l: any, idx: number) => (
                 <div key={idx} className="grid gap-2 items-center py-1" style={{ gridTemplateColumns: "1fr 118px 56px 92px 30px", opacity: l._apagar ? 0.4 : 1 }}>
-                  <input value={l.descricao || ""} disabled={l._apagar} onChange={(e) => mudarLinha(idx, { descricao: e.target.value })}
-                    className="border rounded-lg px-2.5 py-1.5 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6", textDecoration: l._apagar ? "line-through" : undefined }} />
+                  {/* Era <input> puro: digitar "trans" nao trazia transfusao nenhuma. A Cintia:
+                      "mas nao e para ser campo puro. E uma tela de venda, tem que trazer os
+                      itens de venda!" — e esta e A tela onde ela mexe na comanda. Agora busca no
+                      catalogo INTEIRO, produto e servico. */}
+                  <BuscaItemCatalogo
+                    value={l.descricao || ""}
+                    itens={catalogo as any}
+                    disabled={l._apagar}
+                    placeholder="🔍 Produto ou serviço do catálogo"
+                    className="border rounded-lg px-2.5 py-1.5 text-[13px] bg-white focus:outline-none focus:border-[#009AAC] w-full"
+                    inpStyle={{ borderColor: "#E8E2D6", textDecoration: l._apagar ? "line-through" : undefined }}
+                    onType={(val) => mudarLinha(idx, { descricao: val })}
+                    onPick={(item) => pickLinhaDoDia(idx, item)}
+                  />
                   <select value={l.categoria || "Procedimento"} disabled={l._apagar} onChange={(e) => mudarLinha(idx, { categoria: e.target.value })}
                     className="border rounded-lg px-2 py-1.5 text-[12.5px] bg-white focus:outline-none" style={{ borderColor: "#E8E2D6" }}>
                     {CAT_CONTA.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -2727,7 +2758,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                   onType={(val) => setItemForm((f: any) => ({ ...f, descricao: val, servicoId: "", productId: "", catalogoItemId: undefined, catalogoExameId: undefined }))}
                   onPick={pickCatalogo}
                 />
-                <p className="text-[10.5px] text-[#94a3b8] mt-1">Sem achar? Pode digitar a descrição à mão — o item entra na conta do mesmo jeito.</p></div>
+                <p className="text-[10.5px] text-[#94a3b8] mt-1">Produtos e serviços do catálogo — digite parte do nome.</p></div>
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Descrição *</label>
                 <input value={itemForm.descricao} onChange={(e) => setItemForm({ ...itemForm, descricao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               {/* DE QUE DIA E ESTE ITEM. A conta fecha todo dia e o cliente precisa saber o
