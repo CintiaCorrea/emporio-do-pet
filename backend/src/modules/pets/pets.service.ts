@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -225,6 +225,78 @@ export class PetsService {
     }
 
     return pet;
+  }
+
+  /**
+   * REGISTRA UM PESO e devolve o pet atualizado.
+   *
+   * Ate 05/09/2026 o peso do pet era um NUMERO SOLTO na ficha: salvar substituia o
+   * anterior e o de ontem desaparecia. O grafico da ficha dizia "sem historico suficiente"
+   * pra sempre, porque ele lia `Appointment.petWeight` — um campo que quase ninguem
+   * preenche. E numa internacao, onde o peso e medido varias vezes ao dia, nada disso
+   * chegava a ficha.
+   *
+   * Agora todo peso vira um ponto no HISTORICO CLINICO (tipo PESO), que e a mesma linha
+   * do tempo do prontuario. Peso e evolucao clinica: perder o anterior e perder a leitura.
+   */
+  async registrarPeso(petId: string, peso: number, opts?: { at?: string; autor?: string; origem?: string }) {
+    const kg = Number(peso);
+    if (!Number.isFinite(kg) || kg <= 0) throw new BadRequestException('Peso inválido.');
+    const pet = await this.findById(petId);
+    const quando = opts?.at ? new Date(opts.at) : new Date();
+    const data = Number.isNaN(quando.getTime()) ? new Date() : quando;
+
+    await this.prisma.historicoClinico.create({
+      data: {
+        petId, tipo: 'PESO', data,
+        titulo: `Peso: ${String(kg).replace('.', ',')} kg`,
+        valorNum: kg,
+        autor: opts?.autor || null,
+        origem: opts?.origem || 'SISTEMA',
+      },
+    }).catch(() => undefined); // historico e complemento: nao pode derrubar o salvar do peso
+
+    // O peso ATUAL do pet so anda pra frente no tempo: corrigir um peso de ontem nao pode
+    // sobrescrever a pesagem de hoje.
+    const maisNovo = !(pet as any)?.updatedAt || data.getTime() >= new Date((pet as any).pesoAt || 0).getTime();
+    const atualizado = maisNovo
+      ? await this.prisma.pet.update({ where: { id: petId }, data: { weight: kg } })
+      : pet;
+    return { ok: true, peso: kg, at: data.toISOString(), pet: atualizado };
+  }
+
+  /**
+   * O HISTORICO DE PESO do pet, de todas as fontes que existem hoje:
+   *   - historico clinico (importado do SimplesVet + o que este sistema grava agora)
+   *   - atendimentos que anotaram o peso (`Appointment.petWeight`)
+   * Devolve em ordem, sem repetir o mesmo dia+valor — as fontes se sobrepoem.
+   */
+  async historicoPeso(petId: string) {
+    const [hist, atds] = await Promise.all([
+      this.prisma.historicoClinico.findMany({
+        where: { petId, tipo: 'PESO', valorNum: { not: null } },
+        select: { data: true, valorNum: true, autor: true, origem: true },
+      }),
+      this.prisma.appointment.findMany({
+        where: { petId, petWeight: { not: null } },
+        select: { date: true, petWeight: true },
+      }),
+    ]);
+    const pontos = [
+      ...hist.map((h) => ({ at: h.data, peso: Number(h.valorNum), por: h.autor, origem: h.origem })),
+      ...atds.map((a) => ({ at: a.date, peso: Number(a.petWeight), por: null, origem: 'ATENDIMENTO' })),
+    ]
+      .filter((p) => Number.isFinite(p.peso) && p.peso > 0)
+      .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+
+    const vistos = new Set<string>();
+    const unicos = pontos.filter((p) => {
+      const chave = `${new Date(p.at).toISOString().slice(0, 10)}|${p.peso}`;
+      if (vistos.has(chave)) return false;
+      vistos.add(chave);
+      return true;
+    });
+    return { petId, pontos: unicos };
   }
 
   async update(id: string, updatePetDto: UpdatePetDto) {

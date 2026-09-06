@@ -10,7 +10,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
      Toda mudança = commit pequeno e direto. Em dúvida, perguntar.
    ───────────────────────────────────────────────────────────── */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -515,6 +515,17 @@ export default function PetDetailPage() {
     setSavingObs(true);
     try { await patchPet({ observations: obsVal }); toast.success("Observa\u00e7\u00e3o salva"); setEditObs(false); await load(); } catch { toast.error("Erro ao salvar"); } finally { setSavingObs(false); }
   }
+  // Histórico de peso (/pets/:id/pesos): histórico clínico + atendimentos + internação.
+  const [pesos, setPesos] = useState<{ at: string; peso: number; por?: string | null; origem?: string }[]>([]);
+  const carregarPesos = useCallback(async () => {
+    if (!petId) return;
+    try {
+      const d = await fetch(`/api/pets/${petId}/pesos`, { cache: "no-store" }).then((r) => r.json());
+      setPesos(Array.isArray(d?.pontos) ? d.pontos : []);
+    } catch { /* o gráfico cai no que já tinha */ }
+  }, [petId]);
+  useEffect(() => { carregarPesos(); }, [carregarPesos]);
+
   async function salvarPeso() {
     const w = parseFloat(String(pesoVal).replace(",", "."));
     if (!w || w <= 0) { toast.error("Informe o peso"); return; }
@@ -522,7 +533,14 @@ export default function PetDetailPage() {
     // faixa de porte. Espelha a validacao do servidor pra avisar antes da viagem.
     const ePeso = erroDoPeso(pesoVal); if (ePeso) { toast.error(ePeso); return; }
     setSavingArt(true);
-    try { await patchPet({ weight: w }); toast.success("Peso atualizado"); setArtefato(null); await load(); await loadAtendimentos(); } catch { toast.error("Erro ao salvar peso"); } finally { setSavingArt(false); }
+    try {
+      // Salvar o peso VIRA UM PONTO NO HISTORICO, nao so um numero substituido. Antes, o de
+      // ontem sumia — e era por isso que o grafico dizia "sem historico suficiente" pra sempre.
+      const r = await fetch(`/api/pets/${petId}/peso`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ peso: w, origem: "FICHA" }) });
+      if (!r.ok) throw new Error();
+      toast.success("Peso registrado — entrou no histórico e no gráfico");
+      setArtefato(null); await load(); await loadAtendimentos(); await carregarPesos();
+    } catch { toast.error("Erro ao salvar peso"); } finally { setSavingArt(false); }
   }
   async function salvarObsArt() {
     if (!pet) return;
@@ -2104,7 +2122,7 @@ export default function PetDetailPage() {
                     <label className="text-xs text-gray-500">Peso atual (kg)</label>
                     <input type="number" step="0.01" value={pesoVal} onChange={(e) => setPesoVal(e.target.value)} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} placeholder="Ex.: 6.25" />
                     <p className="text-[11px] text-gray-400 mt-2">Atualiza o peso atual do pet e entra no gráfico de peso.</p>
-                    <div className="mt-3"><WeightChart atendimentos={atendimentos} current={pet.weight} /></div>
+                    <div className="mt-3"><WeightChart atendimentos={atendimentos} pontos={pesos} current={pet.weight} /></div>
                   </div>
                 ) : artefato === "OBS" ? (
                   <div className="bg-white">

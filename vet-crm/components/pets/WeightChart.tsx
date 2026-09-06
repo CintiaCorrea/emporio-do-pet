@@ -1,21 +1,28 @@
 "use client";
 import { useMemo } from "react";
 
-export default function WeightChart({ atendimentos = [], current }: { atendimentos?: any[]; current?: number | null }) {
+// O gráfico lia SÓ `Appointment.petWeight` — um campo que quase ninguém preenche. Por isso
+// ele dizia "sem histórico suficiente" para sempre, mesmo em pet pesado toda semana. Agora a
+// ficha passa o histórico completo (`pontos`, de /pets/:id/pesos), que junta o histórico
+// clínico, os atendimentos e as pesagens da internação. `atendimentos` continua aceito para
+// as telas que ainda não foram atualizadas.
+export default function WeightChart({ atendimentos = [], pontos, current }: { atendimentos?: any[]; pontos?: { at: string; peso: number }[]; current?: number | null }) {
   const pts = useMemo(() => {
-    const arr = (atendimentos || [])
-      .filter((a: any) => a.petWeight != null && a.date)
-      .map((a: any) => ({ t: new Date(a.date).getTime(), w: Number(a.petWeight) }));
+    const arr = (pontos && pontos.length)
+      ? pontos.filter((p) => p?.peso != null && p?.at).map((p) => ({ t: new Date(p.at).getTime(), w: Number(p.peso) }))
+      : (atendimentos || [])
+          .filter((a: any) => a.petWeight != null && a.date)
+          .map((a: any) => ({ t: new Date(a.date).getTime(), w: Number(a.petWeight) }));
     arr.sort((a, b) => a.t - b.t);
     return arr;
-  }, [atendimentos]);
+  }, [atendimentos, pontos]);
 
   if (pts.length < 2) {
     const w = pts.length === 1 ? pts[0].w : (current ?? null);
     return (
       <div className="rounded-xl border p-3 text-xs" style={{ borderColor: "#E8DFC8", color: "#475569" }}>
         <span className="font-semibold" style={{ color: "#0E2244" }}>Peso atual: </span>{w != null ? `${w} kg` : "—"}
-        <span className="text-gray-400"> · sem histórico suficiente para o gráfico (registre o peso nos atendimentos).</span>
+        <span className="text-gray-400"> · o gráfico aparece a partir da 2ª pesagem.</span>
       </div>
     );
   }

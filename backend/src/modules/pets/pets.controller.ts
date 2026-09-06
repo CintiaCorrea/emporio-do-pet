@@ -99,6 +99,18 @@ export class PetsController {
     return this.petsService.pesosSuspeitos();
   }
 
+  /** Historico de peso do pet — alimenta o grafico da ficha. */
+  @Get(':id/pesos')
+  pesos(@Param('id') id: string) {
+    return this.petsService.historicoPeso(id);
+  }
+
+  /** Registra um peso: entra no historico clinico e atualiza o peso atual. */
+  @Post(':id/peso')
+  registrarPeso(@Param('id') id: string, @Body() body: { peso: number; at?: string; autor?: string; origem?: string }) {
+    return this.petsService.registrarPeso(id, Number(body?.peso), { at: body?.at, autor: body?.autor, origem: body?.origem });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar pet por ID' })
   findOne(@Param('id') id: string) {
