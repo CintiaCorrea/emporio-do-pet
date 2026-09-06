@@ -1526,7 +1526,11 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
       {/* ===== APP (oculto na impressão) ===== */}
       <div className="p-6 max-w-6xl mx-auto print:hidden">
         {/* breadcrumb + voltar */}
-        <div className="sticky top-0 z-30 -mx-6 px-6 pt-1 pb-2" style={{ background: "#FBF9F4", boxShadow: "0 6px 12px -10px rgba(20,40,45,.5)" }}>
+        {/* O cabecalho gruda ABAIXO da barra do sistema (Header.tsx: h-16 = 64px, fixed,
+            z-40). Em top-0 ele deslizava pra tras dela e so aparecia a segunda linha —
+            era a "travou so uma parte" da Cintia. O z-30 fica abaixo do z-40 de proposito:
+            a barra do sistema tem de cobrir, nao ser coberta. */}
+        <div className="sticky z-30 -mx-6 px-6 pt-2 pb-3 mb-4" style={{ top: 64, background: "#FBF9F4", boxShadow: "0 8px 14px -12px rgba(20,40,45,.55)" }}>
         <div className="flex items-center gap-2 text-[12.5px] text-[#374151] mb-2">
           <button onClick={() => router.push("/dashboard/erp/internacoes")} className="text-[#374151] hover:text-[#009AAC]">←</button>
           <Link href="/dashboard/erp/internacoes" className="hover:text-[#009AAC]">Internação</Link>
