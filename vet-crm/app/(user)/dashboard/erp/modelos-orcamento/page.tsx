@@ -8,6 +8,7 @@ import { useSession } from "next-auth/react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { usePodeEditar } from "@/lib/permissions/context";
 import { carregarCatalogoVendavel } from "@/lib/catalogoVendavel";
+import { buscarItens } from "@/lib/buscaCatalogo";
 
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const num = (s: any) => Number(String(s ?? "").replace(",", ".")) || 0;
@@ -70,7 +71,8 @@ export default function ModelosOrcamentoPage() {
   };
   const excluir = async (m: any) => { if (!confirm(`Excluir o modelo "${m.nome}"?`)) return; try { await fetch(`/api/listas/${m.id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
-  const matches = useMemo(() => { const q = busca.trim().toLowerCase(); if (!q) return []; return servicos.filter((s: any) => (s.nome || "").toLowerCase().includes(q)).slice(0, 8); }, [servicos, busca]);
+  // Mesmo nucleo de busca da venda (lib/buscaCatalogo, com teste).
+  const matches = useMemo(() => buscarItens(servicos, busca, (s: any) => s.nome, 40).itens, [servicos, busca]);
   const totalForm = form.itens.reduce((sm: number, it: any) => sm + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0);
 
   return (

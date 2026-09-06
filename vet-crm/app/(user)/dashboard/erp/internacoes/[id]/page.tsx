@@ -14,6 +14,8 @@ import { imprimirDocumento } from "@/lib/print";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { usePodeEditar } from "@/lib/permissions/context";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda } from "@/lib/catalogoVendavel";
+import { buscarItens } from "@/lib/buscaCatalogo";
+import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { calcularHorarios as horariosDoDia, horariosDaPrescricao, prescricaoAtivaEm, rotuloDoPeriodo, minutosDaFrequencia, PERIODOS } from "@/lib/internacaoHorarios";
 
 const ESTADOS = [
@@ -198,6 +200,17 @@ export default function FichaInternacaoPage() {
   // Financeiro (F5)
   const [conta, setConta] = useState<any[]>([]);
   const [fechamentos, setFechamentos] = useState<any[]>([]);
+  // 🛒 O CATALOGO INTEIRO — produtos E servicos E exames, numa lista so.
+  //
+  // A Cintia, em 06/09/2026: "fui incluir transfusao na comanda da internacao e ele nao
+  // traz, ja na comanda na tela do pet ele traz". A ficha do pet lia o catalogo inteiro; a
+  // internacao lia so os SERVICOS, e produto/medicacao so aparecia se a pessoa escolhesse a
+  // categoria "Insumo" — que de proposito NAO cobra. Ou seja: o item existia, mas por este
+  // caminho nao dava pra cobrar.
+  //
+  // A regra dela: "e para TODOS os pontos de venda trazerem os itens de produtos e servicos".
+  // Entao a busca da conta usa `catalogo`, e nada mais e filtrado por tipo antes de buscar.
+  const [catalogo, setCatalogo] = useState<any[]>([]);
   const [servicos, setServicos] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
   // Peso do animal: a conta da internação cobra medicação por porte, igual ao balcão.
@@ -305,9 +318,13 @@ export default function FichaInternacaoPage() {
       setIntBolPronto(true); // dados dos boletins carregados → liga o auto-save de rascunho
       // FONTE ÚNICA (exames + produtos + serviços): dropdown Serviço = serviços + exames;
       // dropdown Produto = produtos/medicamentos/vacinas. (sv/pd acima ficam ignorados de propósito.)
-      const catalogo = await carregarCatalogoVendavel();
-      setServicos(catalogo.filter((i) => i.tipo === "SERVICE" || i._exame));
-      setProdutos(catalogo.filter((i) => i.tipo && i.tipo !== "SERVICE" && !i._exame).map((i) => ({ id: i.id, name: i.nome, price: i.valorPadrao, valorPadrao: i.valorPadrao })));
+      const cat = await carregarCatalogoVendavel();
+      setCatalogo(cat);
+      setServicos(cat.filter((i) => i.tipo === "SERVICE" || i._exame));
+      // O `i.tipo &&` que estava aqui era um ROMBO: item com tipo em branco nao caia nem em
+      // servicos nem em produtos — sumia das duas listas, calado. Agora produto e tudo que
+      // nao e servico nem exame, tenha tipo preenchido ou nao.
+      setProdutos(cat.filter((i) => i.tipo !== "SERVICE" && !i._exame).map((i) => ({ id: i.id, name: i.nome, price: i.valorPadrao, valorPadrao: i.valorPadrao })));
       const tutorId = d?.tutor?.id;
       if (tutorId) { try { const cr = await fetch(`/api/credito/tutor/${tutorId}`).then((r) => r.json()); setCaucaoSaldo(Number(cr?.saldo) || 0); } catch { setCaucaoSaldo(0); } }
       // Peso do animal — decide o preco dos itens cobrados por porte (lib/porte).
@@ -617,15 +634,21 @@ export default function FichaInternacaoPage() {
     return { dias, diariaVU, diariaTotal, itensFat, itensInsumo, totalFaturavel };
   };
   const abrirItem = (p?: any) => { setItemForm(p ? { id: p.id, descricao: p.descricao || "", categoria: p.categoria || "Procedimento", quantidade: String(p.quantidade || "1"), valorUnitario: String(p.valorUnitario ?? ""), servicoId: p.servicoId || "", productId: p.productId || "", custoUnitario: p.custoUnitario, fornecedorId: p.fornecedorId ?? null, catalogoExameId: p.catalogoExameId, _exame: p._exame, catalogoItemId: p.catalogoItemId, quando: paraCampoLocal(p.at) || agoraLocal() } : { id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "", quando: agoraLocal() }); setItemOpen(true); };
-  const pickServico = (sid: string) => {
-    const s = servicos.find((x) => x.id === sid); if (!s) return;
-    // O PESO do animal escolhe o preço quando o item cobra por porte — a mesma regra do
-    // balcão (lib/porte). Medicação de internação é justamente onde isso mais pesa.
-    const l = linhaDoItem(s, pesoPet);
+  // pickServico/pickProduto morreram junto com os dois <select> separados: o catalogo
+  // agora e um so e quem resolve o vinculo e pickCatalogo, logo abaixo.
+  /** Escolha do item da conta a partir do catalogo INTEIRO — servico, produto, medicacao ou
+   *  exame. Quem sabe qual id cada um usa e o nucleo (linhaDoItem), nao esta tela. */
+  const pickCatalogo = (item: any) => {
+    const l = linhaDoItem(item, pesoPet);
     if (l._avisoPorte) alert(l._avisoPorte);
-    setItemForm((f: any) => ({ ...f, servicoId: l.servicoId || "", descricao: l.descricao, valorUnitario: String(l.valorUnitario), custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId ?? null, catalogoExameId: l.catalogoExameId, _exame: l._exame, catalogoItemId: l.catalogoItemId, _faixaRotulo: l._faixaRotulo }));
+    setItemForm((f: any) => ({
+      ...f,
+      servicoId: l.servicoId || "", productId: l.productId || "",
+      descricao: l.descricao, valorUnitario: String(l.valorUnitario), custoUnitario: l.custoUnitario,
+      fornecedorId: l.fornecedorId ?? null, catalogoExameId: l.catalogoExameId, _exame: l._exame,
+      catalogoItemId: l.catalogoItemId, _faixaRotulo: l._faixaRotulo,
+    }));
   };
-  const pickProduto = (pid: string) => { const p = produtos.find((x) => x.id === pid); setItemForm((f: any) => ({ ...f, productId: pid, descricao: p?.name || f.descricao })); };
   // Vínculo da PRESCRIÇÃO com o catálogo (serviço OU produto) p/ cobrança automática ao aplicar.
   // val = "" | "s:<id>" (serviço) | "p:<id>" (produto).
   const pickPrescCobranca = (val: string) => {
@@ -2492,9 +2515,13 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                     <input value={cobrancaBusca} onChange={(e) => setCobrancaBusca(e.target.value)} placeholder="🔍 Digite as primeiras letras do serviço/produto…" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
                     {cobrancaBusca.trim() && (() => {
                       const q = cobrancaBusca.trim().toLowerCase();
-                      const svc = servicos.filter((s: any) => (s.nome || "").toLowerCase().includes(q)).slice(0, 10).map((s: any) => ({ val: `s:${s.id}`, nome: s.nome, preco: s.valorPadrao }));
-                      const prd = produtos.filter((p: any) => (p.name || "").toLowerCase().includes(q)).slice(0, 10).map((p: any) => ({ val: `p:${p.id}`, nome: p.name, preco: p.price ?? p.valorPadrao }));
-                      const ops = [...svc, ...prd].slice(0, 16);
+                      // Mesmo nucleo de busca da venda (lib/buscaCatalogo, com teste): sem acento
+                      // acha, palavra fora de ordem acha. Antes era `includes` cru cortado em 10.
+                      // Catalogo INTEIRO: produto e servico, como ela pediu. O prefixo s:/p:
+                      // continua marcando de onde o item veio (o vinculo de estoque depende disso).
+                      const ehServico = (i: any) => i.tipo === "SERVICE" || i._exame;
+                      const ops = buscarItens(catalogo, q, (i: any) => i.nome, 20).itens
+                        .map((i: any) => ({ val: `${ehServico(i) ? "s" : "p"}:${i.id}`, nome: i.nome, preco: i.valorPadrao }));
                       return (
                         <div className="absolute z-10 left-0 right-0 mt-1 bg-white border rounded-lg max-h-44 overflow-auto shadow-lg" style={{ borderColor: "#E8E2D6" }}>
                           {ops.length === 0 ? <div className="px-3 py-2 text-[12px] text-[#94a3b8]">Nada encontrado.</div> :
@@ -2687,13 +2714,20 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Categoria</label>
                 <select value={itemForm.categoria} onChange={(e) => setItemForm({ ...itemForm, categoria: e.target.value, servicoId: "", productId: "" })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{CAT_CONTA.map((c) => <option key={c} value={c}>{c === "Insumo" ? "Insumo (só estoque, não cobra)" : c}</option>)}</select></div>
-              {itemForm.categoria !== "Insumo" ? (
-                <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Serviço do catálogo (opcional)</label>
-                  <select value={itemForm.servicoId} onChange={(e) => pickServico(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><option value="">— digitar manualmente —</option>{servicos.map((s) => <option key={s.id} value={s.id}>{s.nome}{s.valorPadrao != null ? ` · ${fmtBRL(s.valorPadrao)}` : ""}</option>)}</select></div>
-              ) : (
-                <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Produto (p/ baixar do estoque)</label>
-                  <select value={itemForm.productId} onChange={(e) => pickProduto(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><option value="">— sem vínculo (não baixa) —</option>{produtos.map((p) => <option key={p.id} value={p.id}>{p.name}{typeof p.stock === "number" ? ` · estoque ${p.stock}` : ""}</option>)}</select></div>
-              )}
+              {/* Eram DOIS <select> com centenas de <option>: um so de servicos (quando cobra) e
+                  outro so de produtos (quando e insumo). Transfusao nao aparecia porque estava do
+                  lado de fora do <select> daquela categoria. Agora e UMA busca sobre o catalogo
+                  inteiro — produto e servico, como ela pediu — e o nucleo resolve o vinculo. */}
+              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Item do catálogo <span className="text-[#94a3b8]">(produto ou serviço · opcional)</span></label>
+                <BuscaItemCatalogo
+                  value={itemForm.descricao}
+                  itens={catalogo as any}
+                  placeholder="🔍 Digite parte do nome — ex.: transfusão, soro, acepran"
+                  inpStyle={{ width: "100%", border: "1px solid #E8E2D6", borderRadius: 8, padding: "8px 12px", fontSize: 13 }}
+                  onType={(val) => setItemForm((f: any) => ({ ...f, descricao: val, servicoId: "", productId: "", catalogoItemId: undefined, catalogoExameId: undefined }))}
+                  onPick={pickCatalogo}
+                />
+                <p className="text-[10.5px] text-[#94a3b8] mt-1">Sem achar? Pode digitar a descrição à mão — o item entra na conta do mesmo jeito.</p></div>
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Descrição *</label>
                 <input value={itemForm.descricao} onChange={(e) => setItemForm({ ...itemForm, descricao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               {/* DE QUE DIA E ESTE ITEM. A conta fecha todo dia e o cliente precisa saber o

@@ -7,6 +7,7 @@ import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem } from "@/lib/catalogoVendavel";
 import { carregarEstoqueComprometido, avisoDeEstoque, MapaEstoque } from "@/lib/estoqueComprometido";
+import { buscarItens } from "@/lib/buscaCatalogo";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
@@ -201,7 +202,9 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     if (apptId && !confirm("Limpar a venda? Ela também sai do Caixa.")) return;
     setItens([]);
   }
-  const matches = useMemo(() => { const q = busca.trim().toLowerCase(); if (!q) return cat.slice(0, 20); return cat.filter((c) => c.nome.toLowerCase().includes(q)).slice(0, 20); }, [cat, busca]);
+  // Mesmo nucleo de busca da venda (lib/buscaCatalogo, com teste): sem acento acha,
+  // palavra fora de ordem acha. Sem busca, mostra os 20 primeiros como antes.
+  const matches = useMemo(() => (busca.trim() ? buscarItens(cat, busca, (c) => c.nome, 40).itens : cat.slice(0, 20)), [cat, busca]);
 
   function imprimirComanda() {
     if (!itens.length) { toast.error("Venda sem itens."); return; }
