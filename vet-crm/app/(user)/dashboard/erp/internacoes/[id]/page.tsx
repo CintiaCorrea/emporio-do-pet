@@ -702,6 +702,16 @@ export default function FichaInternacaoPage() {
   };
   const salvarItem = async () => {
     if (!itemForm.descricao.trim()) { alert("Informe a descrição do item."); return; }
+    // SEM PESO NAO LANCA. Diaria, medicacao e caucao sao cobradas por faixa de peso: sem
+    // ele, tudo sai pelo preco-base e a conta inteira fica errada em silencio.
+    if (!pesoPet) {
+      alert(`${h?.pet?.name || "Este paciente"} está sem peso no cadastro.
+
+Diária, medicação e caução são cobradas por faixa de peso — sem ele, o preço sai errado e ninguém percebe.
+
+Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.`);
+      return;
+    }
     setItemSaving(true);
     try {
       const insumo = itemForm.categoria === "Insumo";
@@ -1323,6 +1333,34 @@ export default function FichaInternacaoPage() {
   const saldoPagar = Math.max(0, cc.totalFaturavel - caucAplic);
   const CAT_PILL: Record<string, { bg: string; fg: string }> = { Diária: { bg: "#E8F1F8", fg: "#1f5a82" }, Insumo: { bg: "#F0EBE0", fg: "#8A7B63" } };
   const catStyle = (c: string) => CAT_PILL[c] || { bg: "#E0F4F6", fg: "#00707E" };
+
+  // A CONTA POR DIA — o modelo que a Cintia mandou e aprovou no mockup.
+  //
+  // Lista corrida ordenada por descrição era ilegível: 44 itens da Kate misturavam 29/08
+  // com 05/09, e o cliente não tinha como conferir o que pagou em cada dia. Agora cada dia
+  // é um bloco, com seu total e sua situação — que é como a conta vai ser fechada.
+  const contaPorDia = useMemo(() => {
+    const grupos = new Map<string, { dia: string; itens: any[]; total: number; cobrados: number }>();
+    for (const i of conta) {
+      const dia = i.at ? diaFortaleza(i.at) : "sem-data";
+      if (!grupos.has(dia)) grupos.set(dia, { dia, itens: [], total: 0, cobrados: 0 });
+      const g = grupos.get(dia)!;
+      g.itens.push(i);
+      if (i.categoria !== "Insumo") g.total += (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0);
+      if (i.baixado) g.cobrados += 1;
+    }
+    // Dentro do dia, na ordem em que aconteceram. "Sem data" vai pro fim, pra não fingir
+    // que é o dia mais antigo.
+    for (const g of grupos.values()) g.itens.sort((a: any, b: any) => String(a.at || "").localeCompare(String(b.at || "")));
+    return [...grupos.values()].sort((a, b) => (a.dia === "sem-data" ? 1 : b.dia === "sem-data" ? -1 : b.dia.localeCompare(a.dia)));
+  }, [conta]);
+  const rotuloDia = (d: string) => {
+    if (d === "sem-data") return "Sem data";
+    const [y, m, dd] = d.split("-");
+    const dt = new Date(Number(y), Number(m) - 1, Number(dd));
+    const semana = dt.toLocaleDateString("pt-BR", { weekday: "long" });
+    return `${dd}/${m} · ${semana}`;
+  };
 
   const Ch = ({ children, editar }: { children: React.ReactNode; editar?: () => void }) => (
     <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
@@ -2045,10 +2083,47 @@ export default function FichaInternacaoPage() {
                       ↩︎ voltar ao automático
                     </button>
                   )}
-                  {!alta && podeEditar && <button onClick={() => abrirItem()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Adicionar item</button>}
+                    {!alta && podeEditar && <button onClick={() => abrirItem()} disabled={!pesoPet} title={pesoPet ? "" : "Sem o peso do pet o preço sai errado — registre uma aferição primeiro"} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">➕ Adicionar item</button>}
                 </div>
               </div>
-              <div className="overflow-x-auto">
+              {/* 📅 UM BLOCO POR DIA. Fechado = já virou venda no caixa; em aberto = ainda
+                  vai fechar. É a leitura que o cliente recebe e a que a conta usa pra fechar. */}
+              {contaPorDia.map((g) => {
+                const fechado = g.itens.length > 0 && g.cobrados === g.itens.length;
+                const misto = g.cobrados > 0 && !fechado;
+                return (
+                <div key={g.dia} className="mx-3 mb-2 border rounded-xl overflow-hidden" style={{ borderColor: fechado ? "#BCE3D5" : g.dia === "sem-data" ? "#E8CF97" : "#E8E2D6" }}>
+                  <div className="flex items-center gap-2.5 px-3 py-2 flex-wrap" style={{ background: fechado ? "#E1F5EE" : g.dia === "sem-data" ? "#FBF3E3" : "#FBF9F4", borderBottom: "1px solid #F0EBE0" }}>
+                    <span className="text-[13.5px] font-semibold" style={{ color: fechado ? "#0F6E56" : "#014D5E" }}>{rotuloDia(g.dia)}</span>
+                    <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={fechado ? { background: "#fff", color: "#0F6E56", border: "1px solid #BCE3D5" } : misto ? { background: "#FBF3E3", color: "#8a6400" } : { background: "#FDF4DD", color: "#8a6400" }}>
+                      {fechado ? "✓ já cobrado" : misto ? "parte cobrada" : "em aberto"}
+                    </span>
+                    {g.dia === "sem-data" && <span className="text-[11px] text-[#8a6400]">lançado antes de existir o campo — abra o ✏️ e ponha o dia</span>}
+                    <span className="ml-auto text-[14px] font-semibold tabular-nums" style={{ color: fechado ? "#0F6E56" : "#014D5E" }}>{fmtBRL(g.total)}</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[13px]">
+                      <tbody>
+                        {g.itens.map((i: any) => { const insumo = i.categoria === "Insumo"; const cs = catStyle(i.categoria); const tot = insumo ? 0 : (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0); return (
+                          <tr key={i.id} className="border-t" style={{ borderColor: "#F5F1E8", opacity: insumo ? 0.75 : 1 }}>
+                            <td className="px-3 py-2 whitespace-nowrap text-[11.5px] tabular-nums" style={{ color: "#94a3b8", width: 52 }}>{i.at ? new Date(i.at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+                            <td className="px-2 py-2">{i.descricao}{insumo && i.baixado ? <span className="text-[10px] text-[#0F6E56] ml-1">✓ baixado</span> : null}</td>
+                            <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: cs.bg, color: cs.fg }}>{insumo ? "Insumo · só estoque" : i.categoria}</span></td>
+                            <td className="px-2 py-2 text-right tabular-nums" style={{ color: "#5C6B70" }}>{i.quantidade}</td>
+                            <td className="px-2 py-2 text-right tabular-nums">{insumo ? "—" : fmtBRL(Number(i.valorUnitario) || 0)}</td>
+                            <td className="px-2 py-2 text-right tabular-nums font-medium">{insumo ? "—" : fmtBRL(tot)}</td>
+                            <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && podeEditar && <><button onClick={() => abrirItem(i)} className="text-[12px] px-1" title="Editar">✏️</button><button onClick={() => excluirItem(i)} className="text-[12px] px-1" title="Excluir">🗑️</button></>}</td>
+                          </tr>
+                        ); })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                );
+              })}
+
+              {/* A DIÁRIA AUTOMÁTICA, quando ainda não virou item por dia. */}
+              <div className="overflow-x-auto" style={{ display: diariasGeradas ? "none" : undefined }}>
                 <table className="w-full text-[13px]">
                   <thead><tr className="text-[10.5px] text-[#374151] uppercase tracking-wide">
                     <th className="text-left font-medium px-3 py-2">Dia</th><th className="text-left font-medium px-2 py-2">Item</th><th className="text-left font-medium px-2 py-2">Categoria</th><th className="text-right font-medium px-2 py-2">Qtd</th><th className="text-right font-medium px-2 py-2">Valor</th><th className="text-right font-medium px-2 py-2">Total</th><th className="px-2 py-2"></th>
@@ -2102,17 +2177,6 @@ export default function FichaInternacaoPage() {
                         )}
                       </td>
                     </tr>}
-                    {conta.map((i) => { const insumo = i.categoria === "Insumo"; const cs = catStyle(i.categoria); const tot = insumo ? 0 : (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0); return (
-                      <tr key={i.id} className="border-t" style={{ borderColor: "#F0EBE0", opacity: insumo ? 0.75 : 1 }}>
-                        <td className="px-3 py-2 whitespace-nowrap text-[11.5px]" style={{ color: "#5C6B70" }}>{diaCurto(i.at) || <span className="text-[#C9CFD2]">—</span>}</td>
-                        <td className="px-2 py-2 whitespace-nowrap">{i.descricao}{insumo && i.baixado ? <span className="text-[10px] text-[#0F6E56] ml-1">✓ baixado</span> : null}{!insumo && i.baixado ? <span className="text-[10px] text-[#0F6E56] ml-1" title={`Faturado em ${diaCurto(i.faturadoEm)}`}>✓ já cobrado</span> : null}</td>
-                        <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: cs.bg, color: cs.fg }}>{insumo ? "Insumo · só estoque" : i.categoria}</span></td>
-                        <td className="px-2 py-2 text-right tabular-nums">{i.quantidade}</td>
-                        <td className="px-2 py-2 text-right tabular-nums">{insumo ? "—" : fmtBRL(Number(i.valorUnitario) || 0)}</td>
-                        <td className="px-2 py-2 text-right tabular-nums">{insumo ? "—" : fmtBRL(tot)}</td>
-                        <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && podeEditar && <><button onClick={() => abrirItem(i)} className="text-[12px] px-1">✏️</button><button onClick={() => excluirItem(i)} className="text-[12px] px-1">🗑️</button></>}</td>
-                      </tr>
-                    ); })}
                   </tbody>
                 </table>
               </div>
@@ -2136,6 +2200,12 @@ export default function FichaInternacaoPage() {
               {/* SEMANA DE AJUSTE, combinada com a Cintia em 06/09/2026. A data mora no
                   codigo (fechamento.regras.AJUSTE_ATE) e a trava volta sozinha dia 13 — nao
                   depende de alguem lembrar. */}
+              {!pesoPet && (
+                <div className="mx-4 mb-2 text-[11.5px] flex items-start gap-2" style={{ background: "#FCE9EF", border: "1px solid #F0C6D3", borderRadius: 9, padding: "9px 11px", color: "#A32D4E" }}>
+                  <span>🚫</span>
+                  <div><b>{h?.pet?.name || "Este paciente"} está sem peso no cadastro</b> — os lançamentos estão travados. Diária, medicação e caução são cobradas por faixa de peso; sem ele o preço sai errado e ninguém percebe. Registre uma aferição com o peso.</div>
+                </div>
+              )}
               {Date.now() <= new Date("2026-09-12T23:59:59-03:00").getTime() && (
                 <div className="mx-4 mb-2 text-[11.5px]" style={{ background: "#EDE9FE", border: "1px solid #D6CCF5", borderRadius: 9, padding: "8px 11px", color: "#5B3FA8" }}>
                   🔓 <b>Semana de ajuste — até 12/09.</b> Todo mundo pode editar qualquer item, inclusive os já cobrados, enquanto a equipe se acostuma e as contas antigas são acertadas. Depois dessa data, item já cobrado só o administrativo mexe.
