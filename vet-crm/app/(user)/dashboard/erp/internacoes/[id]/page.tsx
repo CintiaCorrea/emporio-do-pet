@@ -1334,6 +1334,10 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
     return [...grupos.values()].sort((a, b) => (a.dia === "sem-data" ? 1 : b.dia === "sem-data" ? -1 : b.dia.localeCompare(a.dia)));
   }, [conta]);
   const [fechandoDia, setFechandoDia] = useState<string | null>(null);
+  // 📂 ABRIR E RECOLHER OS DIAS. Numa internação de 8 dias a conta tinha 44 itens abertos
+  // ao mesmo tempo, e achar o dia de hoje virava rolagem. `null` = ninguém mexeu ainda, e
+  // vale o padrão: dia EM ABERTO aberto (é onde se trabalha), dia já cobrado recolhido.
+  const [diasExpandidos, setDiasExpandidos] = useState<Set<string> | null>(null);
   // ✏️ EDITAR O DIA INTEIRO, e não item por item.
   //
   // A Cintia, na semana de testes: "ao invés de editar em cada item podemos editar na
@@ -1389,6 +1393,18 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
     } catch (e: any) { alert(e?.message || "Não consegui fechar o dia."); }
     finally { setFechandoDia(null); }
   };
+  const diaEstaAberto = (g: any, fechado: boolean) =>
+    diasExpandidos ? diasExpandidos.has(g.dia) : !fechado;
+  const alternarDia = (g: any, fechado: boolean) =>
+    setDiasExpandidos((atual) => {
+      const base = atual ?? new Set(contaPorDia.filter((x: any) => !(x.itens.length > 0 && x.cobrados === x.itens.length)).map((x: any) => x.dia));
+      const novo = new Set(base);
+      if (novo.has(g.dia)) novo.delete(g.dia); else novo.add(g.dia);
+      return novo;
+    });
+  const abrirTodosOsDias = () => setDiasExpandidos(new Set(contaPorDia.map((g: any) => g.dia)));
+  const recolherTodosOsDias = () => setDiasExpandidos(new Set());
+
   const abrirEdicaoDia = (g: any) => {
     const comandaId = (g.itens.find((i: any) => i.comandaId) || {}).comandaId;
     setDiaEdit({
@@ -2256,7 +2272,13 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                       ↩︎ voltar ao automático
                     </button>
                   )}
-                    {!alta && podeEditar && <button onClick={() => abrirItem()} disabled={!pesoPet} title={pesoPet ? "" : "Sem o peso do pet o preço sai errado — registre uma aferição primeiro"} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">➕ Adicionar item</button>}
+                    {contaPorDia.length > 1 && (
+                    <button onClick={() => (diasExpandidos && diasExpandidos.size > 0 ? recolherTodosOsDias() : abrirTodosOsDias())}
+                      className="text-[12px] font-medium px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>
+                      {diasExpandidos && diasExpandidos.size > 0 ? "▸ recolher tudo" : "▾ abrir tudo"}
+                    </button>
+                  )}
+                  {!alta && podeEditar && <button onClick={() => abrirItem()} disabled={!pesoPet} title={pesoPet ? "" : "Sem o peso do pet o preço sai errado — registre uma aferição primeiro"} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">➕ Adicionar item</button>}
                 </div>
               </div>
               {/* 📅 UM BLOCO POR DIA. Fechado = já virou venda no caixa; em aberto = ainda
@@ -2264,17 +2286,22 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
               {contaPorDia.map((g) => {
                 const fechado = g.itens.length > 0 && g.cobrados === g.itens.length;
                 const misto = g.cobrados > 0 && !fechado;
+                const aberto = diaEstaAberto(g, fechado);
                 return (
                 <div key={g.dia} className="mx-3 mb-2 border rounded-xl overflow-hidden" style={{ borderColor: fechado ? "#BCE3D5" : g.dia === "sem-data" ? "#E8CF97" : "#E8E2D6" }}>
-                  <div className="flex items-center gap-2.5 px-3 py-2 flex-wrap" style={{ background: fechado ? "#E1F5EE" : g.dia === "sem-data" ? "#FBF3E3" : "#FBF9F4", borderBottom: "1px solid #F0EBE0" }}>
+                  <div onClick={() => alternarDia(g, fechado)} title={aberto ? "Recolher este dia" : "Abrir este dia"}
+                    className="flex items-center gap-2.5 px-3 py-2 flex-wrap cursor-pointer select-none"
+                    style={{ background: fechado ? "#E1F5EE" : g.dia === "sem-data" ? "#FBF3E3" : "#FBF9F4", borderBottom: aberto ? "1px solid #F0EBE0" : "none" }}>
+                    <span className="text-[11px] w-3 flex-shrink-0" style={{ color: fechado ? "#0F6E56" : "#00798A" }}>{aberto ? "▾" : "▸"}</span>
                     <span className="text-[13.5px] font-semibold" style={{ color: fechado ? "#0F6E56" : "#014D5E" }}>{rotuloDia(g.dia)}</span>
                     <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={fechado ? { background: "#fff", color: "#0F6E56", border: "1px solid #BCE3D5" } : misto ? { background: "#FBF3E3", color: "#8a6400" } : { background: "#FDF4DD", color: "#8a6400" }}>
                       {fechado ? "✓ já cobrado" : misto ? "parte cobrada" : "em aberto"}
                     </span>
                     {g.dia === "sem-data" && <span className="text-[11px] text-[#8a6400]">lançado antes de existir o campo — abra o ✏️ e ponha o dia</span>}
+                    {!aberto && <span className="text-[11.5px] text-[#5C6B70]">{g.itens.length} {g.itens.length === 1 ? "item" : "itens"}</span>}
                     <span className="ml-auto text-[14px] font-semibold tabular-nums" style={{ color: fechado ? "#0F6E56" : "#014D5E" }}>{fmtBRL(g.total)}</span>
                   </div>
-                  <div className="overflow-x-auto">
+                  {aberto && <div className="overflow-x-auto">
                     <table className="w-full text-[13px]">
                       <tbody>
                         {g.itens.map((i: any) => { const insumo = i.categoria === "Insumo"; const cs = catStyle(i.categoria); const tot = insumo ? 0 : (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0); return (
@@ -2290,10 +2317,10 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                         ); })}
                       </tbody>
                     </table>
-                  </div>
+                  </div>}
                   {/* AS AÇÕES SÃO DO DIA, não de cada item. Sete lápis num dia significavam
                       sete modais pra acertar uma conta — e esta é a semana de acertar contas. */}
-                  <div className="flex items-center gap-2 px-3 py-2 flex-wrap" style={{ borderTop: "1px solid #F5F1E8" }}>
+                  {aberto && <div className="flex items-center gap-2 px-3 py-2 flex-wrap" style={{ borderTop: "1px solid #F5F1E8" }}>
                     {!alta && podeEditar && !fechado && g.dia !== "sem-data" && g.total > 0 && (
                       <button onClick={() => fecharDia(g.dia, g.total)} disabled={!!fechandoDia}
                         title="Cria a venda deste dia no caixa, só com o que ainda não foi cobrado"
@@ -2309,7 +2336,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                     </button>
                     <button onClick={() => window.print()} className="text-[12px] font-medium px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>🖨️ Imprimir</button>
                     {fechado && <span className="text-[11.5px] text-[#5C6B70]">Editar o dia atualiza a venda no caixa — não cancela.</span>}
-                  </div>
+                  </div>}
                 </div>
                 );
               })}
