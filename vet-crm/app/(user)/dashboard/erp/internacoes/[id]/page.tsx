@@ -1334,6 +1334,16 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
     return [...grupos.values()].sort((a, b) => (a.dia === "sem-data" ? 1 : b.dia === "sem-data" ? -1 : b.dia.localeCompare(a.dia)));
   }, [conta]);
   const [fechandoDia, setFechandoDia] = useState<string | null>(null);
+  // ✏️ EDITAR O DIA INTEIRO, e não item por item.
+  //
+  // A Cintia, na semana de testes: "ao invés de editar em cada item podemos editar na
+  // comanda, deletar o item, editar o item, acrescentar outros itens".
+  //
+  // Sete lápis num dia significavam sete modais abertos e fechados pra acertar uma conta.
+  // Numa semana em que a equipe está aprendendo a lançar — e errando de propósito, que é
+  // pra isso que a semana existe — corrigir um dia tem de ser UMA tela.
+  const [diaEdit, setDiaEdit] = useState<{ dia: string; linhas: any[]; comandaId?: string } | null>(null);
+  const [diaSalvando, setDiaSalvando] = useState(false);
 
   if (loading) return <div className="p-6 text-center text-sm text-[#374151]">Carregando ficha...</div>;
   if (!h) return (
@@ -1377,6 +1387,97 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
       alert("Dia " + d + "/" + m + " fechado ✅\nVenda " + (dd?.numeroVenda ? "#" + dd.numeroVenda : "") + " de " + fmtBRL(dd?.total || 0) + " no caixa.");
       load();
     } catch (e: any) { alert(e?.message || "Não consegui fechar o dia."); }
+    finally { setFechandoDia(null); }
+  };
+  const abrirEdicaoDia = (g: any) => {
+    const comandaId = (g.itens.find((i: any) => i.comandaId) || {}).comandaId;
+    setDiaEdit({
+      dia: g.dia, comandaId,
+      linhas: g.itens.map((i: any) => ({ ...i, _apagar: false })),
+    });
+  };
+  const mudarLinha = (idx: number, patch: any) =>
+    setDiaEdit((d) => (d ? { ...d, linhas: d.linhas.map((l, i) => (i === idx ? { ...l, ...patch } : l)) } : d));
+  const novaLinhaDoDia = () =>
+    setDiaEdit((d) => {
+      if (!d) return d;
+      const quando = d.dia === "sem-data" ? new Date() : new Date(d.dia + "T12:00:00");
+      return { ...d, linhas: [...d.linhas, { id: "", descricao: "", categoria: "Procedimento", quantidade: 1, valorUnitario: 0, at: quando.toISOString(), baixado: false, _novo: true }] };
+    });
+  const totalDaEdicao = (diaEdit?.linhas || [])
+    .filter((l: any) => !l._apagar && l.categoria !== "Insumo")
+    .reduce((t: number, l: any) => t + (Number(l.quantidade) || 0) * (Number(l.valorUnitario) || 0), 0);
+
+  const salvarDia = async () => {
+    if (!diaEdit) return;
+    const vivas = diaEdit.linhas.filter((l: any) => !l._apagar);
+    if (vivas.some((l: any) => !String(l.descricao || "").trim())) { alert("Tem item sem descrição."); return; }
+    setDiaSalvando(true);
+    try {
+      for (const l of diaEdit.linhas) {
+        const payload: any = {
+          descricao: String(l.descricao || "").trim(), categoria: l.categoria || "Procedimento",
+          quantidade: Number(l.quantidade) || 1, valorUnitario: l.categoria === "Insumo" ? 0 : (Number(l.valorUnitario) || 0),
+          servicoId: l.servicoId || "", productId: l.productId || "", at: l.at,
+          baixado: !!l.baixado, ...(l.comandaId ? { comandaId: l.comandaId, faturadoEm: l.faturadoEm } : {}),
+          ...(l.custoUnitario != null ? { custoUnitario: Number(l.custoUnitario) } : {}),
+          ...(l.medLogId ? { medLogId: l.medLogId, auto: true } : {}),
+        };
+        if (l._apagar && l.id) await fetch("/api/listas/" + l.id, { method: "DELETE", credentials: "include" }).catch(() => undefined);
+        else if (l._novo) await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: "intconta_" + id, valor: JSON.stringify(payload) }) });
+        else if (l.id) await fetch("/api/listas/" + l.id, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
+      }
+      // DIA JÁ FECHADO: a venda no caixa acompanha a correção, em vez de ser cancelada.
+      // Foi a decisão dela: "não, se ela estiver aberta só editamos". Venda já RECEBIDA
+      // não se mexe — aí o estorno é no caixa, e a tela diz isso.
+      if (diaEdit.comandaId) {
+        const items = vivas.filter((l: any) => l.categoria !== "Insumo").map((l: any) => ({
+          descricao: l.descricao, quantidade: Number(l.quantidade) || 1,
+          valorUnitario: Number(l.valorUnitario) || 0,
+          valorTotal: (Number(l.quantidade) || 1) * (Number(l.valorUnitario) || 0),
+          servicoId: l.servicoId || undefined, productId: l.productId || undefined,
+        }));
+        const value = items.reduce((t: number, i: any) => t + i.valorTotal, 0);
+        const r = await fetch("/api/appointments/" + diaEdit.comandaId, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ items, value }) });
+        if (!r.ok) {
+          const e = await r.json().catch(() => ({}));
+          alert("Os itens foram salvos, mas NÃO consegui atualizar a venda no caixa.\n\n" + (e?.message || "") + "\n\nSe ela já foi recebida, o acerto tem de ser feito no caixa.");
+        }
+      }
+      setDiaEdit(null); load();
+    } catch { alert("Não consegui salvar as alterações do dia."); }
+    finally { setDiaSalvando(false); }
+  };
+
+  /** A comanda de um dia em texto, com o cabeçalho do paciente. */
+  const textoDoDia = (g: any): string => {
+    const [, m, d] = g.dia === "sem-data" ? ["", "", ""] : g.dia.split("-");
+    const linhas = [
+      "*" + (h?.pet?.name || "Paciente") + " — conta de " + (g.dia === "sem-data" ? "itens sem data" : d + "/" + m) + "*",
+      [h?.pet?.breed, h?.pet?.weight ? h.pet.weight + " kg" : null, boxCodigo ? "Box " + boxCodigo : null].filter(Boolean).join(" · "),
+      "Tutor(a): " + (h?.tutor?.name || "—"),
+      "Internado desde " + fmtDataHora(h?.admissionDate),
+      "",
+      ...g.itens.filter((i: any) => i.categoria !== "Insumo").map((i: any) => {
+        const tot = (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0);
+        const q = Number(i.quantidade) || 1;
+        return "• " + i.descricao + (q > 1 ? " (" + q + "×)" : "") + ": " + fmtBRL(tot);
+      }),
+      "",
+      "*Total do dia: " + fmtBRL(g.total) + "*",
+    ];
+    return linhas.filter((x) => x != null).join("\n");
+  };
+  const enviarDiaWhats = async (g: any) => {
+    if (!confirm("Enviar a conta de " + rotuloDia(g.dia) + " (" + fmtBRL(g.total) + ") para " + (h?.tutor?.name || "o tutor") + "?")) return;
+    setFechandoDia("whats-" + g.dia);
+    try {
+      const r = await fetch("/api/whatsapp/boletim-internacao", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h?.tutor?.id, texto: textoDoDia(g), petNome: h?.pet?.name }) });
+      const d = await r.json().catch(() => ({}));
+      if (d?.status === "enviado") alert("Conta do dia enviada ✅");
+      else if (d?.status === "na_fila") alert("A conversa está fechada — mandei o convite. Vai quando o tutor responder. 📨");
+      else throw new Error(d?.error || "");
+    } catch { openWhatsAppMeta(h?.tutor?.phone); }
     finally { setFechandoDia(null); }
   };
   const rotuloDia = (d: string) => {
@@ -1453,7 +1554,54 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
           </div>
         </div>
 
-        {/* ===== REGISTRAR ÓBITO ===== */}
+        {/* ===== EDITAR O DIA INTEIRO ===== */}
+      {diaEdit && (
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setDiaEdit(null)}>
+          <div className="rounded-2xl shadow-xl w-full flex flex-col" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6", maxWidth: 760, maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3.5 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: "#E8E2D6" }}>
+              <div>
+                <h3 className="text-base font-medium text-[#014D5E]">✏️ Editar o dia · {rotuloDia(diaEdit.dia)}</h3>
+                <div className="text-[11.5px] text-[#5C6B70]">{h?.pet?.name} · {h?.tutor?.name}{diaEdit.comandaId ? " · dia já fechado: a venda no caixa é atualizada junto" : ""}</div>
+              </div>
+              <button onClick={() => setDiaEdit(null)} className="text-[#374151]">✕</button>
+            </div>
+
+            <div className="px-4 py-3 overflow-y-auto flex-1 min-h-0">
+              <div className="hidden sm:grid gap-2 px-1 pb-1.5 text-[10.5px] uppercase tracking-wide text-[#5C6B70]" style={{ gridTemplateColumns: "1fr 118px 56px 92px 30px" }}>
+                <div>Item</div><div>Categoria</div><div className="text-right">Qtd</div><div className="text-right">Valor</div><div></div>
+              </div>
+              {diaEdit.linhas.map((l: any, idx: number) => (
+                <div key={idx} className="grid gap-2 items-center py-1" style={{ gridTemplateColumns: "1fr 118px 56px 92px 30px", opacity: l._apagar ? 0.4 : 1 }}>
+                  <input value={l.descricao || ""} disabled={l._apagar} onChange={(e) => mudarLinha(idx, { descricao: e.target.value })}
+                    className="border rounded-lg px-2.5 py-1.5 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6", textDecoration: l._apagar ? "line-through" : undefined }} />
+                  <select value={l.categoria || "Procedimento"} disabled={l._apagar} onChange={(e) => mudarLinha(idx, { categoria: e.target.value })}
+                    className="border rounded-lg px-2 py-1.5 text-[12.5px] bg-white focus:outline-none" style={{ borderColor: "#E8E2D6" }}>
+                    {CAT_CONTA.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <input type="number" min={0} value={l.quantidade ?? 1} disabled={l._apagar} onChange={(e) => mudarLinha(idx, { quantidade: e.target.value })}
+                    className="border rounded-lg px-2 py-1.5 text-[13px] text-right bg-white focus:outline-none" style={{ borderColor: "#E8E2D6" }} />
+                  <input inputMode="decimal" value={l.categoria === "Insumo" ? "" : (l.valorUnitario ?? "")} disabled={l._apagar || l.categoria === "Insumo"} onChange={(e) => mudarLinha(idx, { valorUnitario: e.target.value.replace(",", ".") })}
+                    className="border rounded-lg px-2 py-1.5 text-[13px] text-right bg-white focus:outline-none disabled:bg-[#F3EFE6]" style={{ borderColor: "#E8E2D6" }} />
+                  <button onClick={() => mudarLinha(idx, { _apagar: !l._apagar })} title={l._apagar ? "Manter" : "Apagar este item"}
+                    className="text-[13px]" style={{ color: l._apagar ? "#0F6E56" : "#CC3366" }}>{l._apagar ? "↩︎" : "🗑️"}</button>
+                </div>
+              ))}
+              <button onClick={novaLinhaDoDia} className="mt-2 text-[12px] font-medium px-3 py-1.5 rounded-lg border" style={{ borderColor: "#009AAC", color: "#007B8A", background: "#fff" }}>➕ acrescentar item neste dia</button>
+            </div>
+
+            <div className="px-5 py-3.5 border-t flex items-center gap-3 flex-shrink-0 flex-wrap" style={{ borderColor: "#E8E2D6", background: "#FBF9F4" }}>
+              <span className="text-[13px] text-[#5C6B70]">Total do dia</span>
+              <span className="text-[17px] font-semibold text-[#014D5E] tabular-nums">{fmtBRL(totalDaEdicao)}</span>
+              <div className="ml-auto flex gap-2">
+                <button onClick={() => setDiaEdit(null)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
+                <button onClick={salvarDia} disabled={diaSalvando} className="px-5 py-2 text-[13px] font-medium text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{diaSalvando ? "Salvando…" : "Salvar o dia"}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== REGISTRAR ÓBITO ===== */}
         {obitoOpen && (
           <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setObitoOpen(false)}>
             <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
@@ -2125,13 +2273,6 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                     </span>
                     {g.dia === "sem-data" && <span className="text-[11px] text-[#8a6400]">lançado antes de existir o campo — abra o ✏️ e ponha o dia</span>}
                     <span className="ml-auto text-[14px] font-semibold tabular-nums" style={{ color: fechado ? "#0F6E56" : "#014D5E" }}>{fmtBRL(g.total)}</span>
-                    {!alta && podeEditar && !fechado && g.dia !== "sem-data" && g.total > 0 && (
-                      <button onClick={() => fecharDia(g.dia, g.total)} disabled={!!fechandoDia}
-                        title="Cria a venda deste dia no caixa, só com o que ainda não foi cobrado"
-                        className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg disabled:opacity-60 flex-shrink-0">
-                        {fechandoDia === g.dia ? "Fechando…" : "🧾 Fechar o dia"}
-                      </button>
-                    )}
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-[13px]">
@@ -2144,11 +2285,30 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                             <td className="px-2 py-2 text-right tabular-nums" style={{ color: "#5C6B70" }}>{i.quantidade}</td>
                             <td className="px-2 py-2 text-right tabular-nums">{insumo ? "—" : fmtBRL(Number(i.valorUnitario) || 0)}</td>
                             <td className="px-2 py-2 text-right tabular-nums font-medium">{insumo ? "—" : fmtBRL(tot)}</td>
-                            <td className="px-2 py-2 text-right whitespace-nowrap">{!alta && podeEditar && <><button onClick={() => abrirItem(i)} className="text-[12px] px-1" title="Editar">✏️</button><button onClick={() => excluirItem(i)} className="text-[12px] px-1" title="Excluir">🗑️</button></>}</td>
+                            <td className="px-2 py-1 w-2"></td>
                           </tr>
                         ); })}
                       </tbody>
                     </table>
+                  </div>
+                  {/* AS AÇÕES SÃO DO DIA, não de cada item. Sete lápis num dia significavam
+                      sete modais pra acertar uma conta — e esta é a semana de acertar contas. */}
+                  <div className="flex items-center gap-2 px-3 py-2 flex-wrap" style={{ borderTop: "1px solid #F5F1E8" }}>
+                    {!alta && podeEditar && !fechado && g.dia !== "sem-data" && g.total > 0 && (
+                      <button onClick={() => fecharDia(g.dia, g.total)} disabled={!!fechandoDia}
+                        title="Cria a venda deste dia no caixa, só com o que ainda não foi cobrado"
+                        className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg disabled:opacity-60">
+                        {fechandoDia === g.dia ? "Fechando…" : "🧾 Fechar o dia e mandar pro caixa"}
+                      </button>
+                    )}
+                    {podeEditar && (
+                      <button onClick={() => abrirEdicaoDia(g)} className="text-[12px] font-medium px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#014D5E", background: "#fff" }}>✏️ Editar o dia</button>
+                    )}
+                    <button onClick={() => enviarDiaWhats(g)} disabled={!!fechandoDia} className="text-[12px] font-medium px-3 py-1.5 rounded-lg border disabled:opacity-60" style={{ borderColor: "#E8E2D6", color: "#00798A", background: "#fff" }} title="Manda a conta deste dia pro tutor, com o cabeçalho do paciente">
+                      {fechandoDia === "whats-" + g.dia ? "Enviando…" : "📲 WhatsApp"}
+                    </button>
+                    <button onClick={() => window.print()} className="text-[12px] font-medium px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>🖨️ Imprimir</button>
+                    {fechado && <span className="text-[11.5px] text-[#5C6B70]">Editar o dia atualiza a venda no caixa — não cancela.</span>}
                   </div>
                 </div>
                 );
