@@ -311,6 +311,20 @@ export default function FichaInternacaoPage() {
   const avisos = ((h as any)?.vitalSigns?.avisos) || { popup: true, som: true, whatsapp: false, repetir: false };
   const toggleAviso = (k: string) => salvarVital({ vitalSigns: { avisos: { ...avisos, [k]: !avisos[k] } } });
   const horariosAferi = (calcularHorarios(aferiPrim, aferiFreq) || "").split(", ").filter(Boolean);
+  // De 15 em 15 minutos sao 96 horarios: mostrados todos, tomavam a tela inteira e
+  // empurravam os sinais vitais pra fora. A Cintia: "nao precisa aparecer todos os tempos,
+  // precisa apenas disparar os lembretes". Entao aqui aparece so o que serve pra decidir
+  // agora — a proxima e as seguintes —, e o resto fica atras de um "ver todos".
+  const [verTodosHorarios, setVerTodosHorarios] = useState(false);
+  const proximosAferi = useMemo(() => {
+    if (!horariosAferi.length) return { proxima: null as string | null, seguintes: [] as string[] };
+    const agora = new Date().getHours() * 60 + new Date().getMinutes();
+    const emMin = (t: string) => { const [hh, mm] = t.split(":").map(Number); return (hh || 0) * 60 + (mm || 0); };
+    // Ordena pelo que vem A PARTIR de agora, dando a volta na meia-noite.
+    const ordenados = [...horariosAferi].sort((a, b) => ((emMin(a) - agora + 1440) % 1440) - ((emMin(b) - agora + 1440) % 1440));
+    return { proxima: ordenados[0] ?? null, seguintes: ordenados.slice(1, 4) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aferiPrim, aferiFreq, horariosAferi.length]);
 
   const mudarRisco = async (e: string) => {
     const st = estadoStyle(e);
@@ -1594,9 +1608,29 @@ export default function FichaInternacaoPage() {
                   </div>
                   <span className="text-[#7C8A8E] pb-2">→</span>
                   <div className="flex flex-wrap gap-1.5 items-center pb-1">
-                    {horariosAferi.length > 0
-                      ? horariosAferi.map((hh) => <span key={hh} className="rounded-full px-2.5 py-1 text-[12px] font-semibold tabular-nums" style={{ background: "#E0F4F6", color: "#007B8A" }}>{hh}</span>)
-                      : <span className="text-[11px] text-[#7C8A8E]">defina a frequência e a 1ª aferição pra gerar os horários</span>}
+                    {horariosAferi.length === 0 ? (
+                      <span className="text-[11px] text-[#7C8A8E]">defina a frequência e a 1ª aferição pra gerar os horários</span>
+                    ) : verTodosHorarios ? (
+                      <>
+                        {horariosAferi.map((hh) => <span key={hh} className="rounded-full px-2.5 py-1 text-[12px] font-semibold tabular-nums" style={{ background: "#E0F4F6", color: "#007B8A" }}>{hh}</span>)}
+                        <button type="button" onClick={() => setVerTodosHorarios(false)} className="text-[11.5px] underline text-[#007B8A]">recolher</button>
+                      </>
+                    ) : (
+                      <>
+                        {proximosAferi.proxima && (
+                          <span className="rounded-full px-2.5 py-1 text-[12px] font-semibold tabular-nums" style={{ background: "#007B8A", color: "#fff" }}>
+                            próxima {proximosAferi.proxima}
+                          </span>
+                        )}
+                        {proximosAferi.seguintes.map((hh) => (
+                          <span key={hh} className="rounded-full px-2.5 py-1 text-[12px] font-semibold tabular-nums" style={{ background: "#E0F4F6", color: "#007B8A" }}>{hh}</span>
+                        ))}
+                        <span className="text-[11.5px] text-[#5C6B70]">
+                          {horariosAferi.length} no dia
+                          <button type="button" onClick={() => setVerTodosHorarios(true)} className="ml-1.5 underline text-[#007B8A]">ver todos</button>
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
