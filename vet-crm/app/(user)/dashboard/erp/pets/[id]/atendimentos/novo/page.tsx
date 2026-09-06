@@ -16,6 +16,7 @@ import ConsultationRecorder from "@/components/protected/dashboard/clinical-docu
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { assignFollowUp } from "@/lib/followup";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda } from "@/lib/catalogoVendavel";
+import { buscarItens } from "@/lib/buscaCatalogo";
 import { imprimirDocumento } from "@/lib/print";
 import { erroDoPeso } from '@/lib/peso';
 
@@ -655,7 +656,7 @@ export default function NovoAtendimentoPage() {
                 <div className="mb-2 border border-[#F0EBE0] rounded-[9px] p-2 bg-[#FBF9F4]">
                   <input value={buscaC} onChange={(e) => setBuscaC(e.target.value)} placeholder="Buscar exame…" className="w-full mb-1 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" />
                   <div className="max-h-40 overflow-auto flex flex-col gap-0.5">
-                    {catClinica.filter((e) => !buscaC || e.nome.toLowerCase().includes(buscaC.toLowerCase())).slice(0, 60).map((e) => (
+                    {(buscaC.trim() ? buscarItens(catClinica, buscaC, (e: any) => e.nome, 60).itens : catClinica.slice(0, 60)).map((e) => (
                       <button key={e.id} onClick={() => pickExameClinica(e)} className="text-left text-[12px] px-2 py-1 rounded hover:bg-white text-[#1F2A2E]">{e.nome}{e.fornecedor?.nome ? <span className="text-[#374151]"> · {e.fornecedor.nome}</span> : null}</button>
                     ))}
                     {catClinica.length === 0 && <span className="text-[11px] text-[#374151] px-2 py-1">Nada no catálogo. Cadastre em Configurações → Exames.</span>}
@@ -688,7 +689,7 @@ export default function NovoAtendimentoPage() {
                 <div className="mb-2 border border-[#F0EBE0] rounded-[9px] p-2 bg-[#FBF9F4]">
                   <input value={buscaE} onChange={(e) => setBuscaE(e.target.value)} placeholder="Buscar exame…" className="w-full mb-1 px-2 py-1 border border-[#E8E2D6] rounded text-[12px]" />
                   <div className="max-h-40 overflow-auto flex flex-col gap-0.5">
-                    {catExterno.filter((e) => !buscaE || e.nome.toLowerCase().includes(buscaE.toLowerCase())).slice(0, 60).map((e) => (
+                    {(buscaE.trim() ? buscarItens(catExterno, buscaE, (e: any) => e.nome, 60).itens : catExterno.slice(0, 60)).map((e) => (
                       <button key={e.id} onClick={() => pickExameExterno(e)} className="text-left text-[12px] px-2 py-1 rounded hover:bg-white text-[#1F2A2E]">{e.nome}{e.fornecedor?.nome ? <span className="text-[#374151]"> · {e.fornecedor.nome}</span> : null}</button>
                     ))}
                     {catExterno.length === 0 && <span className="text-[11px] text-[#374151] px-2 py-1">Nada no catálogo. Cadastre em Configurações → Exames.</span>}

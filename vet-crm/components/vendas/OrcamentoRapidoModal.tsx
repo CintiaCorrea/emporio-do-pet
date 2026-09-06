@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { LuTrash, LuPlus, LuMessageSquare } from "react-icons/lu";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem, ItemVendavel } from "@/lib/catalogoVendavel";
+import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ddmm = (iso: string) => { const [, m, d] = String(iso).split("-"); return d && m ? `${d}/${m}` : iso; };
@@ -57,7 +58,6 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
   const setItem = (i: number, patch: Partial<Item>) => setItens((arr) => arr.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
   const addItem = () => setItens((arr) => [...arr, { descricao: "", qtd: "1", valor: "" }]);
   const delItem = (i: number) => setItens((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
-  const preencherDoCatalogo = (i: number, nome: string) => { const s = cat.find((c) => c.nome === nome); if (s) setItem(i, { descricao: s.nome, valor: s.valorPadrao ? fmtVal(s.valorPadrao) : "" }); };
   const aplicarModelo = (id: string) => {
     setModeloSel(id);
     const m = modelos.find((x) => x.id === id);
@@ -186,8 +186,19 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
           </div>
           {itens.map((it, i) => (
             <div key={i} className="grid grid-cols-[1fr_44px_84px_24px] gap-1.5 items-center">
-              <input list={`cat-${i}`} value={it.descricao} onChange={(e) => { setItem(i, { descricao: e.target.value }); preencherDoCatalogo(i, e.target.value); }} onBlur={(e) => { const val = e.target.value.trim(); if (val && !cat.some((c: any) => (c.nome || "") === val)) { toast.error("Escolha um item do catálogo."); setItem(i, { descricao: "", valor: "" }); } }} placeholder="Buscar no catálogo…" style={inp} />
-              <datalist id={`cat-${i}`}>{cat.map((c) => { const lab = labDoItem(c); return <option key={c.nome} value={c.nome} label={lab ? `${lab.veter ? "⭐ " : ""}${lab.nome}` : undefined} />; })}</datalist>
+              {/* Era um <datalist> com ~900 <option>. Quem filtrava era o navegador: comparava
+                  COM acento, cortava a lista do jeito dele, e o onBlur limpava o campo quando
+                  o texto nao batia letra por letra com o catalogo. Digitar "vacina antirrabica"
+                  esvaziava o campo. Agora a lista e nossa (lib/buscaCatalogo, com teste). */}
+              <BuscaItemCatalogo
+                value={it.descricao}
+                itens={cat as any}
+                inpStyle={inp}
+                placeholder="Buscar no catálogo…"
+                rotuloDe={(c: any) => { const lab = labDoItem(c); return lab ? `${lab.veter ? "⭐ " : "🏥 "}${lab.nome}` : null; }}
+                onType={(val) => setItem(i, { descricao: val })}
+                onPick={(c: any) => setItem(i, { descricao: c.nome, valor: c.valorPadrao ? fmtVal(c.valorPadrao) : "" })}
+              />
               <input value={it.qtd} onChange={(e) => setItem(i, { qtd: e.target.value })} inputMode="numeric" style={{ ...inp, textAlign: "center" }} />
               <input value={it.valor} onChange={(e) => setItem(i, { valor: e.target.value })} onBlur={(e) => setItem(i, { valor: fmtVal(e.target.value) })} inputMode="decimal" placeholder="0,00" style={{ ...inp, textAlign: "right" }} />
               <button onClick={() => delItem(i)} title="Remover" className="text-[#b23b39] flex items-center justify-center"><LuTrash size={13} /></button>

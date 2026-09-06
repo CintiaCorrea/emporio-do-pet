@@ -11,6 +11,7 @@ import { useSession } from 'next-auth/react';
 import { carregarMeuCaixa, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaParaReceber } from '@/lib/caixaAtual';
 import { carregarEstoqueComprometido, avisoDeEstoque, MapaEstoque } from '@/lib/estoqueComprometido';
 import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
+import { buscarItens, avisoDeCorte } from '@/lib/buscaCatalogo';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
 import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from '@/lib/catalogoVendavel';
@@ -474,11 +475,11 @@ export default function PDVPage() {
   };
   const limparCliente = () => { setCliente(null); setPetId(''); setCliBusca(''); };
 
-  const itensFiltrados = useMemo(() => {
-    const q = itemBusca.trim().toLowerCase();
-    if (!q) return [];
-    return servicos.filter((s) => (s.nome || '').toLowerCase().includes(q)).slice(0, 12);
-  }, [servicos, itemBusca]);
+  // 🔎 A busca do carrinho passa pelo nucleo (lib/buscaCatalogo, com teste). Era aqui que
+  // "muitas vezes nao aparece" nascia: `includes` exigia acento certo e palavras coladas na
+  // ordem, e o `.slice(0, 12)` escondia o resto sem avisar.
+  const buscaItens = useMemo(() => buscarItens(servicos, itemBusca, (s) => s.nome), [servicos, itemBusca]);
+  const itensFiltrados = buscaItens.itens;
 
   const addItem = (s: Servico) => {
     // O peso do animal escolhe o preco quando o item cobra por porte (lib/porte). Antes, a
@@ -858,6 +859,13 @@ export default function PDVPage() {
                         <span style={{ color: MUT, flexShrink: 0 }}>{brl(Number(s.valorPadrao || 0))}</span>
                       </button>
                     ))}
+                    {/* O corte deixa de ser mudo: quem procura sabe que tem mais. */}
+                    {avisoDeCorte(buscaItens) && <div style={{ padding: '6px 12px', fontSize: 11.5, color: MUT, background: '#FAF7F1' }}>{avisoDeCorte(buscaItens)}</div>}
+                  </div>
+                )}
+                {itemAberto && itemBusca.trim().length > 0 && itensFiltrados.length === 0 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20, marginTop: 4, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 12px', fontSize: 12.5, color: MUT }}>
+                    Nenhum item com “{itemBusca.trim()}”. Tente uma palavra só.
                   </div>
                 )}
               </div>
@@ -1403,11 +1411,9 @@ function ItemPicker({ value, servicos, inpStyle, onType, onPick, placeholder }: 
   const [aberto, setAberto] = useState(false);
   const [q, setQ] = useState(value || '');
   useEffect(() => { setQ(value || ''); }, [value]);
-  const matches = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    if (!t) return [] as any[];
-    return servicos.filter((s) => (s.nome || '').toLowerCase().includes(t)).slice(0, 12);
-  }, [servicos, q]);
+  // Mesmo nucleo de busca do carrinho — a edicao da venda nao pode achar menos que a venda.
+  const r = useMemo(() => buscarItens(servicos, q, (s: any) => s.nome), [servicos, q]);
+  const matches = r.itens;
   return (
     <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
       <input value={q} placeholder={placeholder || 'Buscar no catálogo…'} style={inpStyle}
@@ -1423,6 +1429,7 @@ function ItemPicker({ value, servicos, inpStyle, onType, onPick, placeholder }: 
               <span style={{ color: '#5C6B70', flexShrink: 0 }}>{Number(s.valorPadrao || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
             </button>
           ))}
+          {avisoDeCorte(r) && <div style={{ padding: '6px 10px', fontSize: 11.5, color: '#8A7F6E', background: '#FAF7F1' }}>{avisoDeCorte(r)}</div>}
         </div>
       )}
     </div>

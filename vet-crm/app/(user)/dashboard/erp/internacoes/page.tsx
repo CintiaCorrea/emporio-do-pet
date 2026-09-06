@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import BuscaClientePet from "@/components/common/BuscaClientePet";
 import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
+import { buscarItens } from "@/lib/buscaCatalogo";
 import { rotuloDaFaixa, ordenarFaixas, lerFaixas, precoPorPorte, type FaixaPorte } from "@/lib/porte";
 
 const ESTADOS = [
@@ -68,7 +69,8 @@ export default function InternacoesPage() {
   const [diariaFaixa, setDiariaFaixa] = useState<string | null>(null);
   const [diariaAviso, setDiariaAviso] = useState<string | null>(null);
   useEffect(() => { (async () => { try { const its = await carregarCatalogoVendavel(); setCatServ(its); } catch {} })(); }, []);
-  const diariaMatches = useMemo(() => { const q = diariaBusca.trim().toLowerCase(); if (!q) return [] as any[]; return catServ.filter((c) => (c.nome || "").toLowerCase().includes(q)).slice(0, 12); }, [catServ, diariaBusca]);
+  // Mesmo nucleo de busca da venda (lib/buscaCatalogo, com teste).
+  const diariaMatches = useMemo(() => buscarItens(catServ, diariaBusca, (c) => c.nome, 40).itens, [catServ, diariaBusca]);
   const pickDiaria = (c: any) => {
     const l = linhaDoItem(c, pesoPet);   // o peso do animal escolhe a faixa (lib/porte)
     setDiariaItem(c); setDiariaFaixa(l._faixaRotulo ?? null); setDiariaAviso(l._avisoPorte ?? null);
