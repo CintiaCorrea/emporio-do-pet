@@ -131,6 +131,13 @@ export default function FichaInternacaoPage() {
   const userName = session?.user?.name || "";
   usePageTitle("Ficha de internação", "Paciente internado");
   const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde TODAS as ações de mexer
+  // Quem pode corrigir a HORA DE ENTRADA — o relogio das diarias.
+  // Ate 12/09 (semana de ajuste combinada com a Cintia) qualquer perfil corrige, porque
+  // varios pacientes entraram com hora errada e a equipe esta se adaptando. Depois, so o
+  // administrativo. A MESMA data esta no backend (fechamento.regras.AJUSTE_ATE), que e
+  // quem de fato recusa — isto aqui e so pra tela nao oferecer o que vai ser negado.
+  const isAdmin = String((session?.user as any)?.role || "").toUpperCase() === "ADMIN";
+  const podeCorrigirEntrada = Date.now() <= new Date("2026-09-12T23:59:59-03:00").getTime();
 
   const [h, setH] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -2556,10 +2563,18 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
               <div><label className="text-[11px] text-[#374151] block mb-1">Peso de entrada (kg)</label>
                 <input type="number" step="0.01" value={admForm.pesoEntrada} onChange={(e) => setAdmForm({ ...admForm, pesoEntrada: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               {/* ⏰ CORRIGIR A ENTRADA. Ate 06/09 a unica saida pra uma entrada errada era
-                  apagar a internacao e refazer — perdendo evolucao, afericoes e conta. */}
-              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Entrada (data e hora)</label>
-                <input type="datetime-local" value={admForm.entradaEm || ""} onChange={(e) => setAdmForm({ ...admForm, entradaEm: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
-                <div className="text-[10.5px] mt-1" style={{ color: "#8a6400" }}>⚠️ É o relógio das diárias: mudar aqui muda quantas já começaram e em que dia cada uma cai. Confira a conta depois.</div></div>
+                  apagar a internacao e refazer — perdendo evolucao, afericoes e conta.
+                  Ate 12/09 qualquer perfil corrige; depois, so o administrativo. A data
+                  mora no backend (fechamento.regras) — aqui e so o espelho. */}
+              {(podeCorrigirEntrada || isAdmin) ? (
+                <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Entrada (data e hora)</label>
+                  <input type="datetime-local" value={admForm.entradaEm || ""} onChange={(e) => setAdmForm({ ...admForm, entradaEm: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                  <div className="text-[10.5px] mt-1" style={{ color: "#8a6400" }}>⚠️ É o relógio das diárias: mudar aqui muda quantas já começaram e em que dia cada uma cai. Confira a conta depois.{podeCorrigirEntrada && !isAdmin ? " Liberado até 12/09." : ""}</div></div>
+              ) : (
+                <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Entrada (data e hora)</label>
+                  <input value={fmtDataHora(h?.admissionDate)} readOnly className="w-full border rounded-lg px-3 py-2 text-[13px]" style={{ borderColor: "#E8E2D6", background: "#F3EFE6", color: "#8C979B" }} />
+                  <div className="text-[10.5px] mt-1 text-[#5C6B70]">🔒 Só o administrativo corrige a entrada — ela é o relógio das diárias.</div></div>
+              )}
               <div><label className="text-[11px] text-[#374151] block mb-1">Temp. de entrada (°C)</label>
                 <input type="number" step="0.1" value={admForm.tempEntrada} onChange={(e) => setAdmForm({ ...admForm, tempEntrada: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Diagnóstico / motivo</label>
