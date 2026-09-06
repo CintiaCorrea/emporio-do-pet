@@ -898,6 +898,36 @@ export default function FichaInternacaoPage() {
     return partes.filter(Boolean).join("\n");
   };
 
+  /**
+   * O RESUMO pelo WhatsApp — o mesmo conteúdo do "Resumo de alta" impresso.
+   *
+   * A Cintia: "junto com o botão de imprimir temos que ter um botão para enviar pelo
+   * WhatsApp". Imprimir serve pra quem está no balcão; o tutor está em casa esperando
+   * notícia, e mandar foto do papel impresso é o que se fazia antes.
+   */
+  const enviarResumoWhats = async () => {
+    const cc0 = contaCalc();
+    const ativas = (prescricoes || []).filter((x: any) => prescricaoAtivaEm(x, new Date(), h?.admissionDate));
+    const linhas = [
+      `*${h?.pet?.name || "Paciente"} — resumo da internação*`,
+      `${boxCodigo ? `Box ${boxCodigo} · ` : ""}${cc0.dias}º dia · entrada ${fmtDataHora(h?.admissionDate)}`,
+      ativas.length ? `\n💊 *Prescrição ativa*` : null,
+      ...ativas.map((x: any) => `• ${x.medicamento}${x.dose ? ` ${x.dose}` : ""}${x.via ? ` (${x.via})` : ""} — ${rotuloDoPeriodo(x)}${(x.horarios || []).length ? ` · ${(x.horarios || []).join(", ")}` : ""}`),
+      blocoCuidadosDoDia(),
+      incluir.financeiro ? blocoFinanceiroDoDia() : null,
+    ].filter((x) => x != null && x !== "");
+    const texto = linhas.join("\n");
+    setFinBusy("resumo");
+    try {
+      const res = await fetch("/api/whatsapp/boletim-internacao", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h?.tutor?.id, texto, petNome: h?.pet?.name }) });
+      const d = await res.json().catch(() => ({}));
+      if (d?.status === "enviado") alert("Resumo enviado ao tutor. ✅");
+      else if (d?.status === "na_fila") alert("A conversa está fechada — mandei o convite. O resumo vai quando o tutor responder. 📨");
+      else throw new Error(d?.error || "");
+    } catch { openWhatsAppMeta(h?.tutor?.phone); }
+    finally { setFinBusy(""); }
+  };
+
   const boletimFinanceiro = async () => {
     const { dias, diariaTotal, itensFat, totalFaturavel } = contaCalc();
     const linhas = [
@@ -1339,6 +1369,7 @@ export default function FichaInternacaoPage() {
             <button onClick={() => openWhatsAppMeta(h.tutor?.phone)} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-3 py-2 rounded-lg">💬 WhatsApp</button>
             {h.pet?.id && <Link href={`/dashboard/erp/pets/${h.pet.id}`} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>📄 Ficha do pet</Link>}
             <button onClick={() => window.print()} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️ Resumo de alta</button>
+            <button onClick={enviarResumoWhats} disabled={!!finBusy} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-3 py-2 rounded-lg disabled:opacity-60" title="Manda o mesmo resumo pro tutor pelo WhatsApp">{finBusy === "resumo" ? "Enviando…" : "📲 Enviar resumo"}</button>
             {!alta && podeEditar && <button onClick={() => setTrocaBoxOpen(true)} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🛏️ Trocar box</button>}
             {!alta && podeEditar && <button onClick={darAlta} className="text-[12.5px] font-medium text-[#CC3366] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#EAC3C1" }}>🚪 Dar alta</button>}
             {!alta && podeEditar && h.status !== "DECEASED" && <button onClick={() => { setObitoForm({ data: new Date().toISOString().slice(0, 10), causa: "" }); setObitoOpen(true); }} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🕊️ Registrar óbito</button>}
@@ -1703,7 +1734,7 @@ export default function FichaInternacaoPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-[13px]">
                     <thead><tr className="text-[10.5px] text-[#374151] uppercase tracking-wide">
-                      <th className="text-left font-medium px-4 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Via</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Freq.</th><th className="text-left font-medium px-2 py-2">Horários</th><th className="text-left font-medium px-2 py-2">Prescrito por</th><th className="px-2 py-2"></th>
+                      <th className="text-left font-medium px-4 py-2">Medicação</th><th className="text-left font-medium px-2 py-2">Via</th><th className="text-left font-medium px-2 py-2">Dose</th><th className="text-left font-medium px-2 py-2">Freq.</th><th className="text-left font-medium px-2 py-2">Período</th><th className="text-left font-medium px-2 py-2">Horários</th><th className="text-left font-medium px-2 py-2">Prescrito por</th><th className="px-2 py-2"></th>
                     </tr></thead>
                     <tbody>
                       {prescricoes.map((p) => (
@@ -1711,15 +1742,13 @@ export default function FichaInternacaoPage() {
                           <td className="px-4 py-2 font-medium text-[#014D5E] whitespace-nowrap">{p.medicamento}{p.cobrarId ? <span title={`Cobra ${fmtBRL(precoAtualCobranca(p))} na conta a cada aplicação`} className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "#EDE9FA", color: "#5a3b9b" }}>💰 auto</span> : null}</td>
                           <td className="px-2 py-2"><span className="text-[11px] text-[#5C6B70] bg-[#FBF9F4] border rounded px-1.5 py-0.5 whitespace-nowrap" style={{ borderColor: "#E8E2D6" }}>{p.via}</span></td>
                           <td className="px-2 py-2 tabular-nums whitespace-nowrap">{p.dose || "—"}</td>
+                          <td className="px-2 py-2 whitespace-nowrap">{p.frequencia || "—"}</td>
+                          {/* PERÍODO em coluna própria: misturado com a frequência, ninguém
+                              distinguia a dose única da que repete todo dia. */}
                           <td className="px-2 py-2 whitespace-nowrap">
-                            {p.frequencia || (p.periodoTipo === "UNICA" ? "—" : "—")}
-                            {/* POR QUANTO TEMPO vale: quem olha a lista precisa distinguir a
-                                dose unica da que repete todo dia. */}
-                            {(p.periodoTipo && p.periodoTipo !== "INTERNACAO") && (
-                              <span className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "#EDE9FE", color: "#6D28D9" }}>
-                                {rotuloDoPeriodo(p)}
-                              </span>
-                            )}
+                            <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={(p.periodoTipo && p.periodoTipo !== "INTERNACAO") ? { background: "#EDE9FE", color: "#6D28D9" } : { background: "#F0EBE0", color: "#8A7B63" }}>
+                              {rotuloDoPeriodo(p)}
+                            </span>
                           </td>
                           <td className="px-2 py-2 tabular-nums text-[#5C6B70] whitespace-nowrap">{(p.horarios || []).join(" · ") || "contínuo"}</td>
                           <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{p.prescritoPor || "—"}</td>
