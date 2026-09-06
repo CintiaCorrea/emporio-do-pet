@@ -1063,6 +1063,31 @@ export class AppointmentsService {
       }
     }
 
+    // 🔗 APAGAR A VENDA SOLTA OS ITENS DA INTERNACAO QUE APONTAVAM PRA ELA.
+    //
+    // Sem isto o item continuava marcado como "ja cobrado", apontando pra uma venda que
+    // nao existe mais: nunca seria cobrado e nunca apareceria como pendente. Dinheiro que
+    // some sem erro, sem aviso e sem rastro — a auditoria de 06/09/2026 achou dois assim
+    // (R$ 80 em Furosemida de 15/08), e so achou porque alguem foi procurar.
+    //
+    // A ligacao e por texto dentro de um JSON, entao nao ha chave estrangeira pra fazer
+    // isso sozinha. Aqui e o unico lugar onde da pra garantir.
+    try {
+      const ligados = await this.prisma.listaItem.findMany({
+        where: { lista: { startsWith: "intconta_" }, valor: { contains: id } },
+        select: { id: true, valor: true },
+      });
+      for (const li of ligados) {
+        try {
+          const d = JSON.parse(li.valor);
+          if (d?.comandaId !== id) continue;
+          delete d.comandaId; delete d.faturadoEm;
+          d.baixado = false;
+          await this.prisma.listaItem.update({ where: { id: li.id }, data: { valor: JSON.stringify(d) } });
+        } catch { /* linha ilegivel: nao pode impedir a exclusao */ }
+      }
+    } catch { /* a exclusao da venda nao pode depender disto */ }
+
     const removido = await this.prisma.appointment.delete({
       where: { id },
     });
