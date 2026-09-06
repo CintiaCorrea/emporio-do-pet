@@ -539,6 +539,19 @@ export default function FichaInternacaoPage() {
         const r = await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intvital_${id}`, valor }) });
         const cd = await r.json().catch(() => null);
         await logInterno("criou", "vital", cd?.id || "", null, campos);
+        // ⚖️ O PESO DA AFERIÇÃO VAI PRA FICHA DO PET.
+        //
+        // Internação e o lugar onde o peso e medido varias vezes ao dia — e nada disso
+        // chegava a ficha: o grafico ficava vazio e a linha do tempo do prontuario nao sabia
+        // que o animal tinha perdido 2 kg em tres dias. Agora cada pesagem vira um ponto no
+        // historico clinico, com a hora que a pessoa informou.
+        const kgAferido = Number(String(vitalForm.peso || "").replace(",", "."));
+        if (Number.isFinite(kgAferido) && kgAferido > 0 && h?.pet?.id) {
+          fetch(`/api/pets/${h.pet.id}/peso`, {
+            method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+            body: JSON.stringify({ peso: kgAferido, at: emQue.toISOString(), autor: userName, origem: "INTERNACAO" }),
+          }).catch(() => undefined); // complemento: nao pode derrubar o registro da aferição
+        }
       }
       setVitalForm({ fc: "", fr: "", temp: "", pa: "", sat: "", mucosa: "Rósea", dor: "0", peso: "", quando: agoraLocal() }); setVitalEditId(""); setVitalOpen(false); load();
     } catch { alert("Erro ao registrar aferição."); }
