@@ -482,6 +482,14 @@ export class HospitalizationsService {
     if (dto.reason !== undefined) updateData.description = dto.reason;
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.dailyRate !== undefined) updateData.value = dto.dailyRate;
+    // A HORA DE ENTRADA pode ser corrigida — e o relogio das diarias. Data invalida e
+    // ignorada em silencio seria pior que recusar: a conta passaria a contar de 1970.
+    if ((dto as any).admissionAt !== undefined) {
+      const d = new Date((dto as any).admissionAt);
+      if (Number.isNaN(d.getTime())) throw new BadRequestException('Data de entrada inválida.');
+      if (d.getTime() > Date.now() + 60_000) throw new BadRequestException('A entrada não pode ser no futuro.');
+      updateData.date = d;
+    }
 
     if (dto.status === 'DISCHARGED' && !metadata.actualDischargeDate) {
       metadata.actualDischargeDate = new Date().toISOString();

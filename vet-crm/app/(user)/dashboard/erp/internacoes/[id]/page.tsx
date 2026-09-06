@@ -164,7 +164,7 @@ export default function FichaInternacaoPage() {
   const [novaHora, setNovaHora] = useState("");
 
   const [admOpen, setAdmOpen] = useState(false);
-  const [admForm, setAdmForm] = useState<any>({ pesoEntrada: "", tempEntrada: "", diagnosis: "", prognostico: "", estimatedDischargeDate: "" });
+  const [admForm, setAdmForm] = useState<any>({ pesoEntrada: "", tempEntrada: "", diagnosis: "", prognostico: "", estimatedDischargeDate: "", entradaEm: "" });
   const [admSaving, setAdmSaving] = useState(false);
 
   // Prescrição & plantão (F3)
@@ -448,17 +448,27 @@ export default function FichaInternacaoPage() {
   };
 
   const abrirAdm = () => {
-    setAdmForm({ pesoEntrada: adm.pesoEntrada || "", tempEntrada: adm.tempEntrada || "", diagnosis: h?.diagnosis || "", prognostico: adm.prognostico || "", estimatedDischargeDate: h?.estimatedDischargeDate ? String(h.estimatedDischargeDate).slice(0, 10) : "" });
+    setAdmForm({ pesoEntrada: adm.pesoEntrada || "", tempEntrada: adm.tempEntrada || "", diagnosis: h?.diagnosis || "", prognostico: adm.prognostico || "", estimatedDischargeDate: h?.estimatedDischargeDate ? String(h.estimatedDischargeDate).slice(0, 10) : "", entradaEm: paraCampoLocal(h?.admissionDate) });
     setAdmOpen(true);
   };
   const salvarAdm = async () => {
     setAdmSaving(true);
     try {
+      // MUDAR A ENTRADA MUDA A CONTA. A hora de entrada é o relógio das diárias: quantas
+      // já começaram e em que dia cada uma cai. Quem corrige precisa saber disso ANTES.
+      const mudouEntrada = admForm.entradaEm && admForm.entradaEm !== paraCampoLocal(h?.admissionDate);
+      if (mudouEntrada) {
+        const antes = fmtDataHora(h?.admissionDate);
+        const depois = new Date(admForm.entradaEm).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+        if (!confirm("Mudar a entrada de " + antes + " para " + depois + "?\n\nA hora de entrada é o relógio das diárias — muda quantas já começaram e em que dia cada uma cai.\n\nConfira a conta depois de salvar.")) { setAdmSaving(false); return; }
+      }
       await salvarVital({
         diagnosis: admForm.diagnosis || undefined,
         estimatedDischargeDate: admForm.estimatedDischargeDate || undefined,
+        ...(mudouEntrada ? { admissionAt: new Date(admForm.entradaEm).toISOString() } : {}),
         vitalSigns: { admissao: { pesoEntrada: admForm.pesoEntrada, tempEntrada: admForm.tempEntrada, prognostico: admForm.prognostico } },
       });
+      if (mudouEntrada) await logInterno("editou", "entrada", id, { entrada: h?.admissionDate }, { entrada: new Date(admForm.entradaEm).toISOString() });
       setAdmOpen(false);
     } finally { setAdmSaving(false); }
   };
@@ -2545,6 +2555,11 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
               <div><label className="text-[11px] text-[#374151] block mb-1">Peso de entrada (kg)</label>
                 <input type="number" step="0.01" value={admForm.pesoEntrada} onChange={(e) => setAdmForm({ ...admForm, pesoEntrada: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              {/* ⏰ CORRIGIR A ENTRADA. Ate 06/09 a unica saida pra uma entrada errada era
+                  apagar a internacao e refazer — perdendo evolucao, afericoes e conta. */}
+              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Entrada (data e hora)</label>
+                <input type="datetime-local" value={admForm.entradaEm || ""} onChange={(e) => setAdmForm({ ...admForm, entradaEm: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                <div className="text-[10.5px] mt-1" style={{ color: "#8a6400" }}>⚠️ É o relógio das diárias: mudar aqui muda quantas já começaram e em que dia cada uma cai. Confira a conta depois.</div></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Temp. de entrada (°C)</label>
                 <input type="number" step="0.1" value={admForm.tempEntrada} onChange={(e) => setAdmForm({ ...admForm, tempEntrada: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Diagnóstico / motivo</label>
