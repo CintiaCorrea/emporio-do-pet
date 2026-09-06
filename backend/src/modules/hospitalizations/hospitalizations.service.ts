@@ -426,10 +426,41 @@ export class HospitalizationsService {
     return this.toHospitalization(updated, metadata);
   }
 
+  /**
+   * Apaga a internação E TUDO O QUE E DELA.
+   *
+   * A internação nao mora numa tabela propria: a conta, as aferições, o controle de
+   * fluidos, as prescricoes, as doses aplicadas, a evolucao e o log vivem em LISTAS
+   * chaveadas pelo id do atendimento (`intconta_<id>`, `intvital_<id>`...). Apagar so o
+   * atendimento deixava tudo isso orfao no banco pra sempre — invisivel, sem dono, e
+   * ocupando espaco. E o BOX ficava presoueando um paciente que nao existe mais, que foi
+   * exatamente o que prendeu o B02 por 14 dias.
+   *
+   * Devolve o que foi apagado, pra tela poder dizer a verdade em vez de "excluido com
+   * sucesso" sem mais.
+   */
   async remove(id: string) {
     const existing = await this.prisma.appointment.findUnique({ where: { id } });
     if (!existing) throw new NotFoundException('Internação não encontrada');
+
+    // As listas desta internação. O prefixo é a convenção do módulo inteiro.
+    const prefixos = ['intconta_', 'intvital_', 'intfluido_', 'intpresc_', 'intmed_', 'intevo_',
+      'intlog_', 'intbol_', 'intbolprog_', 'intboletim_hist_', 'intfechamento_'];
+    const listas = prefixos.map((p) => `${p}${id}`);
+    const apagadas = await this.prisma.listaItem.deleteMany({ where: { lista: { in: listas } } }).catch(() => ({ count: 0 }));
+
+    // Solta o box. Com a chave estrangeira (SetNull) o ponteiro se limpa sozinho ao apagar
+    // o atendimento, mas a ocupação continuaria ABERTA — e o box, ocupado por ninguém.
+    const boxes = await this.prisma.boxOcupacao.updateMany({
+      where: { appointmentId: id, ativa: true },
+      data: { ativa: false, saidaAt: new Date() },
+    }).catch(() => ({ count: 0 }));
+
     await this.prisma.appointment.delete({ where: { id } });
-    return { message: 'Internação excluída com sucesso' };
+    return {
+      message: 'Internação excluída com sucesso',
+      registrosApagados: apagadas.count,
+      boxesLiberados: boxes.count,
+    };
   }
 }

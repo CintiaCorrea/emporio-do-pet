@@ -1033,15 +1033,30 @@ export default function FichaInternacaoPage() {
     finally { setBoxBusy(false); }
   };
 
+  // A confirmação diz o que se perde CONTADO, nome por nome. "Todos os registros serão
+  // perdidos" é verdade e não ajuda ninguém a decidir: 3 aferições e 40 aferições são
+  // decisões diferentes, e quem apaga precisa saber em qual das duas está.
   const excluirInternacao = async () => {
-    if (!confirm(`Excluir a internação de ${h.pet?.name || "este paciente"}? Essa ação não pode ser desfeita. O box será liberado e todos os registros (evoluções, boletins, conta) serão perdidos.`)) return;
+    const oQueSePerde = [
+      conta.length ? `${conta.length} item(ns) da conta` : null,
+      vitais.length ? `${vitais.length} aferição(ões)` : null,
+      fluidos.length ? `${fluidos.length} registro(s) de controle` : null,
+      prescricoes.length ? `${prescricoes.length} prescrição(ões)` : null,
+      evolucoes.length ? `${evolucoes.length} evolução(ões)` : null,
+    ].filter(Boolean);
+    const texto = `Excluir a internação de ${h.pet?.name || "este paciente"}?\n\n`
+      + (oQueSePerde.length ? `Vai apagar junto:\n• ${oQueSePerde.join("\n• ")}\n\n` : "Não há registros lançados nela.\n\n")
+      + `O box é liberado. Vendas já enviadas ao caixa NÃO são apagadas — se houver, cancele por lá.\n\nNão dá pra desfazer.`;
+    if (!confirm(texto)) return;
     setBoxBusy(true);
     try {
       if (boxIdAtual) await fetch(`/api/boxes/${boxIdAtual}/liberar`, { method: "POST", credentials: "include" }).catch(() => {});
       const res = await fetch(`/api/hospitalizations/${id}`, { method: "DELETE", credentials: "include" });
-      if (!res.ok) throw new Error();
+      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.message || ""); }
+      const d = await res.json().catch(() => null);
+      alert(`Internação excluída.${d?.registrosApagados ? ` ${d.registrosApagados} registro(s) removidos.` : ""}${d?.boxesLiberados ? " Box liberado." : ""}`);
       router.push("/dashboard/erp/internacoes");
-    } catch { alert("Erro ao excluir a internação."); setBoxBusy(false); }
+    } catch (e: any) { alert(e?.message || "Erro ao excluir a internação."); setBoxBusy(false); }
   };
 
   // Registra o óbito: encerra a internação, libera o box, marca o PET como falecido na
@@ -1197,7 +1212,7 @@ export default function FichaInternacaoPage() {
             {!alta && podeEditar && <button onClick={() => setTrocaBoxOpen(true)} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🛏️ Trocar box</button>}
             {!alta && podeEditar && <button onClick={darAlta} className="text-[12.5px] font-medium text-[#CC3366] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#EAC3C1" }}>🚪 Dar alta</button>}
             {!alta && podeEditar && h.status !== "DECEASED" && <button onClick={() => { setObitoForm({ data: new Date().toISOString().slice(0, 10), causa: "" }); setObitoOpen(true); }} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🕊️ Registrar óbito</button>}
-            {podeEditar && <button onClick={excluirInternacao} disabled={boxBusy} className="text-[12.5px] font-medium text-[#374151] bg-white border px-3 py-2 rounded-lg disabled:opacity-50" style={{ borderColor: "#E8E2D6" }} title="Excluir internação">🗑️</button>}
+            {podeEditar && <button onClick={excluirInternacao} disabled={boxBusy} className="text-[12.5px] font-medium bg-white border px-3 py-2 rounded-lg disabled:opacity-50" style={{ borderColor: "#EAC3C1", color: "#CC3366" }} title="Apaga a internação e tudo o que foi lançado nela">🗑️ Excluir internação</button>}
           </div>
         </div>
 
