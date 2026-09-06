@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { labDoItem, linhaDoItem, itemParaVenda, nomeSemMarcador, ehVeter } from "@/lib/catalogoVendavel";
+import { labDoItem, linhaDoItem, itemParaVenda, nomeSemMarcador, ehVeter, ehServicoDoCatalogo } from "@/lib/catalogoVendavel";
 
 // BLINDAGEM do caminho do CATÁLOGO NOVO (_novo): vende por descrição+valor+custo, guarda catalogoItemId.
 // EXAME novo: manda tipoItem:"EXAME" + catalogoItemId (entra no Kanban pela FONTE NOVA cat_item_exame),
@@ -156,5 +156,34 @@ describe("caução na linha de venda", () => {
     expect(l._ehCaucao).toBe(true);
     expect(l.valorUnitario).toBe(800);
     expect(l._faixaRotulo).toBe("41 a 50+ kg");
+  });
+});
+
+describe("ehServicoDoCatalogo — SERVICE em inglês vs SERVICO em português", () => {
+  // 🚨 O bug de 06/09/2026. A internação comparava `tipo === "SERVICE"`, mas o catálogo novo
+  // grava "SERVICO". Resultado: os 241 serviços do catálogo novo caíam na lista de PRODUTOS,
+  // e "Transfusão de sangue" só aparecia na categoria "Insumo" — que não cobra.
+  it("aceita o SERVICE do catálogo antigo", () => {
+    expect(ehServicoDoCatalogo({ tipo: "SERVICE" })).toBe(true);
+  });
+  it("aceita o SERVICO do catálogo novo — era este que sumia", () => {
+    expect(ehServicoDoCatalogo({ tipo: "SERVICO" })).toBe(true);
+  });
+  it("aceita SERVIÇO com cedilha, caso alguém grave assim", () => {
+    expect(ehServicoDoCatalogo({ tipo: "SERVIÇO" })).toBe(true);
+    expect(ehServicoDoCatalogo({ tipo: "servico" })).toBe(true);
+  });
+  it("exame e pacote contam como serviço", () => {
+    expect(ehServicoDoCatalogo({ tipo: "EXAME" })).toBe(true);
+    expect(ehServicoDoCatalogo({ tipo: "PACOTE" })).toBe(true);
+    expect(ehServicoDoCatalogo({ _exame: true })).toBe(true);
+  });
+  it("produto e medicamento não são serviço", () => {
+    expect(ehServicoDoCatalogo({ tipo: "PRODUTO" })).toBe(false);
+    expect(ehServicoDoCatalogo({ tipo: "MEDICINE" })).toBe(false);
+  });
+  it("item sem tipo não é serviço — mas também não some (quem separa é a tela)", () => {
+    expect(ehServicoDoCatalogo({})).toBe(false);
+    expect(ehServicoDoCatalogo(null)).toBe(false);
   });
 });

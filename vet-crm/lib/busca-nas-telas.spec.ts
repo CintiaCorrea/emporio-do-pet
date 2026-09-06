@@ -75,12 +75,23 @@ describe("o catálogo chega inteiro em quem vende", () => {
     expect(src).not.toMatch(/<select value=\{itemForm\.productId\}/);
   });
 
+  it("ninguém volta a comparar o tipo do item à mão", () => {
+    // O catálogo antigo grava SERVICE (inglês), o novo grava SERVICO (português). Comparar
+    // com um só faz os 241 serviços do catálogo novo caírem na lista de produtos — foi assim
+    // que "Transfusão de sangue" virou item que dá pra ver e não dá pra cobrar.
+    // Quem decide é ehServicoDoCatalogo, e só ela.
+    for (const tela of TELAS_DE_VENDA) {
+      expect(ler(tela)).not.toMatch(/tipo\s*[=!]==\s*["']SERVICE["']/);
+    }
+  });
+
   it("nenhum item some entre as listas de serviço e produto", () => {
     const src = ler("app/(user)/dashboard/erp/internacoes/[id]/page.tsx");
-    // `i.tipo && i.tipo !== "SERVICE"` era um rombo: item com tipo em branco não caía em
-    // NENHUMA das duas listas e sumia calado das duas.
-    expect(src).not.toMatch(/filter\(\(i\) => i\.tipo && i\.tipo !== "SERVICE"/);
-    expect(src).toMatch(/filter\(\(i\) => i\.tipo !== "SERVICE" && !i\._exame\)/);
+    // Antes: `i.tipo && i.tipo !== "SERVICE"` — item com tipo em branco não caía em NENHUMA
+    // das duas listas e sumia calado das duas. Agora as duas listas saem da MESMA função, o
+    // que torna impossível um item ficar fora das duas.
+    expect(src).toContain("cat.filter(ehServicoDoCatalogo)");
+    expect(src).toContain("cat.filter((i) => !ehServicoDoCatalogo(i))");
   });
 
   it("o \"Editar o dia\" da internação traz os itens de venda", () => {

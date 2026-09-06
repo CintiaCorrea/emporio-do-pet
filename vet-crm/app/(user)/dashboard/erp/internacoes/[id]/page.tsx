@@ -13,7 +13,7 @@ import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { imprimirDocumento } from "@/lib/print";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { usePodeEditar } from "@/lib/permissions/context";
-import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda } from "@/lib/catalogoVendavel";
+import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, ehServicoDoCatalogo } from "@/lib/catalogoVendavel";
 import { buscarItens } from "@/lib/buscaCatalogo";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { calcularHorarios as horariosDoDia, horariosDaPrescricao, prescricaoAtivaEm, rotuloDoPeriodo, minutosDaFrequencia, PERIODOS } from "@/lib/internacaoHorarios";
@@ -320,11 +320,12 @@ export default function FichaInternacaoPage() {
       // dropdown Produto = produtos/medicamentos/vacinas. (sv/pd acima ficam ignorados de propósito.)
       const cat = await carregarCatalogoVendavel();
       setCatalogo(cat);
-      setServicos(cat.filter((i) => i.tipo === "SERVICE" || i._exame));
-      // O `i.tipo &&` que estava aqui era um ROMBO: item com tipo em branco nao caia nem em
-      // servicos nem em produtos — sumia das duas listas, calado. Agora produto e tudo que
-      // nao e servico nem exame, tenha tipo preenchido ou nao.
-      setProdutos(cat.filter((i) => i.tipo !== "SERVICE" && !i._exame).map((i) => ({ id: i.id, name: i.nome, price: i.valorPadrao, valorPadrao: i.valorPadrao })));
+      // Quem decide se e servico ou produto e o nucleo (ehServicoDoCatalogo) — NUNCA uma
+      // comparacao escrita a mao. Este arquivo comparava com "SERVICE" (ingles) enquanto o
+      // catalogo novo grava "SERVICO" (portugues): os 241 servicos caiam na lista de produtos
+      // e a lista de servicos ficava so com exames. Foi assim que a transfusao sumiu.
+      setServicos(cat.filter(ehServicoDoCatalogo));
+      setProdutos(cat.filter((i) => !ehServicoDoCatalogo(i)).map((i) => ({ id: i.id, name: i.nome, price: i.valorPadrao, valorPadrao: i.valorPadrao })));
       const tutorId = d?.tutor?.id;
       if (tutorId) { try { const cr = await fetch(`/api/credito/tutor/${tutorId}`).then((r) => r.json()); setCaucaoSaldo(Number(cr?.saldo) || 0); } catch { setCaucaoSaldo(0); } }
       // Peso do animal — decide o preco dos itens cobrados por porte (lib/porte).
@@ -2550,9 +2551,8 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                       // acha, palavra fora de ordem acha. Antes era `includes` cru cortado em 10.
                       // Catalogo INTEIRO: produto e servico, como ela pediu. O prefixo s:/p:
                       // continua marcando de onde o item veio (o vinculo de estoque depende disso).
-                      const ehServico = (i: any) => i.tipo === "SERVICE" || i._exame;
                       const ops = buscarItens(catalogo, q, (i: any) => i.nome, 20).itens
-                        .map((i: any) => ({ val: `${ehServico(i) ? "s" : "p"}:${i.id}`, nome: i.nome, preco: i.valorPadrao }));
+                        .map((i: any) => ({ val: `${ehServicoDoCatalogo(i) ? "s" : "p"}:${i.id}`, nome: i.nome, preco: i.valorPadrao }));
                       return (
                         <div className="absolute z-10 left-0 right-0 mt-1 bg-white border rounded-lg max-h-44 overflow-auto shadow-lg" style={{ borderColor: "#E8E2D6" }}>
                           {ops.length === 0 ? <div className="px-3 py-2 text-[12px] text-[#94a3b8]">Nada encontrado.</div> :

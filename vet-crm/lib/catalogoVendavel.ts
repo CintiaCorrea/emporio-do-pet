@@ -57,6 +57,29 @@ export function ehVeter(fornecedorNome?: string | null): boolean {
   return /veter/i.test(String(fornecedorNome || ""));
 }
 
+/**
+ * O item do catálogo é um SERVIÇO (inclui exame), ou é um produto?
+ *
+ * 🚨 A ARMADILHA QUE CUSTOU O DIA 06/09/2026.
+ *
+ * O catálogo ANTIGO grava `SERVICE` (inglês). O catálogo NOVO grava `SERVICO` (português).
+ * A internação comparava só com `SERVICE` — então, do catálogo novo:
+ *   · os 241 SERVIÇOS caíam na lista de PRODUTOS;
+ *   · a lista de "Serviço do catálogo" ficava só com os exames.
+ *
+ * Efeito para quem usa: "Transfusão de sangue" (SERVICO) só aparecia se a pessoa escolhesse
+ * a categoria "Insumo" — que de propósito NÃO cobra. Dava pra ver o item e não dava pra
+ * cobrar por ele. Foi exatamente o que a Cintia reportou: "fui incluir transfusão na comanda
+ * da internação e ele não traz, já na comanda na tela do pet ele traz."
+ *
+ * Nenhuma comparação de tipo pode ser escrita à mão de novo. É esta função, e só ela.
+ */
+export function ehServicoDoCatalogo(item?: { tipo?: string; _exame?: boolean } | null): boolean {
+  if (item?._exame) return true;
+  const t = String(item?.tipo || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+  return t === "SERVICE" || t === "SERVICO" || t === "EXAME" || t === "PACOTE";
+}
+
 export function labDoItem(item?: { _exame?: boolean; tipo?: string; _fornecedorNome?: string | null } | null): { nome: string; veter: boolean } | null {
   if (!item?._exame && item?.tipo !== "EXAME") return null; // só exame carrega laboratório
   const nome = String(item?._fornecedorNome || "").trim();
