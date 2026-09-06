@@ -1682,6 +1682,30 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                       Envio automático <b>desligado</b>. Os textos abaixo ficam salvos, mas nada é enviado ao tutor.
                     </div>
                   )}
+
+                  {/* 📎 O QUE VAI JUNTO COM O BOLETIM.
+                      Estava DENTRO da sanfona de cada horário e só aparecia depois de abrir
+                      um deles — a Cintia disse "combinamos mas não entrou", e do lugar dela
+                      era exatamente isso que parecia. A escolha vale pra internação inteira,
+                      então o lugar dela é aqui em cima, sempre à vista. */}
+                  <div className="rounded-lg px-3 py-2.5 mb-3" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }}>
+                    <div className="text-[11.5px] font-medium mb-1.5" style={{ color: "#014D5E" }}>📎 Enviar junto com o boletim</div>
+                    <div className="flex items-center gap-4 flex-wrap text-[12px]">
+                      <label className="inline-flex items-center gap-1.5 cursor-pointer" title="As aferições, a medicação aplicada e o controle de hoje">
+                        <input type="checkbox" checked={!!incluir.cuidados} disabled={!podeEditar} onChange={() => alternarIncluir("cuidados")} />
+                        <span>🩺 aferições e cuidados do dia</span>
+                      </label>
+                      <label className="inline-flex items-center gap-1.5 cursor-pointer" title="O que entrou na conta hoje, o acumulado e o saldo">
+                        <input type="checkbox" checked={!!incluir.financeiro} disabled={!podeEditar} onChange={() => alternarIncluir("financeiro")} />
+                        <span>💰 resumo das vendas do dia</span>
+                      </label>
+                    </div>
+                    <div className="text-[10.5px] mt-1.5" style={{ color: incluir.financeiro || incluir.cuidados ? "#0F6E56" : "#5C6B70" }}>
+                      {incluir.financeiro || incluir.cuidados
+                        ? "Vai junto em todos os horários desta internação, e também no 📲 Resumo."
+                        : "Marque o que deve seguir anexado ao texto do boletim."}
+                    </div>
+                  </div>
                   {/* Caixinhas: marque quais horários enviam boletim (+ adicionar próprio) */}
                   <div className="mb-3">
                     <div className="text-[10px] uppercase tracking-wide text-[#374151] font-semibold mb-1.5">Horários de envio (marque quais)</div>
@@ -1781,22 +1805,6 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                                       {podeEditar && <button onClick={() => setMidiaHorario(hor, null)} className="text-[11px] text-[#CC3366] flex-shrink-0" title="Remover anexo">✕</button>}
                                     </div>
                                   )}
-                                  {/* 📎 O QUE VAI JUNTO. A escolha fica gravada na internacao:
-                                      paciente critico cujo tutor acompanha de perto manda tudo
-                                      todo dia; internacao curta manda so o clinico. Ninguem
-                                      remarca a cada envio. */}
-                                  <div className="mt-2 flex items-center gap-3 flex-wrap text-[12px]" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6", borderRadius: 9, padding: "7px 10px" }}>
-                                    <span className="text-[#5C6B70]">Enviar junto:</span>
-                                    <label className="inline-flex items-center gap-1.5 cursor-pointer" title="Anexa o que entrou na conta hoje, o acumulado e o saldo">
-                                      <input type="checkbox" checked={!!incluir.financeiro} disabled={!podeEditar} onChange={() => alternarIncluir("financeiro")} />
-                                      <span>💰 financeiro do dia</span>
-                                    </label>
-                                    <label className="inline-flex items-center gap-1.5 cursor-pointer" title="Anexa as aferições, a medicação aplicada e o controle de hoje">
-                                      <input type="checkbox" checked={!!incluir.cuidados} disabled={!podeEditar} onChange={() => alternarIncluir("cuidados")} />
-                                      <span>🩺 relatório de cuidados</span>
-                                    </label>
-                                    {(incluir.financeiro || incluir.cuidados) && <span className="text-[11px] text-[#0F6E56]">vale para todos os horários desta internação</span>}
-                                  </div>
                                   <div className="mt-2 flex items-center gap-4 flex-wrap">
                                     {txt.trim() && (
                                       <button onClick={() => setPreviewBol({ titulo: `Boletim das ${hor}`, texto: txt, horario: hor })} className="text-[12px] text-[#5C6B70] hover:text-[#00798A]">
