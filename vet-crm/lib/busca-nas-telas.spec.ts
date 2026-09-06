@@ -117,6 +117,28 @@ describe("o catálogo chega inteiro em quem vende", () => {
   });
 });
 
+describe("a lista aparece INTEIRA — dá pra ver antes de escolher", () => {
+  it("o seletor abre a lista por portal, presa à tela", () => {
+    const src = ler("components/vendas/BuscaItemCatalogo.tsx");
+    // A Cintia, com o print do modal aberto: "precisa melhorar a usabilidade, não tem como
+    // escolher se não visualizamos. Toda vez que for criar ou mudar alguma coisa tem que
+    // lembrar disso." A lista era `absolute` dentro do modal e saía cortada em duas linhas e
+    // meia. Item que a busca acha e a pessoa não consegue ver é item não encontrado.
+    expect(src).toContain("createPortal");
+    expect(src).toContain('position: "fixed"');
+    // E quando não cabe embaixo, ela sobe — é o caso do campo perto do rodapé do modal.
+    expect(src).toMatch(/bottom: window\.innerHeight/);
+  });
+
+  it("nenhuma tela de venda voltou a abrir a lista dentro do próprio modal", () => {
+    // `absolute` + `overflow` do modal = lista cortada. Se aparecer de novo numa tela de
+    // venda, é a mesma reclamação voltando.
+    for (const tela of TELAS_DE_VENDA) {
+      expect(ler(tela)).not.toMatch(/className="absolute z-10 left-0 right-0/);
+    }
+  });
+});
+
 describe("o corte da lista nunca é mudo", () => {
   it.each([
     "app/(user)/dashboard/erp/ponto-de-venda/page.tsx",

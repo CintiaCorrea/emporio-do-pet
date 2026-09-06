@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import BuscaClientePet from "@/components/common/BuscaClientePet";
 import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
-import { buscarItens } from "@/lib/buscaCatalogo";
+import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { rotuloDaFaixa, ordenarFaixas, lerFaixas, precoPorPorte, type FaixaPorte } from "@/lib/porte";
 
 const ESTADOS = [
@@ -70,7 +70,6 @@ export default function InternacoesPage() {
   const [diariaAviso, setDiariaAviso] = useState<string | null>(null);
   useEffect(() => { (async () => { try { const its = await carregarCatalogoVendavel(); setCatServ(its); } catch {} })(); }, []);
   // Mesmo nucleo de busca da venda (lib/buscaCatalogo, com teste).
-  const diariaMatches = useMemo(() => buscarItens(catServ, diariaBusca, (c) => c.nome, 40).itens, [catServ, diariaBusca]);
   const pickDiaria = (c: any) => {
     const l = linhaDoItem(c, pesoPet);   // o peso do animal escolhe a faixa (lib/porte)
     setDiariaItem(c); setDiariaFaixa(l._faixaRotulo ?? null); setDiariaAviso(l._avisoPorte ?? null);
@@ -583,18 +582,17 @@ export default function InternacoesPage() {
                   <div><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Boletins/dia</label>
                     <input type="number" min={0} value={form.boletinsDia} onChange={(e) => setForm({ ...form, boletinsDia: e.target.value })} className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
                   <div className="col-span-2"><label className="text-[10.5px] text-[#374151] uppercase tracking-wide block mb-1">Diária — buscar no catálogo (leva o custo pro DRE)</label>
-                    <div className="relative">
-                      <input value={diariaBusca} onChange={(e) => setDiariaBusca(e.target.value)} placeholder="🔍 Buscar serviço/produto da diária…" className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} />
-                      {diariaMatches.length > 0 && (
-                        <div className="absolute z-10 left-0 right-0 mt-1 bg-white border rounded-lg max-h-40 overflow-auto shadow-lg" style={{ borderColor: "#E8E2D6" }}>
-                          {diariaMatches.map((c) => (
-                            <button key={c.id} type="button" onClick={() => pickDiaria(c)} className="flex w-full justify-between items-center px-3 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
-                              <span className="truncate pr-2 text-[#1F2A2E]">{c.nome}</span><span className="text-[#0F6E56] font-semibold shrink-0">{fmtBRL(Number(c.valorPadrao) || 0)}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    {/* Era `absolute` dentro do modal e saia cortada. O seletor unico abre
+                        por portal, preso a tela — da pra ver a lista inteira antes de escolher. */}
+                    <BuscaItemCatalogo
+                      value={form.diariaNome || diariaBusca}
+                      itens={catServ as any}
+                      placeholder="🔍 Buscar serviço/produto da diária…"
+                      className="w-full bg-white border rounded-lg px-3 py-2 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]"
+                      inpStyle={{ borderColor: "#E8E2D6" }}
+                      onType={setDiariaBusca}
+                      onPick={(c: any) => { pickDiaria(c); setDiariaBusca(""); }}
+                    />
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                       {form.diariaNome ? <span className="text-[11px] text-[#0E5560] bg-[#E0F0F2] rounded-full px-2 py-0.5">🗂️ {form.diariaNome}{form.diariaCusto != null ? ` · custo ${fmtBRL(Number(form.diariaCusto))}` : ""}</span> : <span className="text-[11px] text-[#8A857A]">ou digite o valor manual →</span>}
                       <label className="text-[10.5px] text-[#374151] uppercase tracking-wide">Valor/dia (R$)</label>

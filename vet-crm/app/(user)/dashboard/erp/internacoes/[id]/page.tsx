@@ -2544,27 +2544,19 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                   </div>
                 ) : (
                   <div className="relative">
-                    <input value={cobrancaBusca} onChange={(e) => setCobrancaBusca(e.target.value)} placeholder="🔍 Digite as primeiras letras do serviço/produto…" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
-                    {cobrancaBusca.trim() && (() => {
-                      const q = cobrancaBusca.trim().toLowerCase();
-                      // Mesmo nucleo de busca da venda (lib/buscaCatalogo, com teste): sem acento
-                      // acha, palavra fora de ordem acha. Antes era `includes` cru cortado em 10.
-                      // Catalogo INTEIRO: produto e servico, como ela pediu. O prefixo s:/p:
-                      // continua marcando de onde o item veio (o vinculo de estoque depende disso).
-                      const ops = buscarItens(catalogo, q, (i: any) => i.nome, 20).itens
-                        .map((i: any) => ({ val: `${ehServicoDoCatalogo(i) ? "s" : "p"}:${i.id}`, nome: i.nome, preco: i.valorPadrao }));
-                      return (
-                        <div className="absolute z-10 left-0 right-0 mt-1 bg-white border rounded-lg max-h-44 overflow-auto shadow-lg" style={{ borderColor: "#E8E2D6" }}>
-                          {ops.length === 0 ? <div className="px-3 py-2 text-[12px] text-[#94a3b8]">Nada encontrado.</div> :
-                            ops.map((o) => (
-                              <button key={o.val} type="button" onClick={() => { pickPrescCobranca(o.val); setCobrancaBusca(""); }} className="flex w-full justify-between items-center px-3 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
-                                <span className="truncate pr-2 text-[#1F2A2E]">{o.nome}</span><span className="text-[#0F6E56] font-semibold shrink-0">{o.preco != null ? fmtBRL(o.preco) : ""}</span>
-                              </button>
-                            ))}
-                        </div>
-                      );
-                    })()}
-                  </div>
+                    {/* Era uma lista `absolute` dentro do modal — ficava cortada, e ela avisou:
+                        "nao tem como escolher se nao visualizamos". O seletor unico abre por
+                        portal, preso a tela, e sobe quando nao cabe embaixo. */}
+                    <BuscaItemCatalogo
+                      value={cobrancaBusca}
+                      itens={catalogo as any}
+                      placeholder="🔍 Produto ou serviço a cobrar por aplicação"
+                      className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]"
+                      inpStyle={{ borderColor: "#E8E2D6" }}
+                      onType={setCobrancaBusca}
+                      onPick={(i: any) => { pickPrescCobranca(`${ehServicoDoCatalogo(i) ? "s" : "p"}:${i.id}`); setCobrancaBusca(""); }}
+                    />
+                    </div>
                 )}
                 {prescForm.cobrarId ? (
                   <p className="text-[10.5px] text-[#0F6E56] mt-1">✓ Cada ✓ no plantão lança <b>1× {prescForm.cobrarNome}</b> ({fmtBRL(precoAtualCobranca(prescForm))}) na conta. Desmarcar o ✓ remove o lançamento.</p>
