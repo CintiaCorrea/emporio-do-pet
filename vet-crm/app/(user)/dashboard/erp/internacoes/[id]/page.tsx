@@ -843,6 +843,61 @@ export default function FichaInternacaoPage() {
     finally { setFinBusy(""); }
   };
 
+  // 📎 O QUE VAI JUNTO COM O BOLETIM (06/09/2026).
+  //
+  // A Cintia: "quero que possamos enviar as informações junto no boletim, podemos colocar
+  // algum botão para selecionar quando queremos que envie as informações financeiras e o
+  // relatório de cuidados?"
+  //
+  // Antes eram TRÊS envios separados — boletim clínico, boletim financeiro e nada de
+  // cuidados. O tutor recebia mensagens soltas e a recepção mandava uma, esquecia a outra.
+  //
+  // A escolha fica GRAVADA NA INTERNAÇÃO: paciente crítico cujo tutor acompanha de perto
+  // manda tudo todo dia; internação curta manda só o clínico. Ninguém remarca a cada envio.
+  const incluir = (h as any)?.vitalSigns?.boletimIncluir || { financeiro: false, cuidados: false };
+  const alternarIncluir = (k: "financeiro" | "cuidados") =>
+    salvarVital({ vitalSigns: { boletimIncluir: { ...incluir, [k]: !incluir[k] } } });
+
+  /** O bloco do DIA de hoje: o que entrou na conta hoje, e o saldo. */
+  const blocoFinanceiroDoDia = (): string => {
+    const cc0 = contaCalc();
+    const hoje = hojeISO();
+    const doDia = conta.filter((i: any) => i.categoria !== "Insumo" && (i.at ? String(i.at).slice(0, 10) === hoje : true));
+    const totalDia = doDia.reduce((t: number, i: any) => t + (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0), 0)
+      + (cc0.diariaVU || 0);
+    const linhas = [
+      `\n———————————`,
+      `💰 *Financeiro de hoje*`,
+      cc0.diariaVU > 0 ? `Diária de internação: ${fmtBRL(cc0.diariaVU)}` : null,
+      ...doDia.map((i: any) => `${i.descricao}: ${fmtBRL((Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0))}`),
+      `*Total do dia: ${fmtBRL(totalDia)}*`,
+      ``,
+      `Acumulado da internação: ${fmtBRL(cc0.totalFaturavel)}`,
+      caucaoSaldo > 0 ? `Caução em conta: ${fmtBRL(caucaoSaldo)}` : null,
+      `Saldo estimado: ${fmtBRL(Math.max(0, cc0.totalFaturavel - caucaoSaldo))}`,
+    ].filter((x) => x != null);
+    return linhas.join("\n");
+  };
+
+  /** O bloco de CUIDADOS de hoje: aferições, medicação aplicada e controle. */
+  const blocoCuidadosDoDia = (): string => {
+    const hoje = hojeISO();
+    const doDia = (arr: any[]) => arr.filter((x: any) => (x.at ? diaFortaleza(x.at) : x.date) === hoje);
+    const vits = doDia(vitais), flus = doDia(fluidos), dos = doDia(doses);
+    const partes: (string | null)[] = [`\n———————————`, `🩺 *Cuidados de hoje*`];
+    if (vits.length) {
+      const ult = vits[vits.length - 1];
+      partes.push(`Aferições: ${vits.length} · última ${ult.hora || ""} — ${[ult.fc && `FC ${ult.fc}`, ult.fr && `FR ${ult.fr}`, ult.temp && `${ult.temp} °C`, ult.peso && `${ult.peso} kg`].filter(Boolean).join(" · ")}`);
+    }
+    if (dos.length) partes.push(`Medicação aplicada: ${dos.map((d: any) => `${d.med} ${d.slot}`).join(" · ")}`);
+    if (flus.length) {
+      const u = flus[flus.length - 1];
+      partes.push(`Controle ${u.hora || ""}: ${[u.agua && `água ${u.agua} ml`, u.diurese && `diurese ${u.diurese}`, u.fezes && `fezes ${u.fezes}`, u.alimentacao && `alim. ${u.alimentacao}`, u.emese && `êmese ${u.emese}`].filter(Boolean).join(" · ")}`);
+    }
+    if (partes.length === 2) partes.push("Sem registros lançados hoje até agora.");
+    return partes.filter(Boolean).join("\n");
+  };
+
   const boletimFinanceiro = async () => {
     const { dias, diariaTotal, itensFat, totalFaturavel } = contaCalc();
     const linhas = [
@@ -946,7 +1001,14 @@ export default function FichaInternacaoPage() {
 
   // Envia na hora o boletim daquele horário (sem esperar o automático).
   const enviarBoletimAgora = async (horario: string) => {
-    const texto = textoDoHorario(horario).trim();
+    // O texto clínico é a base; financeiro e cuidados vão anexados quando marcados.
+    // A trava do nome do pet olha o TEXTO CLÍNICO, não os anexos — os anexos são gerados
+    // por esta internação e não podem ser de outro paciente.
+    const texto = [
+      textoDoHorario(horario).trim(),
+      incluir.cuidados ? blocoCuidadosDoDia() : "",
+      incluir.financeiro ? blocoFinanceiroDoDia() : "",
+    ].filter(Boolean).join("\n");
     const midia = midiaDoHorario(horario);
     if (!texto) { alert("Escreva o boletim desse horário antes de enviar."); return; }
     // 🛡️ TRAVA DE SEGURANÇA (bug 29/07): o boletim é do pet DESTA internação. Se o texto
@@ -954,7 +1016,7 @@ export default function FichaInternacaoPage() {
     // por engano) — bloqueia com aviso forte pra não mandar info clínica pro tutor errado.
     const petNome = (h?.pet?.name || "").trim();
     const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-    if (petNome && !norm(texto).includes(norm(petNome))) {
+    if (petNome && !norm(textoDoHorario(horario)).includes(norm(petNome))) {
       if (!confirm(`⚠️ ATENÇÃO: este boletim NÃO menciona "${petNome}" (o paciente desta internação). Pode ser o boletim de OUTRO pet, colado por engano — enviar isso mandaria dados clínicos pro tutor errado.\n\nConfira o texto. Enviar mesmo assim para ${h.tutor?.name || "o tutor"}?`)) return;
     } else {
       if (!confirm(`Enviar o boletim das ${horario}?\n🐾 Paciente: ${petNome || "—"}\n👤 Tutor(a): ${h.tutor?.name || "—"}`)) return;
@@ -1495,6 +1557,22 @@ export default function FichaInternacaoPage() {
                                       {podeEditar && <button onClick={() => setMidiaHorario(hor, null)} className="text-[11px] text-[#CC3366] flex-shrink-0" title="Remover anexo">✕</button>}
                                     </div>
                                   )}
+                                  {/* 📎 O QUE VAI JUNTO. A escolha fica gravada na internacao:
+                                      paciente critico cujo tutor acompanha de perto manda tudo
+                                      todo dia; internacao curta manda so o clinico. Ninguem
+                                      remarca a cada envio. */}
+                                  <div className="mt-2 flex items-center gap-3 flex-wrap text-[12px]" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6", borderRadius: 9, padding: "7px 10px" }}>
+                                    <span className="text-[#5C6B70]">Enviar junto:</span>
+                                    <label className="inline-flex items-center gap-1.5 cursor-pointer" title="Anexa o que entrou na conta hoje, o acumulado e o saldo">
+                                      <input type="checkbox" checked={!!incluir.financeiro} disabled={!podeEditar} onChange={() => alternarIncluir("financeiro")} />
+                                      <span>💰 financeiro do dia</span>
+                                    </label>
+                                    <label className="inline-flex items-center gap-1.5 cursor-pointer" title="Anexa as aferições, a medicação aplicada e o controle de hoje">
+                                      <input type="checkbox" checked={!!incluir.cuidados} disabled={!podeEditar} onChange={() => alternarIncluir("cuidados")} />
+                                      <span>🩺 relatório de cuidados</span>
+                                    </label>
+                                    {(incluir.financeiro || incluir.cuidados) && <span className="text-[11px] text-[#0F6E56]">vale para todos os horários desta internação</span>}
+                                  </div>
                                   <div className="mt-2 flex items-center gap-4 flex-wrap">
                                     {txt.trim() && (
                                       <button onClick={() => setPreviewBol({ titulo: `Boletim das ${hor}`, texto: txt, horario: hor })} className="text-[12px] text-[#5C6B70] hover:text-[#00798A]">
