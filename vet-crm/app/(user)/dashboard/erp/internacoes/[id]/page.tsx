@@ -1873,12 +1873,12 @@ export default function FichaInternacaoPage() {
       {/* ===== POPUP MEDICAÇÃO (prescrição) ===== */}
       {prescOpen && (
         <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setPrescOpen(false)}>
-          <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
+          <div className="rounded-2xl shadow-xl max-w-md w-full flex flex-col" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
+            <div className="px-5 py-3.5 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">💊 {prescForm.id ? "Editar medicação" : "Adicionar medicação"}</h3>
               <button onClick={() => setPrescOpen(false)} className="text-[#374151]">✕</button>
             </div>
-            <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
+            <div className="px-5 py-4 grid grid-cols-2 gap-2.5 text-[13px] overflow-y-auto flex-1 min-h-0">
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Medicação *</label>
                 <input value={prescForm.medicamento} onChange={(e) => setPrescForm({ ...prescForm, medicamento: e.target.value })} placeholder="Ex.: Tramadol" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">💰 Cobrar na conta a cada aplicação <span className="text-[#94a3b8]">(opcional)</span></label>
@@ -1959,16 +1959,17 @@ export default function FichaInternacaoPage() {
                 )}
               </div>
               <div className="col-span-2 -mt-1 text-[10.5px] text-[#374151]">
-                Preencha a <b>1ª aplicação</b> e a <b>frequência</b> que os horários são calculados sozinhos — e você pode editar depois.
-                Deixe os horários vazios para medicação <b>contínua</b> (não gera doses no plantão).
-                {(prescForm.prescritoPor || userName) && <> Prescrição registrada em nome de <b>{prescForm.prescritoPor || userName}</b>.</>}
+                Horários vazios = medicação <b>contínua</b> (não gera doses no plantão).
+                {(prescForm.prescritoPor || userName) && <> Em nome de <b>{prescForm.prescritoPor || userName}</b>.</>}
               </div>
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Observação</label>
                 <input value={prescForm.observacao} onChange={(e) => setPrescForm({ ...prescForm, observacao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
             </div>
-            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
+            {/* Rodape FIXO: com o campo de periodo o modal passou da altura do monitor e o
+                botao Salvar ficava fora da tela. O meio rola; isto aqui nao sai do lugar. */}
+            <div className="px-5 py-3.5 border-t flex justify-end gap-2 flex-shrink-0" style={{ borderColor: "#E8E2D6", background: "#FBF9F4" }}>
               <button onClick={() => setPrescOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
-              <button onClick={salvarPresc} disabled={prescSaving} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{prescSaving ? "Salvando..." : "Salvar"}</button>
+              <button onClick={salvarPresc} disabled={prescSaving} className="px-5 py-2 text-[13px] font-medium text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{prescSaving ? "Salvando..." : "Salvar"}</button>
             </div>
           </div>
         </div>
