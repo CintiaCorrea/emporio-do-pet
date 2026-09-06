@@ -73,3 +73,59 @@ describe('caixa.regras', () => {
     });
   });
 });
+
+// ── O DIA DO CAIXA (06/09/2026) ──────────────────────────────────────────────────
+//
+// "Quando a Gabriela abre o caixa a Victoria não consegue abrir." Os dados mostraram
+// outra coisa: a Victoria abriu TRÊS caixas em 05/09. Ela abria, não via, e abria de novo.
+//
+// O dia era calculado no fuso do SERVIDOR (UTC). Fortaleza é UTC−3, então "hoje" ia das
+// 21h de ontem às 20h59 de hoje — e caixa aberto às 21h30 nascia no dia seguinte, sumindo
+// da lista. A clínica atende à noite: acontecia todo dia.
+import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa } from './caixa.regras';
+
+describe('o dia do caixa é o de Fortaleza', () => {
+  it('o dia começa à meia-noite DAQUI, não em Greenwich', () => {
+    const { ini, fim } = faixaDoDia('2026-09-06');
+    expect(ini.toISOString()).toBe('2026-09-06T03:00:00.000Z');
+    expect(fim.toISOString()).toBe('2026-09-07T02:59:59.999Z');
+  });
+
+  // O CASO QUE QUEBROU: 21h30 de Fortaleza é 00h30 UTC do dia seguinte.
+  it('caixa aberto às 21h30 continua sendo do MESMO dia', () => {
+    const { ini, fim } = faixaDoDia('2026-09-06');
+    const aberto2130 = new Date('2026-09-06T21:30:00-03:00');
+    expect(aberto2130.getTime()).toBeGreaterThanOrEqual(ini.getTime());
+    expect(aberto2130.getTime()).toBeLessThanOrEqual(fim.getTime());
+  });
+
+  it('23h59 ainda é hoje; 00h01 já é amanhã', () => {
+    const hoje = faixaDoDia('2026-09-06');
+    expect(new Date('2026-09-06T23:59:00-03:00').getTime()).toBeLessThan(hoje.fim.getTime());
+    expect(new Date('2026-09-07T00:01:00-03:00').getTime()).toBeGreaterThan(hoje.fim.getTime());
+  });
+
+  it('sem data, vale HOJE em Fortaleza — e não o dia do servidor', () => {
+    const esperado = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Fortaleza' });
+    expect(faixaDoDia().dia).toBe(esperado);
+  });
+
+  it('data inválida cai em hoje, em vez de virar 1970', () => {
+    expect(faixaDoDia('banana').dia).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('caixa retroativo abre ao meio-dia DAQUI', () => {
+    expect(aberturaRetroativa('2026-09-01')?.toISOString()).toBe('2026-09-01T15:00:00.000Z');
+    expect(aberturaRetroativa('')).toBeUndefined();
+    expect(aberturaRetroativa(undefined)).toBeUndefined();
+  });
+});
+
+describe('quem pode abrir caixa', () => {
+  // "Só as recepcionistas e adm" — Cintia, 06/09/2026. Veterinário atende; caixa é da
+  // recepção. Quem abre responde pelo dinheiro da gaveta.
+  it.each(['ADMIN', 'RECEPTIONIST', 'admin', 'receptionist'])('%s pode', (p) =>
+    expect(podeAbrirCaixa(p)).toBe(true));
+  it.each(['VETERINARIAN', 'GROOMER', '', null, undefined, 'qualquer'])('%s não pode', (p) =>
+    expect(podeAbrirCaixa(p as any)).toBe(false));
+});

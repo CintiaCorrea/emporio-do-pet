@@ -73,3 +73,54 @@ export function resolverCaixaDoRecebimento<T extends CaixaAbertoRef>(
       'em qual lancar. Abra o seu caixa (Vendas > Caixa) para receber.',
   };
 }
+
+// ── O DIA DO CAIXA É O DIA DE FORTALEZA ─────────────────────────────────────────
+//
+// O BUG que motivou isto (06/09/2026). A Cintia: "quando a Gabriela abre o caixa a
+// Victoria não consegue abrir". Os dados contaram outra história: em 05/09 a Victoria
+// abriu TRÊS caixas. Ela abria, não via na tela, e abria de novo.
+//
+// A causa: o dia era calculado com `setHours(0,0,0,0)` no fuso do SERVIDOR, que roda em
+// UTC. Fortaleza é UTC−3. Então "hoje" no servidor ia das 21h de ontem às 20h59 de hoje,
+// no horário daqui — e um caixa aberto às 21h30 nascia no DIA SEGUINTE, sumindo da lista.
+//
+// A clínica atende à noite. Era todo dia, depois das 21h.
+//
+// A decisão "caixa estritamente por dia" (Cintia, 06/09) torna isto ainda mais crítico:
+// o dia passa a ser a unidade de fechamento, e um dia mal cortado leva junto a conferência.
+
+export const FUSO_CASA = '-03:00';
+
+/**
+ * O começo e o fim de um dia, no fuso da casa.
+ *
+ * `dateStr` no formato AAAA-MM-DD. Sem ele, vale HOJE em Fortaleza — e "hoje" tem de ser
+ * lido no fuso daqui, senão às 22h o sistema já virou o dia sozinho.
+ */
+export function faixaDoDia(dateStr?: string): { ini: Date; fim: Date; dia: string } {
+  const dia = dateStr && /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+    ? dateStr
+    : new Date().toLocaleDateString('en-CA', { timeZone: 'America/Fortaleza' });
+  return {
+    dia,
+    ini: new Date(`${dia}T00:00:00${FUSO_CASA}`),
+    fim: new Date(`${dia}T23:59:59.999${FUSO_CASA}`),
+  };
+}
+
+/** A hora de abertura de um caixa retroativo: meio-dia DAQUI, não do servidor. */
+export function aberturaRetroativa(dateStr?: string): Date | undefined {
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(String(dateStr).slice(0, 10))) return undefined;
+  return new Date(`${String(dateStr).slice(0, 10)}T12:00:00${FUSO_CASA}`);
+}
+
+/**
+ * Quem pode abrir caixa. "Só as recepcionistas e adm" — Cintia, 06/09/2026.
+ *
+ * Veterinário atende; caixa é da recepção. Quem abre responde pelo dinheiro da gaveta, e
+ * responsabilidade sem quem a exerça é responsabilidade de ninguém.
+ */
+export function podeAbrirCaixa(papel?: string | null): boolean {
+  const p = String(papel || '').toUpperCase();
+  return p === 'ADMIN' || p === 'RECEPTIONIST';
+}

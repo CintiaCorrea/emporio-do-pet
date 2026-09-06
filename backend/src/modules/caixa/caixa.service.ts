@@ -8,11 +8,13 @@ import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
 import { resolverCaixaDoRecebimento } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
+import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa } from './caixa.regras';
 
+// O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
+// Ver caixa.regras.faixaDoDia: caixa aberto as 21h30 nascia no dia seguinte e sumia da
+// lista — a Victoria abriu tres caixas em 05/09 porque nao via nenhum deles.
 function dayRange(dateStr?: string) {
-  const d = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
-  const ini = new Date(d); ini.setHours(0, 0, 0, 0);
-  const fim = new Date(d); fim.setHours(23, 59, 59, 999);
+  const { ini, fim } = faixaDoDia(dateStr);
   return { ini, fim };
 }
 
@@ -754,10 +756,17 @@ export class CaixaService {
     return { ...c, creditosUtilizados };
   }
 
-  async abrir(dto: any, userId: string) {
+  async abrir(dto: any, userId: string, papel?: string) {
+    // "So as recepcionistas e adm" — Cintia, 06/09/2026. Veterinario atende; caixa e da
+    // recepcao. Quem abre responde pelo dinheiro da gaveta.
+    if (papel !== undefined && !podeAbrirCaixa(papel)) {
+      throw new BadRequestException(
+        'Só a recepção e o administrativo abrem caixa. Quem abre responde pelo dinheiro da gaveta.',
+      );
+    }
     const count = await this.prisma.caixaSessao.count();
     // Caixa retroativo: permite abrir com uma data passada (backfill). Meio-dia p/ evitar borda de fuso.
-    const abertura = dto.abertura ? new Date(String(dto.abertura).slice(0, 10) + 'T12:00:00') : undefined;
+    const abertura = aberturaRetroativa(dto.abertura);
     return this.prisma.caixaSessao.create({
       data: {
         numero: count + 1,

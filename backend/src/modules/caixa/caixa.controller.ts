@@ -104,8 +104,8 @@ export class CaixaController {
   }
 
   @Post()
-  abrir(@Body() dto: AbrirCaixaDto, @CurrentUser('id') userId: string) {
-    return this.service.abrir(dto, userId);
+  abrir(@Body() dto: AbrirCaixaDto, @CurrentUser('id') userId: string, @CurrentUser() user: any) {
+    return this.service.abrir(dto, userId, user?.role);
   }
 
   @Patch(':id/fechar')
