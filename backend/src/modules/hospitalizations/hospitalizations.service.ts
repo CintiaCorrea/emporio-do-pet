@@ -5,7 +5,7 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { CreateHospitalizationDto } from './dto/create-hospitalization.dto';
 import { UpdateHospitalizationDto } from './dto/update-hospitalization.dto';
 import { diariasDevidas, diariasAFaturar } from './diaria.regras';
-import { montarFechamento, diasEmAberto, diaDe, type ItemDaConta } from './fechamento.regras';
+import { montarFechamento, diasEmAberto, diaDe, dentroDaSemanaDeAjuste, type ItemDaConta } from './fechamento.regras';
 
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -448,7 +448,7 @@ export class HospitalizationsService {
     return this.toHospitalization(appointment, metadata as HospitalizationMetadata);
   }
 
-  async update(id: string, dto: UpdateHospitalizationDto) {
+  async update(id: string, dto: UpdateHospitalizationDto, papel?: string) {
     const current = await this.prisma.appointment.findUnique({
       where: { id },
       include: { treatments: true },
@@ -485,6 +485,15 @@ export class HospitalizationsService {
     // A HORA DE ENTRADA pode ser corrigida — e o relogio das diarias. Data invalida e
     // ignorada em silencio seria pior que recusar: a conta passaria a contar de 1970.
     if ((dto as any).admissionAt !== undefined) {
+      // SEMANA DE AJUSTE (ate 12/09/2026): qualquer perfil corrige a entrada, porque a
+      // equipe esta aprendendo a lancar e varios pacientes entraram com hora errada.
+      // Depois disso, so o administrativo — e a data mora em fechamento.regras, entao a
+      // trava volta sozinha, sem ninguem precisar lembrar.
+      if (!dentroDaSemanaDeAjuste() && String(papel || '').toUpperCase() !== 'ADMIN') {
+        throw new BadRequestException(
+          'A hora de entrada só pode ser corrigida pelo administrativo. Ela é o relógio das diárias — mudá-la muda a conta inteira.',
+        );
+      }
       const d = new Date((dto as any).admissionAt);
       if (Number.isNaN(d.getTime())) throw new BadRequestException('Data de entrada inválida.');
       if (d.getTime() > Date.now() + 60_000) throw new BadRequestException('A entrada não pode ser no futuro.');

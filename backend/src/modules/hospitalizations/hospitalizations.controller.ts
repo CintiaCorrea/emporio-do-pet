@@ -78,8 +78,8 @@ export class HospitalizationsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar internação' })
-  update(@Param('id') id: string, @Body() dto: UpdateHospitalizationDto) {
-    return this.hospitalizationsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateHospitalizationDto, @CurrentUser() user: any) {
+    return this.hospitalizationsService.update(id, dto, user?.role);
   }
 
   @Delete(':id')

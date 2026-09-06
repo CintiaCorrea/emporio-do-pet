@@ -188,6 +188,13 @@ describe('fechamento diário da internação', () => {
       it('item em aberto continua livre pra todo mundo, dentro ou fora da semana', () => {
         expect(podeEditarItem(item({ baixado: false }), 'VET', DEPOIS)).toBe(true);
       });
+
+      // A HORA DE ENTRADA segue a mesma janela (decidido em 06/09). Ela e o relogio das
+      // diarias: mudar de 17:19 pra 09:00 pode acrescentar uma diaria inteira na conta.
+      it('a mesma janela vale pra corrigir a hora de entrada', () => {
+        expect(dentroDaSemanaDeAjuste('2026-09-10T08:00:00-03:00')).toBe(true);
+        expect(dentroDaSemanaDeAjuste(DEPOIS)).toBe(false);
+      });
     });
   });
 
