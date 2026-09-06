@@ -42,6 +42,12 @@ function calcularHorarios(primeira: string, frequencia: string): string {
 }
 // QUANDO ACONTECEU, no formato do <input type="datetime-local"> — sem passar por UTC,
 // senão o registro aparece 3 horas deslocado em Fortaleza.
+/** "05/09" a partir do ISO gravado — vazio quando nao da pra ler. */
+function diaCurto(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+}
 function agoraLocal(): string {
   const d = new Date();
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
@@ -1669,7 +1675,9 @@ export default function FichaInternacaoPage() {
                       <tbody>
                         {vitaisOrd.map((v) => (
                           <tr key={v.id} className="border-t tabular-nums" style={{ borderColor: "#F0EBE0" }}>
-                            <td className="px-3 py-2 whitespace-nowrap">{v.hora || "—"}</td><td className="px-2 py-2 whitespace-nowrap font-medium" style={{ color: "#014D5E" }}>{v.peso ? `${v.peso} kg` : "—"}</td><td className="px-2 py-2">{v.fc || "—"}</td><td className="px-2 py-2">{v.fr || "—"}</td>
+                            <td className="px-3 py-2 whitespace-nowrap">
+                              {diaCurto(v.at) && <span className="text-[#94a3b8] mr-1">{diaCurto(v.at)}</span>}{v.hora || "—"}
+                            </td><td className="px-2 py-2 whitespace-nowrap font-medium" style={{ color: "#014D5E" }}>{v.peso ? `${v.peso} kg` : "—"}</td><td className="px-2 py-2">{v.fc || "—"}</td><td className="px-2 py-2">{v.fr || "—"}</td>
                             <td className="px-2 py-2 whitespace-nowrap" style={tempForaFaixa(v.temp) ? { color: "#CC3366", fontWeight: 500 } : {}}>{v.temp ? `${v.temp}°` : "—"}</td>
                             <td className="px-2 py-2 whitespace-nowrap">{v.pa || "—"}</td><td className="px-2 py-2 whitespace-nowrap">{v.sat ? `${v.sat}%` : "—"}</td><td className="px-2 py-2">{v.mucosa || "—"}</td><td className="px-2 py-2">{v.dor ?? "—"}</td>
                             <td className="px-2 py-2 text-[#5C6B70] whitespace-nowrap">{v.por || "—"}</td>
@@ -1728,7 +1736,12 @@ export default function FichaInternacaoPage() {
                       {fluidosOrd.map((f) => (
                         <div key={f.id} className="flex items-start gap-2 text-[12px] py-1.5 border-t" style={{ borderColor: "#F0EBE0" }}>
                           <span className="tabular-nums w-[92px] flex-shrink-0">
-                            <span className="block whitespace-nowrap text-[#374151]">{f.hora}</span>
+                            <span className="block whitespace-nowrap text-[#374151]">
+                              {/* A DATA importa: numa internacao de varios dias, "20:27" sozinho
+                                  nao diz de que dia e — e e o intervalo entre um registro e
+                                  outro que mostra se o animal esta respondendo. */}
+                              {diaCurto(f.at) && <span className="text-[#94a3b8] mr-1">{diaCurto(f.at)}</span>}{f.hora}
+                            </span>
                             {f.por ? <span className="block text-[10px] text-[#94a3b8] truncate" title={f.por}>{f.por}</span> : null}
                           </span>
                           <span className="text-[#5C6B70] flex-1 min-w-0 break-words">{[f.entradaFluido && `fluido ${f.entradaFluido} ml`, f.agua && `água ${f.agua} ml`, f.diurese && `diurese ${f.diurese}`, f.fezes && `fezes ${f.fezes}`, f.alimentacao && `alim. ${f.alimentacao}`, f.emese && `êmese ${f.emese}`, f.observacao && `obs: ${f.observacao}`].filter(Boolean).join(" · ") || "—"}</span>
