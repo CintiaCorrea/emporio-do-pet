@@ -1,6 +1,6 @@
 import {
   diaDe, itensDoDia, diaDaDiaria, diariasComecadas, diariaDoDia,
-  montarFechamento, diasEmAberto, podeEditarItem, totalDoItem,
+  montarFechamento, diasEmAberto, podeEditarItem, totalDoItem, dentroDaSemanaDeAjuste, AJUSTE_ATE,
 } from './fechamento.regras';
 
 // BLINDAGEM DO FECHAMENTO DIÁRIO.
@@ -153,13 +153,41 @@ describe('fechamento diário da internação', () => {
       expect(podeEditarItem(item({ baixado: false }), 'RECEPTIONIST')).toBe(true);
       expect(podeEditarItem(item({ baixado: false }), 'VET')).toBe(true);
     });
+    // DEPOIS da semana de ajuste. As datas sao explicitas porque a regra muda com o tempo,
+    // e teste que depende de "hoje" comeca a falhar sozinho no dia 13.
+    const DEPOIS = '2026-09-15T10:00:00-03:00';
     it('item JÁ COBRADO só o administrativo edita', () => {
       const cobrado = item({ baixado: true });
-      expect(podeEditarItem(cobrado, 'RECEPTIONIST')).toBe(false);
-      expect(podeEditarItem(cobrado, 'VET')).toBe(false);
-      expect(podeEditarItem(cobrado, 'ADMIN')).toBe(true);
-      expect(podeEditarItem(cobrado, 'admin')).toBe(true);
-      expect(podeEditarItem(cobrado, undefined)).toBe(false);
+      expect(podeEditarItem(cobrado, 'RECEPTIONIST', DEPOIS)).toBe(false);
+      expect(podeEditarItem(cobrado, 'VET', DEPOIS)).toBe(false);
+      expect(podeEditarItem(cobrado, 'ADMIN', DEPOIS)).toBe(true);
+      expect(podeEditarItem(cobrado, 'admin', DEPOIS)).toBe(true);
+      expect(podeEditarItem(cobrado, undefined, DEPOIS)).toBe(false);
+    });
+
+    // A SEMANA DE AJUSTE combinada com a Cintia (06 a 12/09/2026): a equipe esta aprendendo
+    // a lancar e as contas antigas estao sendo acertadas. Travar agora faria toda correcao
+    // passar por ela.
+    describe('semana de ajuste, até 12/09', () => {
+      it('dentro da semana, qualquer perfil edita item já cobrado', () => {
+        const cobrado = item({ baixado: true });
+        expect(podeEditarItem(cobrado, 'RECEPTIONIST', '2026-09-08T10:00:00-03:00')).toBe(true);
+        expect(podeEditarItem(cobrado, 'VET', '2026-09-12T23:00:00-03:00')).toBe(true);
+      });
+      it('no dia 13 a trava volta SOZINHA — sem ninguém precisar lembrar', () => {
+        const cobrado = item({ baixado: true });
+        expect(podeEditarItem(cobrado, 'RECEPTIONIST', '2026-09-13T00:00:01-03:00')).toBe(false);
+      });
+      it('a virada é no fim do dia 12, não no começo', () => {
+        expect(dentroDaSemanaDeAjuste('2026-09-12T23:59:00-03:00')).toBe(true);
+        expect(dentroDaSemanaDeAjuste('2026-09-13T00:00:01-03:00')).toBe(false);
+      });
+      it('a data está escrita no código, não numa promessa de alguém lembrar', () => {
+        expect(AJUSTE_ATE).toBe('2026-09-12T23:59:59-03:00');
+      });
+      it('item em aberto continua livre pra todo mundo, dentro ou fora da semana', () => {
+        expect(podeEditarItem(item({ baixado: false }), 'VET', DEPOIS)).toBe(true);
+      });
     });
   });
 

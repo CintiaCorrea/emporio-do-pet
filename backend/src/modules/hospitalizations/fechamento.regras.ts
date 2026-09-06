@@ -181,7 +181,31 @@ export function diasEmAberto(params: {
  * 06/09/2026. Dia aberto e do plantao; dia fechado virou dinheiro no caixa, e mexer nele
  * sem rastro e como mexer na gaveta.
  */
-export function podeEditarItem(item: ItemDaConta, papel?: string): boolean {
+export function podeEditarItem(item: ItemDaConta, papel?: string, agora?: Date | string): boolean {
   if (!item?.baixado) return true;
+  if (dentroDaSemanaDeAjuste(agora)) return true;
   return String(papel || '').toUpperCase() === 'ADMIN';
+}
+
+/**
+ * SEMANA DE AJUSTE — combinada com a Cintia em 06/09/2026.
+ *
+ * Ate 12/09 QUALQUER PERFIL edita QUALQUER item, inclusive os ja cobrados. E a semana em
+ * que a equipe aprende a lancar na internacao e as contas antigas sao acertadas: travar
+ * agora obrigaria a chamar a Cintia a cada correcao, e ela viraria gargalo do plantao.
+ *
+ * A data mora NO CODIGO, e nao numa promessa de alguem lembrar: dia 13 a trava volta
+ * sozinha, e "item ja cobrado so o administrativo edita" passa a valer sem ninguem fazer
+ * nada. Se a semana precisar de mais dias, muda-se esta linha — de proposito, porque
+ * afrouxar trava de dinheiro tem de ser uma decisao escrita, nao um esquecimento.
+ *
+ * Depois disso: o relatorio das edicoes da semana (quem mexeu em que) mostra o que cada
+ * perfil realmente precisa, e a regra definitiva sai de dado, nao de palpite.
+ */
+export const AJUSTE_ATE = '2026-09-12T23:59:59-03:00';
+
+export function dentroDaSemanaDeAjuste(agora?: Date | string): boolean {
+  const t = agora ? new Date(agora as any).getTime() : Date.now();
+  if (!Number.isFinite(t)) return false;
+  return t <= new Date(AJUSTE_ATE).getTime();
 }
