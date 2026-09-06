@@ -191,6 +191,38 @@ export default function FichaInternacaoPage() {
   const [produtos, setProdutos] = useState<any[]>([]);
   // Peso do animal: a conta da internação cobra medicação por porte, igual ao balcão.
   const [pesoPet, setPesoPet] = useState<number | null>(null);
+  // 💰 A DIÁRIA VIRA EDITÁVEL NA CONTA (05/09/2026).
+  //
+  // A Cintia: "essa parte pode ser editável". Ela tinha razão e o caso da Kate mostra por
+  // quê: a internação foi aberta com o item "Hospedagem - Diária M", que está cadastrado
+  // com preço R$ 0,00. Resultado — 8 diárias × R$ 0,00 = conta zerada, sem nenhum aviso, e
+  // sem nenhum lugar na tela para corrigir. A única saída era refazer a internação.
+  //
+  // Agora o valor/dia se corrige onde ele aparece errado, e o que a pessoa digita vai pro
+  // metadata da internação (é de lá que a comanda do dia lê a diária).
+  const [diariaEdit, setDiariaEdit] = useState<string | null>(null);
+  const [diariaSalvando, setDiariaSalvando] = useState(false);
+  const salvarDiaria = async () => {
+    const v = Number(String(diariaEdit ?? "").replace(",", "."));
+    if (!Number.isFinite(v) || v < 0) { alert("Informe um valor válido para a diária."); return; }
+    setDiariaSalvando(true);
+    try {
+      const antes = Number(h?.dailyRate) || 0;
+      const res = await fetch(`/api/hospitalizations/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ dailyRate: v }) });
+      if (!res.ok) throw new Error();
+      await logInterno("editou", "diaria", id, { dailyRate: antes }, { dailyRate: v });
+      setDiariaEdit(null); load();
+    } catch { alert("Não consegui salvar o valor da diária."); }
+    finally { setDiariaSalvando(false); }
+  };
+  // O que a tabela por porte diria para o peso deste animal — sugestão, não imposição.
+  const diariaSugerida = useMemo(() => {
+    const it = servicos.find((x: any) => /di[áa]ria de interna/i.test(x?.nome || ""));
+    if (!it || !pesoPet) return null;
+    const l = linhaDoItem(it as any, pesoPet);
+    return l.valorUnitario > 0 ? { valor: l.valorUnitario, faixa: l._faixaRotulo } : null;
+  }, [servicos, pesoPet]);
+
   const [caucaoSaldo, setCaucaoSaldo] = useState(0);
   const [caucaoAplicada, setCaucaoAplicada] = useState(0);
   const [itemOpen, setItemOpen] = useState(false);
@@ -1770,9 +1802,29 @@ export default function FichaInternacaoPage() {
                       <td className="px-4 py-2 whitespace-nowrap">Diária internação</td>
                       <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E8F1F8", color: "#1f5a82" }}>Diária · auto</span></td>
                       <td className="px-2 py-2 text-right tabular-nums">{cc.dias}</td>
-                      <td className="px-2 py-2 text-right tabular-nums">{fmtBRL(cc.diariaVU)}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">
+                        {diariaEdit === null ? (
+                          <span className={cc.diariaVU > 0 ? "" : "font-semibold"} style={cc.diariaVU > 0 ? undefined : { color: "#B45309" }}>
+                            {fmtBRL(cc.diariaVU)}
+                            {cc.diariaVU <= 0 && <span className="ml-1" title="Diária sem valor: a conta fica zerada">⚠️</span>}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 justify-end">
+                            <input autoFocus value={diariaEdit} inputMode="decimal"
+                              onChange={(e) => setDiariaEdit(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") salvarDiaria(); if (e.key === "Escape") setDiariaEdit(null); }}
+                              className="w-24 border rounded-lg px-2 py-1 text-[12.5px] text-right focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                            <button onClick={salvarDiaria} disabled={diariaSalvando} className="text-[11px] px-2 py-1 rounded-lg text-white bg-[#009AAC] disabled:opacity-60">{diariaSalvando ? "…" : "ok"}</button>
+                            <button onClick={() => setDiariaEdit(null)} className="text-[11px] text-[#94a3b8]">✕</button>
+                          </span>
+                        )}
+                      </td>
                       <td className="px-2 py-2 text-right tabular-nums">{fmtBRL(cc.diariaTotal)}</td>
-                      <td></td>
+                      <td className="px-2 py-1">
+                        {!alta && podeEditar && diariaEdit === null && (
+                          <button onClick={() => setDiariaEdit(String(cc.diariaVU || ""))} className="text-[11px] text-[#B4BCC0] hover:text-[#009AAC]" title="Corrigir o valor da diária">✏️</button>
+                        )}
+                      </td>
                     </tr>
                     {conta.map((i) => { const insumo = i.categoria === "Insumo"; const cs = catStyle(i.categoria); const tot = insumo ? 0 : (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0); return (
                       <tr key={i.id} className="border-t" style={{ borderColor: "#F0EBE0", opacity: insumo ? 0.75 : 1 }}>
@@ -1792,7 +1844,19 @@ export default function FichaInternacaoPage() {
                 {caucAplic > 0 && <div className="flex justify-between text-[13px] text-[#5a3b9b]"><span>Caução aplicada</span><span className="tabular-nums font-medium">− {fmtBRL(caucAplic)}</span></div>}
                 <div className="flex justify-between text-[15px] text-[#014D5E] border-t pt-2 mt-0.5" style={{ borderColor: "#F0EBE0" }}><span className="font-medium">Saldo a pagar</span><span className="tabular-nums font-medium">{fmtBRL(saldoPagar)}</span></div>
               </div>
-              <div className="px-4 pb-3 text-[10.5px] text-[#374151]">Diárias entram automáticas (dias × valor/dia). Insumos “só estoque” não somam na conta.</div>
+              {contaCalc().diariaVU <= 0 && !alta && (
+                  <div className="mx-4 mb-2 text-[11.5px] flex items-start gap-2 flex-wrap" style={{ background: "#FBF3E3", border: "1px solid #E8CF97", borderRadius: 9, padding: "9px 11px", color: "#8a6400" }}>
+                    <span>⚠️</span>
+                    <div className="flex-1 min-w-[180px]">
+                      <b>A diária está sem valor</b>, então a conta soma R$ 0,00 por mais dias que o animal fique.
+                      {diariaSugerida && <> Pela tabela por peso, {pesoPet} kg cai em <b>{diariaSugerida.faixa}</b>: {fmtBRL(diariaSugerida.valor)}/dia.</>}
+                    </div>
+                    {diariaSugerida && podeEditar && (
+                      <button onClick={() => setDiariaEdit(String(diariaSugerida.valor))} className="text-[11.5px] font-medium px-2.5 py-1 rounded-lg text-white bg-[#009AAC] flex-shrink-0">usar {fmtBRL(diariaSugerida.valor)}</button>
+                    )}
+                  </div>
+                )}
+              <div className="px-4 pb-3 text-[10.5px] text-[#374151]">Diárias entram automáticas (dias × valor/dia) — o valor se corrige no ✏️. Insumos “só estoque” não somam na conta.</div>
             </div>
 
             {/* Caução (F5) */}
