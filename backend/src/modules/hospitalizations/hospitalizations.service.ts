@@ -5,6 +5,7 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { CreateHospitalizationDto } from './dto/create-hospitalization.dto';
 import { UpdateHospitalizationDto } from './dto/update-hospitalization.dto';
 import { diariasDevidas, diariasAFaturar } from './diaria.regras';
+import { montarFechamento, diasEmAberto, diaDe, type ItemDaConta } from './fechamento.regras';
 
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -96,6 +97,105 @@ export class HospitalizationsService {
 
     const itensResumo = items.map((i) => ({ descricao: i.descricao, total: Number(i.valorTotal) }));
     return { ok: true, vendaId: venda.id, numeroVenda: venda.numeroVenda ?? null, diariasFaturadas: diariasNovas, itens: abertos.length, total: value, totalFaturado: (meta as any).totalFaturado, itensResumo };
+  }
+
+  /** Le a conta da internacao (listas intconta_<id>) ja com o id de cada linha. */
+  private async lerConta(id: string): Promise<Array<ItemDaConta & { _listaId: string }>> {
+    const raw = await this.prisma.listaItem.findMany({ where: { lista: `intconta_${id}` } });
+    return raw
+      .map((li) => { try { return { ...JSON.parse(li.valor), _listaId: li.id }; } catch { return null; } })
+      .filter(Boolean) as any[];
+  }
+
+  /** Os dias que ainda nao viraram comanda — usado pela tela e pelo fechamento da meia-noite. */
+  async diasAbertos(id: string) {
+    const appt = await this.prisma.appointment.findUnique({ where: { id }, select: { id: true, date: true, notes: true } });
+    if (!appt) throw new NotFoundException('Internação não encontrada');
+    const meta: any = this.parseMetadata(appt.notes);
+    if (!meta) throw new BadRequestException('Este atendimento não é uma internação');
+    const itens = await this.lerConta(id);
+    return {
+      dias: diasEmAberto({
+        itens, entrada: appt.date, ate: new Date(),
+        diariaValor: Number(meta.dailyRate) || 0,
+        diariasFaturadas: Number(meta.diariasFaturadas) || 0,
+        diariasGeradas: !!meta?.vitalSigns?.diariasGeradas,
+      }),
+    };
+  }
+
+  /**
+   * FECHA UM DIA da internacao: cria a venda daquele dia no caixa e marca o que entrou.
+   *
+   * Decisao da Cintia (05/09): na alta, COBRAR SO O QUE FALTA. Este metodo e o unico
+   * caminho de cobranca da internacao daqui pra frente — a regra de o que entra mora em
+   * fechamento.regras, com 36 testes, e nao e recalculada aqui.
+   *
+   * O que ja foi cobrado NAO volta: cada item vai marcado com 'baixado' e o numero da
+   * venda. Era exatamente isso que faltava quando "Comanda do dia" e "Enviar pro Caixa"
+   * se ignoravam e cobravam o cliente duas vezes.
+   */
+  async fecharDia(id: string, dia: string, userId: string) {
+    const appt = await this.prisma.appointment.findUnique({ where: { id }, select: { id: true, tutorId: true, petId: true, date: true, notes: true } });
+    if (!appt) throw new NotFoundException('Internação não encontrada');
+    const meta: any = this.parseMetadata(appt.notes);
+    if (!meta) throw new BadRequestException('Este atendimento não é uma internação');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dia || ''))) throw new BadRequestException('Informe o dia no formato AAAA-MM-DD.');
+    if (dia > (diaDe(new Date()) || '')) throw new BadRequestException('Não dá para fechar um dia que ainda não chegou.');
+
+    const conta = await this.lerConta(id);
+    const f = montarFechamento({
+      itens: conta, dia, entrada: appt.date,
+      diariaValor: Number(meta.dailyRate) || 0,
+      diariasFaturadas: Number(meta.diariasFaturadas) || 0,
+      diariasGeradas: !!meta?.vitalSigns?.diariasGeradas,
+    });
+    if (f.vazio) throw new BadRequestException(`Não há nada a cobrar em ${dia.slice(8)}/${dia.slice(5, 7)}.`);
+
+    const items: any[] = [];
+    if (f.diaria) {
+      items.push({
+        descricao: `Diária de internação — ${dia.slice(8)}/${dia.slice(5, 7)}`,
+        quantidade: 1, valorUnitario: f.diaria.valor, valorTotal: f.diaria.valor,
+        servicoId: meta.diariaServicoId || undefined,
+        catalogoItemId: meta.diariaCatalogoItemId || undefined,
+        custoUnitario: meta.diariaCusto != null ? Number(meta.diariaCusto) : undefined,
+      });
+    }
+    for (const i of f.itens) {
+      const q = Number(i.quantidade) || 1, vu = Number(i.valorUnitario) || 0;
+      items.push({
+        descricao: i.descricao || 'Item', quantidade: q, valorUnitario: vu, valorTotal: q * vu,
+        servicoId: (i as any).servicoId || undefined,
+        productId: (i as any).productId || undefined,
+        catalogoItemId: (i as any).catalogoItemId || undefined,
+        custoUnitario: (i as any).custoUnitario != null ? Number((i as any).custoUnitario) : undefined,
+        fornecedorId: (i as any).fornecedorId || undefined,
+      });
+    }
+    const value = items.reduce((s, i) => s + Number(i.valorTotal), 0);
+
+    const venda: any = await this.appointmentsService.create({
+      tutorId: appt.tutorId, petId: appt.petId || undefined, userId,
+      // A venda leva a DATA DO DIA FECHADO, nao a de agora: fechar segunda na terca de
+      // manha nao pode jogar o faturamento da segunda pra terca.
+      date: new Date(`${dia}T12:00:00-03:00`).toISOString(),
+      type: 'Venda', status: 'COMPLETED', value, items,
+    } as any);
+
+    // Marca o que entrou. Falhar aqui seria pior que nao ter fechado: o item ficaria
+    // cobrado na venda e livre na conta, pronto pra ser cobrado de novo.
+    for (const i of f.itens as any[]) {
+      await this.prisma.listaItem.update({
+        where: { id: i._listaId },
+        data: { valor: JSON.stringify({ ...i, _listaId: undefined, baixado: true, comandaId: venda.id, faturadoEm: new Date().toISOString() }) },
+      }).catch(() => undefined);
+    }
+    if (f.diaria) meta.diariasFaturadas = Math.max(Number(meta.diariasFaturadas) || 0, f.diaria.indice + 1);
+    (meta as any).totalFaturado = Number((meta as any).totalFaturado || 0) + value;
+    await this.prisma.appointment.update({ where: { id }, data: { notes: JSON.stringify(meta) } });
+
+    return { ok: true, dia, vendaId: venda.id, numeroVenda: venda.numeroVenda ?? null, itens: items.length, total: value };
   }
 
   private parseMetadata(notes: any): HospitalizationMetadata | null {

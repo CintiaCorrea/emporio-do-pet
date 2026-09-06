@@ -1354,6 +1354,24 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
     for (const g of grupos.values()) g.itens.sort((a: any, b: any) => String(a.at || "").localeCompare(String(b.at || "")));
     return [...grupos.values()].sort((a, b) => (a.dia === "sem-data" ? 1 : b.dia === "sem-data" ? -1 : b.dia.localeCompare(a.dia)));
   }, [conta]);
+  // 🧾 FECHAR O DIA: vira uma venda com número no caixa, só com o que ainda não foi
+  // cobrado. A regra de o que entra mora no backend (fechamento.regras, 36 testes) — a
+  // tela não recalcula nada, só escolhe o dia. Foi a divergência entre dois cálculos que
+  // cobrou o cliente duas vezes.
+  const [fechandoDia, setFechandoDia] = useState<string | null>(null);
+  const fecharDia = async (dia: string, total: number) => {
+    const [, m, d] = dia.split("-");
+    if (!confirm("Fechar o dia " + d + "/" + m + " e mandar pro caixa?\n\nVira uma venda com número, de " + fmtBRL(total) + ".\nEntra só o que ainda não foi cobrado.")) return;
+    setFechandoDia(dia);
+    try {
+      const r = await fetch("/api/hospitalizations/" + id + "/fechar-dia", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ dia }) });
+      const dd = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(dd?.message || "Não consegui fechar o dia.");
+      alert("Dia " + d + "/" + m + " fechado ✅\nVenda " + (dd?.numeroVenda ? "#" + dd.numeroVenda : "") + " de " + fmtBRL(dd?.total || 0) + " no caixa.");
+      load();
+    } catch (e: any) { alert(e?.message || "Não consegui fechar o dia."); }
+    finally { setFechandoDia(null); }
+  };
   const rotuloDia = (d: string) => {
     if (d === "sem-data") return "Sem data";
     const [y, m, dd] = d.split("-");
@@ -2100,6 +2118,13 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                     </span>
                     {g.dia === "sem-data" && <span className="text-[11px] text-[#8a6400]">lançado antes de existir o campo — abra o ✏️ e ponha o dia</span>}
                     <span className="ml-auto text-[14px] font-semibold tabular-nums" style={{ color: fechado ? "#0F6E56" : "#014D5E" }}>{fmtBRL(g.total)}</span>
+                    {!alta && podeEditar && !fechado && g.dia !== "sem-data" && g.total > 0 && (
+                      <button onClick={() => fecharDia(g.dia, g.total)} disabled={!!fechandoDia}
+                        title="Cria a venda deste dia no caixa, só com o que ainda não foi cobrado"
+                        className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg disabled:opacity-60 flex-shrink-0">
+                        {fechandoDia === g.dia ? "Fechando…" : "🧾 Fechar o dia"}
+                      </button>
+                    )}
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-[13px]">

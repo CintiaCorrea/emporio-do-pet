@@ -64,6 +64,18 @@ export class HospitalizationsController {
     return this.hospitalizationsService.getById(id);
   }
 
+  /** Os dias que ainda nao viraram comanda. */
+  @Get(':id/dias-abertos')
+  diasAbertos(@Param('id') id: string) {
+    return this.hospitalizationsService.diasAbertos(id);
+  }
+
+  /** Fecha um dia: cria a venda daquele dia no caixa e marca o que entrou. */
+  @Post(':id/fechar-dia')
+  fecharDia(@Param('id') id: string, @Body() body: { dia: string }, @CurrentUser('id') userId: string) {
+    return this.hospitalizationsService.fecharDia(id, body?.dia, userId);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar internação' })
   update(@Param('id') id: string, @Body() dto: UpdateHospitalizationDto) {
