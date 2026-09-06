@@ -139,6 +139,7 @@ export default function FichaInternacaoPage() {
   const [boxesLivres, setBoxesLivres] = useState<any[]>([]);
   const [trocaBoxOpen, setTrocaBoxOpen] = useState(false);
   const [boxBusy, setBoxBusy] = useState(false);
+  const [maisAberto, setMaisAberto] = useState(false);
 
   // Óbito
   const [obitoOpen, setObitoOpen] = useState(false);
@@ -1367,13 +1368,25 @@ export default function FichaInternacaoPage() {
           <div className="ml-auto flex gap-2 flex-wrap">
             {!podeEditar && <span className="text-[11.5px] font-medium px-3 py-2 rounded-lg bg-[#FBF3E3] text-[#8a6400] border self-center" style={{ borderColor: "#F0DCB0" }}>👁️ Somente leitura</span>}
             <button onClick={() => openWhatsAppMeta(h.tutor?.phone)} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-3 py-2 rounded-lg">💬 WhatsApp</button>
-            {h.pet?.id && <Link href={`/dashboard/erp/pets/${h.pet.id}`} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>📄 Ficha do pet</Link>}
-            <button onClick={() => window.print()} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️ Resumo de alta</button>
-            <button onClick={enviarResumoWhats} disabled={!!finBusy} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-3 py-2 rounded-lg disabled:opacity-60" title="Manda o mesmo resumo pro tutor pelo WhatsApp">{finBusy === "resumo" ? "Enviando…" : "📲 Enviar resumo"}</button>
-            {!alta && podeEditar && <button onClick={() => setTrocaBoxOpen(true)} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🛏️ Trocar box</button>}
+            {h.pet?.id && <Link href={`/dashboard/erp/pets/${h.pet.id}`} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>📄 Ficha</Link>}
+            <button onClick={() => window.print()} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️ Imprimir</button>
+            <button onClick={enviarResumoWhats} disabled={!!finBusy} className="text-[12.5px] font-medium text-white bg-[#009AAC] px-3 py-2 rounded-lg disabled:opacity-60" title="Manda o mesmo resumo pro tutor pelo WhatsApp">{finBusy === "resumo" ? "Enviando…" : "📲 WhatsApp resumo"}</button>
             {!alta && podeEditar && <button onClick={darAlta} className="text-[12.5px] font-medium text-[#CC3366] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#EAC3C1" }}>🚪 Dar alta</button>}
-            {!alta && podeEditar && h.status !== "DECEASED" && <button onClick={() => { setObitoForm({ data: new Date().toISOString().slice(0, 10), causa: "" }); setObitoOpen(true); }} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🕊️ Registrar óbito</button>}
-            {podeEditar && <button onClick={excluirInternacao} disabled={boxBusy} className="text-[12.5px] font-medium bg-white border px-3 py-2 rounded-lg disabled:opacity-50" style={{ borderColor: "#EAC3C1", color: "#CC3366" }} title="Apaga a internação e tudo o que foi lançado nela">🗑️ Excluir internação</button>}
+            {podeEditar && (
+              <div className="relative">
+                <button onClick={() => setMaisAberto((v) => !v)} className="text-[12.5px] font-medium text-[#5C6B70] bg-white border px-3 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>⋯ Mais</button>
+                {maisAberto && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setMaisAberto(false)} />
+                    <div className="absolute right-0 mt-1 z-50 bg-white border rounded-xl shadow-lg overflow-hidden" style={{ borderColor: "#E8E2D6", minWidth: 210 }}>
+                      {!alta && <button onClick={() => { setMaisAberto(false); setTrocaBoxOpen(true); }} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#374151] hover:bg-[#F0FBFC]">🛏️ Trocar box</button>}
+                      {!alta && h.status !== "DECEASED" && <button onClick={() => { setMaisAberto(false); setObitoForm({ data: new Date().toISOString().slice(0, 10), causa: "" }); setObitoOpen(true); }} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#374151] hover:bg-[#F0FBFC] border-t" style={{ borderColor: "#F0EBE0" }}>🕊️ Registrar óbito</button>}
+                      <button onClick={() => { setMaisAberto(false); excluirInternacao(); }} disabled={boxBusy} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#CC3366] hover:bg-[#FDF2F5] border-t disabled:opacity-50" style={{ borderColor: "#F0EBE0" }}>🗑️ Excluir internação</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -2120,6 +2133,14 @@ export default function FichaInternacaoPage() {
                     )}
                   </div>
                 )}
+              {/* SEMANA DE AJUSTE, combinada com a Cintia em 06/09/2026. A data mora no
+                  codigo (fechamento.regras.AJUSTE_ATE) e a trava volta sozinha dia 13 — nao
+                  depende de alguem lembrar. */}
+              {Date.now() <= new Date("2026-09-12T23:59:59-03:00").getTime() && (
+                <div className="mx-4 mb-2 text-[11.5px]" style={{ background: "#EDE9FE", border: "1px solid #D6CCF5", borderRadius: 9, padding: "8px 11px", color: "#5B3FA8" }}>
+                  🔓 <b>Semana de ajuste — até 12/09.</b> Todo mundo pode editar qualquer item, inclusive os já cobrados, enquanto a equipe se acostuma e as contas antigas são acertadas. Depois dessa data, item já cobrado só o administrativo mexe.
+                </div>
+              )}
               <div className="px-4 pb-3 text-[10.5px] text-[#374151]">Diárias entram automáticas (dias × valor/dia) — o valor se corrige no ✏️. Insumos “só estoque” não somam na conta.</div>
             </div>
 
