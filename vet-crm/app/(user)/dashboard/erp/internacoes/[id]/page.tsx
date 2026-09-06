@@ -86,7 +86,10 @@ function tendencia(cur: any, prev: any) {
   return d > 0 ? { dir: "up", ar: "▲", txt: "subindo" } : { dir: "down", ar: "▼", txt: "descendo" };
 }
 function tempForaFaixa(t: any) { const v = parseFloat(t); return !isNaN(v) && (v > 39.3 || v < 37.2); }
-const CAT_FATURAVEL = ["Procedimento", "Medicamento", "Material", "Serviço", "Exame"];
+// "Diária" e categoria de primeira classe desde 05/09/2026: as diarias deixaram de ser uma
+// linha calculada e viraram ITENS datados, um por dia, editaveis e apagaveis. Sem estar na
+// lista, editar uma diaria trocaria a categoria dela pela primeira do select.
+const CAT_FATURAVEL = ["Diária", "Procedimento", "Medicamento", "Material", "Serviço", "Exame"];
 const CAT_CONTA = [...CAT_FATURAVEL, "Insumo"]; // "Insumo" = não-faturável (só baixa estoque)
 const prioToEstado: Record<string, string> = { LOW: "Estável", MEDIUM: "Em observação", HIGH: "Instável", CRITICAL: "Crítico" };
 function estadoDe(h: any): string { return h?.vitalSigns?.estadoClinico || prioToEstado[h?.priority] || "Estável"; }
@@ -200,6 +203,61 @@ export default function FichaInternacaoPage() {
   //
   // Agora o valor/dia se corrige onde ele aparece errado, e o que a pessoa digita vai pro
   // metadata da internação (é de lá que a comanda do dia lê a diária).
+  // 📅 DIÁRIAS COMO ITENS DE VERDADE, UM POR DIA.
+  //
+  // A Cintia: "a parte da conta que preciso poder editar/deletar (...) para arrumar as
+  // cobranças por dia como devem ser".
+  //
+  // A linha "Diária internação · 8 · auto" NÃO É UM ITEM: é uma conta feita na hora
+  // (dias × valor). Por isso não dava pra apagar, nem separar por dia, nem cobrar um dia
+  // diferente do outro — e a conta não podia ser fechada diariamente, que é como a
+  // clínica trabalha.
+  //
+  // "Gerar diárias por dia" transforma o cálculo em N itens datados, cada um editável e
+  // apagável como qualquer outro. A partir daí a linha automática se cala: quem manda são
+  // os itens, senão as diárias entrariam duas vezes.
+  const diariasGeradas = !!(h as any)?.vitalSigns?.diariasGeradas;
+  const [gerandoDiarias, setGerandoDiarias] = useState(false);
+  const gerarDiariasPorDia = async () => {
+    const cc0 = contaCalc();
+    const vu = Number(h?.dailyRate) || 0;
+    if (vu <= 0 && !confirm("A diária está sem valor. Gerar mesmo assim, com R$ 0,00 em cada dia, pra você preencher um por um?")) return;
+    const n = cc0.dias;
+    if (!n) { alert("Não há diárias a gerar."); return; }
+    const inicio = h?.admissionDate ? new Date(h.admissionDate) : new Date();
+    if (!confirm(`Gerar ${n} diária(s) como itens da conta, uma por dia, a partir de ${fmtData(h?.admissionDate)}?\n\nCada uma fica editável e apagável. A linha automática deixa de somar.`)) return;
+    setGerandoDiarias(true);
+    try {
+      for (let i = 0; i < n; i++) {
+        // Cada diária cobre as 24h a partir da MESMA HORA da entrada — é assim que ela é
+        // contada. O dia do item é o dia em que aquele período começou.
+        const quando = new Date(inicio.getTime() + i * 86400000);
+        const payload = {
+          descricao: `Diária de internação — ${quando.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`,
+          categoria: "Diária", quantidade: 1, valorUnitario: vu,
+          servicoId: "", productId: "", at: quando.toISOString(), baixado: false,
+          ...(( h as any)?.diariaCatalogoItemId ? { catalogoItemId: (h as any).diariaCatalogoItemId } : {}),
+        };
+        await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(payload) }) });
+      }
+      await salvarVital({ vitalSigns: { diariasGeradas: true } });
+      await logInterno("criou", "diarias-por-dia", id, null, { quantidade: n, valorUnitario: vu });
+      load();
+    } catch { alert("Não consegui gerar as diárias."); }
+    finally { setGerandoDiarias(false); }
+  };
+  // Volta a linha automática: apaga as diárias geradas e destrava o cálculo.
+  const desfazerDiariasPorDia = async () => {
+    const geradas = conta.filter((i: any) => i.categoria === "Diária");
+    if (!confirm(`Apagar as ${geradas.length} diária(s) lançadas e voltar ao cálculo automático?`)) return;
+    setGerandoDiarias(true);
+    try {
+      for (const g of geradas) await fetch(`/api/listas/${g.id}`, { method: "DELETE", credentials: "include" }).catch(() => undefined);
+      await salvarVital({ vitalSigns: { diariasGeradas: false } });
+      load();
+    } finally { setGerandoDiarias(false); }
+  };
+
   const [diariaEdit, setDiariaEdit] = useState<string | null>(null);
   const [diariaQtdEdit, setDiariaQtdEdit] = useState<string | null>(null);
   const salvarDiariaQtd = async () => {
@@ -592,7 +650,9 @@ export default function FichaInternacaoPage() {
     // A contagem automática (24h começadas) vale, a menos que alguém tenha corrigido.
     const auto = diasInternado(h?.admissionDate, h?.actualDischargeDate);
     const manual = (h as any)?.vitalSigns?.diariasManuais;
-    const dias = manual == null ? auto : Math.max(0, Math.floor(Number(manual) || 0));
+    // Diárias já lançadas como ITENS? Então elas somam pelos itens, e a linha automática
+    // zera — senão a mesma diária entraria duas vezes na conta.
+    const dias = (h as any)?.vitalSigns?.diariasGeradas ? 0 : (manual == null ? auto : Math.max(0, Math.floor(Number(manual) || 0)));
     const diariaVU = Number(h?.dailyRate) || 0;
     const diariaTotal = dias * diariaVU;
     const itensFat = conta.filter((i) => i.categoria !== "Insumo");
@@ -1846,7 +1906,19 @@ export default function FichaInternacaoPage() {
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
                 <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🧾 Conta da internação</h3>
-                {!alta && podeEditar && <button onClick={() => abrirItem()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Adicionar item</button>}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {podeEditar && !diariasGeradas && (
+                    <button onClick={gerarDiariasPorDia} disabled={gerandoDiarias} title="Transforma a diária calculada em um item por dia, cada um editável e apagável" className="text-[12px] font-medium px-3 py-1.5 rounded-lg border disabled:opacity-60" style={{ borderColor: "#009AAC", color: "#007B8A", background: "#fff" }}>
+                      {gerandoDiarias ? "Gerando…" : "📅 Gerar diárias por dia"}
+                    </button>
+                  )}
+                  {podeEditar && diariasGeradas && (
+                    <button onClick={desfazerDiariasPorDia} disabled={gerandoDiarias} title="Apaga as diárias lançadas e volta ao cálculo automático" className="text-[12px] font-medium px-3 py-1.5 rounded-lg border disabled:opacity-60" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>
+                      ↩︎ voltar ao automático
+                    </button>
+                  )}
+                  {!alta && podeEditar && <button onClick={() => abrirItem()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3 py-1.5 rounded-lg">➕ Adicionar item</button>}
+                </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
@@ -1854,7 +1926,7 @@ export default function FichaInternacaoPage() {
                     <th className="text-left font-medium px-3 py-2">Dia</th><th className="text-left font-medium px-2 py-2">Item</th><th className="text-left font-medium px-2 py-2">Categoria</th><th className="text-right font-medium px-2 py-2">Qtd</th><th className="text-right font-medium px-2 py-2">Valor</th><th className="text-right font-medium px-2 py-2">Total</th><th className="px-2 py-2"></th>
                   </tr></thead>
                   <tbody>
-                    <tr className="border-t" style={{ borderColor: "#F0EBE0" }}>
+                    {!diariasGeradas && <tr className="border-t" style={{ borderColor: "#F0EBE0" }}>
                       <td className="px-3 py-2 whitespace-nowrap text-[11.5px] text-[#94a3b8]">todos</td>
                       <td className="px-2 py-2 whitespace-nowrap">Diária internação</td>
                       <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E8F1F8", color: "#1f5a82" }}>Diária · auto</span></td>
@@ -1901,7 +1973,7 @@ export default function FichaInternacaoPage() {
                           <button onClick={() => { setDiariaEdit(String(cc.diariaVU || "")); setDiariaQtdEdit(String(cc.dias)); }} className="text-[11px] text-[#B4BCC0] hover:text-[#009AAC]" title="Corrigir a quantidade de diárias e o valor">✏️</button>
                         )}
                       </td>
-                    </tr>
+                    </tr>}
                     {conta.map((i) => { const insumo = i.categoria === "Insumo"; const cs = catStyle(i.categoria); const tot = insumo ? 0 : (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0); return (
                       <tr key={i.id} className="border-t" style={{ borderColor: "#F0EBE0", opacity: insumo ? 0.75 : 1 }}>
                         <td className="px-3 py-2 whitespace-nowrap text-[11.5px]" style={{ color: "#5C6B70" }}>{diaCurto(i.at) || <span className="text-[#C9CFD2]">—</span>}</td>
