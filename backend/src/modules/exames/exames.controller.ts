@@ -10,6 +10,18 @@ import { ExamesService } from './exames.service';
 export class ExamesController {
   constructor(private readonly service: ExamesService) {}
 
+  /**
+   * Inicia exames no Kanban a partir de OUTRA origem que nao a venda — hoje, a conta da
+   * internacao. Ate 05/09/2026 exame lancado na internacao ficava so na conta: era cobrado,
+   * mas ninguem sabia que havia exame para coletar, mandar ao laboratorio e cobrar resultado.
+   * A venda ja fazia isso (caixa.vendaDireta); a internacao nao tinha por onde.
+   */
+  @Post('iniciar')
+  iniciar(@Body() body: { petId: string; itens: any[]; origem?: string }) {
+    const itens = (body?.itens || []).map((i) => ({ ...i, origem: body?.origem || 'INTERNACAO' }));
+    return this.service.iniciarExamesDaVenda(body?.petId, itens).then((n) => ({ ok: true, criados: n }));
+  }
+
   /** FILA (Kanban): exames em andamento com pet/tutor/lab. */
   @Get('fila')
   fila() {
