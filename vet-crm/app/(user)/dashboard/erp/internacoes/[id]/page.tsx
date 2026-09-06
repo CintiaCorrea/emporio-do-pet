@@ -89,7 +89,7 @@ function tempForaFaixa(t: any) { const v = parseFloat(t); return !isNaN(v) && (v
 // "Diária" e categoria de primeira classe desde 05/09/2026: as diarias deixaram de ser uma
 // linha calculada e viraram ITENS datados, um por dia, editaveis e apagaveis. Sem estar na
 // lista, editar uma diaria trocaria a categoria dela pela primeira do select.
-const CAT_FATURAVEL = ["Diária", "Procedimento", "Medicamento", "Material", "Serviço", "Exame"];
+const CAT_FATURAVEL = ["Diária", "Medicação", "Procedimento", "Medicamento", "Material", "Serviço", "Exame"];
 const CAT_CONTA = [...CAT_FATURAVEL, "Insumo"]; // "Insumo" = não-faturável (só baixa estoque)
 const prioToEstado: Record<string, string> = { LOW: "Estável", MEDIUM: "Em observação", HIGH: "Instável", CRITICAL: "Crítico" };
 function estadoDe(h: any): string { return h?.vitalSigns?.estadoClinico || prioToEstado[h?.priority] || "Estável"; }
@@ -566,6 +566,14 @@ export default function FichaInternacaoPage() {
             baixado: false,
             medLogId: logId,
             auto: true,
+            // A data e a HORA DA APLICACAO, nao a do clique: quem marca as 22h a dose das
+            // 20h precisa que ela conste no dia 20h. E o horario do slot que manda.
+            at: (() => {
+              const [hh, mm] = String(slot.hhmm || "").split(":").map(Number);
+              const d = new Date(now);
+              if (Number.isFinite(hh)) d.setHours(hh, Number.isFinite(mm) ? mm : 0, 0, 0);
+              return d.toISOString();
+            })(),
           };
           await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(itemPayload) }) }).catch(() => undefined);
         }
