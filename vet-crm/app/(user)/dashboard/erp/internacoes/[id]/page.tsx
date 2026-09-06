@@ -201,6 +201,25 @@ export default function FichaInternacaoPage() {
   // Agora o valor/dia se corrige onde ele aparece errado, e o que a pessoa digita vai pro
   // metadata da internação (é de lá que a comanda do dia lê a diária).
   const [diariaEdit, setDiariaEdit] = useState<string | null>(null);
+  const [diariaQtdEdit, setDiariaQtdEdit] = useState<string | null>(null);
+  const salvarDiariaQtd = async () => {
+    const n = Math.floor(Number(String(diariaQtdEdit ?? "").replace(",", ".")));
+    if (!Number.isFinite(n) || n < 0) { alert("Informe a quantidade de diárias."); return; }
+    setDiariaSalvando(true);
+    try {
+      const antes = (h as any)?.vitalSigns?.diariasManuais ?? null;
+      // Guardado junto do resto da internação. `null` volta pra contagem automática.
+      await salvarVital({ vitalSigns: { diariasManuais: n } });
+      await logInterno("editou", "diarias-qtd", id, { diarias: antes }, { diarias: n });
+      setDiariaQtdEdit(null);
+    } catch { alert("Não consegui salvar a quantidade de diárias."); }
+    finally { setDiariaSalvando(false); }
+  };
+  const voltarDiariaAuto = async () => {
+    setDiariaSalvando(true);
+    try { await salvarVital({ vitalSigns: { diariasManuais: null } }); setDiariaQtdEdit(null); }
+    finally { setDiariaSalvando(false); }
+  };
   const [diariaSalvando, setDiariaSalvando] = useState(false);
   const salvarDiaria = async () => {
     const v = Number(String(diariaEdit ?? "").replace(",", "."));
@@ -226,7 +245,7 @@ export default function FichaInternacaoPage() {
   const [caucaoSaldo, setCaucaoSaldo] = useState(0);
   const [caucaoAplicada, setCaucaoAplicada] = useState(0);
   const [itemOpen, setItemOpen] = useState(false);
-  const [itemForm, setItemForm] = useState<any>({ id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "" });
+  const [itemForm, setItemForm] = useState<any>({ id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "", quando: "" });
   const [itemSaving, setItemSaving] = useState(false);
   const [caucaoOpen, setCaucaoOpen] = useState(false);
   const [caucaoForm, setCaucaoForm] = useState<any>({ valor: "", descricao: "Caução de internação", forma: "Dinheiro" });
@@ -557,7 +576,10 @@ export default function FichaInternacaoPage() {
 
   // ── Financeiro (F5) ───────────────────────────────────────────────
   const contaCalc = () => {
-    const dias = diasInternado(h?.admissionDate, h?.actualDischargeDate);
+    // A contagem automática (24h começadas) vale, a menos que alguém tenha corrigido.
+    const auto = diasInternado(h?.admissionDate, h?.actualDischargeDate);
+    const manual = (h as any)?.vitalSigns?.diariasManuais;
+    const dias = manual == null ? auto : Math.max(0, Math.floor(Number(manual) || 0));
     const diariaVU = Number(h?.dailyRate) || 0;
     const diariaTotal = dias * diariaVU;
     const itensFat = conta.filter((i) => i.categoria !== "Insumo");
@@ -566,7 +588,7 @@ export default function FichaInternacaoPage() {
     const totalFaturavel = diariaTotal + totalItensFat;
     return { dias, diariaVU, diariaTotal, itensFat, itensInsumo, totalFaturavel };
   };
-  const abrirItem = (p?: any) => { setItemForm(p ? { id: p.id, descricao: p.descricao || "", categoria: p.categoria || "Procedimento", quantidade: String(p.quantidade || "1"), valorUnitario: String(p.valorUnitario ?? ""), servicoId: p.servicoId || "", productId: p.productId || "", custoUnitario: p.custoUnitario, fornecedorId: p.fornecedorId ?? null, catalogoExameId: p.catalogoExameId, _exame: p._exame } : { id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "" }); setItemOpen(true); };
+  const abrirItem = (p?: any) => { setItemForm(p ? { id: p.id, descricao: p.descricao || "", categoria: p.categoria || "Procedimento", quantidade: String(p.quantidade || "1"), valorUnitario: String(p.valorUnitario ?? ""), servicoId: p.servicoId || "", productId: p.productId || "", custoUnitario: p.custoUnitario, fornecedorId: p.fornecedorId ?? null, catalogoExameId: p.catalogoExameId, _exame: p._exame, catalogoItemId: p.catalogoItemId, quando: paraCampoLocal(p.at) || agoraLocal() } : { id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "", quando: agoraLocal() }); setItemOpen(true); };
   const pickServico = (sid: string) => {
     const s = servicos.find((x) => x.id === sid); if (!s) return;
     // O PESO do animal escolhe o preço quando o item cobra por porte — a mesma regra do
@@ -601,7 +623,13 @@ export default function FichaInternacaoPage() {
     setItemSaving(true);
     try {
       const insumo = itemForm.categoria === "Insumo";
-      const payload = { descricao: itemForm.descricao.trim(), categoria: itemForm.categoria, quantidade: Number(itemForm.quantidade) || 1, valorUnitario: insumo ? 0 : (Number(itemForm.valorUnitario) || 0), servicoId: itemForm.servicoId || "", productId: itemForm.productId || "", baixado: false, ...(itemForm.custoUnitario != null ? { custoUnitario: Number(itemForm.custoUnitario) } : {}), ...(itemForm.fornecedorId ? { fornecedorId: itemForm.fornecedorId } : {}), ...(itemForm._exame ? { _exame: true, catalogoExameId: itemForm.catalogoExameId } : {}) };
+      // DE QUE DIA É ESTE ITEM. A conta fecha todo dia e o cliente precisa saber o que
+      // está sendo cobrado em cada um — item sem data vira "cobrança de algum dia".
+      // Preserva o "baixado" na edição: reabrir um item já faturado o recobraria.
+      const origItem = itemForm.id ? conta.find((x: any) => x.id === itemForm.id) : null;
+      const quandoI = itemForm.quando ? new Date(itemForm.quando) : new Date();
+      const emQueI = Number.isNaN(quandoI.getTime()) ? new Date() : quandoI;
+      const payload = { descricao: itemForm.descricao.trim(), categoria: itemForm.categoria, quantidade: Number(itemForm.quantidade) || 1, valorUnitario: insumo ? 0 : (Number(itemForm.valorUnitario) || 0), servicoId: itemForm.servicoId || "", productId: itemForm.productId || "", at: emQueI.toISOString(), baixado: !!origItem?.baixado, ...(origItem?.comandaId ? { comandaId: origItem.comandaId, faturadoEm: origItem.faturadoEm } : {}), ...(itemForm.custoUnitario != null ? { custoUnitario: Number(itemForm.custoUnitario) } : {}), ...(itemForm.fornecedorId ? { fornecedorId: itemForm.fornecedorId } : {}), ...(itemForm._exame ? { _exame: true, catalogoExameId: itemForm.catalogoExameId } : {}) };
       if (itemForm.id) await fetch(`/api/listas/${itemForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
       else {
         await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(payload) }) });
@@ -1795,13 +1823,33 @@ export default function FichaInternacaoPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-[13px]">
                   <thead><tr className="text-[10.5px] text-[#374151] uppercase tracking-wide">
-                    <th className="text-left font-medium px-4 py-2">Item</th><th className="text-left font-medium px-2 py-2">Categoria</th><th className="text-right font-medium px-2 py-2">Qtd</th><th className="text-right font-medium px-2 py-2">Valor</th><th className="text-right font-medium px-2 py-2">Total</th><th className="px-2 py-2"></th>
+                    <th className="text-left font-medium px-3 py-2">Dia</th><th className="text-left font-medium px-2 py-2">Item</th><th className="text-left font-medium px-2 py-2">Categoria</th><th className="text-right font-medium px-2 py-2">Qtd</th><th className="text-right font-medium px-2 py-2">Valor</th><th className="text-right font-medium px-2 py-2">Total</th><th className="px-2 py-2"></th>
                   </tr></thead>
                   <tbody>
                     <tr className="border-t" style={{ borderColor: "#F0EBE0" }}>
-                      <td className="px-4 py-2 whitespace-nowrap">Diária internação</td>
+                      <td className="px-3 py-2 whitespace-nowrap text-[11.5px] text-[#94a3b8]">todos</td>
+                      <td className="px-2 py-2 whitespace-nowrap">Diária internação</td>
                       <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E8F1F8", color: "#1f5a82" }}>Diária · auto</span></td>
-                      <td className="px-2 py-2 text-right tabular-nums">{cc.dias}</td>
+                      <td className="px-2 py-2 text-right tabular-nums">
+                        {diariaQtdEdit === null ? (
+                          <span className="inline-flex items-center gap-1">
+                            {cc.dias}
+                            {(h as any)?.vitalSigns?.diariasManuais != null && (
+                              <span className="text-[9.5px] font-medium px-1.5 py-0.5 rounded-full" title="Quantidade corrigida à mão — clique no lápis pra voltar ao automático" style={{ background: "#FBF3E3", color: "#8a6400" }}>mão</span>
+                            )}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 justify-end">
+                            <input autoFocus type="number" min={0} value={diariaQtdEdit}
+                              onChange={(e) => setDiariaQtdEdit(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") salvarDiariaQtd(); if (e.key === "Escape") setDiariaQtdEdit(null); }}
+                              className="w-16 border rounded-lg px-2 py-1 text-[12.5px] text-right focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                            <button onClick={salvarDiariaQtd} disabled={diariaSalvando} className="text-[11px] px-2 py-1 rounded-lg text-white bg-[#009AAC] disabled:opacity-60">ok</button>
+                            <button onClick={voltarDiariaAuto} disabled={diariaSalvando} title="Voltar à contagem automática" className="text-[11px] text-[#007B8A] underline">auto</button>
+                            <button onClick={() => setDiariaQtdEdit(null)} className="text-[11px] text-[#94a3b8]">✕</button>
+                          </span>
+                        )}
+                      </td>
                       <td className="px-2 py-2 text-right tabular-nums">
                         {diariaEdit === null ? (
                           <span className={cc.diariaVU > 0 ? "" : "font-semibold"} style={cc.diariaVU > 0 ? undefined : { color: "#B45309" }}>
@@ -1822,13 +1870,14 @@ export default function FichaInternacaoPage() {
                       <td className="px-2 py-2 text-right tabular-nums">{fmtBRL(cc.diariaTotal)}</td>
                       <td className="px-2 py-1">
                         {!alta && podeEditar && diariaEdit === null && (
-                          <button onClick={() => setDiariaEdit(String(cc.diariaVU || ""))} className="text-[11px] text-[#B4BCC0] hover:text-[#009AAC]" title="Corrigir o valor da diária">✏️</button>
+                          <button onClick={() => { setDiariaEdit(String(cc.diariaVU || "")); setDiariaQtdEdit(String(cc.dias)); }} className="text-[11px] text-[#B4BCC0] hover:text-[#009AAC]" title="Corrigir a quantidade de diárias e o valor">✏️</button>
                         )}
                       </td>
                     </tr>
                     {conta.map((i) => { const insumo = i.categoria === "Insumo"; const cs = catStyle(i.categoria); const tot = insumo ? 0 : (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0); return (
                       <tr key={i.id} className="border-t" style={{ borderColor: "#F0EBE0", opacity: insumo ? 0.75 : 1 }}>
-                        <td className="px-4 py-2 whitespace-nowrap">{i.descricao}{insumo && i.baixado ? <span className="text-[10px] text-[#0F6E56] ml-1">✓ baixado</span> : null}</td>
+                        <td className="px-3 py-2 whitespace-nowrap text-[11.5px]" style={{ color: "#5C6B70" }}>{diaCurto(i.at) || <span className="text-[#C9CFD2]">—</span>}</td>
+                        <td className="px-2 py-2 whitespace-nowrap">{i.descricao}{insumo && i.baixado ? <span className="text-[10px] text-[#0F6E56] ml-1">✓ baixado</span> : null}{!insumo && i.baixado ? <span className="text-[10px] text-[#0F6E56] ml-1" title={`Faturado em ${diaCurto(i.faturadoEm)}`}>✓ já cobrado</span> : null}</td>
                         <td className="px-2 py-2"><span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: cs.bg, color: cs.fg }}>{insumo ? "Insumo · só estoque" : i.categoria}</span></td>
                         <td className="px-2 py-2 text-right tabular-nums">{i.quantidade}</td>
                         <td className="px-2 py-2 text-right tabular-nums">{insumo ? "—" : fmtBRL(Number(i.valorUnitario) || 0)}</td>
@@ -2207,6 +2256,11 @@ export default function FichaInternacaoPage() {
               )}
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Descrição *</label>
                 <input value={itemForm.descricao} onChange={(e) => setItemForm({ ...itemForm, descricao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              {/* DE QUE DIA E ESTE ITEM. A conta fecha todo dia e o cliente precisa saber o
+                  que esta sendo cobrado em cada um — item sem data vira "cobranca de algum dia". */}
+              <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Dia do lançamento *</label>
+                <input type="datetime-local" value={itemForm.quando || ""} onChange={(e) => setItemForm({ ...itemForm, quando: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                <div className="text-[10.5px] text-[#5C6B70] mt-1">Já vem com agora. Mude ao lançar algo de um dia anterior.</div></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Quantidade</label>
                 <input type="number" min={1} value={itemForm.quantidade} onChange={(e) => setItemForm({ ...itemForm, quantidade: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               {itemForm.categoria !== "Insumo" && (
