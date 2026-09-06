@@ -421,6 +421,56 @@ export class HospitalizationsService {
     };
   }
 
+  /**
+   * GARANTE QUE CADA DIA TENHA A SUA DIARIA COMO ITEM DA CONTA.
+   *
+   * O padrao decidido com a Cintia: a diaria e um ITEM da comanda do dia, ao lado da
+   * medicacao e dos exames — nao um numero solto somado por fora.
+   *
+   * Ate 06/09/2026 isso dependia de alguem clicar em "Gerar diarias por dia". A ficha da
+   * Kate (que eu migrei a mao) seguia o padrao e as outras nao — foi ela quem notou:
+   * "essa falta de padronizacao (...) dificulta e atrasa muito o trabalho".
+   *
+   * Botao pra fazer o que o sistema deveria fazer sozinho e trabalho empurrado pra quem
+   * ja tem trabalho. Agora roda ao abrir a ficha, e e IDEMPOTENTE: so cria o que falta,
+   * comparando pelo DIA — nunca duplica, nem as diarias que ja vieram das vendas antigas.
+   */
+  async garantirDiariasComoItens(id: string, entrada: Date, meta: any): Promise<number> {
+    const valor = Number(meta?.dailyRate) || 0;
+    if (valor <= 0) return 0; // sem valor nao se inventa cobranca — a tela avisa
+    const comecadas = diariasDevidas(
+      entrada.getTime(), Date.now(),
+      meta?.actualDischargeDate ? new Date(meta.actualDischargeDate).getTime() : null,
+    );
+    const conta = await this.lerConta(id);
+    const diasComDiaria = new Set(
+      conta.filter((i: any) => i.categoria === 'Diária').map((i: any) => diaDe(i.at)).filter(Boolean),
+    );
+    let criadas = 0;
+    for (let i = 0; i < comecadas; i++) {
+      const quando = new Date(entrada.getTime() + i * 86_400_000);
+      const dia = diaDe(quando);
+      if (!dia || diasComDiaria.has(dia)) continue;
+      const rot = `${dia.slice(8)}/${dia.slice(5, 7)}`;
+      await this.prisma.listaItem.create({
+        data: {
+          lista: `intconta_${id}`,
+          valor: JSON.stringify({
+            descricao: `Diária de internação — ${rot}`,
+            categoria: 'Diária', quantidade: 1, valorUnitario: valor,
+            servicoId: '', productId: '', at: quando.toISOString(), baixado: false,
+            ...(meta?.diariaCatalogoItemId ? { catalogoItemId: meta.diariaCatalogoItemId } : {}),
+            ...(meta?.diariaCusto != null ? { custoUnitario: Number(meta.diariaCusto) } : {}),
+            auto: true,
+          }),
+        },
+      }).catch(() => undefined);
+      diasComDiaria.add(dia);
+      criadas++;
+    }
+    return criadas;
+  }
+
   async getById(id: string) {
     const appointment = await this.prisma.appointment.findUnique({
       where: { id },
@@ -444,6 +494,13 @@ export class HospitalizationsService {
       dailyRate: 0,
       priority: 'MEDIUM' as Priority,
     };
+
+    // A diaria de cada dia vira ITEM da conta ao abrir a ficha. E o padrao da casa, e
+    // depende do sistema, nao de alguem lembrar de clicar num botao. Falhar aqui nao pode
+    // impedir a ficha de abrir — a conta e complemento, o prontuario e o principal.
+    if ((metadata as any)?.type === 'HOSPITALIZATION') {
+      await this.garantirDiariasComoItens(id, appointment.date, metadata).catch(() => 0);
+    }
 
     return this.toHospitalization(appointment, metadata as HospitalizationMetadata);
   }

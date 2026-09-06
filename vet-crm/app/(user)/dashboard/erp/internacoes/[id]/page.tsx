@@ -211,92 +211,22 @@ export default function FichaInternacaoPage() {
   //
   // Agora o valor/dia se corrige onde ele aparece errado, e o que a pessoa digita vai pro
   // metadata da internação (é de lá que a comanda do dia lê a diária).
-  // 📅 DIÁRIAS COMO ITENS DE VERDADE, UM POR DIA.
+  // 💰 O VALOR DA DIÁRIA vale para as diárias que AINDA vão ser lançadas. As já lançadas
+  // são itens da conta e se corrigem no "Editar o dia", junto com o resto daquele dia.
   //
-  // A Cintia: "a parte da conta que preciso poder editar/deletar (...) para arrumar as
-  // cobranças por dia como devem ser".
-  //
-  // A linha "Diária internação · 8 · auto" NÃO É UM ITEM: é uma conta feita na hora
-  // (dias × valor). Por isso não dava pra apagar, nem separar por dia, nem cobrar um dia
-  // diferente do outro — e a conta não podia ser fechada diariamente, que é como a
-  // clínica trabalha.
-  //
-  // "Gerar diárias por dia" transforma o cálculo em N itens datados, cada um editável e
-  // apagável como qualquer outro. A partir daí a linha automática se cala: quem manda são
-  // os itens, senão as diárias entrariam duas vezes.
-  const diariasGeradas = !!(h as any)?.vitalSigns?.diariasGeradas;
-  const [gerandoDiarias, setGerandoDiarias] = useState(false);
-  const gerarDiariasPorDia = async () => {
-    const cc0 = contaCalc();
-    const vu = Number(h?.dailyRate) || 0;
-    if (vu <= 0 && !confirm("A diária está sem valor. Gerar mesmo assim, com R$ 0,00 em cada dia, pra você preencher um por um?")) return;
-    const n = cc0.dias;
-    if (!n) { alert("Não há diárias a gerar."); return; }
-    const inicio = h?.admissionDate ? new Date(h.admissionDate) : new Date();
-    if (!confirm(`Gerar ${n} diária(s) como itens da conta, uma por dia, a partir de ${fmtData(h?.admissionDate)}?\n\nCada uma fica editável e apagável. A linha automática deixa de somar.`)) return;
-    setGerandoDiarias(true);
-    try {
-      for (let i = 0; i < n; i++) {
-        // Cada diária cobre as 24h a partir da MESMA HORA da entrada — é assim que ela é
-        // contada. O dia do item é o dia em que aquele período começou.
-        const quando = new Date(inicio.getTime() + i * 86400000);
-        const payload = {
-          descricao: `Diária de internação — ${quando.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`,
-          categoria: "Diária", quantidade: 1, valorUnitario: vu,
-          servicoId: "", productId: "", at: quando.toISOString(), baixado: false,
-          ...(( h as any)?.diariaCatalogoItemId ? { catalogoItemId: (h as any).diariaCatalogoItemId } : {}),
-        };
-        await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(payload) }) });
-      }
-      await salvarVital({ vitalSigns: { diariasGeradas: true } });
-      await logInterno("criou", "diarias-por-dia", id, null, { quantidade: n, valorUnitario: vu });
-      load();
-    } catch { alert("Não consegui gerar as diárias."); }
-    finally { setGerandoDiarias(false); }
-  };
-  // Volta a linha automática: apaga as diárias geradas e destrava o cálculo.
-  const desfazerDiariasPorDia = async () => {
-    const geradas = conta.filter((i: any) => i.categoria === "Diária");
-    if (!confirm(`Apagar as ${geradas.length} diária(s) lançadas e voltar ao cálculo automático?`)) return;
-    setGerandoDiarias(true);
-    try {
-      for (const g of geradas) await fetch(`/api/listas/${g.id}`, { method: "DELETE", credentials: "include" }).catch(() => undefined);
-      await salvarVital({ vitalSigns: { diariasGeradas: false } });
-      load();
-    } finally { setGerandoDiarias(false); }
-  };
-
-  const [diariaEdit, setDiariaEdit] = useState<string | null>(null);
-  const [diariaQtdEdit, setDiariaQtdEdit] = useState<string | null>(null);
-  const salvarDiariaQtd = async () => {
-    const n = Math.floor(Number(String(diariaQtdEdit ?? "").replace(",", ".")));
-    if (!Number.isFinite(n) || n < 0) { alert("Informe a quantidade de diárias."); return; }
-    setDiariaSalvando(true);
-    try {
-      const antes = (h as any)?.vitalSigns?.diariasManuais ?? null;
-      // Guardado junto do resto da internação. `null` volta pra contagem automática.
-      await salvarVital({ vitalSigns: { diariasManuais: n } });
-      await logInterno("editou", "diarias-qtd", id, { diarias: antes }, { diarias: n });
-      setDiariaQtdEdit(null);
-    } catch { alert("Não consegui salvar a quantidade de diárias."); }
-    finally { setDiariaSalvando(false); }
-  };
-  const voltarDiariaAuto = async () => {
-    setDiariaSalvando(true);
-    try { await salvarVital({ vitalSigns: { diariasManuais: null } }); setDiariaQtdEdit(null); }
-    finally { setDiariaSalvando(false); }
-  };
+  // O que existia aqui — "Gerar diárias por dia", "voltar ao automático", quantidade
+  // editada à mão — era o caminho manual pra fazer o que o sistema passou a fazer sozinho.
+  // Foi ele que deixou a ficha da Kate (migrada à mão) diferente das outras.
   const [diariaSalvando, setDiariaSalvando] = useState(false);
-  const salvarDiaria = async () => {
-    const v = Number(String(diariaEdit ?? "").replace(",", "."));
-    if (!Number.isFinite(v) || v < 0) { alert("Informe um valor válido para a diária."); return; }
+  const definirDiaria = async (valor: number) => {
+    if (!Number.isFinite(valor) || valor < 0) { alert("Informe um valor válido para a diária."); return; }
     setDiariaSalvando(true);
     try {
       const antes = Number(h?.dailyRate) || 0;
-      const res = await fetch(`/api/hospitalizations/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ dailyRate: v }) });
+      const res = await fetch(`/api/hospitalizations/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ dailyRate: valor }) });
       if (!res.ok) throw new Error();
-      await logInterno("editou", "diaria", id, { dailyRate: antes }, { dailyRate: v });
-      setDiariaEdit(null); load();
+      await logInterno("editou", "diaria", id, { dailyRate: antes }, { dailyRate: valor });
+      load();
     } catch { alert("Não consegui salvar o valor da diária."); }
     finally { setDiariaSalvando(false); }
   };
@@ -455,7 +385,7 @@ export default function FichaInternacaoPage() {
   };
 
   const abrirAdm = () => {
-    setAdmForm({ pesoEntrada: adm.pesoEntrada || "", tempEntrada: adm.tempEntrada || "", diagnosis: h?.diagnosis || "", prognostico: adm.prognostico || "", estimatedDischargeDate: h?.estimatedDischargeDate ? String(h.estimatedDischargeDate).slice(0, 10) : "", entradaEm: paraCampoLocal(h?.admissionDate) });
+    setAdmForm({ pesoEntrada: adm.pesoEntrada || "", tempEntrada: adm.tempEntrada || "", diagnosis: h?.diagnosis || "", prognostico: adm.prognostico || "", estimatedDischargeDate: h?.estimatedDischargeDate ? String(h.estimatedDischargeDate).slice(0, 10) : "", entradaEm: paraCampoLocal(h?.admissionDate), diaria: h?.dailyRate ?? "" });
     setAdmOpen(true);
   };
   const salvarAdm = async () => {
@@ -472,6 +402,7 @@ export default function FichaInternacaoPage() {
       await salvarVital({
         diagnosis: admForm.diagnosis || undefined,
         estimatedDischargeDate: admForm.estimatedDischargeDate || undefined,
+        ...(admForm.diaria !== "" && admForm.diaria != null ? { dailyRate: Number(admForm.diaria) || 0 } : {}),
         ...(mudouEntrada ? { admissionAt: new Date(admForm.entradaEm).toISOString() } : {}),
         vitalSigns: { admissao: { pesoEntrada: admForm.pesoEntrada, tempEntrada: admForm.tempEntrada, prognostico: admForm.prognostico } },
       });
@@ -673,14 +604,12 @@ export default function FichaInternacaoPage() {
 
   // ── Financeiro (F5) ───────────────────────────────────────────────
   const contaCalc = () => {
-    // A contagem automática (24h começadas) vale, a menos que alguém tenha corrigido.
-    const auto = diasInternado(h?.admissionDate, h?.actualDischargeDate);
-    const manual = (h as any)?.vitalSigns?.diariasManuais;
-    // Diárias já lançadas como ITENS? Então elas somam pelos itens, e a linha automática
-    // zera — senão a mesma diária entraria duas vezes na conta.
-    const dias = (h as any)?.vitalSigns?.diariasGeradas ? 0 : (manual == null ? auto : Math.max(0, Math.floor(Number(manual) || 0)));
+    // A DIÁRIA É ITEM DA CONTA, sempre — o servidor garante isso ao abrir a ficha. Então
+    // ela NÃO soma por fora: somar aqui também cobraria a mesma diária duas vezes.
+    // `dias` fica só como informação de quantos dias a internação tem.
+    const dias = diasInternado(h?.admissionDate, h?.actualDischargeDate);
     const diariaVU = Number(h?.dailyRate) || 0;
-    const diariaTotal = dias * diariaVU;
+    const diariaTotal = 0;
     const itensFat = conta.filter((i) => i.categoria !== "Insumo");
     const itensInsumo = conta.filter((i) => i.categoria === "Insumo");
     const totalItensFat = itensFat.reduce((s, i) => s + (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0), 0);
@@ -2286,17 +2215,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
               <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
                 <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">🧾 Conta da internação</h3>
                 <div className="flex items-center gap-2 flex-wrap">
-                  {podeEditar && !diariasGeradas && (
-                    <button onClick={gerarDiariasPorDia} disabled={gerandoDiarias} title="Transforma a diária calculada em um item por dia, cada um editável e apagável" className="text-[12px] font-medium px-3 py-1.5 rounded-lg border disabled:opacity-60" style={{ borderColor: "#009AAC", color: "#007B8A", background: "#fff" }}>
-                      {gerandoDiarias ? "Gerando…" : "📅 Gerar diárias por dia"}
-                    </button>
-                  )}
-                  {podeEditar && diariasGeradas && (
-                    <button onClick={desfazerDiariasPorDia} disabled={gerandoDiarias} title="Apaga as diárias lançadas e volta ao cálculo automático" className="text-[12px] font-medium px-3 py-1.5 rounded-lg border disabled:opacity-60" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>
-                      ↩︎ voltar ao automático
-                    </button>
-                  )}
-                    {contaPorDia.length > 1 && (
+                  {contaPorDia.length > 1 && (
                     <button onClick={() => (diasExpandidos && diasExpandidos.size > 0 ? recolherTodosOsDias() : abrirTodosOsDias())}
                       className="text-[12px] font-medium px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>
                       {diasExpandidos && diasExpandidos.size > 0 ? "▸ recolher tudo" : "▾ abrir tudo"}
@@ -2365,40 +2284,6 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                 );
               })}
 
-              {/* ⚖️ DIÁRIAS AUTOMÁTICAS — faixa, não tabela.
-                  Enquanto não viram itens por dia, elas somam por fora. A faixa mostra
-                  isso sem competir com os blocos de dia, que são o padrão da tela. */}
-              {!diariasGeradas && (
-                <div className="mx-3 mb-2 rounded-xl border flex items-center gap-2.5 px-3 py-2 flex-wrap" style={{ borderColor: cc.diariaVU > 0 ? "#CDE7EA" : "#E8CF97", background: cc.diariaVU > 0 ? "#F4FBFC" : "#FBF3E3" }}>
-                  <span className="text-[13px]">⚖️</span>
-                  <span className="text-[12.5px]" style={{ color: "#014D5E" }}>
-                    <b>Diárias automáticas</b> · {cc.dias} {cc.dias === 1 ? "dia" : "dias"} × {fmtBRL(cc.diariaVU)}
-                    {(h as any)?.vitalSigns?.diariasManuais != null && <span className="ml-1.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full" style={{ background: "#fff", color: "#8a6400" }}>quantidade na mão</span>}
-                  </span>
-                  {cc.diariaVU <= 0 && <span className="text-[11.5px]" style={{ color: "#8a6400" }}>⚠️ sem valor — a conta soma R$ 0,00</span>}
-                  <span className="ml-auto text-[14px] font-semibold tabular-nums" style={{ color: cc.diariaVU > 0 ? "#014D5E" : "#8a6400" }}>{fmtBRL(cc.diariaTotal)}</span>
-                  {!alta && podeEditar && (
-                    <button onClick={() => { setDiariaEdit(String(cc.diariaVU || "")); setDiariaQtdEdit(String(cc.dias)); }}
-                      title="Corrigir o valor e a quantidade de diárias"
-                      className="text-[11.5px] font-medium px-2.5 py-1 rounded-lg border" style={{ borderColor: "#E8E2D6", background: "#fff", color: "#014D5E" }}>✏️ corrigir</button>
-                  )}
-                </div>
-              )}
-              {/* Diária em edição: os dois campos, sem virar tabela. */}
-              {!diariasGeradas && diariaEdit !== null && (
-                <div className="mx-3 mb-2 rounded-xl border flex items-center gap-2 px-3 py-2 flex-wrap" style={{ borderColor: "#009AAC", background: "#fff" }}>
-                  <span className="text-[11.5px] text-[#5C6B70]">Quantidade</span>
-                  <input type="number" min={0} value={diariaQtdEdit ?? ""} onChange={(e) => setDiariaQtdEdit(e.target.value)}
-                    className="w-16 border rounded-lg px-2 py-1 text-[12.5px] text-right" style={{ borderColor: "#E8E2D6" }} />
-                  <span className="text-[11.5px] text-[#5C6B70]">× valor</span>
-                  <input inputMode="decimal" value={diariaEdit} onChange={(e) => setDiariaEdit(e.target.value)}
-                    className="w-24 border rounded-lg px-2 py-1 text-[12.5px] text-right" style={{ borderColor: "#E8E2D6" }} />
-                  <button onClick={async () => { await salvarDiaria(); await salvarDiariaQtd(); }} disabled={diariaSalvando}
-                    className="text-[11.5px] font-medium text-white bg-[#009AAC] px-3 py-1 rounded-lg disabled:opacity-60">{diariaSalvando ? "…" : "salvar"}</button>
-                  <button onClick={voltarDiariaAuto} disabled={diariaSalvando} title="Voltar à contagem automática de dias" className="text-[11.5px] underline text-[#007B8A]">auto</button>
-                  <button onClick={() => { setDiariaEdit(null); setDiariaQtdEdit(null); }} className="text-[11.5px] text-[#94a3b8]">✕</button>
-                </div>
-              )}
               {/* Internação sem nada lançado: dizer isso, em vez de mostrar tabela vazia. */}
               {contaPorDia.length === 0 && (
                 <div className="mx-3 mb-3 px-3 py-6 text-center text-[12.5px] rounded-xl border" style={{ borderColor: "#F0EBE0", color: "#5C6B70", borderStyle: "dashed" }}>
@@ -2414,11 +2299,11 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                   <div className="mx-4 mb-2 text-[11.5px] flex items-start gap-2 flex-wrap" style={{ background: "#FBF3E3", border: "1px solid #E8CF97", borderRadius: 9, padding: "9px 11px", color: "#8a6400" }}>
                     <span>⚠️</span>
                     <div className="flex-1 min-w-[180px]">
-                      <b>A diária está sem valor</b>, então a conta soma R$ 0,00 por mais dias que o animal fique.
+                      <b>A diária está sem valor</b>, então nenhuma diária é lançada nos dias.
                       {diariaSugerida && <> Pela tabela por peso, {pesoPet} kg cai em <b>{diariaSugerida.faixa}</b>: {fmtBRL(diariaSugerida.valor)}/dia.</>}
                     </div>
                     {diariaSugerida && podeEditar && (
-                      <button onClick={() => setDiariaEdit(String(diariaSugerida.valor))} className="text-[11.5px] font-medium px-2.5 py-1 rounded-lg text-white bg-[#009AAC] flex-shrink-0">usar {fmtBRL(diariaSugerida.valor)}</button>
+                      <button onClick={() => definirDiaria(diariaSugerida.valor)} disabled={diariaSalvando} className="text-[11.5px] font-medium px-2.5 py-1 rounded-lg text-white bg-[#009AAC] flex-shrink-0 disabled:opacity-60">{diariaSalvando ? "…" : `usar ${fmtBRL(diariaSugerida.valor)}`}</button>
                     )}
                   </div>
                 )}
@@ -2559,6 +2444,9 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
               )}
               <div><label className="text-[11px] text-[#374151] block mb-1">Temp. de entrada (°C)</label>
                 <input type="number" step="0.1" value={admForm.tempEntrada} onChange={(e) => setAdmForm({ ...admForm, tempEntrada: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
+              <div><label className="text-[11px] text-[#374151] block mb-1">Valor da diária (R$)</label>
+                <input inputMode="decimal" value={admForm.diaria ?? ""} onChange={(e) => setAdmForm({ ...admForm, diaria: e.target.value.replace(",", ".") })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                <div className="text-[10.5px] text-[#5C6B70] mt-1">Vale para as diárias que ainda vão ser lançadas. As já lançadas se corrigem no “Editar o dia”.</div></div>
               <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Diagnóstico / motivo</label>
                 <input value={admForm.diagnosis} onChange={(e) => setAdmForm({ ...admForm, diagnosis: e.target.value })} placeholder="Ex.: Pós-op esplenectomia" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
               <div><label className="text-[11px] text-[#374151] block mb-1">Prognóstico</label>
