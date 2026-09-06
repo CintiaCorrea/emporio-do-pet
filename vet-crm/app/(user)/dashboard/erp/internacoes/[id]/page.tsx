@@ -1307,6 +1307,34 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
     return { poly: coords.join(" "), last: coords[coords.length - 1].split(","), min, max, W, H };
   }, [vitais]);
 
+  // ⚠️ TODO HOOK TEM DE FICAR ACIMA DESTA LINHA.
+  //
+  // Em 06/09/2026 eu coloquei um useMemo e um useState DEPOIS do "if (loading) return" e
+  // derrubei a ficha inteira em producao — "Application error: a client-side exception".
+  // O React conta os hooks a cada render: no primeiro (carregando) eram N, no segundo
+  // N+2, e ele desiste da tela. Nao da erro no build nem no tsc; so quebra no navegador.
+  // A CONTA POR DIA — o modelo que a Cintia mandou e aprovou no mockup.
+  //
+  // Lista corrida ordenada por descrição era ilegível: 44 itens da Kate misturavam 29/08
+  // com 05/09, e o cliente não tinha como conferir o que pagou em cada dia. Agora cada dia
+  // é um bloco, com seu total e sua situação — que é como a conta vai ser fechada.
+  const contaPorDia = useMemo(() => {
+    const grupos = new Map<string, { dia: string; itens: any[]; total: number; cobrados: number }>();
+    for (const i of conta) {
+      const dia = i.at ? diaFortaleza(i.at) : "sem-data";
+      if (!grupos.has(dia)) grupos.set(dia, { dia, itens: [], total: 0, cobrados: 0 });
+      const g = grupos.get(dia)!;
+      g.itens.push(i);
+      if (i.categoria !== "Insumo") g.total += (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0);
+      if (i.baixado) g.cobrados += 1;
+    }
+    // Dentro do dia, na ordem em que aconteceram. "Sem data" vai pro fim, pra não fingir
+    // que é o dia mais antigo.
+    for (const g of grupos.values()) g.itens.sort((a: any, b: any) => String(a.at || "").localeCompare(String(b.at || "")));
+    return [...grupos.values()].sort((a, b) => (a.dia === "sem-data" ? 1 : b.dia === "sem-data" ? -1 : b.dia.localeCompare(a.dia)));
+  }, [conta]);
+  const [fechandoDia, setFechandoDia] = useState<string | null>(null);
+
   if (loading) return <div className="p-6 text-center text-sm text-[#374151]">Carregando ficha...</div>;
   if (!h) return (
     <div className="p-6 max-w-3xl mx-auto">
@@ -1334,31 +1362,10 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
   const CAT_PILL: Record<string, { bg: string; fg: string }> = { Diária: { bg: "#E8F1F8", fg: "#1f5a82" }, Insumo: { bg: "#F0EBE0", fg: "#8A7B63" } };
   const catStyle = (c: string) => CAT_PILL[c] || { bg: "#E0F4F6", fg: "#00707E" };
 
-  // A CONTA POR DIA — o modelo que a Cintia mandou e aprovou no mockup.
-  //
-  // Lista corrida ordenada por descrição era ilegível: 44 itens da Kate misturavam 29/08
-  // com 05/09, e o cliente não tinha como conferir o que pagou em cada dia. Agora cada dia
-  // é um bloco, com seu total e sua situação — que é como a conta vai ser fechada.
-  const contaPorDia = useMemo(() => {
-    const grupos = new Map<string, { dia: string; itens: any[]; total: number; cobrados: number }>();
-    for (const i of conta) {
-      const dia = i.at ? diaFortaleza(i.at) : "sem-data";
-      if (!grupos.has(dia)) grupos.set(dia, { dia, itens: [], total: 0, cobrados: 0 });
-      const g = grupos.get(dia)!;
-      g.itens.push(i);
-      if (i.categoria !== "Insumo") g.total += (Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0);
-      if (i.baixado) g.cobrados += 1;
-    }
-    // Dentro do dia, na ordem em que aconteceram. "Sem data" vai pro fim, pra não fingir
-    // que é o dia mais antigo.
-    for (const g of grupos.values()) g.itens.sort((a: any, b: any) => String(a.at || "").localeCompare(String(b.at || "")));
-    return [...grupos.values()].sort((a, b) => (a.dia === "sem-data" ? 1 : b.dia === "sem-data" ? -1 : b.dia.localeCompare(a.dia)));
-  }, [conta]);
   // 🧾 FECHAR O DIA: vira uma venda com número no caixa, só com o que ainda não foi
   // cobrado. A regra de o que entra mora no backend (fechamento.regras, 36 testes) — a
   // tela não recalcula nada, só escolhe o dia. Foi a divergência entre dois cálculos que
   // cobrou o cliente duas vezes.
-  const [fechandoDia, setFechandoDia] = useState<string | null>(null);
   const fecharDia = async (dia: string, total: number) => {
     const [, m, d] = dia.split("-");
     if (!confirm("Fechar o dia " + d + "/" + m + " e mandar pro caixa?\n\nVira uma venda com número, de " + fmtBRL(total) + ".\nEntra só o que ainda não foi cobrado.")) return;
