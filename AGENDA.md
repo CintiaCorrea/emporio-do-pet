@@ -332,7 +332,7 @@ por alguem, ou consome IA a toa? O que a Cintia mais quer ver na analise?
 | 2 | Modelo em TODOS os orcamentos e vendas | **FEITO em 07/09**, na branch `feat/modelo-e-relatorio-de-vendas` (aguardando OK pra publicar). Seletor unico (`SeletorModeloVenda`) no PDV, na comanda da ficha do pet e no orcamento rapido; internacao fora por decisao. O modelo lanca os itens **e** escreve a observacao. Trava: `lib/modelo-nas-telas.spec.ts` |
 | 3 | Transferencia entre caixas | **existe na `portal-integracao`** (Frente B) |
 | 4 | Operadora nao aparecia na baixa | **FEITO e no ar** (05/09). Causa: a lista de operadoras vinha so da tabela de taxas, e a tela de configuracao so deixava escolher dessa mesma lista — operadora sem taxa (Nubank) era impossivel de cadastrar. Agora o campo e digitavel |
-| 5 | Orcamentos, vendas e caixas em lista, nao em caixinhas | a fazer |
+| 5 | Orcamentos, vendas e caixas em lista, nao em caixinhas | **vendas e orcamentos FEITOS em 07/09** (lista unica colorida no ponto de venda, sem abas). Falta a lista de **caixas abertos** (Fig. 2 da retomada) |
 | 6 | Nao conseguir dar baixa no caixa | **FEITO e no ar** (04/09) |
 | 7 | Nao conseguir salvar venda/orcamento | provavelmente resolvido junto com o 6 — **confirmar com a Cintia** |
 | 8 | Nem todos os produtos aparecem | causa provavel: item so no catalogo antigo (ver CLAUDE.md V.1). **Falta um exemplo concreto** |
@@ -340,11 +340,17 @@ por alguem, ou consome IA a toa? O que a Cintia mais quer ver na analise?
 | 10 | Diaria de internacao por faixa de peso | precisa a tabela de precos da Cintia |
 | 11 | Caucoes viram credito de cliente | direcao confirmada; tirar do catalogo e usar o modulo de credito |
 
-Pedido novo em 07/09: **imprimir relatorio de vendas/orcamentos por cliente**, "principalmente
-quando temos muitas vendas abertas". FEITO na mesma branch: botao no Caixa (imprime a lista
-inteira, agrupada por cliente, com o que falta receber) e impressao so de um cliente no card de
-"contas abertas". Junto: a lista da tela cortava em 8 sem avisar — agora o corte e dito e leva
-ao relatorio. Nucleo `lib/relatorioVendas.ts` (8 testes) + trava `lib/relatorio-nas-telas.spec.ts`.
+Pedido novo em 07/09: **imprimir as comandas do dia, como no SimplesVet** — cada comanda com os
+seus itens, quantidade, desconto e observacao, blocos que nao partem entre folhas. FEITO na mesma
+branch (botao "Comandas do dia" no Caixa). Junto veio um segundo papel, "Contas em aberto", por
+cliente, que atende o "principalmente quando temos muitas vendas abertas" e cobre o corte de 8
+linhas da tela. Nucleo `lib/relatorioVendas.ts` (8 testes) + trava `lib/relatorio-nas-telas.spec.ts`.
+
+Tambem em 07/09, pedido da Cintia: **fora as duas abas do ponto de venda**. Agora e UMA lista,
+colorida pela situacao — verde a pagar do dia, vermelho a pagar atrasada (de dia anterior),
+cinza orcamento. Venda paga sai da lista e vira recebimento. A lista passou a ler as contas em
+aberto de TODOS os dias (antes era um checkbox desmarcado por padrao, o que escondia justamente
+a atrasada).
 
 Extra encontrado em 04/09: as telas **Orcamentos** e **Vendas em aberto** existem e
 funcionam, mas **nao estao no menu** (`vet-crm/lib/permissions/index.ts`). Nenhum

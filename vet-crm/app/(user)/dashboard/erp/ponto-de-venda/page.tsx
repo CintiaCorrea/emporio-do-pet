@@ -14,7 +14,7 @@ import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaCli
 import { buscarItens, avisoDeCorte } from '@/lib/buscaCatalogo';
 import BuscaItemCatalogo from '@/components/vendas/BuscaItemCatalogo';
 import SeletorModeloVenda from '@/components/vendas/SeletorModeloVenda';
-import { imprimirRelatorioVendas } from '@/lib/documentos/relatorio-vendas-print';
+import { imprimirRelatorioVendas, imprimirComandasDoDia } from '@/lib/documentos/relatorio-vendas-print';
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from '@/lib/modelosVenda';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
@@ -120,14 +120,14 @@ export default function PDVPage() {
   const [vendas, setVendas] = useState<Venda[]>([]);
   const [orcamentos, setOrcamentos] = useState<{ id: string; tutor: string; pet: string; valor: number; tutorId?: string; petId?: string; dia?: string; _orc?: any }[]>([]);
   const [detOrc, setDetOrc] = useState<any>(null); // orçamento aberto no modal de detalhe
-  const [vendaTab, setVendaTab] = useState<'NAO' | 'PAGO'>('NAO');
+  const [vendasEmAberto, setVendasEmAberto] = useState<Venda[]>([]);   // o que está em pé, de qualquer dia
+  const [imprimindoDia, setImprimindoDia] = useState(false);          // relatório de comandas em preparo
   // Baixar todas as comandas de um cliente de uma vez (portado do "Em atendimento")
   const [grupoBaixa, setGrupoBaixa] = useState<{ tutor: string; itens: Venda[]; total: number } | null>(null);
   const [formaGrupo, setFormaGrupo] = useState('Dinheiro');
   const [baixandoGrupo, setBaixandoGrupo] = useState(false);
   const buscaTimer = useRef<any>(null);
   const [vendaDia, setVendaDia] = useState<string>(() => new Date().toISOString().slice(0, 10));
-  const [vendaAbertas, setVendaAbertas] = useState(false); // ver abertas de TODOS os dias
   const vendaDiaRef = useRef<HTMLInputElement>(null);       // date picker escondido do navegador de dia
   const [detVenda, setDetVenda] = useState<any>(null);      // venda aberta no modal de detalhe
   const [detLoad, setDetLoad] = useState(false);
@@ -149,18 +149,22 @@ export default function PDVPage() {
     setLibOpen(false); const r = libResolver.current; libResolver.current = null; if (r) r(v);
   };
 
+  // Duas leituras, dois propósitos: o DIA alimenta o resumo e o relatório de comandas; as
+  // ABERTAS alimentam a lista única — conta em aberto não pertence a um dia só, ela fica em pé
+  // até ser paga. Antes isso era um checkbox ("Abertas (todos os dias)") e duas abas.
   const loadVendas = useCallback(async () => {
     try {
-      const qs = vendaAbertas
-        ? '?abertas=true'
-        : `?from=${vendaDia}&to=${vendaDia}`;
-      const r = await fetch(`/api/caixa/vendas${qs}`, { cache: 'no-store' });
-      if (r.ok) setVendas(await r.json());
+      const [rDia, rAbertas] = await Promise.all([
+        fetch(`/api/caixa/vendas?from=${vendaDia}&to=${vendaDia}`, { cache: 'no-store' }),
+        fetch(`/api/caixa/vendas?abertas=true`, { cache: 'no-store' }),
+      ]);
+      if (rDia.ok) setVendas(await rDia.json());
+      if (rAbertas.ok) setVendasEmAberto(await rAbertas.json());
     } catch { /* */ }
-  }, [vendaDia, vendaAbertas]);
+  }, [vendaDia]);
 
-  // 📄 Orçamentos EM ABERTO (não convertidos) — aparecem na MESMA lista "Não pago", em cor
-  // diferente (roxo), pra você converter em venda ali mesmo. Interconecta ficha/PDV/WhatsApp → Caixa.
+  // 📄 Orçamentos EM ABERTO (não convertidos) — aparecem na MESMA lista das vendas, em cor
+  // diferente (cinza), pra você converter em venda ali mesmo. Interconecta ficha/PDV/WhatsApp → Caixa.
   const loadOrcamentos = useCallback(async () => {
     try {
       const r = await fetch('/api/orcamentos', { cache: 'no-store' });
@@ -173,7 +177,7 @@ export default function PDVPage() {
     } catch { /* */ }
   }, []);
   async function converterOrcamento(o: { id: string; tutor: string; valor: number }) {
-    if (!confirm(`Converter o orçamento de ${o.tutor} (${brl(o.valor)}) em venda?\nEla vai para "Não pago" para receber no caixa.`)) return;
+    if (!confirm(`Converter o orçamento de ${o.tutor} (${brl(o.valor)}) em venda?\nEla entra na lista de contas em aberto, para receber no caixa.`)) return;
     try {
       const r = await fetch(`/api/orcamentos/${o.id}/converter`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
       if (!r.ok) throw new Error();
@@ -735,20 +739,29 @@ export default function PDVPage() {
   // Só venda com valor (> 0) — atendimentos de R$ 0 (agenda/clínico) não são comanda nem venda.
   // Venda lançada com data pra frente não some: sai da lista de agora e vai pra faixa "a cobrar em
   // breve" (o backend marca com `futura`). Antes ela não aparecia pra ninguém cobrar.
-  const vendasDaAba = vendas.filter((v) => Number(v.valor) > 0 && (vendaTab === 'PAGO' ? v.pagoTotal : !v.pagoTotal));
-  const vendasFiltradas = vendasDaAba.filter((v: any) => !v.futura);
-  // Orçamento fica no SEU dia, igual à venda: com a lista por dia, só aparece o que foi feito
-  // naquele dia; com "abertas de todos os dias" marcado, aparecem todos os não convertidos.
-  const orcamentosDoDia = vendaAbertas ? orcamentos : orcamentos.filter((o: any) => o.dia === vendaDia);
-  const vendasFuturas = vendaTab === 'NAO'
-    ? vendasDaAba.filter((v: any) => v.futura).sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    : [];
+  // 🎨 UMA LISTA SÓ, colorida pela situação (Cintia, 07/09/2026: "não quero duas abas no ponto
+  // de venda"). Nela fica o que está EM PÉ; venda paga sai da lista e vira recebimento.
+  //   🟢 verde    · a pagar do dia
+  //   🔴 vermelho · a pagar ATRASADA (de dia anterior) — é a que precisa de cobrança
+  //   ⚪ cinza    · orçamento (ainda não é venda)
+  const inicioDeHoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
+  const ehAtrasada = (v: { date: string }) => new Date(v.date).getTime() < inicioDeHoje;
+  const vendasFiltradas = useMemo(() => vendasEmAberto
+    .filter((v: any) => Number(v.valor) > 0 && !v.pagoTotal && !v.futura)
+    // A atrasada sobe: é a que some da vista e vira prejuízo. Entre iguais, a mais antiga primeiro.
+    .sort((a: any, b: any) => (Number(ehAtrasada(b)) - Number(ehAtrasada(a))) || (new Date(a.date).getTime() - new Date(b.date).getTime())),
+    [vendasEmAberto, inicioDeHoje]);
+  // Orçamento em aberto não pertence a um dia: fica na lista até virar venda ou ser recusado.
+  const orcamentosEmAberto = orcamentos;
+  const vendasFuturas = vendasEmAberto
+    .filter((v: any) => v.futura)
+    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const formasList = formasCfg.length ? formasCfg : FORMAS;
 
   // Clientes com 2+ contas abertas (pra baixar todas de uma vez)
   const gruposMulti = useMemo(() => {
     const map = new Map<string, { tutor: string; itens: Venda[]; total: number }>();
-    for (const v of vendas) {
+    for (const v of vendasEmAberto) {
       if (v.pagoTotal) continue;
       const aReceber = Math.max(0, Number(v.valor || 0) - Number(v.pago || 0));
       if (aReceber <= 0) continue;
@@ -758,7 +771,7 @@ export default function PDVPage() {
       map.set(key, g);
     }
     return [...map.values()].filter((g) => g.itens.length >= 2).sort((a, b) => b.total - a.total);
-  }, [vendas]);
+  }, [vendasEmAberto]);
 
   // 🖨️ Relatório de vendas/orçamentos por cliente.
   // Pedido da Cintia (07/09/2026): "principalmente quando temos muitas vendas abertas". A lista
@@ -770,16 +783,52 @@ export default function PDVPage() {
     valor: Number(v.valor) || 0, pago: Number(v.pago) || 0,
   });
 
+  // 🖨️ TUDO QUE ESTÁ EM ABERTO, por cliente — é o que a lista da tela mostra, sem o corte de 8.
   const imprimirRelatorio = () => {
-    const periodo = vendaAbertas ? 'Em aberto — todos os dias' : `Dia ${new Date(vendaDia + 'T12:00:00').toLocaleDateString('pt-BR')}`;
-    const pagas = vendaTab === 'PAGO';
     imprimirRelatorioVendas({
-      titulo: pagas ? 'Relatório de vendas pagas' : 'Relatório de vendas em aberto',
-      subtitulo: `${pagas ? 'Pagas' : 'Não pagas'} · ${periodo}`,
+      titulo: 'Contas em aberto',
+      subtitulo: `Posição de ${new Date().toLocaleDateString('pt-BR')} · quem deve mais primeiro`,
       // As futuras ("a cobrar em breve") entram: elas também são conta aberta do cliente.
       vendas: [...vendasFiltradas, ...vendasFuturas].map(linhaDoRelatorio),
-      orcamentos: pagas ? [] : orcamentosDoDia.map((o: any) => ({ id: o.id, data: o._orc?.createdAt || o.dia, tutor: o.tutor, tutorId: o.tutorId, pet: o.pet, valor: Number(o.valor) || 0 })),
+      orcamentos: orcamentosEmAberto.map((o: any) => ({ id: o.id, data: o._orc?.createdAt || o.dia, tutor: o.tutor, tutorId: o.tutorId, pet: o.pet, valor: Number(o.valor) || 0 })),
     });
+  };
+
+  // 🖨️ AS COMANDAS DO DIA, com os itens de cada uma — o modelo do SimplesVet (Cintia, 07/09).
+  // A lista de vendas não traz item; cada comanda é buscada em /api/atendimentos/:id, de 8 em 8
+  // pra não abrir 40 requisições de uma vez. Comanda que falhar sai sem itens, não some.
+  const imprimirComandasDia = async () => {
+    if (imprimindoDia) return;
+    setImprimindoDia(true);
+    try {
+      const doDia = vendas.filter((v) => Number(v.valor) > 0);
+      const comandas: any[] = [];
+      for (let i = 0; i < doDia.length; i += 8) {
+        const lote = await Promise.all(doDia.slice(i, i + 8).map(async (v: any) => {
+          let itens: any[] = [], observacao: string | null = null;
+          try {
+            const r = await fetch(`/api/atendimentos/${v.id}`, { cache: 'no-store' });
+            const d = await r.json().catch(() => ({}));
+            itens = d.items || d.appointmentItems || d.itens || [];
+            observacao = d.observacao ?? d.notes ?? null;
+          } catch { /* comanda sem detalhe ainda entra no papel */ }
+          return {
+            id: v.id, numero: v.numeroVenda ?? v.codigoExterno ?? null, data: v.date,
+            tutor: v.tutor, pet: v.pet, valor: Number(v.valor) || 0, pago: Number(v.pago) || 0,
+            observacao: typeof observacao === 'string' && !observacao.includes('HOSPITALIZATION') ? observacao : null,
+            itens: itens.map((it: any) => ({
+              descricao: it.descricao || it.nome || it.product?.name || it.servico?.nome || 'Item',
+              quantidade: Number(it.quantidade ?? it.qtd ?? 1),
+              valorUnitario: Number(it.valorUnitario ?? 0),
+              desconto: Number(it.desconto ?? 0),
+            })),
+          };
+        }));
+        comandas.push(...lote);
+      }
+      await imprimirComandasDoDia({ dia: vendaDia, comandas });
+    } catch { toast.error('Não consegui montar as comandas do dia.'); }
+    finally { setImprimindoDia(false); }
   };
 
   const imprimirRelatorioDoCliente = (g: { tutor: string; itens: Venda[]; total: number }) => {
@@ -1088,7 +1137,7 @@ export default function PDVPage() {
                 const shiftDia = (delta: number) => { const dt = new Date(vendaDia + 'T12:00:00'); dt.setDate(dt.getDate() + delta); setVendaDia(dt.toISOString().slice(0, 10)); };
                 const btn = { width: 28, height: 28, borderRadius: 8, border: `1px solid ${LINE}`, background: '#fff', color: MUT, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, lineHeight: 1 } as const;
                 return (
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, opacity: vendaAbertas ? 0.5 : 1, pointerEvents: vendaAbertas ? 'none' : 'auto' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     <button onClick={() => shiftDia(-1)} aria-label="Dia anterior" style={btn}>‹</button>
                     <button
                       onClick={() => { const el = vendaDiaRef.current; if (!el) return; if ((el as any).showPicker) (el as any).showPicker(); else el.click(); }}
@@ -1101,25 +1150,21 @@ export default function PDVPage() {
                   </div>
                 );
               })()}
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: MUT, cursor: 'pointer' }}>
-                <input type="checkbox" checked={vendaAbertas} onChange={(e) => setVendaAbertas(e.target.checked)} />
-                Abertas (todos os dias)
-              </label>
+              <button onClick={imprimirComandasDia} disabled={imprimindoDia} title="Imprime as comandas deste dia com os itens de cada uma" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: imprimindoDia ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>{imprimindoDia ? 'Montando…' : '🖨️ Comandas do dia'}</button>
             </div>
             <div style={{ padding: 13, display: 'flex', gap: 9 }}>
               <div style={{ flex: 1, background: OKB, borderRadius: 11, padding: '10px 12px' }}><div style={{ fontSize: 11, color: OK }}>Recebido</div><div style={{ fontSize: 16, fontWeight: 500, color: OK }}>{brl(recebidoHoje)}</div></div>
               <div style={{ flex: 1, background: WARNB, borderRadius: 11, padding: '10px 12px' }}><div style={{ fontSize: 11, color: WARN }}>A receber</div><div style={{ fontSize: 16, fontWeight: 500, color: WARN }}>{brl(aReceberHoje)}</div></div>
             </div>
-            <div style={{ padding: '0 13px' }}>
-              <div style={{ display: 'flex', fontSize: 12, borderBottom: `1px solid ${SOFT}` }}>
-                {(['NAO', 'PAGO'] as const).map((t) => (
-                  <button key={t} onClick={() => setVendaTab(t)} style={{ flex: 1, textAlign: 'center', border: 'none', background: 'none', cursor: 'pointer', paddingBottom: 8, fontFamily: 'inherit', fontSize: 12, color: vendaTab === t ? NAVY : MUT, fontWeight: 500, borderBottom: vendaTab === t ? `2px solid ${TEAL}` : '2px solid transparent' }}>{t === 'NAO' ? 'Não pago' : 'Pago'}</button>
-                ))}
-                <button onClick={imprimirRelatorio} title="Imprime a lista inteira, agrupada por cliente" style={{ border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: TEAL, fontWeight: 600, paddingBottom: 8, whiteSpace: 'nowrap' }}>🖨️ Relatório</button>
-              </div>
+            {/* Sem abas (Cintia, 07/09): uma lista só, e a cor diz a situação. */}
+            <div style={{ padding: '0 13px 6px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderBottom: `1px solid ${SOFT}` }}>
+              <span style={{ fontSize: 11, color: MUT, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: OK, display: 'inline-block' }} />a pagar</span>
+              <span style={{ fontSize: 11, color: MUT, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: ERR, display: 'inline-block' }} />atrasada</span>
+              <span style={{ fontSize: 11, color: MUT, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: '#9aa0a8', display: 'inline-block' }} />orçamento</span>
+              <button onClick={imprimirRelatorio} title="Imprime todas as contas em aberto, agrupadas por cliente" style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: TEAL, fontWeight: 600, whiteSpace: 'nowrap' }}>🖨️ Contas em aberto</button>
             </div>
             <div style={{ padding: '6px 13px 13px', minHeight: 90 }}>
-              {vendaTab === 'NAO' && gruposMulti.map((g) => (
+              {gruposMulti.map((g) => (
                 <div key={g.tutor} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', marginBottom: 6, background: '#EAF7F8', border: `1px solid ${TEAL}`, borderRadius: 10 }}>
                   <span style={{ fontSize: 16 }}>👥</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -1130,23 +1175,26 @@ export default function PDVPage() {
                   <button onClick={() => { setGrupoBaixa(g); setFormaGrupo(formasList[0] || 'Dinheiro'); }} style={{ border: 'none', background: TEAL, color: '#fff', fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>Baixar todas</button>
                 </div>
               ))}
-              {vendasFiltradas.length === 0 && (vendaTab !== 'NAO' || orcamentosDoDia.length === 0) && (
+              {vendasFiltradas.length === 0 && orcamentosEmAberto.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '18px 0' }}>
                   <div style={{ fontSize: 22, marginBottom: 4 }}>🧾</div>
-                  <p style={{ fontSize: 12, color: MUT, margin: 0 }}>Nenhuma venda {vendaTab === 'PAGO' ? 'paga' : 'pendente'}.</p>
+                  <p style={{ fontSize: 12, color: MUT, margin: 0 }}>Nada em aberto. Tudo recebido. 🎉</p>
                 </div>
               )}
-              {vendasFiltradas.slice(0, 8).map((v) => (
-                <div key={v.id} onClick={() => abrirDetVenda(v)} title="Abrir venda" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderTop: `1px solid ${SOFT}`, cursor: 'pointer', borderRadius: 8 }}
+              {vendasFiltradas.slice(0, 8).map((v) => {
+                const atrasada = ehAtrasada(v);
+                const cor = atrasada ? ERR : OK, corFundo = atrasada ? ERRB : OKB;
+                return (
+                <div key={v.id} onClick={() => abrirDetVenda(v)} title={atrasada ? 'Conta atrasada — abrir venda' : 'Abrir venda'} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px 8px 8px', borderTop: `1px solid ${SOFT}`, cursor: 'pointer', borderRadius: 8, borderLeft: `3px solid ${cor}` }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAF7')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                   <span style={{ width: 32, height: 32, borderRadius: '50%', background: avatarOf(v.tutor).bg, color: avatarOf(v.tutor).fg, fontSize: 11.5, fontWeight: 500, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{iniciais(v.tutor)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 500, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.tutor}</div>
-                    <div style={{ fontSize: 11, color: MUT }}>{v.pet}</div>
+                    <div style={{ fontSize: 11, color: atrasada ? ERR : MUT }}>{v.pet}{atrasada ? ` · atrasada desde ${new Date(v.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}</div>
                   </div>
-                  <span style={{ background: v.pagoTotal ? OKB : WARNB, color: v.pagoTotal ? OK : WARN, fontSize: 11, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(v.valor)}</span>
+                  <span style={{ background: corFundo, color: cor, fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(Math.max(0, Number(v.valor) - Number(v.pago)))}</span>
                 </div>
-              ))}
+              );})}
               {/* 🗓️ A COBRAR EM BREVE — venda com data pra frente (não some mais da tela). */}
               {vendasFuturas.length > 0 && (
                 <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px dashed ${LINE}` }}>
@@ -1175,22 +1223,22 @@ export default function PDVPage() {
                 </button>
               )}
 
-                            {/* 📄 ORÇAMENTOS em aberto — MESMA lista, valor em ROXO pra diferenciar + botão converter. */}
-              {vendaTab === 'NAO' && orcamentosDoDia.slice(0, 8).map((o) => (
-                <div key={o.id} onClick={() => setDetOrc(o._orc || o)} title="Abrir orçamento" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderTop: `1px solid ${SOFT}`, borderRadius: 8, cursor: 'pointer' }}
+              {/* 📄 ORÇAMENTOS — MESMA lista, em CINZA: não é dinheiro a receber, é proposta. */}
+              {orcamentosEmAberto.slice(0, 8).map((o) => (
+                <div key={o.id} onClick={() => setDetOrc(o._orc || o)} title="Abrir orçamento" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px 8px 8px', borderTop: `1px solid ${SOFT}`, borderRadius: 8, cursor: 'pointer', borderLeft: '3px solid #9aa0a8' }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAF7')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
-                  <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#EDE9FE', color: '#6D28D9', fontSize: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📄</span>
+                  <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#F1F0EE', color: '#6B7280', fontSize: 14, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📄</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 500, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.tutor}</div>
-                    <div style={{ fontSize: 11, color: MUT }}>{o.pet}{o.pet ? ' · ' : ''}<span style={{ color: '#6D28D9', fontWeight: 600 }}>orçamento</span></div>
+                    <div style={{ fontSize: 11, color: MUT }}>{o.pet}{o.pet ? ' · ' : ''}<span style={{ color: '#6B7280', fontWeight: 600 }}>orçamento</span></div>
                   </div>
-                  <span style={{ background: '#EDE9FE', color: '#6D28D9', fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(o.valor)}</span>
+                  <span style={{ background: '#F1F0EE', color: '#6B7280', fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(o.valor)}</span>
                   {/* Converter em venda só ao ABRIR o orçamento (botão no modal de detalhe) — não na lista. */}
                 </div>
               ))}
-              {vendaTab === 'NAO' && orcamentosDoDia.length > 8 && (
-                <button onClick={imprimirRelatorio} style={{ display: 'block', width: '100%', textAlign: 'center', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: '#6D28D9', padding: '8px 0 2px' }}>
-                  + {orcamentosDoDia.length - 8} orçamentos não couberam · 🖨️ ver todos no relatório
+              {orcamentosEmAberto.length > 8 && (
+                <button onClick={imprimirRelatorio} style={{ display: 'block', width: '100%', textAlign: 'center', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: '#6B7280', padding: '8px 0 2px' }}>
+                  + {orcamentosEmAberto.length - 8} orçamentos não couberam · 🖨️ ver todos no relatório
                 </button>
               )}
             </div>

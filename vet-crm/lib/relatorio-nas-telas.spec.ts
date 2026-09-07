@@ -50,3 +50,46 @@ describe("o corte da lista de vendas nunca é mudo", () => {
     expect(src).toContain("não couberam · 🖨️ ver todos no relatório");
   });
 });
+
+describe("no ponto de venda é UMA lista só, colorida pela situação", () => {
+  it("as abas 'Não pago / Pago' não voltam", () => {
+    // Cintia, 07/09/2026: "não quero duas abas no ponto de venda". A venda paga sai da lista
+    // e vira recebimento; o que fica em pé é a pagar (verde), atrasada (vermelha) e orçamento
+    // (cinza). Aba divide o que ela quer ver junto.
+    const src = ler(PDV);
+    expect(src).not.toContain("setVendaTab");
+    expect(src).not.toContain("Não pago");
+  });
+
+  it("a atrasada é separada da conta do dia", () => {
+    // É a diferença entre as duas cores: conta de hoje é rotina, conta de ontem é cobrança.
+    expect(ler(PDV)).toContain("ehAtrasada");
+  });
+
+  it("a lista lê as contas em aberto de TODOS os dias", () => {
+    // Conta em aberto não pertence a um dia. Antes isso era um checkbox que vinha desmarcado —
+    // ou seja, a atrasada ficava invisível por padrão, que é justamente a que precisa aparecer.
+    expect(ler(PDV)).toContain("vendasEmAberto");
+    expect(ler(PDV)).not.toContain("Abertas (todos os dias)");
+  });
+});
+
+describe("o relatório do dia sai como no SimplesVet", () => {
+  it("o Caixa imprime as comandas do dia", () => {
+    // Cintia, 07/09/2026: "o relatório é para ser impresso as comandas por dia, como no
+    // simplesvet" — e com os itens de cada comanda, não só o total.
+    expect(ler(PDV)).toContain("imprimirComandasDia");
+  });
+
+  it("cada comanda sai com os seus itens", () => {
+    const src = ler("lib/documentos/relatorio-vendas-print.ts");
+    expect(src).toContain("imprimirComandasDoDia");
+    expect(src).toContain("it.quantidade");
+    expect(src).toContain("it.valorUnitario");
+  });
+
+  it("a comanda não parte no meio da página", () => {
+    // Bloco cortado entre folhas é conferência perdida.
+    expect(ler("lib/documentos/relatorio-vendas-print.ts")).toContain("page-break-inside:avoid");
+  });
+});

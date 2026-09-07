@@ -88,3 +88,95 @@ export async function imprimirRelatorioVendas(args: {
 
   await imprimirDocumento(titulo, body, undefined, { pet: args.pet, tutor: args.tutor }, { preview: args.preview });
 }
+
+/** Uma comanda do dia, já com os itens que ela cobrou. */
+export type ComandaDoDia = {
+  id?: string;
+  numero?: number | string | null;
+  data?: string;
+  tutor?: string;
+  pet?: string;
+  valor?: number;
+  pago?: number;
+  observacao?: string | null;
+  formaPagamento?: string | null;
+  itens?: { descricao?: string; quantidade?: number; valorUnitario?: number; desconto?: number }[];
+};
+
+const hora = (d: any) => { if (!d) return ""; try { return new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
+
+/**
+ * Imprime AS COMANDAS DO DIA, uma a uma, com os itens de cada — o modelo do SimplesVet.
+ *
+ * Pedido da Cintia (07/09/2026): "o relatório é para ser impresso as comandas por dia, como no
+ * simplesvet". Cada comanda é um bloco fechado, que não parte no meio da página: é o papel do
+ * fechamento do dia, conferido linha a linha.
+ */
+export async function imprimirComandasDoDia(args: {
+  dia: string;
+  comandas: ComandaDoDia[];
+  preview?: boolean;
+}): Promise<void> {
+  const dia = args.dia ? dataBR(args.dia + "T12:00:00") : dataBR(new Date());
+  const comandas = (Array.isArray(args.comandas) ? args.comandas : [])
+    .slice()
+    .sort((a, b) => new Date(a.data || 0).getTime() - new Date(b.data || 0).getTime());
+
+  let total = 0, recebido = 0;
+  const blocos = comandas.map((c) => {
+    const itens = Array.isArray(c.itens) ? c.itens : [];
+    const valor = Number(c.valor) || 0;
+    const pago = Math.min(Number(c.pago) || 0, valor);
+    total += valor; recebido += pago;
+    const falta = Math.max(0, valor - pago);
+    const situacao = falta <= 0.009 ? "Paga" : pago > 0 ? `Parcial · falta ${BRL(falta)}` : "Em aberto";
+    const corSit = falta <= 0.009 ? "#0F6E56" : pago > 0 ? "#8a6400" : "#b23b39";
+
+    const linhas = itens.map((it) => {
+      const q = Number(it.quantidade) || 1;
+      const vu = Number(it.valorUnitario) || 0;
+      const desc = Number(it.desconto) || 0;
+      return `<tr>
+        <td style="${TD}">${esc(it.descricao || "Item")}</td>
+        <td style="${TD};text-align:center;white-space:nowrap">${q}</td>
+        <td style="${TD};text-align:right;white-space:nowrap">${BRL(vu)}</td>
+        ${desc ? `<td style="${TD};text-align:right;white-space:nowrap;color:#8a6400">-${BRL(desc)}</td>` : `<td style="${TD};text-align:right;color:#c9c4b8">—</td>`}
+        <td style="${TD};text-align:right;white-space:nowrap;font-weight:600">${BRL(Math.max(0, q * vu - desc))}</td>
+      </tr>`;
+    }).join("");
+
+    // Comanda sem item aparece assim mesmo: some da conferência é pior do que aparecer vazia.
+    const corpo = linhas || `<tr><td colspan="5" style="${TD};text-align:center;color:#9aa0a8">Sem itens lançados</td></tr>`;
+
+    return `<div style="margin-bottom:13px;break-inside:avoid;page-break-inside:avoid;border:1px solid #E4DCCC;border-radius:6px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;background:#F3F0E8;padding:5px 9px">
+        <b style="color:#014D5E;font-size:12.5px">${c.numero != null && c.numero !== "" ? `#${esc(c.numero)}` : "Comanda"} · ${esc(hora(c.data))} · ${esc(c.tutor || "Cliente")}${c.pet ? ` · ${esc(c.pet)}` : ""}</b>
+        <span style="font-size:11.5px;color:${corSit};font-weight:700;white-space:nowrap">${esc(situacao)}${c.formaPagamento ? ` · ${esc(c.formaPagamento)}` : ""}</span>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr>
+          <th style="${TH}">Item</th><th style="${TH};text-align:center">Qtd</th>
+          <th style="${TH};text-align:right">Valor</th><th style="${TH};text-align:right">Desc.</th>
+          <th style="${TH};text-align:right">Total</th>
+        </tr></thead>
+        <tbody>${corpo}</tbody>
+      </table>
+      ${c.observacao ? `<div style="font-size:11.5px;color:#374151;padding:5px 9px;border-top:1px solid #F0EBE0"><b>Obs:</b> ${esc(c.observacao)}</div>` : ""}
+      <div style="text-align:right;font-size:12.5px;padding:5px 9px;border-top:1px solid #F0EBE0;background:#FBF9F4">
+        Total <b style="color:#014D5E">${BRL(valor)}</b>${pago ? ` · pago <b style="color:#0F6E56">${BRL(pago)}</b>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+
+  const aReceber = Math.max(0, total - recebido);
+  const body = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:14px;font-size:12.5px">
+      <span style="color:#6B7280">${comandas.length} ${comandas.length === 1 ? "comanda" : "comandas"} em ${esc(dia)}</span>
+      <span>Total <b style="color:#014D5E">${BRL(total)}</b> · Recebido <b style="color:#0F6E56">${BRL(recebido)}</b> · A receber <b style="color:#b23b39">${BRL(aReceber)}</b></span>
+    </div>
+    ${blocos || `<p style="text-align:center;color:#9aa0a8;font-size:13px;padding:24px 0">Nenhuma comanda neste dia.</p>`}
+    <div style="margin-top:18px;font-size:11px;color:#9aa0a8">Emitido em ${new Date().toLocaleString("pt-BR")}</div>
+  `;
+
+  await imprimirDocumento(`Comandas do dia ${dia}`, body, undefined, undefined, { preview: args.preview, compacto: true });
+}
