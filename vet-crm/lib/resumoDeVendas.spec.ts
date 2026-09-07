@@ -154,3 +154,53 @@ describe("nada de números inventados quando não há dados", () => {
     expect(r.cards.aberto).toBe(0);
   });
 });
+
+describe("o grupo vem do NOSSO catálogo, não do campo da importação", () => {
+  it("catálogo ganha do campo congelado", () => {
+    // `grupo` só é preenchido pela importação do SimplesVet. Se ele mandasse, toda venda feita
+    // aqui cairia em "Sem grupo" — o relatório acertaria no passado e mentiria no presente.
+    const r = resumoDeVendas([
+      { date: "2026-09-01", valor: 100, itens: [{ descricao: "X", quantidade: 1, valorUnitario: 100, grupo: "Importado", grupoNome: "Consultas", grupoPai: "Clínica Geral" }] },
+    ]);
+    expect(r.porGrupo).toHaveLength(1);
+    expect(r.porGrupo[0]).toMatchObject({ nome: "Consultas", pai: "Clínica Geral" });
+  });
+
+  it("venda antiga, sem catálogo, ainda usa o campo da importação", () => {
+    const r = resumoDeVendas([
+      { date: "2026-09-01", valor: 100, itens: [{ descricao: "X", quantidade: 1, valorUnitario: 100, grupo: "Laboratorio" }] },
+    ]);
+    expect(r.porGrupo[0].nome).toBe("Laboratorio");
+  });
+
+  it("sem nenhum dos dois, cai em Sem grupo — e não some", () => {
+    const r = resumoDeVendas([{ date: "2026-09-01", valor: 50, itens: [{ descricao: "X", quantidade: 1, valorUnitario: 50 }] }]);
+    expect(r.porGrupo[0].nome).toBe("Sem grupo");
+    expect(r.porGrupo[0].liquido).toBe(50);
+  });
+});
+
+describe("tipo e convênio", () => {
+  const r = resumoDeVendas([
+    { date: "2026-09-01", valor: 430, itens: [
+      { descricao: "Consulta", quantidade: 1, valorUnitario: 150, tipoItem: "SERVICO" },
+      { descricao: "Ração", quantidade: 2, valorUnitario: 80, tipoItem: "PRODUTO" },
+      { descricao: "Raio-X", quantidade: 1, valorUnitario: 120, tipoItem: "EXAME", convenio: "Petlife" },
+    ] },
+  ]);
+
+  it("separa produto, serviço e exame pelo tipo do catálogo", () => {
+    expect(r.porTipo.map((t) => t.nome).sort()).toEqual(["Exame", "Produto", "Serviço"]);
+    expect(r.porTipo.find((t) => t.nome === "Produto")!.qtd).toBe(2);
+  });
+
+  it("item sem tipo não some: vira Não classificado", () => {
+    const sem = resumoDeVendas([{ date: "2026-09-01", valor: 10, itens: [{ descricao: "?", quantidade: 1, valorUnitario: 10 }] }]);
+    expect(sem.porTipo[0].nome).toBe("Não classificado");
+  });
+
+  it("o item do convênio aparece em quadro próprio", () => {
+    // O convênio paga e vira a-receber mensal — não existe no SimplesVet.
+    expect(r.porConvenio).toEqual([{ nome: "Petlife", itens: 1, valor: 120 }]);
+  });
+});

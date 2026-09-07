@@ -22,7 +22,11 @@ export type ItemDaVenda = {
   valorUnitario?: number | null;
   valorTotal?: number | null;
   desconto?: number | null;
-  grupo?: string | null;
+  grupo?: string | null;        // congelado da importacao do SimplesVet
+  grupoNome?: string | null;    // do NOSSO catalogo (cat_grupos) — e este que manda
+  grupoPai?: string | null;     // o grupo pai, quando existe
+  tipoItem?: string | null;     // PRODUTO | SERVICO | EXAME | VACINA | PACOTE | KIT
+  convenio?: string | null;     // quem paga o item, quando nao e o tutor
   servicoId?: string | null;
   productId?: string | null;
   catalogoItemId?: string | null;
@@ -64,7 +68,8 @@ export type LinhaDia = { dia: string; qtd: number; ticket: number; bruto: number
 export type LinhaForma = { forma: string; valor: number; parcelas: { rotulo: string; valor: number }[] };
 export type LinhaSituacao = { situacao: "ABERTA" | "PARCIAL" | "PAGA"; rotulo: string; qtd: number; valor: number; recebido: number; aberto: number };
 export type LinhaNome = { nome: string; qtd: number; bruto: number; desconto: number; liquido: number };
-export type LinhaGrupo = LinhaNome & { percentual: number };
+export type LinhaGrupo = LinhaNome & { percentual: number; pai: string | null };
+export type LinhaConvenio = { nome: string; itens: number; valor: number };
 export type LinhaItem = LinhaNome & { grupo: string; chave: string; nomeRepetido: boolean };
 
 export type Resumo = {
@@ -74,6 +79,8 @@ export type Resumo = {
   porSituacao: LinhaSituacao[];
   porFuncionario: LinhaNome[];
   porGrupo: LinhaGrupo[];
+  porTipo: LinhaNome[];
+  porConvenio: LinhaConvenio[];
   porItem: LinhaItem[];
   porDataDeBaixa: { dia: string; valor: number }[];
   /** Diferença entre a soma dos itens e o valor cobrado (desconto dado na venda inteira). */
@@ -81,6 +88,9 @@ export type Resumo = {
 };
 
 const ROTULO_SITUACAO: Record<string, string> = { ABERTA: "Aberto", PARCIAL: "Baixa parcial", PAGA: "Baixado" };
+const ROTULO_TIPO: Record<string, string> = {
+  PRODUTO: "Produto", SERVICO: "Serviço", EXAME: "Exame", VACINA: "Vacina", PACOTE: "Pacote", KIT: "Kit",
+};
 
 export function resumoDeVendas(vendas: VendaDoResumo[] | null | undefined): Resumo {
   const lista = Array.isArray(vendas) ? vendas : [];
@@ -90,7 +100,9 @@ export function resumoDeVendas(vendas: VendaDoResumo[] | null | undefined): Resu
   const formas = new Map<string, { valor: number; parcelas: Map<string, number> }>();
   const situacoes = new Map<string, LinhaSituacao>();
   const funcs = new Map<string, LinhaNome>();
-  const grupos = new Map<string, LinhaNome>();
+  const grupos = new Map<string, LinhaNome & { pai: string | null }>();
+  const tipos = new Map<string, LinhaNome>();
+  const convenios = new Map<string, LinhaConvenio>();
   const itens = new Map<string, LinhaItem>();
   const baixas = new Map<string, number>();
   const nomesPorChave = new Map<string, Set<string>>();
@@ -128,10 +140,25 @@ export function resumoDeVendas(vendas: VendaDoResumo[] | null | undefined): Resu
       const q = n(it.quantidade) || 1;
       const b = q * n(it.valorUnitario);
       const desc = n(it.desconto);
-      const g = (it.grupo || "").trim() || "Sem grupo";
-      const lg = grupos.get(g) || { nome: g, qtd: 0, bruto: 0, desconto: 0, liquido: 0 };
+      // O catalogo manda; o campo da importacao e so o ultimo recurso (venda antiga).
+      const g = (it.grupoNome || it.grupo || "").trim() || "Sem grupo";
+      const pai = (it.grupoPai || "").trim() || null;
+      const lg = grupos.get(g) || { nome: g, pai, qtd: 0, bruto: 0, desconto: 0, liquido: 0 };
       lg.qtd += q; lg.bruto += b; lg.desconto += desc; lg.liquido += b - desc;
       grupos.set(g, lg);
+
+      const tp = ROTULO_TIPO[String(it.tipoItem || "")] || "Não classificado";
+      const lt = tipos.get(tp) || { nome: tp, qtd: 0, bruto: 0, desconto: 0, liquido: 0 };
+      lt.qtd += q; lt.bruto += b; lt.desconto += desc; lt.liquido += b - desc;
+      tipos.set(tp, lt);
+
+      // Item pago pelo convenio: sai do total do tutor e vira a-receber mensal do convenio.
+      const conv = (it.convenio || "").trim();
+      if (conv) {
+        const lc = convenios.get(conv) || { nome: conv, itens: 0, valor: 0 };
+        lc.itens += q; lc.valor += b - desc;
+        convenios.set(conv, lc);
+      }
 
       // A chave do item é o ID do catálogo — dois cadastros com o MESMO nome são dois itens,
       // e é isso que a tela precisa mostrar pra alguém arrumar o cadastro.
@@ -197,9 +224,11 @@ export function resumoDeVendas(vendas: VendaDoResumo[] | null | undefined): Resu
   const ordemSit: LinhaSituacao["situacao"][] = ["ABERTA", "PARCIAL", "PAGA"];
   const porSituacao = ordemSit.map((k) => situacoes.get(k)).filter(Boolean) as LinhaSituacao[];
 
+  const brutoDosGrupos = [...grupos.values()].reduce((s, x) => s + x.bruto, 0);
   const porGrupo = [...grupos.values()]
-    .map((g) => ({ ...g, percentual: pct(g.bruto, [...grupos.values()].reduce((s, x) => s + x.bruto, 0)) }))
-    .sort((a, b) => b.liquido - a.liquido);
+    .map((g) => ({ ...g, percentual: pct(g.bruto, brutoDosGrupos) }))
+    // Agrupado pelo pai (a arvore do catalogo) e, dentro dele, do maior pro menor.
+    .sort((a, b) => (a.pai || a.nome).localeCompare(b.pai || b.nome, "pt-BR") || b.liquido - a.liquido);
 
   const porItem = [...itens.values()]
     .map((i) => ({ ...i, nomeRepetido: (nomesPorChave.get(i.nome.toLowerCase())?.size || 0) > 1 }))
@@ -221,6 +250,8 @@ export function resumoDeVendas(vendas: VendaDoResumo[] | null | undefined): Resu
     porSituacao,
     porFuncionario: [...funcs.values()].sort((a, b) => b.liquido - a.liquido),
     porGrupo,
+    porTipo: [...tipos.values()].sort((a, b) => b.liquido - a.liquido),
+    porConvenio: [...convenios.values()].sort((a, b) => b.valor - a.valor),
     porItem,
     porDataDeBaixa: [...baixas.entries()].map(([d, valor]) => ({ dia: d, valor })).sort((a, b) => a.dia.localeCompare(b.dia)),
     // Quando a venda teve desconto no total (não no item), a soma dos itens não bate com o

@@ -1043,6 +1043,26 @@ export class CrmIntegrationService {
       },
     });
 
+    // ── DE ONDE VEM O GRUPO E O TIPO DO ITEM ──────────────────────────────────
+    // NAO do campo `grupo` do item: ele so e preenchido pela importacao do SimplesVet, entao
+    // toda venda feita aqui cairia em "Sem grupo" — o relatorio acertaria no passado e mentiria
+    // no presente. A fonte e o CATALOGO (cat_itens -> cat_grupos), que ja tem a arvore de dois
+    // niveis (grupo pai > subgrupo) que a clinica usa.
+    const idsCatalogo = [...new Set(appts.flatMap((a: any) => (a.items || []).map((i: any) => i.catalogoItemId).filter(Boolean)))] as string[];
+    const catalogo = idsCatalogo.length
+      ? await this.prisma.itemCatalogo.findMany({
+          where: { id: { in: idsCatalogo } },
+          select: { id: true, tipo: true, controlePlano: true, planoUnidades: true, grupo: { select: { nome: true, pai: { select: { nome: true } } } } },
+        })
+      : [];
+    const porCatalogo = new Map(catalogo.map((c: any) => [c.id, c]));
+
+    const idsConvenio = [...new Set(appts.flatMap((a: any) => (a.items || []).map((i: any) => i.convenioId).filter(Boolean)))] as string[];
+    const convenios = idsConvenio.length
+      ? await this.prisma.catConvenio.findMany({ where: { id: { in: idsConvenio } }, select: { id: true, nome: true } })
+      : [];
+    const porConvenio = new Map(convenios.map((c: any) => [c.id, c.nome]));
+
     let liquido = 0;
     let descontos = 0;
     let recebido = 0;
@@ -1099,6 +1119,12 @@ export class CrmIntegrationService {
           servicoId: it.servicoId ?? null,
           productId: it.productId ?? null,
           catalogoItemId: it.catalogoItemId ?? null,
+          // Catalogo primeiro; o `grupo` da importacao so entra quando o item nao esta ligado
+          // ao catalogo (venda antiga, importada) — e ai e a unica coisa que existe.
+          grupoNome: porCatalogo.get(it.catalogoItemId || '')?.grupo?.nome ?? it.grupo ?? null,
+          grupoPai: porCatalogo.get(it.catalogoItemId || '')?.grupo?.pai?.nome ?? null,
+          tipoItem: porCatalogo.get(it.catalogoItemId || '')?.tipo ?? null,
+          convenio: it.convenioId ? (porConvenio.get(it.convenioId) ?? 'Convenio') : null,
           grupo: it.grupo,
           marca: it.marca,
           executor: it.executorUser?.name ?? null,
@@ -1106,11 +1132,49 @@ export class CrmIntegrationService {
       };
     });
 
+    // ── PACOTES VENDIDOS NO PERIODO, com sessoes ──────────────────────────────
+    // O controle vivo das sessoes e a lista `petpac_<pet>` ({nome, total, used, origemVenda}) —
+    // a mesma que a ficha, a agenda e o inbox usam. A tabela `Pacote` antiga ficava orfa.
+    //
+    // Aqui esta a diferenca para o SimplesVet: la o pacote vira receita inteira no dia da venda.
+    // Como a casa reconhece a receita SESSAO A SESSAO (lancamentos diferidos), o relatorio mostra
+    // o quanto ja foi reconhecido e o quanto ainda esta por usar.
+    const apptsDoPeriodo = new Map(appts.map((a: any) => [a.id, a]));
+    const pacotesMap = new Map<string, { nome: string; vendidos: number; sessoes: number; usadas: number; valor: number; reconhecido: number }>();
+    try {
+      const listas = await this.prisma.listaItem.findMany({ where: { lista: { startsWith: 'petpac_' } }, select: { valor: true } });
+      for (const li of listas) {
+        let d: any; try { d = JSON.parse(li.valor); } catch { continue; }
+        if (d?.origem !== 'venda' || !d?.origemVenda) continue;
+        const partes = String(d.origemVenda).split(':'); // venda:<appt>:<productId>
+        const appt: any = apptsDoPeriodo.get(partes[1]);
+        if (!appt) continue; // pacote vendido fora do periodo filtrado
+        const item = (appt.items || []).find((i: any) => i.productId === partes[2] || i.catalogoItemId === partes[2]);
+        const valorItem = Number(item?.valorTotal) || 0;
+        const total = Math.max(0, Number(d.total) || 0);
+        const usadas = Math.min(Math.max(0, Number(d.used) || 0), total);
+        const nome = String(d.nome || 'Pacote');
+        const g = pacotesMap.get(nome) || { nome, vendidos: 0, sessoes: 0, usadas: 0, valor: 0, reconhecido: 0 };
+        g.vendidos += 1;
+        g.sessoes += total;
+        g.usadas += usadas;
+        g.valor += valorItem;
+        // Proporcional as sessoes usadas. O rateio exato (com o centavo residual) vive nos
+        // lancamentos do financeiro; aqui o numero e de leitura, e a tela diz isso.
+        g.reconhecido += total > 0 ? (valorItem * usadas) / total : valorItem;
+        pacotesMap.set(nome, g);
+      }
+    } catch { /* sem pacotes: o quadro simplesmente nao aparece */ }
+    const pacotes = [...pacotesMap.values()]
+      .map((g) => ({ ...g, reconhecido: Number(g.reconhecido.toFixed(2)), aReconhecer: Number(Math.max(0, g.valor - g.reconhecido).toFixed(2)) }))
+      .sort((a, b) => b.valor - a.valor);
+
     const qtd = vendas.length;
     const ticket = qtd > 0 ? liquido / qtd : 0;
 
     return {
       vendas,
+      pacotes,
       totais: {
         qtd,
         liquido,

@@ -108,3 +108,29 @@ describe("o Resumo sai de um cálculo só", () => {
     expect(ler(CONSULTA)).toContain("resumo.ajusteDeVenda");
   });
 });
+
+describe("os quadros que o SimplesVet não tem", () => {
+  it("o grupo vem do catálogo, não do campo da importação", () => {
+    // Se voltar a ler `it.grupo` como fonte principal, toda venda feita aqui cai em "Sem grupo".
+    expect(ler("lib/resumoDeVendas.ts")).toContain("it.grupoNome || it.grupo");
+  });
+
+  it("pacote mostra sessões usadas e receita reconhecida", () => {
+    const src = ler(CONSULTA);
+    expect(src).toContain("Pacotes");
+    expect(src).toContain("A reconhecer");
+  });
+
+  it("convênio tem quadro próprio", () => {
+    expect(ler(CONSULTA)).toContain("resumo.porConvenio");
+  });
+
+  it("produto × serviço sai do tipo do catálogo", () => {
+    expect(ler(CONSULTA)).toContain("resumo.porTipo");
+  });
+
+  it("a tela explica por que o total difere do SimplesVet", () => {
+    // A comparação vai acontecer. Sem explicação, ela vira desconfiança do sistema.
+    expect(ler(CONSULTA)).toContain("não conta como venda");
+  });
+});

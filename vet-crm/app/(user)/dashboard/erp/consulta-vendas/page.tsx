@@ -49,7 +49,8 @@ interface Venda {
   itens: Item[];
 }
 interface Totais { qtd: number; liquido: number; ticket: number; descontos: number; recebido: number; aberto: number }
-interface Resp { vendas: Venda[]; totais: Totais }
+interface Pacote { nome: string; vendidos: number; sessoes: number; usadas: number; valor: number; reconhecido: number; aReconhecer: number }
+interface Resp { vendas: Venda[]; totais: Totais; pacotes?: Pacote[] }
 
 /* ---------------- helpers ---------------- */
 const brl = (v: number) =>
@@ -598,6 +599,12 @@ export default function ConsultaVendasPage() {
         <Kpi emoji="🎯" label="Ticket médio" value={brl(resumo.cards.ticket)} color={TEAL} />
       </div>
 
+      {/* Sem esta linha, a primeira comparação com o relatório do SimplesVet vira desconfiança
+          do sistema: lá o mesmo dinheiro era contado duas vezes (produto e forma de pagamento). */}
+      <div className="no-print" style={{ fontSize: 12, color: GREY2, margin: '-8px 0 14px', maxWidth: '86ch' }}>
+        Compra de <b style={{ color: GREY }}>crédito de cliente</b> não conta como venda — ela vira receita no serviço em que o crédito for gasto, e aparece em “Uso de crédito” nas formas de recebimento. Por isso este total fica menor que o do SimplesVet no mesmo mês.
+      </div>
+
       {/* Tabela */}
       <div style={{ ...cardCss, overflow: 'hidden' }}>
         {loading ? (
@@ -706,17 +713,88 @@ export default function ConsultaVendasPage() {
               ))}
             </Quadro>
 
-            {/* GRUPO DE PRODUTO */}
-            <Quadro titulo="Por grupo de produto" cols={['Grupo', '%', 'Bruto', 'Desc.', 'Líquido']}>
-              {resumo.porGrupo.map((g) => (
-                <tr key={g.nome} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
-                  <Td>{g.nome}</Td>
-                  <Td dir>{g.percentual.toFixed(1).replace('.', ',')}%</Td>
-                  <Td dir>{brl(g.bruto)}</Td>
-                  <Td dir>{g.desconto ? brl(g.desconto) : '—'}</Td>
-                  <Td dir forte>{brl(g.liquido)}</Td>
+            {/* PACOTES — o que o SimplesVet nao tem: sessoes usadas e receita reconhecida. */}
+            {(data?.pacotes || []).length > 0 && (
+              <Quadro titulo="Pacotes" subtitulo="a receita é reconhecida sessão a sessão, não no dia da venda" cols={['Pacote', 'Vend.', 'Sessões', 'Usadas', 'Reconhecido', 'A reconhecer']}>
+                {(data?.pacotes || []).map((pc) => (
+                  <tr key={pc.nome} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                    <Td>{pc.nome}</Td>
+                    <Td dir>{pc.vendidos}</Td>
+                    <Td dir>{pc.sessoes}</Td>
+                    <Td dir>{pc.usadas}</Td>
+                    <Td dir cor={GREEN}>{brl(pc.reconhecido)}</Td>
+                    <Td dir cor={pc.aReconhecer > 0 ? '#946200' : GREY2}>{pc.aReconhecer > 0 ? brl(pc.aReconhecer) : '—'}</Td>
+                  </tr>
+                ))}
+                <tr style={{ borderTop: `2px solid ${NAVY}` }}>
+                  <Td forte>Total</Td>
+                  <Td dir forte>{(data?.pacotes || []).reduce((a, p2) => a + p2.vendidos, 0)}</Td>
+                  <Td dir forte>{(data?.pacotes || []).reduce((a, p2) => a + p2.sessoes, 0)}</Td>
+                  <Td dir forte>{(data?.pacotes || []).reduce((a, p2) => a + p2.usadas, 0)}</Td>
+                  <Td dir forte cor={GREEN}>{brl((data?.pacotes || []).reduce((a, p2) => a + p2.reconhecido, 0))}</Td>
+                  <Td dir forte cor="#946200">{brl((data?.pacotes || []).reduce((a, p2) => a + p2.aReconhecer, 0))}</Td>
+                </tr>
+              </Quadro>
+            )}
+
+            {/* TIPO — produto x servico, pelo tipo do item do catalogo. */}
+            <Quadro titulo="Produto × serviço" cols={['Tipo', 'Itens', 'Bruto', 'Desc.', 'Líquido']}>
+              {resumo.porTipo.map((t2) => (
+                <tr key={t2.nome} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                  <Td>{t2.nome}</Td>
+                  <Td dir>{t2.qtd.toLocaleString('pt-BR')}</Td>
+                  <Td dir>{brl(t2.bruto)}</Td>
+                  <Td dir>{t2.desconto ? brl(t2.desconto) : '—'}</Td>
+                  <Td dir forte>{brl(t2.liquido)}</Td>
                 </tr>
               ))}
+            </Quadro>
+
+            {/* CONVENIO — item que o convenio paga sai do total do tutor. */}
+            {resumo.porConvenio.length > 0 && (
+              <Quadro titulo="Convênios" subtitulo="item pago pelo convênio: sai do total do tutor e vira a-receber mensal" cols={['Convênio', 'Itens', 'A faturar']}>
+                {resumo.porConvenio.map((c) => (
+                  <tr key={c.nome} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                    <Td>{c.nome}</Td>
+                    <Td dir>{c.itens.toLocaleString('pt-BR')}</Td>
+                    <Td dir forte cor="#946200">{brl(c.valor)}</Td>
+                  </tr>
+                ))}
+              </Quadro>
+            )}
+
+            {/* GRUPO DE PRODUTO */}
+            <Quadro titulo="Por grupo de produto" subtitulo="a árvore do nosso catálogo: grupo e subgrupo" cols={['Grupo', '%', 'Bruto', 'Desc.', 'Líquido']}>
+              {(() => {
+                // Dois níveis, como no catálogo: o pai aparece uma vez, somando os filhos.
+                const pais = [...new Set(resumo.porGrupo.map((g) => g.pai))];
+                return pais.map((pai) => {
+                  const filhos = resumo.porGrupo.filter((g) => g.pai === pai);
+                  const soma = (f: (g: typeof filhos[number]) => number) => filhos.reduce((a, g) => a + f(g), 0);
+                  return (
+                    <Fragment key={pai || '—'}>
+                      {pai && (
+                        <tr style={{ borderTop: `1px solid ${CARD_LINE}`, background: '#FBF9F4' }}>
+                          <Td forte>{pai}</Td>
+                          <Td dir forte>{soma((g) => g.percentual).toFixed(1).replace('.', ',')}%</Td>
+                          <Td dir forte>{brl(soma((g) => g.bruto))}</Td>
+                          <Td dir forte>{brl(soma((g) => g.desconto))}</Td>
+                          <Td dir forte>{brl(soma((g) => g.liquido))}</Td>
+                        </tr>
+                      )}
+                      {filhos.map((g) => (
+                        <tr key={g.nome} style={{ borderTop: pai ? 'none' : `1px solid ${CARD_LINE}` }}>
+                          {pai ? <Td sub>{g.nome}</Td> : <Td>{g.nome}</Td>}
+                          <Td dir sub={!!pai}>{g.percentual.toFixed(1).replace('.', ',')}%</Td>
+                          <Td dir sub={!!pai}>{brl(g.bruto)}</Td>
+                          <Td dir sub={!!pai}>{g.desconto ? brl(g.desconto) : '—'}</Td>
+                          <Td dir forte={!pai} sub={!!pai}>{brl(g.liquido)}</Td>
+                        </tr>
+                      ))}
+                    </Fragment>
+                  );
+                });
+              })()}
             </Quadro>
           </div>
         ) : modo === 'TOTAIS' ? (
