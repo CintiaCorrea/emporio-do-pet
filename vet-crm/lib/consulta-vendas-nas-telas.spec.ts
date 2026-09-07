@@ -77,3 +77,34 @@ describe("dá pra achar uma venda sem saber a data", () => {
     expect(src).toContain("p.set('de'");
   });
 });
+
+describe("o Resumo sai de um cálculo só", () => {
+  it("a aba existe e usa o núcleo com teste", () => {
+    const src = ler(CONSULTA);
+    expect(src).toContain("'RESUMO'");
+    expect(src).toContain("resumoDeVendas(");
+  });
+
+  it("os cartões saem do mesmo cálculo dos quadros", () => {
+    // Antes vinham do total do backend e ignoravam o filtro de funcionário — dois números
+    // diferentes na mesma tela, que foi o defeito que a leitura do SimplesVet apontou.
+    const src = ler(CONSULTA);
+    expect(src).toContain("brl(resumo.cards.liquido)");
+    expect(src).not.toContain("brl(t?.liquido || 0)");
+  });
+
+  it("o quadro de situação mostra valor, recebido e a receber", () => {
+    // As três colunas juntas são o que faz o quadro fechar com o total.
+    const src = ler(CONSULTA);
+    expect(src).toContain("Situação das vendas");
+    expect(src).toContain("resumo.porSituacao.map");
+  });
+
+  it("o item com nome repetido é marcado, não somado por engano", () => {
+    expect(ler(CONSULTA)).toContain("nomeRepetido");
+  });
+
+  it("o desconto dado no total da venda aparece com nome", () => {
+    expect(ler(CONSULTA)).toContain("resumo.ajusteDeVenda");
+  });
+});

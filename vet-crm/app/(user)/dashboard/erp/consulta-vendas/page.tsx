@@ -1,11 +1,12 @@
 // DESTINO: vet-crm/app/(user)/dashboard/erp/consulta-vendas/page.tsx
 'use client';
 
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import OrcamentosBusca from '@/components/vendas/OrcamentosBusca';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
+import { resumoDeVendas } from '@/lib/resumoDeVendas';
 
 /* ---------------- paleta Base44 ---------------- */
 const BG = '#F6F2EA';
@@ -290,6 +291,43 @@ function DevolucaoModal({ vendaId, onClose }: { vendaId: string; onClose: () => 
   );
 }
 
+/* ---------------- quadros do Resumo ---------------- */
+function Quadro({ titulo, subtitulo, cols, children }: { titulo: string; subtitulo?: string; cols: string[]; children: React.ReactNode }) {
+  return (
+    <div style={{ ...cardCss, overflow: 'hidden' }}>
+      <div style={{ padding: '10px 12px', borderBottom: `1px solid ${CARD_LINE}`, background: '#FBF9F4' }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>{titulo}</div>
+        {subtitulo && <div style={{ fontSize: 11, color: GREY2 }}>{subtitulo}</div>}
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 320 }}>
+          <thead>
+            <tr>
+              {cols.map((c, i) => (
+                <th key={c} style={{ padding: '7px 10px', fontSize: 10.5, color: GREY2, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.4px', textAlign: i === 0 ? 'left' : 'right', whiteSpace: 'nowrap' }}>{c}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>{children}</tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function Td({ children, dir, forte, sub, cor }: { children: React.ReactNode; dir?: boolean; forte?: boolean; sub?: boolean; cor?: string }) {
+  return (
+    <td style={{
+      padding: sub ? '4px 10px 4px 22px' : '8px 10px',
+      fontSize: sub ? 12 : 12.5,
+      textAlign: dir ? 'right' : 'left',
+      fontWeight: forte ? 700 : 400,
+      color: cor || (sub ? GREY2 : forte ? NAVY : GREY),
+      whiteSpace: 'nowrap',
+    }}>{children}</td>
+  );
+}
+
 /* ---------------- linha expansível ---------------- */
 function LinhaVenda({ v, saldoCliente }: { v: Venda; saldoCliente: number }) {
   const [open, setOpen] = useState(false);
@@ -373,7 +411,7 @@ export default function ConsultaVendasPage() {
   const [busca, setBusca] = useState('');
   const [cod, setCod] = useState('');
   const [func, setFunc] = useState('');
-  const [modo, setModo] = useState<'VENDAS' | 'ORCAMENTOS' | 'TOTAIS'>('VENDAS');
+  const [modo, setModo] = useState<'VENDAS' | 'ORCAMENTOS' | 'TOTAIS' | 'RESUMO'>('VENDAS');
   // Saldo em aberto POR CLIENTE, de todos os dias — e o que alimenta o aviso da lista.
   const [saldos, setSaldos] = useState<Record<string, number>>({});
   const [pagina, setPagina] = useState(1);
@@ -434,6 +472,9 @@ export default function ConsultaVendasPage() {
       if (da !== db) return db.localeCompare(da);
       return (Number(b.numeroVenda) || 0) - (Number(a.numeroVenda) || 0);
     }), [data, func]);
+  // Todos os quadros do Resumo saem de UMA passada (lib/resumoDeVendas, com teste): é o que
+  // garante que card, quadro e linha nunca contem histórias diferentes.
+  const resumo = useMemo(() => resumoDeVendas(vendasF as any), [vendasF]);
   const totalPaginas = Math.max(1, Math.ceil(vendasF.length / POR_PAGINA));
   const paginaAtual = Math.min(pagina, totalPaginas);
   const vendasDaPagina = useMemo(() => vendasF.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA), [vendasF, paginaAtual]);
@@ -456,7 +497,7 @@ export default function ConsultaVendasPage() {
 
       {/* Abas: Vendas | Orçamentos (busca global de orçamentos) */}
       <div className="flex gap-1 mb-4 no-print items-center">
-        {(([['VENDAS', '🧾 Vendas'], ['TOTAIS', '📊 Totais por produto'], ['ORCAMENTOS', '📄 Orçamentos']]) as [('VENDAS' | 'ORCAMENTOS' | 'TOTAIS'), string][]).map(([k, lbl]) => (
+        {(([['VENDAS', '🧾 Vendas'], ['TOTAIS', '📊 Totais por produto'], ['RESUMO', '📈 Resumo'], ['ORCAMENTOS', '📄 Orçamentos']]) as [('VENDAS' | 'ORCAMENTOS' | 'TOTAIS' | 'RESUMO'), string][]).map(([k, lbl]) => (
           <button key={k} onClick={() => setModo(k)} style={{ fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: modo === k ? TEAL : '#fff', color: modo === k ? '#fff' : NAVY }}>{lbl}</button>
         ))}
         <a href="/dashboard/erp/recebimentos" style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: '#fff', color: NAVY, textDecoration: 'none' }}>💰 Recebimentos →</a>
@@ -546,12 +587,15 @@ export default function ConsultaVendasPage() {
 
       {/* KPIs */}
       <div className="flex gap-3 flex-wrap mb-4">
-        <Kpi emoji="💰" label="Total líquido" value={brl(t?.liquido || 0)} color={GREEN} />
-        <Kpi emoji="🧾" label="Nº vendas" value={String(t?.qtd || 0)} color={NAVY} />
-        <Kpi emoji="🎯" label="Ticket médio" value={brl(t?.ticket || 0)} color={TEAL} />
-        <Kpi emoji="🏷️" label="Descontos" value={brl(t?.descontos || 0)} color={CORAL} />
-        <Kpi emoji="✅" label="Recebido" value={brl(t?.recebido || 0)} color={GREEN} />
-        <Kpi emoji="⏳" label="A receber no período" value={brl(t?.aberto || 0)} color={CORAL} />
+        {/* Os cartões saem do mesmo cálculo dos quadros (lib/resumoDeVendas) e respeitam o
+            filtro de funcionário — antes vinham do total do backend e discordavam da tela. */}
+        <Kpi emoji="💰" label="Venda bruta" value={brl(resumo.cards.bruto)} color={GREEN} />
+        <Kpi emoji="🏷️" label={`Descontos · ${resumo.cards.percentualDesconto.toFixed(1).replace('.', ',')}%`} value={brl(resumo.cards.desconto)} color={'#946200'} />
+        <Kpi emoji="🧮" label="Venda líquida" value={brl(resumo.cards.liquido)} color={NAVY} />
+        <Kpi emoji="✅" label="Recebido" value={brl(resumo.cards.recebido)} color={GREEN} />
+        <Kpi emoji="⏳" label="A receber no período" value={brl(resumo.cards.aberto)} color={CORAL} />
+        <Kpi emoji="🧾" label="Nº vendas" value={String(resumo.cards.qtd)} color={NAVY} />
+        <Kpi emoji="🎯" label="Ticket médio" value={brl(resumo.cards.ticket)} color={TEAL} />
       </div>
 
       {/* Tabela */}
@@ -565,23 +609,176 @@ export default function ConsultaVendasPage() {
             <span style={{ fontSize: 32 }}>📭</span>
             <span style={{ fontSize: 14 }}>Nenhuma venda encontrada no período.</span>
           </div>
+        ) : modo === 'RESUMO' ? (
+          <div style={{ padding: 14, display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))' }}>
+            {/* VENDAS POR DIA — competência: o dia em que a venda foi feita. */}
+            <Quadro titulo="Vendas por dia" cols={['Dia', 'Qtd', 'Bruto', 'Desc.', '%', 'Líquido', 'Recebido', 'A receber']}>
+              {resumo.porDia.map((d) => (
+                <tr key={d.dia} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                  <Td>{d.dia.split('-').reverse().join('/')}</Td>
+                  <Td dir>{d.qtd}</Td>
+                  <Td dir>{brl(d.bruto)}</Td>
+                  <Td dir>{d.desconto ? brl(d.desconto) : '—'}</Td>
+                  <Td dir>{d.percentual ? `${d.percentual.toFixed(1).replace('.', ',')}%` : '—'}</Td>
+                  <Td dir forte>{brl(d.liquido)}</Td>
+                  <Td dir cor={GREEN}>{brl(d.recebido)}</Td>
+                  <Td dir cor={d.aberto > 0 ? '#b23b39' : GREY2}>{brl(d.aberto)}</Td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: `2px solid ${NAVY}` }}>
+                <Td forte>Total</Td>
+                <Td dir forte>{resumo.cards.qtd}</Td>
+                <Td dir forte>{brl(resumo.cards.bruto)}</Td>
+                <Td dir forte>{brl(resumo.cards.desconto)}</Td>
+                <Td dir forte>{resumo.cards.percentualDesconto.toFixed(1).replace('.', ',')}%</Td>
+                <Td dir forte>{brl(resumo.cards.liquido)}</Td>
+                <Td dir forte cor={GREEN}>{brl(resumo.cards.recebido)}</Td>
+                <Td dir forte cor="#b23b39">{brl(resumo.cards.aberto)}</Td>
+              </tr>
+            </Quadro>
+
+            {/* SITUAÇÃO — as três colunas juntas, para o quadro FECHAR com o total. */}
+            <Quadro titulo="Situação das vendas" cols={['Situação', 'Qtd', 'Valor', 'Recebido', 'A receber']}>
+              {resumo.porSituacao.map((l) => (
+                <tr key={l.situacao} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                  <Td>{l.rotulo}</Td>
+                  <Td dir>{l.qtd}</Td>
+                  <Td dir>{brl(l.valor)}</Td>
+                  <Td dir cor={GREEN}>{brl(l.recebido)}</Td>
+                  <Td dir cor={l.aberto > 0 ? '#b23b39' : GREY2}>{brl(l.aberto)}</Td>
+                </tr>
+              ))}
+              <tr style={{ borderTop: `2px solid ${NAVY}` }}>
+                <Td forte>Total</Td>
+                <Td dir forte>{resumo.cards.qtd}</Td>
+                <Td dir forte>{brl(resumo.cards.liquido)}</Td>
+                <Td dir forte cor={GREEN}>{brl(resumo.cards.recebido)}</Td>
+                <Td dir forte cor="#b23b39">{brl(resumo.cards.aberto)}</Td>
+              </tr>
+            </Quadro>
+
+            {/* FORMAS — o que entrou, por forma e por parcelamento. */}
+            <Quadro titulo="Formas de recebimento" cols={['Forma', 'Valor pago']}>
+              {resumo.porForma.length === 0 && <tr><Td>Nada recebido no período.</Td><Td dir>—</Td></tr>}
+              {resumo.porForma.map((f) => (
+                <Fragment key={f.forma}>
+                  <tr style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                    <Td forte>{f.forma}</Td>
+                    <Td dir forte>{brl(f.valor)}</Td>
+                  </tr>
+                  {f.parcelas.map((pz) => (
+                    <tr key={pz.rotulo}>
+                      <Td sub>{pz.rotulo}</Td>
+                      <Td dir sub>{brl(pz.valor)}</Td>
+                    </tr>
+                  ))}
+                </Fragment>
+              ))}
+              {resumo.porForma.length > 0 && (
+                <tr style={{ borderTop: `2px solid ${NAVY}` }}>
+                  <Td forte>Total</Td>
+                  <Td dir forte cor={GREEN}>{brl(resumo.cards.recebido)}</Td>
+                </tr>
+              )}
+            </Quadro>
+
+            {/* DATA DA BAIXA — caixa: o dia em que o dinheiro entrou, que não é o da venda. */}
+            <Quadro titulo="Data da baixa" subtitulo="quando o dinheiro entrou (pode ser outro dia que o da venda)" cols={['Dia', 'Recebido']}>
+              {resumo.porDataDeBaixa.length === 0 && <tr><Td>Nenhuma baixa no período.</Td><Td dir>—</Td></tr>}
+              {resumo.porDataDeBaixa.map((b) => (
+                <tr key={b.dia} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                  <Td>{b.dia.split('-').reverse().join('/')}</Td>
+                  <Td dir cor={GREEN}>{brl(b.valor)}</Td>
+                </tr>
+              ))}
+            </Quadro>
+
+            {/* FUNCIONÁRIO */}
+            <Quadro titulo="Por funcionário" cols={['Nome', 'Qtd', 'Bruto', 'Desc.', 'Líquido']}>
+              {resumo.porFuncionario.map((f) => (
+                <tr key={f.nome} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                  <Td>{f.nome}</Td>
+                  <Td dir>{f.qtd}</Td>
+                  <Td dir>{brl(f.bruto)}</Td>
+                  <Td dir>{f.desconto ? brl(f.desconto) : '—'}</Td>
+                  <Td dir forte>{brl(f.liquido)}</Td>
+                </tr>
+              ))}
+            </Quadro>
+
+            {/* GRUPO DE PRODUTO */}
+            <Quadro titulo="Por grupo de produto" cols={['Grupo', '%', 'Bruto', 'Desc.', 'Líquido']}>
+              {resumo.porGrupo.map((g) => (
+                <tr key={g.nome} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                  <Td>{g.nome}</Td>
+                  <Td dir>{g.percentual.toFixed(1).replace('.', ',')}%</Td>
+                  <Td dir>{brl(g.bruto)}</Td>
+                  <Td dir>{g.desconto ? brl(g.desconto) : '—'}</Td>
+                  <Td dir forte>{brl(g.liquido)}</Td>
+                </tr>
+              ))}
+            </Quadro>
+          </div>
         ) : modo === 'TOTAIS' ? (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#FBF9F4' }}>
-                {['Produto / Serviço', 'Qtd', 'Total'].map((h, i) => (
+                {['Produto / Serviço', 'Itens', 'Bruto', 'Desconto', 'Líquido'].map((h, i) => (
                   <th key={h} style={{ padding: '10px 12px', fontSize: 11, color: GREY2, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.4px', textAlign: i === 0 ? 'left' : 'right' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {totaisProduto.length === 0 ? <tr><td colSpan={3} style={{ padding: 24, textAlign: 'center', color: GREY2, fontSize: 13 }}>Sem itens no período.</td></tr> : totaisProduto.map((x) => (
-                <tr key={x.nome} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
-                  <td style={{ padding: '10px 12px', fontSize: 13, color: NAVY }}>{x.nome}</td>
-                  <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', color: GREY }}>{x.qtd.toLocaleString('pt-BR')}</td>
-                  <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', fontWeight: 600, color: NAVY }}>{brl(x.total)}</td>
+              {resumo.porItem.length === 0 ? <tr><td colSpan={5} style={{ padding: 24, textAlign: 'center', color: GREY2, fontSize: 13 }}>Sem itens no período.</td></tr> : resumo.porGrupo.map((g) => {
+                const doGrupo = resumo.porItem.filter((i) => i.grupo === g.nome);
+                return (
+                  <Fragment key={g.nome}>
+                    <tr style={{ background: '#FBF9F4', borderTop: `1px solid ${CARD_LINE}` }}>
+                      <td colSpan={5} style={{ padding: '8px 12px', fontSize: 12, fontWeight: 700, color: NAVY }}>
+                        {g.nome} <span style={{ fontWeight: 400, color: GREY2 }}>· {g.percentual.toFixed(1).replace('.', ',')}% do bruto</span>
+                      </td>
+                    </tr>
+                    {doGrupo.map((x) => (
+                      <tr key={x.chave} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                        <td style={{ padding: '9px 12px 9px 24px', fontSize: 13, color: NAVY }}>
+                          {x.nome}
+                          {/* Dois cadastros com o mesmo nome: some no relatorio e vira erro de
+                              cobranca. Aqui a tela avisa em vez de somar por engano. */}
+                          {x.nomeRepetido && <span title="Existe mais de um cadastro com este nome — arrume no catálogo" style={{ marginLeft: 6, fontSize: 10.5, color: '#946200', background: '#FEF3D7', padding: '1px 6px', borderRadius: 999 }}>nome repetido</span>}
+                        </td>
+                        <td style={{ padding: '9px 12px', fontSize: 13, textAlign: 'right', color: GREY }}>{x.qtd.toLocaleString('pt-BR')}</td>
+                        <td style={{ padding: '9px 12px', fontSize: 13, textAlign: 'right', color: GREY }}>{brl(x.bruto)}</td>
+                        <td style={{ padding: '9px 12px', fontSize: 13, textAlign: 'right', color: x.desconto ? '#946200' : '#c9c4b8' }}>{x.desconto ? brl(x.desconto) : '—'}</td>
+                        <td style={{ padding: '9px 12px', fontSize: 13, textAlign: 'right', fontWeight: 600, color: NAVY }}>{brl(x.liquido)}</td>
+                      </tr>
+                    ))}
+                    <tr style={{ borderTop: `1px solid ${CARD_LINE}` }}>
+                      <td style={{ padding: '7px 12px', fontSize: 12, color: GREY2, textAlign: 'right' }}>subtotal de {g.nome}</td>
+                      <td style={{ padding: '7px 12px', fontSize: 12.5, textAlign: 'right', fontWeight: 700, color: NAVY }}>{g.qtd.toLocaleString('pt-BR')}</td>
+                      <td style={{ padding: '7px 12px', fontSize: 12.5, textAlign: 'right', fontWeight: 700, color: NAVY }}>{brl(g.bruto)}</td>
+                      <td style={{ padding: '7px 12px', fontSize: 12.5, textAlign: 'right', fontWeight: 700, color: NAVY }}>{brl(g.desconto)}</td>
+                      <td style={{ padding: '7px 12px', fontSize: 12.5, textAlign: 'right', fontWeight: 700, color: NAVY }}>{brl(g.liquido)}</td>
+                    </tr>
+                  </Fragment>
+                );
+              })}
+              {resumo.porItem.length > 0 && (
+                <tr style={{ borderTop: `2px solid ${NAVY}`, background: '#FBF9F4' }}>
+                  <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: NAVY }}>Total geral</td>
+                  <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', fontWeight: 700, color: NAVY }}>{resumo.porGrupo.reduce((a, g) => a + g.qtd, 0).toLocaleString('pt-BR')}</td>
+                  <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', fontWeight: 700, color: NAVY }}>{brl(resumo.porGrupo.reduce((a, g) => a + g.bruto, 0))}</td>
+                  <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', fontWeight: 700, color: NAVY }}>{brl(resumo.porGrupo.reduce((a, g) => a + g.desconto, 0))}</td>
+                  <td style={{ padding: '10px 12px', fontSize: 13, textAlign: 'right', fontWeight: 700, color: NAVY }}>{brl(resumo.porGrupo.reduce((a, g) => a + g.liquido, 0))}</td>
                 </tr>
-              ))}
+              )}
+              {resumo.ajusteDeVenda !== 0 && (
+                <tr style={{ background: '#FEF3D7' }}>
+                  <td colSpan={4} style={{ padding: '8px 12px', fontSize: 12, color: '#946200' }}>
+                    Desconto dado no total da venda (não no item) — por isso a soma dos itens fica acima do que foi cobrado
+                  </td>
+                  <td style={{ padding: '8px 12px', fontSize: 12.5, textAlign: 'right', fontWeight: 700, color: '#946200' }}>−{brl(resumo.ajusteDeVenda)}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         ) : (
