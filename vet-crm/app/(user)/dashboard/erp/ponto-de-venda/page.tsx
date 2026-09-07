@@ -1153,12 +1153,6 @@ export default function PDVPage() {
               <button onClick={() => { setBuscaOpen(true); setBuscaRes(null); }} title="Achar uma venda de qualquer dia pelo número ou pelo cliente" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>🔍 Localizar venda</button>
                             <button onClick={imprimirComandasDia} disabled={imprimindoDia} title="Imprime as comandas deste dia com os itens de cada uma" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: imprimindoDia ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>{imprimindoDia ? 'Montando…' : '🖨️ Comandas do dia'}</button>
             </div>
-            {/* Sem abas (Cintia, 07/09): uma lista só, e a cor diz a situação. */}
-            <div style={{ padding: '0 13px 6px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderBottom: `1px solid ${SOFT}` }}>
-              <span style={{ fontSize: 11, color: MUT, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: OK, display: 'inline-block' }} />a pagar</span>
-              <span style={{ fontSize: 11, color: MUT, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: ERR, display: 'inline-block' }} />atrasada</span>
-              <span style={{ fontSize: 11, color: MUT, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: '#9aa0a8', display: 'inline-block' }} />orçamento</span>
-            </div>
             <div style={{ padding: '6px 13px 13px', minHeight: 90 }}>
               {vendasFiltradas.length === 0 && orcamentosEmAberto.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '18px 0' }}>
@@ -1228,13 +1222,6 @@ export default function PDVPage() {
             </div>
           </div>
 
-          <div style={card}>
-            <div style={chLeve}><span style={{ color: NAVY, fontSize: 13.5, fontWeight: 500 }}>💵 Outros caixas</span></div>
-            <div style={{ padding: 13, display: 'flex', gap: 9 }}>
-              <Link href="/dashboard/erp/caixa" style={{ flex: 1, textDecoration: 'none', textAlign: 'center', border: 'none', borderRadius: 9, background: TEAL, color: '#fff', padding: '10px', fontSize: 12.5, fontWeight: 500 }}>➕ Novo caixa</Link>
-              <Link href="/dashboard/erp/caixa" style={{ flex: 1, textDecoration: 'none', textAlign: 'center', border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', color: INK2, padding: '10px', fontSize: 12.5 }}>💵 Meus caixas</Link>
-            </div>
-          </div>
         </div>
       </div>
 

@@ -112,6 +112,15 @@ describe("o orçamento fica no dia em que foi feito", () => {
     expect(src).toContain("=== vendaDia");
   });
 
+  it("a coluna de vendas ficou só com a lista", () => {
+    // "Junta tudo" (Cintia, 07/09): saíram a legenda das cores e o cartão "Outros caixas" —
+    // o menu lateral já leva ao Caixa. A cor continua contando a situação, e cada linha
+    // explica no title.
+    const src = ler(PDV);
+    expect(src).not.toContain("Outros caixas");
+    expect(src).not.toContain("Meus caixas");
+  });
+
   it("o ponto de venda não mostra mais o resumo do dia", () => {
     // "Essas informações não precisam" (Cintia, 07/09). Recebido/A receber do dia vivem no
     // Caixa e na Consulta de vendas — aqui eram ruído em cima da lista.
