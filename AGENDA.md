@@ -23,7 +23,7 @@ Estado hoje:
 | | |
 |---|---|
 | `main` | `ef22a308` — 21 commits publicados em 03–04/09 |
-| Testes | 94 no backend · 315 no front |
+| Testes | 274 no backend · 339 no front |
 | Catraca de tipos | trava em 46 (`vet-crm/.catraca-tipos`) |
 | Producao | 1 maquina de atendimento + 1 de rotinas · banco com 4 GB |
 
@@ -339,6 +339,16 @@ por alguem, ou consome IA a toa? O que a Cintia mais quer ver na analise?
 | 9 | Assinatura nos documentos dos veterinarios | precisa decisao: assinatura desenhada ou digital ICP-Brasil? |
 | 10 | Diaria de internacao por faixa de peso | precisa a tabela de precos da Cintia |
 | 11 | Caucoes viram credito de cliente | direcao confirmada; tirar do catalogo e usar o modulo de credito |
+
+Frente nova em 07/09, a partir da leitura do SimplesVet feita com o Claude no Chrome
+(tela "Consulta de vendas", tres abas): **situacao calculada com tres cores, aviso de saldo do
+cliente na lista, paginacao de 30, Localizar venda no PDV, Totais por grupo com subtotais e a
+aba Resumo** (Vendas por dia, Situacao, Formas de recebimento, Data da baixa, Funcionario, Grupo
+de produto). O nucleo e `lib/resumoDeVendas.ts` (16 testes) e `backend/.../consulta-vendas.regras.ts`
+(8 testes). Decisoes da Cintia: orcamento nunca entra como venda; credito de cliente nao e produto
+(la era contorno); e nao copiar o quadro de status quebrado, a coluna de % que troca de formula
+nem o agrupamento por nome. **Falta ler**: Recebimentos e Caixa (Fig 5, 6, 10 e 11), os
+relatorios impressos do menu Relatorios, e os quadros "Vendas por pacote" e "Tipo".
 
 Pedido novo em 07/09: **imprimir as comandas do dia, como no SimplesVet** — cada comanda com os
 seus itens, quantidade, desconto e observacao, blocos que nao partem entre folhas. FEITO na mesma
