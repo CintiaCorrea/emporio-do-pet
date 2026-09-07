@@ -598,8 +598,6 @@ export default function PDVPage() {
   const pets = cliente?.pets || [];
   const baseValida = !!cliente && !!petId && carrinho.length > 0 && carrinho.every((it) => it.descricao.trim() && it.valorUnitario >= 0);
 
-  const recebidoHoje = useMemo(() => vendas.reduce((s, v) => s + v.pago, 0), [vendas]);
-  const aReceberHoje = useMemo(() => vendas.reduce((s, v) => s + Math.max(0, v.valor - v.pago), 0), [vendas]);
 
   // Sai do modo edicao e limpa o ?editar= da barra de enderecos, pra um F5 nao reabrir a venda.
   const sairDaEdicao = () => {
@@ -759,8 +757,11 @@ export default function PDVPage() {
     .filter((v: any) => Number(v.valor) > 0 && !v.pagoTotal && !v.futura)
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()),
     [vendas]);
-  // Orçamento em aberto não pertence a um dia: fica na lista até virar venda ou ser recusado.
-  const orcamentosEmAberto = orcamentos;
+  // O orçamento fica NO DIA EM QUE FOI FEITO — igual à venda (Cintia, 07/09/2026: "os
+  // orçamentos ficam na data que foram feitos e não todos acumulados na venda do dia").
+  // Eu tinha tirado esse filtro ao refazer a lista, e o resultado era o orçamento de qualquer
+  // data reaparecendo todo santo dia, empurrando a venda do dia pra fora da tela.
+  const orcamentosEmAberto = useMemo(() => orcamentos.filter((o: any) => String(o.dia || '').slice(0, 10) === vendaDia), [orcamentos, vendaDia]);
   const vendasFuturas = vendas
     .filter((v: any) => v.futura)
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -1151,10 +1152,6 @@ export default function PDVPage() {
               })()}
               <button onClick={() => { setBuscaOpen(true); setBuscaRes(null); }} title="Achar uma venda de qualquer dia pelo número ou pelo cliente" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>🔍 Localizar venda</button>
                             <button onClick={imprimirComandasDia} disabled={imprimindoDia} title="Imprime as comandas deste dia com os itens de cada uma" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: imprimindoDia ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>{imprimindoDia ? 'Montando…' : '🖨️ Comandas do dia'}</button>
-            </div>
-            <div style={{ padding: 13, display: 'flex', gap: 9 }}>
-              <div style={{ flex: 1, background: OKB, borderRadius: 11, padding: '10px 12px' }}><div style={{ fontSize: 11, color: OK }}>Recebido</div><div style={{ fontSize: 16, fontWeight: 500, color: OK }}>{brl(recebidoHoje)}</div></div>
-              <div style={{ flex: 1, background: WARNB, borderRadius: 11, padding: '10px 12px' }}><div style={{ fontSize: 11, color: WARN }}>A receber</div><div style={{ fontSize: 16, fontWeight: 500, color: WARN }}>{brl(aReceberHoje)}</div></div>
             </div>
             {/* Sem abas (Cintia, 07/09): uma lista só, e a cor diz a situação. */}
             <div style={{ padding: '0 13px 6px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderBottom: `1px solid ${SOFT}` }}>

@@ -102,3 +102,21 @@ describe("o acumulado aparece na hora de receber", () => {
     expect(ler(PDV)).toContain("imprimirComandasDia");
   });
 });
+
+describe("o orçamento fica no dia em que foi feito", () => {
+  it("a lista filtra o orçamento pelo dia mostrado", () => {
+    // Sem esse filtro, orçamento de qualquer data reaparece todo dia e empurra a venda do dia
+    // pra fora da tela — foi o que aconteceu na v1595.
+    const src = ler(PDV);
+    expect(src).toMatch(/orcamentosEmAberto = useMemo\(\(\) => orcamentos\.filter/);
+    expect(src).toContain("=== vendaDia");
+  });
+
+  it("o ponto de venda não mostra mais o resumo do dia", () => {
+    // "Essas informações não precisam" (Cintia, 07/09). Recebido/A receber do dia vivem no
+    // Caixa e na Consulta de vendas — aqui eram ruído em cima da lista.
+    const src = ler(PDV);
+    expect(src).not.toContain("recebidoHoje");
+    expect(src).not.toContain("aReceberHoje");
+  });
+});
