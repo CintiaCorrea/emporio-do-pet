@@ -4,6 +4,8 @@ import toast from "react-hot-toast";
 import { LuTrash, LuPlus, LuMessageSquare } from "react-icons/lu";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem, ItemVendavel } from "@/lib/catalogoVendavel";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
+import SeletorModeloVenda from "@/components/vendas/SeletorModeloVenda";
+import { casarNoCatalogo, juntarObservacao, ModeloVenda } from "@/lib/modelosVenda";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ddmm = (iso: string) => { const [, m, d] = String(iso).split("-"); return d && m ? `${d}/${m}` : iso; };
@@ -27,22 +29,11 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
   const [validade, setValidade] = useState("");
   const [obs, setObs] = useState("");
   const [cat, setCat] = useState<ItemVendavel[]>([]); // catálogo COMPLETO (guarda identidade do exame)
-  const [modelos, setModelos] = useState<any[]>([]);
-  const [modeloSel, setModeloSel] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
-    setItens([{ descricao: "", qtd: "1", valor: "" }]); setValidade(""); setObs(""); setModeloSel("");
-    // Modelos de orçamento salvos (podem trazer itens + observação específica).
-    (async () => {
-      try {
-        const r = await fetch(`/api/listas?lista=orcamentomodelo`, { cache: "no-store" });
-        const d = await r.json();
-        const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
-        setModelos(arr.map((x: any) => { try { return { id: x.id, ...JSON.parse(x.valor) }; } catch { return null; } }).filter((m: any) => m && m.ativo !== false));
-      } catch { setModelos([]); }
-    })();
+    setItens([{ descricao: "", qtd: "1", valor: "" }]); setValidade(""); setObs("");
     // Catálogo COMPLETO (fonte única lib/catalogoVendavel): serviços + produtos + medicamentos/vacinas + exames.
     (async () => {
       try {
@@ -58,13 +49,21 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
   const setItem = (i: number, patch: Partial<Item>) => setItens((arr) => arr.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
   const addItem = () => setItens((arr) => [...arr, { descricao: "", qtd: "1", valor: "" }]);
   const delItem = (i: number) => setItens((arr) => (arr.length > 1 ? arr.filter((_, idx) => idx !== i) : arr));
-  const aplicarModelo = (id: string) => {
-    setModeloSel(id);
-    const m = modelos.find((x) => x.id === id);
-    if (!m) { setItens([{ descricao: "", qtd: "1", valor: "" }]); setObs(""); return; }
-    const its = (m.itens || []).map((it: any) => ({ descricao: it.descricao || "", qtd: String(it.quantidade ?? 1), valor: it.valorUnitario != null ? fmtVal(it.valorUnitario) : "" }));
-    setItens(its.length ? its : [{ descricao: "", qtd: "1", valor: "" }]);
-    setObs(m.observacao != null ? String(m.observacao) : "");
+  // 📄 Modelo: acrescenta os itens do modelo e escreve a observação — sem apagar o que já foi
+  // digitado (antes, escolher um modelo zerava a lista inteira). O preço vem do CATÁLOGO quando
+  // o item existe lá: o modelo guarda o valor do dia em que foi criado.
+  const aplicarModelo = (m: ModeloVenda) => {
+    const novas: Item[] = m.itens.map((it) => {
+      const c = casarNoCatalogo(it, cat);   // ItemVendavel: traz o nome e o valor de hoje
+      const valor = c?.valorPadrao != null ? Number(c.valorPadrao) : Number(it.valorUnitario) || 0;
+      return { descricao: c ? c.nome : it.descricao, qtd: String(Math.max(1, Number(it.quantidade) || 1)), valor: valor ? fmtVal(valor) : "" };
+    });
+    setItens((arr) => {
+      const digitados = arr.filter((x) => x.descricao.trim());
+      const juntos = [...digitados, ...novas];
+      return juntos.length ? juntos : [{ descricao: "", qtd: "1", valor: "" }];
+    });
+    setObs((o) => juntarObservacao(o, m.observacao));
   };
 
   const itensValidos = () => itens.filter((it) => it.descricao.trim());
@@ -170,14 +169,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
         </div>
 
         <div className="mb-2.5">
-          <label className="text-[10px] text-[#8A857A] uppercase tracking-wide">Modelo de orçamento</label>
-          <select value={modeloSel} onChange={(e) => aplicarModelo(e.target.value)} className="w-full mt-0.5" style={{ ...inp, width: "100%" }}>
-            <option value="">Começar do zero…</option>
-            {modelos.map((m: any) => <option key={m.id} value={m.id}>{m.nome}</option>)}
-          </select>
-          {modelos.length === 0 && (
-            <p className="text-[10px] text-[#9aa0a8] mt-1">Nenhum modelo salvo ainda. Crie em <b>ERP › Modelos de orçamento</b> (com itens e observação).</p>
-          )}
+          <SeletorModeloVenda rotulo="Modelo de orçamento" onAplicar={aplicarModelo} style={{ ...inp, width: "100%" }} />
         </div>
 
         <div className="flex flex-col gap-1.5 max-h-[46vh] overflow-auto">

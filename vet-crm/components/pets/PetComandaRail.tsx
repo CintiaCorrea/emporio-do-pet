@@ -7,7 +7,9 @@ import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem } from "@/lib/catalogoVendavel";
 import { carregarEstoqueComprometido, avisoDeEstoque, MapaEstoque } from "@/lib/estoqueComprometido";
-import { buscarItens } from "@/lib/buscaCatalogo";
+import { buscarItens, avisoDeCorte } from "@/lib/buscaCatalogo";
+import SeletorModeloVenda from "@/components/vendas/SeletorModeloVenda";
+import { casarNoCatalogo, juntarObservacao, ModeloVenda } from "@/lib/modelosVenda";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
@@ -38,13 +40,32 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const [itens, setItens] = useState<Item[]>([]);
   const [estoque, setEstoque] = useState<MapaEstoque>(new Map()); // núcleo lib/estoqueComprometido
   const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
-  const addDoCatalogo = (c: any) => {
+  const addDoCatalogo = (c: any, quantidade = 1) => {
+    const q = Math.max(1, Number(quantidade) || 1);   // o modelo traz a quantidade dele; a mão lança 1
     const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? c.valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome });
     // Aviso (não trava) quando o saldo já está prometido em outra venda aberta — lib/estoqueComprometido.
     const jaNaVenda = itens.filter((x) => x.catalogoItemId === l.catalogoItemId).reduce((n, x) => n + (Number(x.quantidade) || 0), 0);
-    const aviso = avisoDeEstoque(estoque, l.catalogoItemId, 1, jaNaVenda);
+    const aviso = avisoDeEstoque(estoque, l.catalogoItemId, q, jaNaVenda);
     if (aviso) toast(`⚠️ ${aviso}`, { duration: 6000 });
-    addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 });
+    addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: q });
+  };
+
+  // 📄 Modelo de venda: lança os itens do modelo na comanda e escreve a observação. Mesmo núcleo
+  // do PDV (lib/modelosVenda) — o item entra casado com o catálogo, pelo preço de hoje. Item que
+  // não está mais no catálogo não entra calado: a tela diz o nome.
+  const aplicarModelo = (m: ModeloVenda) => {
+    const foraDoCatalogo: string[] = [];
+    let entraram = 0;
+    for (const it of m.itens) {
+      const c = casarNoCatalogo(it, cat as any);
+      if (!c) { foraDoCatalogo.push(it.descricao || "(item sem nome)"); continue; }
+      addDoCatalogo(c, it.quantidade);
+      entraram++;
+    }
+    setObs((o) => juntarObservacao(o, m.observacao));
+    if (foraDoCatalogo.length) toast.error(`Fora do catálogo, não entrou: ${foraDoCatalogo.join(", ")}. Cadastre o item ou lance à mão.`, { duration: 9000 });
+    if (entraram || m.observacao) toast.success(`Modelo "${m.nome}" aplicado${entraram ? ` · ${entraram} ${entraram > 1 ? "itens" : "item"}` : ""}`);
+    setAberto(true);
   };
   // 📷 Leitura de código de barras: o scanner USB digita o código + Enter. No Enter, se casar com um
   // código de barras (ou o código do item), lança direto e limpa o campo.
@@ -57,6 +78,10 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   }
   const [busca, setBusca] = useState("");
   const [addOpen, setAddOpen] = useState(false);
+  // Observação da venda: o que o modelo escreve ("informações básicas já podem ficar registradas
+  // na observação" — Cintia, 06/09/2026) e o que a recepção acrescenta. Vai pro `notes` da venda.
+  const [obs, setObs] = useState("");
+  const obsRef = useRef("");
   // 🏥 Convênio do pet (Petlife etc.) — mesma tabela do PDV, precificada por porte.
   const [convPet, setConvPet] = useState<{ convenio: { id: string; nome: string; diaFechamento: number | null }; isCat: boolean; porteSugerido: string } | null>(null);
   const [convItens, setConvItens] = useState<{ precoId: string; itemNome: string; preco: number }[]>([]);
@@ -72,6 +97,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   const [sync, setSync] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const key = `comanda_${petId}`;
   const apptKey = `comanda_appt_${petId}`;
+  const obsKey = `comanda_obs_${petId}`;
   const carregou = useRef(false);
   const primeira = useRef(true);
   // sincronização com o servidor (debounce + trava anti-duplicidade)
@@ -86,11 +112,22 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   useEffect(() => {
     try { const raw = localStorage.getItem(key); if (raw) setItens(JSON.parse(raw) || []); } catch {}
     try { const a = localStorage.getItem(apptKey); if (a) { setApptId(a); apptIdRef.current = a; } } catch {}
+    try { const o = localStorage.getItem(obsKey) || ""; setObs(o); obsRef.current = o; } catch {}
     carregou.current = true;
     // eslint-disable-next-line
   }, [petId]);
   // Persiste o rascunho local (resposta instantânea, mesmo offline)
   useEffect(() => { if (carregou.current) { try { localStorage.setItem(key, JSON.stringify(itens)); } catch {} } }, [itens, key]);
+  // A observação segue o mesmo caminho dos itens: guarda local pra não sumir no F5 e sobe pro
+  // servidor no mesmo debounce (só faz sentido quando já existe venda com item).
+  useEffect(() => {
+    obsRef.current = obs;
+    if (!carregou.current) return;
+    try { localStorage.setItem(obsKey, obs); } catch {}
+    if (primeira.current) return;
+    if (itens.length) agendarSync(itens);
+    // eslint-disable-next-line
+  }, [obs]);
 
   // Catálogo (produtos + serviços + medicamentos/vacinas + exames) — FONTE ÚNICA
   useEffect(() => {
@@ -141,7 +178,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
         setSync("idle");
         return;
       }
-      const body: any = { value: somaTutor(arr), items: arr.map(linhaBody) }; // value = só o que o tutor paga (convênio sai do total)
+      const body: any = { value: somaTutor(arr), items: arr.map(linhaBody), notes: obsRef.current.trim() || null }; // value = só o que o tutor paga (convênio sai do total)
       const eraNovo = !apptIdRef.current;
       let r: Response;
       if (apptIdRef.current) {
@@ -200,11 +237,13 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   function del(i: number) { setItens((arr) => arr.filter((_, idx) => idx !== i)); }
   async function limpar() {
     if (apptId && !confirm("Limpar a venda? Ela também sai do Caixa.")) return;
-    setItens([]);
+    setItens([]); setObs("");
   }
   // Mesmo nucleo de busca da venda (lib/buscaCatalogo, com teste): sem acento acha,
   // palavra fora de ordem acha. Sem busca, mostra os 20 primeiros como antes.
-  const matches = useMemo(() => (busca.trim() ? buscarItens(cat, busca, (c) => c.nome, 40).itens : cat.slice(0, 20)), [cat, busca]);
+  const busca40 = useMemo(() => buscarItens(cat, busca, (c) => c.nome, 40), [cat, busca]);
+  const matches = busca.trim() ? busca40.itens : cat.slice(0, 20);
+  const corte = busca.trim() ? avisoDeCorte(busca40) : "";   // o corte da lista nunca é mudo
 
   function imprimirComanda() {
     if (!itens.length) { toast.error("Venda sem itens."); return; }
@@ -223,7 +262,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     setApptId(null); apptIdRef.current = null; setNumeroVenda(null);
     try { localStorage.removeItem(apptKey); localStorage.removeItem(key); } catch {}
     pendingRef.current = [];
-    setItens([]);
+    setItens([]); setObs("");
     try { window.dispatchEvent(new Event("pet:venda")); } catch {} // ficha recarrega Compras / a-receber
     toast.success(`Venda${num ? ` nº ${num}` : ""} salva ✅ — está em “A receber” no Caixa. Pode iniciar outra.`);
   }
@@ -232,7 +271,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     if (!itens.length) { toast.error("Venda sem itens."); return; }
     setSaving(true);
     try {
-      const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tutorId, itens: itens.map(linhaBody) }) });
+      const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tutorId, observacao: obs.trim() || undefined, itens: itens.map(linhaBody) }) });
       if (!r.ok) throw new Error();
       toast.success("Orçamento gerado ✅"); await limpar(); await loadOrcs(); setSub("ORC");
     } catch { toast.error("Erro ao gerar orçamento"); } finally { setSaving(false); }
@@ -256,6 +295,8 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       ``,
       `━━━━━━━━━━━━━━━`,
       `💵 *Total: ${BRL(total)}*`,
+      obs.trim() ? `` : null,
+      obs.trim() ? `📝 *Observação:* ${obs.trim()}` : null,
       ``,
       `Qualquer dúvida, é só chamar por aqui! 🐾`,
       `— Equipe Empório do Pet`,
@@ -333,12 +374,13 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       {sub === "VENDA" ? (
         <>
           <div className="px-3 pt-3">
+            <SeletorModeloVenda compacto onAplicar={aplicarModelo} className="w-full mb-2 border rounded-lg px-2 py-1.5 text-[12.5px] bg-white" style={{ borderColor: "#E8DFC8", color: "#5C6B70" }} />
             <button onClick={() => { setAddOpen((v) => !v); setBusca(""); }} className="w-full text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#009AAC" }}>➕ Adicionar item {addOpen ? "▲" : "▾"}</button>
             {addOpen && (
               <div className="mt-2">
                 <input value={busca} onChange={(e) => setBusca(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!tentarCodigoBarras(busca) && matches.length === 1) { addDoCatalogo(matches[0]); setBusca(""); } } }} autoFocus placeholder="🔍 Buscar ou ler código de barras…" className="w-full border rounded-lg px-2 py-1.5 text-[12.5px]" style={{ borderColor: "#E8DFC8" }} />
                 {busca.trim() && (
-                <div className="border rounded-lg mt-1 max-h-44 overflow-auto" style={{ borderColor: "#F0EBE0" }}>
+                <div className="border rounded-lg mt-1 overflow-auto" style={{ borderColor: "#F0EBE0", maxHeight: "min(52vh, 420px)" }}>
                   {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado</div> :
                     matches.map((c) => (
                       <button key={c.id} title={c.nome} onClick={() => { const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome }); addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: 1 }); setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
@@ -347,6 +389,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                     ))}
                 </div>
                 )}
+                {corte && <div className="text-[10.5px] text-[#8A857A] mt-1 px-0.5">{corte}</div>}
               </div>
             )}
           </div>
@@ -403,6 +446,11 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                 <button onClick={() => del(i)} className="text-[#b23b39]" title="Remover"><LuTrash size={13} /></button>
               </div>
             ))}
+          </div>
+
+          <div className="px-4 pb-2">
+            <label className="text-[10px] text-[#8A857A] uppercase tracking-wide">Observação da venda</label>
+            <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} placeholder="O que o cliente precisa saber (o modelo preenche sozinho)…" className="w-full mt-0.5 border rounded-lg px-2 py-1.5 text-[12px] resize-y" style={{ borderColor: "#E8DFC8" }} />
           </div>
 
           <div className="border-t px-4 py-3" style={{ borderColor: "#F0EBE0" }}>

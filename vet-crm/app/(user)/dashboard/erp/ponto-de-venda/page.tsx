@@ -13,6 +13,9 @@ import { carregarEstoqueComprometido, avisoDeEstoque, MapaEstoque } from '@/lib/
 import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
 import { buscarItens, avisoDeCorte } from '@/lib/buscaCatalogo';
 import BuscaItemCatalogo from '@/components/vendas/BuscaItemCatalogo';
+import SeletorModeloVenda from '@/components/vendas/SeletorModeloVenda';
+import { imprimirRelatorioVendas } from '@/lib/documentos/relatorio-vendas-print';
+import { casarNoCatalogo, juntarObservacao, ModeloVenda } from '@/lib/modelosVenda';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
 import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from '@/lib/catalogoVendavel';
@@ -482,7 +485,8 @@ export default function PDVPage() {
   const buscaItens = useMemo(() => buscarItens(servicos, itemBusca, (s) => s.nome), [servicos, itemBusca]);
   const itensFiltrados = buscaItens.itens;
 
-  const addItem = (s: Servico) => {
+  const addItem = (s: Servico, quantidade?: number) => {
+    const q = quantidade ?? qtd;   // o modelo traz a quantidade dele; a mão usa o contador da tela
     // O peso do animal escolhe o preco quando o item cobra por porte (lib/porte). Antes, a
     // recepcao escolhia pelo NOME do item ("ACEPRAN - 11 A 20 KG") — e era assim que se cobrava
     // errado sem ninguem perceber.
@@ -490,12 +494,12 @@ export default function PDVPage() {
     if (l._avisoPorte) toast(`⚖️ ${l._avisoPorte}`, { duration: 7000 });
     // Avisa (sem travar) quando o saldo já está prometido em outra venda aberta — lib/estoqueComprometido.
     const jaNoCarrinho = carrinho.filter((x) => x.catalogoItemId === l.catalogoItemId).reduce((n, x) => n + (Number(x.quantidade) || 0), 0);
-    const aviso = avisoDeEstoque(estoque, l.catalogoItemId, qtd, jaNoCarrinho);
+    const aviso = avisoDeEstoque(estoque, l.catalogoItemId, q, jaNoCarrinho);
     if (aviso) toast(`⚠️ ${aviso}`, { duration: 6000 });
     setCarrinho((c) => {
       const i = l._novo ? c.findIndex((x) => x.catalogoItemId === l.catalogoItemId) : l._exame ? c.findIndex((x) => x.catalogoExameId === l.catalogoExameId) : c.findIndex((x) => x.servicoId === l.servicoId);
-      if (i >= 0) { const cp = [...c]; cp[i] = { ...cp[i], quantidade: cp[i].quantidade + qtd }; return cp; }
-      const base = { descricao: l.descricao, quantidade: qtd, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined };
+      if (i >= 0) { const cp = [...c]; cp[i] = { ...cp[i], quantidade: cp[i].quantidade + q }; return cp; }
+      const base = { descricao: l.descricao, quantidade: q, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined };
       return [...c, l._novo
         ? { ...base, _novo: true, ...(l._exame ? { _exame: true } : {}), catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, descontoModo: l.descontoModo, descontoLimite: l.descontoLimite }
         : l._exame
@@ -506,6 +510,32 @@ export default function PDVPage() {
   };
   const updItem = (i: number, patch: Partial<CartItem>) => setCarrinho((c) => c.map((x, j) => j === i ? { ...x, ...patch } : x));
   const rmItem = (i: number) => setCarrinho((c) => c.filter((_, j) => j !== i));
+
+  // 📄 Modelo de venda: lança os itens do modelo no carrinho e escreve a observação.
+  // Pedido da Cintia (06/09/2026): "TODOS os pontos de venda, com exceção da internação, devem
+  // permitir escolher o modelo (...), dessa forma informações básicas já podem ficar registradas
+  // na observação".
+  //
+  // O item entra CASADO com o catálogo (pelo id gravado, senão pelo nome) e passa pelo mesmo
+  // addItem da mão: é o que traz identidade (exame, fornecedor, item novo) e o preço de HOJE,
+  // inclusive o preço da faixa de peso do pet. O modelo guarda o valor do dia em que foi criado
+  // — se ele mandasse no preço, o modelo antigo cobraria barato pra sempre.
+  //
+  // Item do modelo que não está mais no catálogo NÃO entra: no PDV, item de venda só sai do
+  // catálogo (regra da casa). A tela diz o nome de quem ficou de fora em vez de calar.
+  const aplicarModelo = (m: ModeloVenda) => {
+    const foraDoCatalogo: string[] = [];
+    let entraram = 0;
+    for (const it of m.itens) {
+      const s = casarNoCatalogo(it, servicos as any);
+      if (!s) { foraDoCatalogo.push(it.descricao || '(item sem nome)'); continue; }
+      addItem(s as Servico, Math.max(1, Number(it.quantidade) || 1));
+      entraram++;
+    }
+    setObs((o) => juntarObservacao(o, m.observacao));
+    if (foraDoCatalogo.length) toast.error(`Fora do catálogo, não entrou: ${foraDoCatalogo.join(', ')}. Cadastre o item ou lance à mão.`, { duration: 9000 });
+    if (entraram || m.observacao) toast.success(`Modelo "${m.nome}" aplicado${entraram ? ` · ${entraram} ${entraram > 1 ? 'itens' : 'item'}` : ''}`);
+  };
 
   // 🏥 Carrega/atualiza a tabela do convênio DO PET (resolve pela etiqueta do pet + porte).
   async function carregarConv(petIdArg: string, busca: string, porte: string) {
@@ -730,6 +760,36 @@ export default function PDVPage() {
     return [...map.values()].filter((g) => g.itens.length >= 2).sort((a, b) => b.total - a.total);
   }, [vendas]);
 
+  // 🖨️ Relatório de vendas/orçamentos por cliente.
+  // Pedido da Cintia (07/09/2026): "principalmente quando temos muitas vendas abertas". A lista
+  // da tela mostra 8 linhas; o papel sai INTEIRO, agrupado por cliente, com o que falta receber
+  // em cada um — é o que se confere com o cliente na frente.
+  const linhaDoRelatorio = (v: any) => ({
+    id: v.id, numero: v.numeroVenda ?? v.codigoExterno ?? null, data: v.date,
+    tutor: v.tutor, tutorId: v.tutorId, pet: v.pet,
+    valor: Number(v.valor) || 0, pago: Number(v.pago) || 0,
+  });
+
+  const imprimirRelatorio = () => {
+    const periodo = vendaAbertas ? 'Em aberto — todos os dias' : `Dia ${new Date(vendaDia + 'T12:00:00').toLocaleDateString('pt-BR')}`;
+    const pagas = vendaTab === 'PAGO';
+    imprimirRelatorioVendas({
+      titulo: pagas ? 'Relatório de vendas pagas' : 'Relatório de vendas em aberto',
+      subtitulo: `${pagas ? 'Pagas' : 'Não pagas'} · ${periodo}`,
+      // As futuras ("a cobrar em breve") entram: elas também são conta aberta do cliente.
+      vendas: [...vendasFiltradas, ...vendasFuturas].map(linhaDoRelatorio),
+      orcamentos: pagas ? [] : orcamentosDoDia.map((o: any) => ({ id: o.id, data: o._orc?.createdAt || o.dia, tutor: o.tutor, tutorId: o.tutorId, pet: o.pet, valor: Number(o.valor) || 0 })),
+    });
+  };
+
+  const imprimirRelatorioDoCliente = (g: { tutor: string; itens: Venda[]; total: number }) => {
+    imprimirRelatorioVendas({
+      titulo: 'Contas em aberto',
+      subtitulo: `${g.tutor} · ${g.itens.length} contas em aberto`,
+      vendas: g.itens.map(linhaDoRelatorio),
+    });
+  };
+
   async function baixarGrupoPDV() {
     if (!grupoBaixa) return;
     if (!caixaAbertoId) { toast.error(caixaUsado?.erro || 'Abra o seu caixa para receber.'); return; }
@@ -847,6 +907,7 @@ export default function PDVPage() {
                 <span style={{ padding: '8px 12px', borderLeft: `1px solid ${SOFT}`, borderRight: `1px solid ${SOFT}`, minWidth: 18, textAlign: 'center', color: INK }}>{qtd}</span>
                 <button onClick={() => setQtd((q) => q + 1)} style={{ padding: '8px 12px', border: 'none', background: '#fff', cursor: 'pointer', color: TEAL, fontSize: 15 }}>+</button>
               </div>
+              <SeletorModeloVenda compacto onAplicar={aplicarModelo} style={{ ...inp, minWidth: 160 }} />
               <div style={{ position: 'relative', flex: 1, minWidth: 150 }}>
                 <input value={itemBusca} onChange={(e) => { setItemBusca(e.target.value); setItemAberto(true); }} placeholder="🔍 Produto, serviço ou pacote" style={{ ...inp, width: '100%' }} />
                 {itemAberto && itensFiltrados.length > 0 && (
@@ -1054,6 +1115,7 @@ export default function PDVPage() {
                 {(['NAO', 'PAGO'] as const).map((t) => (
                   <button key={t} onClick={() => setVendaTab(t)} style={{ flex: 1, textAlign: 'center', border: 'none', background: 'none', cursor: 'pointer', paddingBottom: 8, fontFamily: 'inherit', fontSize: 12, color: vendaTab === t ? NAVY : MUT, fontWeight: 500, borderBottom: vendaTab === t ? `2px solid ${TEAL}` : '2px solid transparent' }}>{t === 'NAO' ? 'Não pago' : 'Pago'}</button>
                 ))}
+                <button onClick={imprimirRelatorio} title="Imprime a lista inteira, agrupada por cliente" style={{ border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: TEAL, fontWeight: 600, paddingBottom: 8, whiteSpace: 'nowrap' }}>🖨️ Relatório</button>
               </div>
             </div>
             <div style={{ padding: '6px 13px 13px', minHeight: 90 }}>
@@ -1064,6 +1126,7 @@ export default function PDVPage() {
                     <div style={{ fontWeight: 500, color: NAVY, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.tutor}</div>
                     <div style={{ fontSize: 10.5, color: MUT }}>{g.itens.length} contas abertas · {brl(g.total)}</div>
                   </div>
+                  <button onClick={() => imprimirRelatorioDoCliente(g)} title={`Imprimir as ${g.itens.length} contas de ${g.tutor}`} style={{ border: `1px solid ${TEAL}`, background: '#fff', color: TEAL, fontSize: 11, fontWeight: 600, padding: '6px 9px', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>🖨️</button>
                   <button onClick={() => { setGrupoBaixa(g); setFormaGrupo(formasList[0] || 'Dinheiro'); }} style={{ border: 'none', background: TEAL, color: '#fff', fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>Baixar todas</button>
                 </div>
               ))}
@@ -1104,7 +1167,15 @@ export default function PDVPage() {
                 </div>
               )}
 
-              {/* 📄 ORÇAMENTOS em aberto — MESMA lista, valor em ROXO pra diferenciar + botão converter. */}
+              {/* O corte da lista nunca é mudo: com muitas contas abertas, a tela mostra 8 e o
+                  relatório mostra todas. Antes o resto sumia sem avisar. */}
+              {vendasFiltradas.length > 8 && (
+                <button onClick={imprimirRelatorio} style={{ display: 'block', width: '100%', textAlign: 'center', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: TEAL, padding: '8px 0 2px' }}>
+                  + {vendasFiltradas.length - 8} vendas não couberam na lista · 🖨️ ver todas no relatório
+                </button>
+              )}
+
+                            {/* 📄 ORÇAMENTOS em aberto — MESMA lista, valor em ROXO pra diferenciar + botão converter. */}
               {vendaTab === 'NAO' && orcamentosDoDia.slice(0, 8).map((o) => (
                 <div key={o.id} onClick={() => setDetOrc(o._orc || o)} title="Abrir orçamento" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 4px', borderTop: `1px solid ${SOFT}`, borderRadius: 8, cursor: 'pointer' }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAF7')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
@@ -1117,6 +1188,11 @@ export default function PDVPage() {
                   {/* Converter em venda só ao ABRIR o orçamento (botão no modal de detalhe) — não na lista. */}
                 </div>
               ))}
+              {vendaTab === 'NAO' && orcamentosDoDia.length > 8 && (
+                <button onClick={imprimirRelatorio} style={{ display: 'block', width: '100%', textAlign: 'center', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: '#6D28D9', padding: '8px 0 2px' }}>
+                  + {orcamentosDoDia.length - 8} orçamentos não couberam · 🖨️ ver todos no relatório
+                </button>
+              )}
             </div>
           </div>
 
@@ -1159,6 +1235,7 @@ export default function PDVPage() {
               <select value={formaGrupo} onChange={(e) => setFormaGrupo(e.target.value)} style={{ ...inp, width: '100%', padding: '9px', marginBottom: 14 }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={() => setGrupoBaixa(null)} disabled={baixandoGrupo} style={{ flex: 1, border: `1px solid ${LINE}`, background: '#fff', color: MUT, borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={() => imprimirRelatorioDoCliente(grupoBaixa)} title="Imprimir estas contas pra conferir com o cliente" style={{ flex: 1, border: `1px solid ${TEAL}`, background: '#fff', color: TEAL, borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>🖨️ Imprimir</button>
                 <button onClick={baixarGrupoPDV} disabled={baixandoGrupo} style={{ flex: 2, border: 'none', background: baixandoGrupo ? '#9DBDC2' : TEAL, color: '#fff', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 600, cursor: baixandoGrupo ? 'default' : 'pointer' }}>{baixandoGrupo ? 'Baixando…' : '💰 Baixar tudo'}</button>
               </div>
             </div>

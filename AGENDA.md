@@ -5,7 +5,7 @@
 > Motivo: em 04/09/2026 descobrimos 75 commits construidos e nunca integrados, e
 > decisoes combinadas em conversa que se perderam. Conversa nao guarda; arquivo guarda.
 
-Atualizado em: **04/09/2026**
+Atualizado em: **07/09/2026**
 
 ---
 
@@ -23,7 +23,7 @@ Estado hoje:
 | | |
 |---|---|
 | `main` | `ef22a308` — 21 commits publicados em 03–04/09 |
-| Testes | 94 no backend · 53 no front |
+| Testes | 94 no backend · 315 no front |
 | Catraca de tipos | trava em 46 (`vet-crm/.catraca-tipos`) |
 | Producao | 1 maquina de atendimento + 1 de rotinas · banco com 4 GB |
 
@@ -329,7 +329,7 @@ por alguem, ou consome IA a toa? O que a Cintia mais quer ver na analise?
 | # | Item | Situacao |
 |---|---|---|
 | 1 | Aba de fluxo de caixa no Financeiro | nucleo pronto e **no main** (`fluxo-caixa.regras.ts`, 12 testes). Falta o endpoint e a tela |
-| 2 | Modelo em TODOS os orcamentos e vendas | **existe na `portal-integracao`** (Frente B) |
+| 2 | Modelo em TODOS os orcamentos e vendas | **FEITO em 07/09**, na branch `feat/modelo-e-relatorio-de-vendas` (aguardando OK pra publicar). Seletor unico (`SeletorModeloVenda`) no PDV, na comanda da ficha do pet e no orcamento rapido; internacao fora por decisao. O modelo lanca os itens **e** escreve a observacao. Trava: `lib/modelo-nas-telas.spec.ts` |
 | 3 | Transferencia entre caixas | **existe na `portal-integracao`** (Frente B) |
 | 4 | Operadora nao aparecia na baixa | **FEITO e no ar** (05/09). Causa: a lista de operadoras vinha so da tabela de taxas, e a tela de configuracao so deixava escolher dessa mesma lista — operadora sem taxa (Nubank) era impossivel de cadastrar. Agora o campo e digitavel |
 | 5 | Orcamentos, vendas e caixas em lista, nao em caixinhas | a fazer |
@@ -339,6 +339,12 @@ por alguem, ou consome IA a toa? O que a Cintia mais quer ver na analise?
 | 9 | Assinatura nos documentos dos veterinarios | precisa decisao: assinatura desenhada ou digital ICP-Brasil? |
 | 10 | Diaria de internacao por faixa de peso | precisa a tabela de precos da Cintia |
 | 11 | Caucoes viram credito de cliente | direcao confirmada; tirar do catalogo e usar o modulo de credito |
+
+Pedido novo em 07/09: **imprimir relatorio de vendas/orcamentos por cliente**, "principalmente
+quando temos muitas vendas abertas". FEITO na mesma branch: botao no Caixa (imprime a lista
+inteira, agrupada por cliente, com o que falta receber) e impressao so de um cliente no card de
+"contas abertas". Junto: a lista da tela cortava em 8 sem avisar — agora o corte e dito e leva
+ao relatorio. Nucleo `lib/relatorioVendas.ts` (8 testes) + trava `lib/relatorio-nas-telas.spec.ts`.
 
 Extra encontrado em 04/09: as telas **Orcamentos** e **Vendas em aberto** existem e
 funcionam, mas **nao estao no menu** (`vet-crm/lib/permissions/index.ts`). Nenhum
