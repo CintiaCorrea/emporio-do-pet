@@ -14,7 +14,7 @@ import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaCli
 import { buscarItens, avisoDeCorte } from '@/lib/buscaCatalogo';
 import BuscaItemCatalogo from '@/components/vendas/BuscaItemCatalogo';
 import SeletorModeloVenda from '@/components/vendas/SeletorModeloVenda';
-import { imprimirRelatorioVendas, imprimirComandasDoDia } from '@/lib/documentos/relatorio-vendas-print';
+import { imprimirComandasDoDia, imprimirContasDoCliente } from '@/lib/documentos/relatorio-vendas-print';
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from '@/lib/modelosVenda';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
@@ -123,9 +123,6 @@ export default function PDVPage() {
   const [vendasEmAberto, setVendasEmAberto] = useState<Venda[]>([]);   // o que está em pé, de qualquer dia
   const [imprimindoDia, setImprimindoDia] = useState(false);          // relatório de comandas em preparo
   // Baixar todas as comandas de um cliente de uma vez (portado do "Em atendimento")
-  const [grupoBaixa, setGrupoBaixa] = useState<{ tutor: string; itens: Venda[]; total: number } | null>(null);
-  const [formaGrupo, setFormaGrupo] = useState('Dinheiro');
-  const [baixandoGrupo, setBaixandoGrupo] = useState(false);
   const buscaTimer = useRef<any>(null);
   const [vendaDia, setVendaDia] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const vendaDiaRef = useRef<HTMLInputElement>(null);       // date picker escondido do navegador de dia
@@ -746,52 +743,48 @@ export default function PDVPage() {
   //   ⚪ cinza    · orçamento (ainda não é venda)
   const inicioDeHoje = useMemo(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.getTime(); }, []);
   const ehAtrasada = (v: { date: string }) => new Date(v.date).getTime() < inicioDeHoje;
-  const vendasFiltradas = useMemo(() => vendasEmAberto
+  // A comanda aparece NO DIA EM QUE ESTÁ ABERTA (Cintia, 07/09/2026) — o seletor de data manda
+  // na lista. O acumulado do cliente não mora aqui: ele aparece na hora de receber.
+  const vendasFiltradas = useMemo(() => vendas
     .filter((v: any) => Number(v.valor) > 0 && !v.pagoTotal && !v.futura)
-    // A atrasada sobe: é a que some da vista e vira prejuízo. Entre iguais, a mais antiga primeiro.
-    .sort((a: any, b: any) => (Number(ehAtrasada(b)) - Number(ehAtrasada(a))) || (new Date(a.date).getTime() - new Date(b.date).getTime())),
-    [vendasEmAberto, inicioDeHoje]);
+    .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()),
+    [vendas]);
   // Orçamento em aberto não pertence a um dia: fica na lista até virar venda ou ser recusado.
   const orcamentosEmAberto = orcamentos;
-  const vendasFuturas = vendasEmAberto
+  const vendasFuturas = vendas
     .filter((v: any) => v.futura)
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const formasList = formasCfg.length ? formasCfg : FORMAS;
 
-  // Clientes com 2+ contas abertas (pra baixar todas de uma vez)
-  const gruposMulti = useMemo(() => {
-    const map = new Map<string, { tutor: string; itens: Venda[]; total: number }>();
-    for (const v of vendasEmAberto) {
-      if (v.pagoTotal) continue;
-      const aReceber = Math.max(0, Number(v.valor || 0) - Number(v.pago || 0));
-      if (aReceber <= 0) continue;
-      const key = v.tutorId || v.tutor || v.id;
-      const g = map.get(key) || { tutor: v.tutor || 'Cliente', itens: [], total: 0 };
-      g.itens.push(v); g.total += aReceber;
-      map.set(key, g);
+  // 📄 Uma comanda com os itens que ela cobrou — o formato de todo papel de venda da casa.
+  // Os itens não vêm na lista de vendas: cada comanda é buscada em /api/atendimentos/:id, de 8
+  // em 8 pra não abrir 40 requisições de uma vez. Comanda que falhar sai sem itens, não some.
+  const comandasComItens = async (lista: any[]) => {
+    const out: any[] = [];
+    for (let i = 0; i < lista.length; i += 8) {
+      const lote = await Promise.all(lista.slice(i, i + 8).map(async (v: any) => {
+        let itens: any[] = [], observacao: string | null = null;
+        try {
+          const r = await fetch(`/api/atendimentos/${v.id}`, { cache: 'no-store' });
+          const d = await r.json().catch(() => ({}));
+          itens = d.items || d.appointmentItems || d.itens || [];
+          observacao = d.observacao ?? d.notes ?? null;
+        } catch { /* comanda sem detalhe ainda entra no papel */ }
+        return {
+          id: v.id, numero: v.numeroVenda ?? v.codigoExterno ?? null, data: v.date,
+          tutor: v.tutor, pet: v.pet, valor: Number(v.valor) || 0, pago: Number(v.pago) || 0,
+          observacao: typeof observacao === 'string' && !observacao.includes('HOSPITALIZATION') ? observacao : null,
+          itens: itens.map((it: any) => ({
+            descricao: it.descricao || it.nome || it.product?.name || it.servico?.nome || 'Item',
+            quantidade: Number(it.quantidade ?? it.qtd ?? 1),
+            valorUnitario: Number(it.valorUnitario ?? 0),
+            desconto: Number(it.desconto ?? 0),
+          })),
+        };
+      }));
+      out.push(...lote);
     }
-    return [...map.values()].filter((g) => g.itens.length >= 2).sort((a, b) => b.total - a.total);
-  }, [vendasEmAberto]);
-
-  // 🖨️ Relatório de vendas/orçamentos por cliente.
-  // Pedido da Cintia (07/09/2026): "principalmente quando temos muitas vendas abertas". A lista
-  // da tela mostra 8 linhas; o papel sai INTEIRO, agrupado por cliente, com o que falta receber
-  // em cada um — é o que se confere com o cliente na frente.
-  const linhaDoRelatorio = (v: any) => ({
-    id: v.id, numero: v.numeroVenda ?? v.codigoExterno ?? null, data: v.date,
-    tutor: v.tutor, tutorId: v.tutorId, pet: v.pet,
-    valor: Number(v.valor) || 0, pago: Number(v.pago) || 0,
-  });
-
-  // 🖨️ TUDO QUE ESTÁ EM ABERTO, por cliente — é o que a lista da tela mostra, sem o corte de 8.
-  const imprimirRelatorio = () => {
-    imprimirRelatorioVendas({
-      titulo: 'Contas em aberto',
-      subtitulo: `Posição de ${new Date().toLocaleDateString('pt-BR')} · quem deve mais primeiro`,
-      // As futuras ("a cobrar em breve") entram: elas também são conta aberta do cliente.
-      vendas: [...vendasFiltradas, ...vendasFuturas].map(linhaDoRelatorio),
-      orcamentos: orcamentosEmAberto.map((o: any) => ({ id: o.id, data: o._orc?.createdAt || o.dia, tutor: o.tutor, tutorId: o.tutorId, pet: o.pet, valor: Number(o.valor) || 0 })),
-    });
+    return out;
   };
 
   // 🖨️ AS COMANDAS DO DIA, com os itens de cada uma — o modelo do SimplesVet (Cintia, 07/09).
@@ -801,64 +794,32 @@ export default function PDVPage() {
     if (imprimindoDia) return;
     setImprimindoDia(true);
     try {
-      const doDia = vendas.filter((v) => Number(v.valor) > 0);
-      const comandas: any[] = [];
-      for (let i = 0; i < doDia.length; i += 8) {
-        const lote = await Promise.all(doDia.slice(i, i + 8).map(async (v: any) => {
-          let itens: any[] = [], observacao: string | null = null;
-          try {
-            const r = await fetch(`/api/atendimentos/${v.id}`, { cache: 'no-store' });
-            const d = await r.json().catch(() => ({}));
-            itens = d.items || d.appointmentItems || d.itens || [];
-            observacao = d.observacao ?? d.notes ?? null;
-          } catch { /* comanda sem detalhe ainda entra no papel */ }
-          return {
-            id: v.id, numero: v.numeroVenda ?? v.codigoExterno ?? null, data: v.date,
-            tutor: v.tutor, pet: v.pet, valor: Number(v.valor) || 0, pago: Number(v.pago) || 0,
-            observacao: typeof observacao === 'string' && !observacao.includes('HOSPITALIZATION') ? observacao : null,
-            itens: itens.map((it: any) => ({
-              descricao: it.descricao || it.nome || it.product?.name || it.servico?.nome || 'Item',
-              quantidade: Number(it.quantidade ?? it.qtd ?? 1),
-              valorUnitario: Number(it.valorUnitario ?? 0),
-              desconto: Number(it.desconto ?? 0),
-            })),
-          };
-        }));
-        comandas.push(...lote);
-      }
+      const comandas = await comandasComItens(vendas.filter((v) => Number(v.valor) > 0));
       await imprimirComandasDoDia({ dia: vendaDia, comandas });
     } catch { toast.error('Não consegui montar as comandas do dia.'); }
     finally { setImprimindoDia(false); }
   };
 
-  const imprimirRelatorioDoCliente = (g: { tutor: string; itens: Venda[]; total: number }) => {
-    imprimirRelatorioVendas({
-      titulo: 'Contas em aberto',
-      subtitulo: `${g.tutor} · ${g.itens.length} contas em aberto`,
-      vendas: g.itens.map(linhaDoRelatorio),
-    });
+  // 💰 O SALDO DEVEDOR DO CLIENTE aparece na hora de receber — não na lista (Cintia, 07/09).
+  // São as OUTRAS contas em aberto do mesmo cliente, de qualquer dia.
+  const outrasEmAberto = (v: any): any[] => {
+    if (!v) return [];
+    const chave = v.tutorId || v.tutor;
+    if (!chave) return [];
+    return vendasEmAberto
+      .filter((o: any) => (o.tutorId || o.tutor) === chave && o.id !== v.id && !o.pagoTotal && Math.max(0, Number(o.valor || 0) - Number(o.pago || 0)) > 0)
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
   };
+  const somaEmAberto = (arr: any[]) => arr.reduce((s: number, o: any) => s + Math.max(0, Number(o.valor || 0) - Number(o.pago || 0)), 0);
 
-  async function baixarGrupoPDV() {
-    if (!grupoBaixa) return;
-    if (!caixaAbertoId) { toast.error(caixaUsado?.erro || 'Abra o seu caixa para receber.'); return; }
-    setBaixandoGrupo(true);
-    let ok = 0;
-    try {
-      for (const v of grupoBaixa.itens) {
-        const aReceber = Math.max(0, Number(v.valor || 0) - Number(v.pago || 0));
-        if (aReceber <= 0) continue;
-        const r = await fetch(`/api/caixa/${caixaAbertoId}/recebimento`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ appointmentId: v.id, valorTotal: aReceber, formas: [{ forma: formaGrupo, valor: aReceber }], observacao: 'Baixa em lote (cliente)' }),
-        });
-        if (r.ok) ok++;
-      }
-      toast.success(`${ok} venda(s) de ${grupoBaixa.tutor} recebida(s) em ${formaGrupo}.`);
-      setGrupoBaixa(null);
-      await loadVendas();
-    } catch (e: any) { toast.error(e?.message || 'Erro ao baixar'); } finally { setBaixandoGrupo(false); }
-  }
+  // 🖨️ As contas em aberto DESTE cliente, por dia e com o descritivo de cada comanda.
+  const imprimirContasDoTutor = async (tutor: string, lista: any[]) => {
+    if (imprimindoDia) return;
+    setImprimindoDia(true);
+    try { await imprimirContasDoCliente({ tutor, comandas: await comandasComItens(lista) }); }
+    catch { toast.error('Não consegui montar as contas do cliente.'); }
+    finally { setImprimindoDia(false); }
+  };
 
   const card: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 14, overflow: 'hidden' };
   const chLeve: React.CSSProperties = { padding: '13px 16px', borderBottom: `1px solid ${SOFT}`, display: 'flex', alignItems: 'center', gap: 9 };
@@ -1161,20 +1122,8 @@ export default function PDVPage() {
               <span style={{ fontSize: 11, color: MUT, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: OK, display: 'inline-block' }} />a pagar</span>
               <span style={{ fontSize: 11, color: MUT, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: ERR, display: 'inline-block' }} />atrasada</span>
               <span style={{ fontSize: 11, color: MUT, display: 'inline-flex', alignItems: 'center', gap: 4 }}><span style={{ width: 8, height: 8, borderRadius: 999, background: '#9aa0a8', display: 'inline-block' }} />orçamento</span>
-              <button onClick={imprimirRelatorio} title="Imprime todas as contas em aberto, agrupadas por cliente" style={{ marginLeft: 'auto', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: TEAL, fontWeight: 600, whiteSpace: 'nowrap' }}>🖨️ Contas em aberto</button>
             </div>
             <div style={{ padding: '6px 13px 13px', minHeight: 90 }}>
-              {gruposMulti.map((g) => (
-                <div key={g.tutor} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', marginBottom: 6, background: '#EAF7F8', border: `1px solid ${TEAL}`, borderRadius: 10 }}>
-                  <span style={{ fontSize: 16 }}>👥</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 500, color: NAVY, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.tutor}</div>
-                    <div style={{ fontSize: 10.5, color: MUT }}>{g.itens.length} contas abertas · {brl(g.total)}</div>
-                  </div>
-                  <button onClick={() => imprimirRelatorioDoCliente(g)} title={`Imprimir as ${g.itens.length} contas de ${g.tutor}`} style={{ border: `1px solid ${TEAL}`, background: '#fff', color: TEAL, fontSize: 11, fontWeight: 600, padding: '6px 9px', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>🖨️</button>
-                  <button onClick={() => { setGrupoBaixa(g); setFormaGrupo(formasList[0] || 'Dinheiro'); }} style={{ border: 'none', background: TEAL, color: '#fff', fontSize: 11, fontWeight: 600, padding: '6px 10px', borderRadius: 8, cursor: 'pointer', flexShrink: 0 }}>Baixar todas</button>
-                </div>
-              ))}
               {vendasFiltradas.length === 0 && orcamentosEmAberto.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '18px 0' }}>
                   <div style={{ fontSize: 22, marginBottom: 4 }}>🧾</div>
@@ -1215,11 +1164,10 @@ export default function PDVPage() {
                 </div>
               )}
 
-              {/* O corte da lista nunca é mudo: com muitas contas abertas, a tela mostra 8 e o
-                  relatório mostra todas. Antes o resto sumia sem avisar. */}
+              {/* O corte da lista nunca é mudo: a tela mostra 8 e o papel mostra o dia inteiro. */}
               {vendasFiltradas.length > 8 && (
-                <button onClick={imprimirRelatorio} style={{ display: 'block', width: '100%', textAlign: 'center', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: TEAL, padding: '8px 0 2px' }}>
-                  + {vendasFiltradas.length - 8} vendas não couberam na lista · 🖨️ ver todas no relatório
+                <button onClick={imprimirComandasDia} style={{ display: 'block', width: '100%', textAlign: 'center', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: TEAL, padding: '8px 0 2px' }}>
+                  + {vendasFiltradas.length - 8} vendas não couberam na lista · 🖨️ ver o dia inteiro
                 </button>
               )}
 
@@ -1237,9 +1185,9 @@ export default function PDVPage() {
                 </div>
               ))}
               {orcamentosEmAberto.length > 8 && (
-                <button onClick={imprimirRelatorio} style={{ display: 'block', width: '100%', textAlign: 'center', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: '#6B7280', padding: '8px 0 2px' }}>
-                  + {orcamentosEmAberto.length - 8} orçamentos não couberam · 🖨️ ver todos no relatório
-                </button>
+                <div style={{ textAlign: 'center', fontSize: 11.5, color: '#6B7280', padding: '8px 0 2px' }}>
+                  + {orcamentosEmAberto.length - 8} orçamentos não couberam na lista
+                </div>
               )}
             </div>
           </div>
@@ -1253,43 +1201,6 @@ export default function PDVPage() {
           </div>
         </div>
       </div>
-
-      {/* ===== MODAL BAIXAR TODAS DO CLIENTE ===== */}
-      {grupoBaixa && (
-        <div onClick={() => setGrupoBaixa(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden' }}>
-            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>👥 {grupoBaixa.tutor}</span>
-              <button onClick={() => setGrupoBaixa(null)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
-            </div>
-            <div style={{ padding: 18 }}>
-              <div style={{ fontSize: 11.5, color: MUT, marginBottom: 8 }}>{grupoBaixa.itens.length} contas abertas · baixar tudo junto</div>
-              <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, overflow: 'hidden', marginBottom: 12 }}>
-                {grupoBaixa.itens.map((v, i) => {
-                  const aReceber = Math.max(0, Number(v.valor || 0) - Number(v.pago || 0));
-                  return (
-                    <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', borderTop: i ? `1px solid ${SOFT}` : 'none', fontSize: 13 }}>
-                      <span style={{ color: INK }}>{v.pet || v.tutor}</span>
-                      <span style={{ fontWeight: 500, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>{brl(aReceber)}</span>
-                    </div>
-                  );
-                })}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', borderTop: `1px solid ${LINE}`, background: '#FBF9F4' }}>
-                  <span style={{ fontSize: 12.5, color: MUT }}>Total a receber</span>
-                  <span style={{ fontSize: 17, fontWeight: 600, color: NAVY, fontVariantNumeric: 'tabular-nums' }}>{brl(grupoBaixa.total)}</span>
-                </div>
-              </div>
-              <div style={{ fontSize: 10.5, color: '#374151', textTransform: 'uppercase', letterSpacing: '.03em', marginBottom: 6 }}>Forma de recebimento</div>
-              <select value={formaGrupo} onChange={(e) => setFormaGrupo(e.target.value)} style={{ ...inp, width: '100%', padding: '9px', marginBottom: 14 }}>{formasList.map((op) => <option key={op} value={op}>{op}</option>)}</select>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => setGrupoBaixa(null)} disabled={baixandoGrupo} style={{ flex: 1, border: `1px solid ${LINE}`, background: '#fff', color: MUT, borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancelar</button>
-                <button onClick={() => imprimirRelatorioDoCliente(grupoBaixa)} title="Imprimir estas contas pra conferir com o cliente" style={{ flex: 1, border: `1px solid ${TEAL}`, background: '#fff', color: TEAL, borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>🖨️ Imprimir</button>
-                <button onClick={baixarGrupoPDV} disabled={baixandoGrupo} style={{ flex: 2, border: 'none', background: baixandoGrupo ? '#9DBDC2' : TEAL, color: '#fff', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 600, cursor: baixandoGrupo ? 'default' : 'pointer' }}>{baixandoGrupo ? 'Baixando…' : '💰 Baixar tudo'}</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ===== MODAL RECEBIMENTO ===== */}
       {modal && (
@@ -1475,6 +1386,36 @@ export default function PDVPage() {
                   <span style={{ fontSize: 13, color: INK2 }}>Saldo a receber</span>
                   <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(aReceber)}</span>
                 </div>
+
+                {/* 💰 O SALDO DEVEDOR DO CLIENTE — só aqui, na hora de receber (Cintia, 07/09/2026:
+                    "não precisa manter o acumulado no ponto de venda, ele pode aparecer somente
+                    quando clicamos para receber a venda aparecer o saldo devedor"). São as OUTRAS
+                    contas em aberto do mesmo cliente, de qualquer dia. */}
+                {(() => {
+                  const outras = outrasEmAberto(detVenda);
+                  if (!outras.length) return null;
+                  return (
+                    <div style={{ marginBottom: 14, background: ERRB, border: `1px solid ${ERR}`, borderRadius: 11, padding: '11px 14px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                        <span style={{ fontSize: 12.5, color: ERR, fontWeight: 600 }}>Saldo devedor de {detVenda.tutor}</span>
+                        <span style={{ fontSize: 16, fontWeight: 600, color: ERR, fontVariantNumeric: 'tabular-nums' }}>{brl(somaEmAberto(outras))}</span>
+                      </div>
+                      <div style={{ fontSize: 11, color: MUT, margin: '2px 0 6px' }}>
+                        {outras.length === 1 ? 'mais 1 conta em aberto' : `mais ${outras.length} contas em aberto`}, além desta
+                      </div>
+                      {outras.slice(0, 4).map((o: any) => (
+                        <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: INK2, padding: '2px 0' }}>
+                          <span>{new Date(o.date).toLocaleDateString('pt-BR')}{o.pet ? ` · ${o.pet}` : ''}</span>
+                          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{brl(Math.max(0, Number(o.valor || 0) - Number(o.pago || 0)))}</span>
+                        </div>
+                      ))}
+                      {outras.length > 4 && <div style={{ fontSize: 11, color: MUT, paddingTop: 2 }}>+ {outras.length - 4} não listadas</div>}
+                      <button onClick={() => imprimirContasDoTutor(detVenda.tutor, [detVenda, ...outras])} disabled={imprimindoDia} title="Imprime as contas em aberto deste cliente, por dia e com o descritivo de cada uma" style={{ marginTop: 8, width: '100%', border: `1px solid ${ERR}`, background: '#fff', color: ERR, borderRadius: 9, padding: '7px', fontSize: 12, fontWeight: 600, cursor: imprimindoDia ? 'default' : 'pointer' }}>
+                        {imprimindoDia ? 'Montando…' : '🖨️ Imprimir as contas deste cliente'}
+                      </button>
+                    </div>
+                  );
+                })()}
                 <PagamentoFormas formas={recFormas} onChange={setRecFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
 
                 <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>

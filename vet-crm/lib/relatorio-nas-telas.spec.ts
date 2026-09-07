@@ -2,15 +2,18 @@ import { describe, it, expect } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 
-// 🛡️ PROTEÇÃO DO RELATÓRIO DE VENDAS.
+// 🛡️ PROTEÇÃO DO PAPEL DE VENDA E DA LISTA DO PONTO DE VENDA.
 //
-// A Cintia, em 07/09/2026: "Preciso poder imprimir relatórios de vendas/orçamento dos clientes,
-// principalmente quando temos muitas vendas abertas."
+// A Cintia, em 07/09/2026, corrigindo a primeira entrega:
+//   1. "Precisa vir o descritivo de cada dia, não pode ser assim. Já tinha dito isso."
+//   2. "Não precisamos desses botões. o de imprimir já está nas comandas."
+//   3. "As comandas devem aparecer pelo dia em que estão abertas. Não precisa manter o acumulado
+//       no ponto de venda, ele pode aparecer somente quando clicamos para receber a venda
+//       aparecer o saldo devedor."
 //
-// O "principalmente" é a chave: a lista do Caixa mostra 8 linhas e o resto sumia sem avisar —
-// exatamente com muitas contas abertas, que é quando a lista importa. Um relatório que também
-// cortasse não resolveria nada. Estes testes travam as duas pontas: o botão existe, e o corte
-// da tela é dito em voz alta.
+// O que ela recusou foi um papel que trazia só a linha da conta ("#1081 · 29/08 · Lua ·
+// R$ 2.271,06") e uma lista de vendas tomada por cartões de acumulado por cliente. Nenhuma das
+// duas coisas quebra o build, nenhuma aparece no tsc: é a tela ficando errada em silêncio.
 
 const raiz = path.resolve(__dirname, "..");
 const ler = (p: string) =>
@@ -20,76 +23,82 @@ const ler = (p: string) =>
     .replace(/^\s*\/\/.*$/gm, "");
 
 const PDV = "app/(user)/dashboard/erp/ponto-de-venda/page.tsx";
+const PAPEL = "lib/documentos/relatorio-vendas-print.ts";
 
-describe("dá pra imprimir a conta do cliente", () => {
-  it("o Caixa oferece o relatório", () => {
-    expect(ler(PDV)).toContain("imprimirRelatorioVendas");
+describe("nenhum papel de venda sai sem o descritivo", () => {
+  it("os dois papéis são montados pelo MESMO bloco de comanda", () => {
+    // Um bloco só: se um dia alguém escrever um resumo sem itens, terá de sair daqui — e este
+    // teste cai junto. Foi assim que o papel sem descritivo nasceu da primeira vez.
+    const src = ler(PAPEL);
+    expect(src).toContain("function blocoDaComanda");
+    const usos = src.match(/blocoDaComanda/g) || [];
+    expect(usos.length).toBeGreaterThanOrEqual(3); // a definição + os dois papéis
   });
 
-  it("o cliente com várias contas abertas tem impressão só dele", () => {
-    // É o caso que a Cintia citou: conferir com o cliente na frente o que está em aberto.
-    expect(ler(PDV)).toContain("imprimirRelatorioDoCliente");
+  it("o bloco mostra item, quantidade, valor e desconto", () => {
+    const src = ler(PAPEL);
+    expect(src).toContain("it.descricao");
+    expect(src).toContain("it.quantidade");
+    expect(src).toContain("it.valorUnitario");
+    expect(src).toContain("it.desconto");
   });
 
-  it("o relatório sai agrupado por cliente", () => {
-    // Uma lista corrida de 40 vendas não serve pra cobrar ninguém.
-    expect(ler("lib/documentos/relatorio-vendas-print.ts")).toContain("agruparPorCliente");
+  it("a conta do cliente é separada POR DIA", () => {
+    // "o descritivo de cada dia": o cliente lê a conta dele dia a dia, não numa lista corrida.
+    const src = ler(PAPEL);
+    expect(src).toContain("imprimirContasDoCliente");
+    expect(src).toContain("const dias = new Map");
   });
 
-  it("o relatório sai INTEIRO — nada de slice na hora de imprimir", () => {
-    expect(ler("lib/documentos/relatorio-vendas-print.ts")).not.toMatch(/\.slice\(0,\s*\d+\)/);
+  it("a comanda não parte no meio da página", () => {
+    expect(ler(PAPEL)).toContain("page-break-inside:avoid");
+  });
+
+  it("a lista de comandas nunca é cortada na impressão", () => {
+    // A tela corta em 8 linhas por falta de espaço; o papel, nunca. (O `.slice(0, 10)` que
+    // existe no arquivo é o da data ISO — por isso o alvo aqui é a lista, com nome.)
+    expect(ler(PAPEL)).not.toMatch(/comandas\w*\.slice\(\s*\d/);
   });
 });
 
-describe("o corte da lista de vendas nunca é mudo", () => {
-  it("a tela avisa quando há mais vendas do que cabem", () => {
-    // `vendasFiltradas.slice(0, 8)` continua existindo (a tela é estreita) — o que não pode
-    // voltar é o resto sumir calado.
-    const src = ler(PDV);
-    expect(src).toContain("não couberam na lista");
-    expect(src).toContain("não couberam · 🖨️ ver todos no relatório");
-  });
-});
-
-describe("no ponto de venda é UMA lista só, colorida pela situação", () => {
+describe("a lista do ponto de venda é do DIA, e é uma só", () => {
   it("as abas 'Não pago / Pago' não voltam", () => {
-    // Cintia, 07/09/2026: "não quero duas abas no ponto de venda". A venda paga sai da lista
-    // e vira recebimento; o que fica em pé é a pagar (verde), atrasada (vermelha) e orçamento
-    // (cinza). Aba divide o que ela quer ver junto.
     const src = ler(PDV);
     expect(src).not.toContain("setVendaTab");
     expect(src).not.toContain("Não pago");
   });
 
-  it("a atrasada é separada da conta do dia", () => {
-    // É a diferença entre as duas cores: conta de hoje é rotina, conta de ontem é cobrança.
-    expect(ler(PDV)).toContain("ehAtrasada");
+  it("a lista lê as vendas do dia escolhido, não o acumulado", () => {
+    // `vendas` é a leitura do dia; `vendasEmAberto` é o acumulado e só serve ao saldo devedor.
+    const src = ler(PDV);
+    expect(src).toMatch(/vendasFiltradas = useMemo\(\(\) => vendas\b/);
+    expect(src).not.toContain("Abertas (todos os dias)");
   });
 
-  it("a lista lê as contas em aberto de TODOS os dias", () => {
-    // Conta em aberto não pertence a um dia. Antes isso era um checkbox que vinha desmarcado —
-    // ou seja, a atrasada ficava invisível por padrão, que é justamente a que precisa aparecer.
-    expect(ler(PDV)).toContain("vendasEmAberto");
-    expect(ler(PDV)).not.toContain("Abertas (todos os dias)");
+  it("o acumulado por cliente não volta pra lista", () => {
+    // Eram cartões "3 contas abertas · Baixar todas" empilhados em cima das vendas do dia.
+    const src = ler(PDV);
+    expect(src).not.toContain("gruposMulti");
+    expect(src).not.toContain("Baixar todas");
+  });
+
+  it("a atrasada continua separada da conta do dia", () => {
+    expect(ler(PDV)).toContain("ehAtrasada");
   });
 });
 
-describe("o relatório do dia sai como no SimplesVet", () => {
+describe("o acumulado aparece na hora de receber", () => {
+  it("o recebimento mostra o saldo devedor do cliente", () => {
+    const src = ler(PDV);
+    expect(src).toContain("outrasEmAberto");
+    expect(src).toContain("Saldo devedor de");
+  });
+
+  it("e de lá dá pra imprimir as contas desse cliente, com descritivo", () => {
+    expect(ler(PDV)).toContain("imprimirContasDoTutor");
+  });
+
   it("o Caixa imprime as comandas do dia", () => {
-    // Cintia, 07/09/2026: "o relatório é para ser impresso as comandas por dia, como no
-    // simplesvet" — e com os itens de cada comanda, não só o total.
     expect(ler(PDV)).toContain("imprimirComandasDia");
-  });
-
-  it("cada comanda sai com os seus itens", () => {
-    const src = ler("lib/documentos/relatorio-vendas-print.ts");
-    expect(src).toContain("imprimirComandasDoDia");
-    expect(src).toContain("it.quantidade");
-    expect(src).toContain("it.valorUnitario");
-  });
-
-  it("a comanda não parte no meio da página", () => {
-    // Bloco cortado entre folhas é conferência perdida.
-    expect(ler("lib/documentos/relatorio-vendas-print.ts")).toContain("page-break-inside:avoid");
   });
 });
