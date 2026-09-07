@@ -5,6 +5,7 @@ import { LeadStatus, LeadSource } from '@prisma/client';
 import { findExistingTutor, findTutorByPhoneUnique } from '../../common/tutor-match';
 import { last8, onlyDigits, normalizePhone } from '../../common/phone';
 import { proximoCodigo } from '../../common/codigo';
+import { pagoDaVenda, abertoDaVenda, situacaoDaVenda } from './consulta-vendas.regras';
 
 export interface WhatsAppLeadData {
   conversationId: string;
@@ -1035,11 +1036,16 @@ export class CrmIntegrationService {
         items: {
           include: { executorUser: { select: { name: true } } },
         },
+        // Sem os recebimentos nao existe "quanto ja entrou": a tela so sabia o valor da venda,
+        // entao nao dava pra mostrar baixa parcial, saldo em aberto, forma de recebimento nem
+        // data da baixa. Pedido de 07/09/2026 (Consulta de vendas, aba Resumo).
+        recebimentos: { select: { valorTotal: true, data: true, formas: true } },
       },
     });
 
     let liquido = 0;
     let descontos = 0;
+    let recebido = 0;
 
     const vendas = appts.map((a) => {
       // Marca dominante: a que soma mais valorTotal entre os itens
@@ -1054,8 +1060,13 @@ export class CrmIntegrationService {
           ? Object.entries(somaMarca).sort((x, y) => y[1] - x[1])[0][0]
           : null;
 
+      // O pago nunca passa do valor da venda: troco e pagamento a maior sao assunto do caixa,
+      // aqui virariam "saldo negativo" e sujariam o total do periodo.
+      const pagoVenda = pagoDaVenda(a.value, a.recebimentos);
+
       liquido += a.value || 0;
       descontos += descontoVenda;
+      recebido += pagoVenda;
 
       return {
         id: a.id,
@@ -1066,6 +1077,14 @@ export class CrmIntegrationService {
         paymentStatus: a.paymentStatus,
         paymentMethod: a.paymentMethod,
         valor: a.value,
+        pago: pagoVenda,
+        aberto: abertoDaVenda(a.value, a.recebimentos),
+        situacao: situacaoDaVenda(a.value, a.recebimentos),
+        recebimentos: (a.recebimentos || []).map((r) => ({
+          valor: r.valorTotal || 0,
+          data: r.data,
+          formas: r.formas ?? null,
+        })),
         cliente: a.tutor?.name ?? null,
         clienteId: a.tutorId,
         pet: a.pet?.name ?? null,
@@ -1076,6 +1095,10 @@ export class CrmIntegrationService {
           quantidade: it.quantidade,
           valorUnitario: it.valorUnitario,
           valorTotal: it.valorTotal,
+          desconto: it.desconto || 0,
+          servicoId: it.servicoId ?? null,
+          productId: it.productId ?? null,
+          catalogoItemId: it.catalogoItemId ?? null,
           grupo: it.grupo,
           marca: it.marca,
           executor: it.executorUser?.name ?? null,
@@ -1086,7 +1109,18 @@ export class CrmIntegrationService {
     const qtd = vendas.length;
     const ticket = qtd > 0 ? liquido / qtd : 0;
 
-    return { vendas, totais: { qtd, liquido, ticket, descontos } };
+    return {
+      vendas,
+      totais: {
+        qtd,
+        liquido,
+        ticket,
+        descontos,
+        recebido,
+        // O que falta receber do periodo. Nunca negativo, pelo mesmo motivo do pagoVenda.
+        aberto: Math.max(0, liquido - recebido),
+      },
+    };
   }
 
   /**

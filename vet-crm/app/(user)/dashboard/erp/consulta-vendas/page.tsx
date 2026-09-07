@@ -23,6 +23,7 @@ interface Item {
   quantidade: number;
   valorUnitario: number;
   valorTotal: number;
+  desconto: number;
   grupo: string | null;
   marca: string | null;
   executor: string | null;
@@ -36,6 +37,9 @@ interface Venda {
   paymentStatus: string;
   paymentMethod: string | null;
   valor: number;
+  pago: number;
+  aberto: number;
+  situacao: 'ABERTA' | 'PARCIAL' | 'PAGA';
   cliente: string | null;
   clienteId: string;
   pet: string | null;
@@ -43,7 +47,7 @@ interface Venda {
   marca: string | null;
   itens: Item[];
 }
-interface Totais { qtd: number; liquido: number; ticket: number; descontos: number }
+interface Totais { qtd: number; liquido: number; ticket: number; descontos: number; recebido: number; aberto: number }
 interface Resp { vendas: Venda[]; totais: Totais }
 
 /* ---------------- helpers ---------------- */
@@ -84,19 +88,20 @@ function MarcaPill({ marca }: { marca: string | null }) {
   );
 }
 
-function StatusPill({ status }: { status: string }) {
-  const s = (status || '').toLowerCase();
-  const baixado = s.includes('baixado') || s.includes('complet') || s.includes('paid');
-  const orcamento = s.includes('orcament') || s.includes('orçament') || s.includes('schedul');
-  const cfg = baixado
-    ? { bg: '#E6F3EA', fg: GREEN, label: status || 'Baixado' }
-    : orcamento
-      ? { bg: '#FEF3D7', fg: '#946200', label: status || 'Orçamento' }
-      : { bg: '#EEF2F4', fg: GREY, label: status || '—' };
+function StatusPill({ v }: { v: Venda }) {
+  // Tres estados, tres cores — do jeito que a recepcao le a lista: o que falta receber e
+  // vermelho, o que entrou pela metade e ambar, o que fechou e verde. A cor sai do MESMO
+  // calculo do backend (consulta-vendas.regras), nunca de um texto de status solto.
+  const cfg = v.situacao === 'PAGA'
+    ? { bg: '#E6F3EA', fg: GREEN, label: 'Baixado' }
+    : v.situacao === 'PARCIAL'
+      ? { bg: '#FEF3D7', fg: '#946200', label: 'Baixa parcial' }
+      : { bg: '#FDECEC', fg: '#b23b39', label: 'Aberto' };
   return (
     <span
       className="inline-flex items-center rounded-full font-medium"
       style={{ background: cfg.bg, color: cfg.fg, fontSize: 11.5, padding: '3px 9px' }}
+      title={v.situacao === 'PARCIAL' ? `Pago ${brl(v.pago)} · falta ${brl(v.aberto)}` : undefined}
     >
       {cfg.label}
     </span>
@@ -286,7 +291,7 @@ function DevolucaoModal({ vendaId, onClose }: { vendaId: string; onClose: () => 
 }
 
 /* ---------------- linha expansível ---------------- */
-function LinhaVenda({ v }: { v: Venda }) {
+function LinhaVenda({ v, saldoCliente }: { v: Venda; saldoCliente: number }) {
   const [open, setOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   return (
@@ -302,11 +307,18 @@ function LinhaVenda({ v }: { v: Venda }) {
           {v.numeroVenda != null && v.codigoExterno && <span style={{ color: GREY2, fontSize: 11, marginLeft: 6 }}>· SV {v.codigoExterno}</span>}
           <span style={{ color: GREY2, fontSize: 11.5, marginLeft: 8 }}>{dm(v.date)}</span>
         </td>
-        <td style={{ padding: '11px 12px', fontSize: 13, color: NAVY }} onClick={(e) => e.stopPropagation()}>{v.clienteId ? (<Link href={`/dashboard/erp/tutores/${v.clienteId}`} style={{ color: NAVY, textDecoration: 'none', fontWeight: 500 }}>{v.cliente || '—'}</Link>) : (v.cliente || '—')}</td>
+        <td style={{ padding: '11px 12px', fontSize: 13, color: NAVY }} onClick={(e) => e.stopPropagation()}>
+          {/* O aviso e do CLIENTE, nao desta venda: e o que ele deve no total, de qualquer dia.
+              Serve pra recepcao ver, na hora, que tem conta velha em aberto junto. */}
+          {saldoCliente > 0 && (
+            <span title={`${(v.cliente || 'Este cliente').split(' ')[0]} tem ${brl(saldoCliente)} em aberto no total`} style={{ color: '#b23b39', marginRight: 5, cursor: 'help' }}>&#9888;</span>
+          )}
+          {v.clienteId ? (<Link href={`/dashboard/erp/tutores/${v.clienteId}`} style={{ color: NAVY, textDecoration: 'none', fontWeight: 500 }}>{v.cliente || '—'}</Link>) : (v.cliente || '—')}
+        </td>
         <td style={{ padding: '11px 12px', fontSize: 13, color: GREY }}>{v.pet || '—'}</td>
         <td style={{ padding: '11px 12px' }}><MarcaPill marca={v.marca} /></td>
         <td style={{ padding: '11px 12px', fontSize: 13, fontWeight: 500, color: NAVY, textAlign: 'right', whiteSpace: 'nowrap' }}>{brl(v.valor)}</td>
-        <td style={{ padding: '11px 12px' }}><StatusPill status={v.status} /></td>
+        <td style={{ padding: '11px 12px' }}><StatusPill v={v} /></td>
       </tr>
       {open && (
         <tr style={{ background: '#FBF9F4' }}>
@@ -362,6 +374,10 @@ export default function ConsultaVendasPage() {
   const [cod, setCod] = useState('');
   const [func, setFunc] = useState('');
   const [modo, setModo] = useState<'VENDAS' | 'ORCAMENTOS' | 'TOTAIS'>('VENDAS');
+  // Saldo em aberto POR CLIENTE, de todos os dias — e o que alimenta o aviso da lista.
+  const [saldos, setSaldos] = useState<Record<string, number>>({});
+  const [pagina, setPagina] = useState(1);
+  const POR_PAGINA = 30;
 
   const [data, setData] = useState<Resp | null>(null);
   const [loading, setLoading] = useState(true);
@@ -379,9 +395,9 @@ export default function ConsultaVendasPage() {
       if (cod.trim()) p.set('cod', cod.trim());
       const r = await fetch(`/api/crm/consulta-vendas?${p.toString()}`, { cache: 'no-store' });
       if (r.ok) setData(await r.json());
-      else setData({ vendas: [], totais: { qtd: 0, liquido: 0, ticket: 0, descontos: 0 } });
+      else setData({ vendas: [], totais: { qtd: 0, liquido: 0, ticket: 0, descontos: 0, recebido: 0, aberto: 0 } });
     } catch {
-      setData({ vendas: [], totais: { qtd: 0, liquido: 0, ticket: 0, descontos: 0 } });
+      setData({ vendas: [], totais: { qtd: 0, liquido: 0, ticket: 0, descontos: 0, recebido: 0, aberto: 0 } });
     } finally {
       jaCarregou.current = true; setLoading(false);
     }
@@ -389,9 +405,39 @@ export default function ConsultaVendasPage() {
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
+  // As contas em aberto de TODOS os dias, somadas por cliente (mesma fonte do ponto de venda).
+  useEffect(() => {
+    (async () => {
+      try {
+        const r = await fetch('/api/caixa/vendas?abertas=true', { cache: 'no-store' });
+        if (!r.ok) return;
+        const arr = await r.json();
+        const m: Record<string, number> = {};
+        for (const x of Array.isArray(arr) ? arr : []) {
+          const k = x.tutorId || x.tutor;
+          if (!k) continue;
+          m[k] = (m[k] || 0) + Math.max(0, Number(x.valor || 0) - Number(x.pago || 0));
+        }
+        setSaldos(m);
+      } catch { /* o aviso e um extra: sem ele a lista continua inteira */ }
+    })();
+  }, []);
+
   const t = data?.totais;
   const funcs = useMemo(() => [...new Set((data?.vendas || []).map((v) => v.funcionario).filter(Boolean))] as string[], [data]);
-  const vendasF = useMemo(() => (data?.vendas || []).filter((v) => !func || v.funcionario === func), [data, func]);
+  const vendasF = useMemo(() => (data?.vendas || [])
+    .filter((v) => !func || v.funcionario === func)
+    // Dia mais recente primeiro e, dentro do dia, o codigo maior primeiro — a ordem que a
+    // recepcao espera. Por hora nao serve: venda lancada as 18h30 pode ter codigo menor.
+    .sort((a, b) => {
+      const da = String(a.date).slice(0, 10), db = String(b.date).slice(0, 10);
+      if (da !== db) return db.localeCompare(da);
+      return (Number(b.numeroVenda) || 0) - (Number(a.numeroVenda) || 0);
+    }), [data, func]);
+  const totalPaginas = Math.max(1, Math.ceil(vendasF.length / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, totalPaginas);
+  const vendasDaPagina = useMemo(() => vendasF.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA), [vendasF, paginaAtual]);
+  useEffect(() => { setPagina(1); }, [data, func]);
   // Totais por produto/serviço (agrega os itens das vendas do período)
   const totaisProduto = useMemo(() => {
     const m = new Map<string, { qtd: number; total: number }>();
@@ -504,6 +550,8 @@ export default function ConsultaVendasPage() {
         <Kpi emoji="🧾" label="Nº vendas" value={String(t?.qtd || 0)} color={NAVY} />
         <Kpi emoji="🎯" label="Ticket médio" value={brl(t?.ticket || 0)} color={TEAL} />
         <Kpi emoji="🏷️" label="Descontos" value={brl(t?.descontos || 0)} color={CORAL} />
+        <Kpi emoji="✅" label="Recebido" value={brl(t?.recebido || 0)} color={GREEN} />
+        <Kpi emoji="⏳" label="A receber no período" value={brl(t?.aberto || 0)} color={CORAL} />
       </div>
 
       {/* Tabela */}
@@ -555,9 +603,20 @@ export default function ConsultaVendasPage() {
               </tr>
             </thead>
             <tbody>
-              {vendasF.map((v) => <LinhaVenda key={v.id} v={v} />)}
+              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} />)}
             </tbody>
           </table>
+        )}
+        {/* Paginacao: 30 por pagina. O corte nunca e mudo — o rodape diz quantas vendas
+            existem no filtro, nao so a pagina em que voce esta. */}
+        {modo === 'VENDAS' && vendasF.length > 0 && (
+          <div className="flex items-center justify-center gap-3 no-print" style={{ padding: '10px 12px', borderTop: `1px solid ${CARD_LINE}`, fontSize: 12.5, color: GREY }}>
+            <button onClick={() => setPagina(1)} disabled={paginaAtual <= 1} style={{ border: 'none', background: 'none', cursor: paginaAtual <= 1 ? 'default' : 'pointer', color: paginaAtual <= 1 ? '#c9c4b8' : NAVY }}>&laquo;</button>
+            <button onClick={() => setPagina((n) => Math.max(1, n - 1))} disabled={paginaAtual <= 1} style={{ border: 'none', background: 'none', cursor: paginaAtual <= 1 ? 'default' : 'pointer', color: paginaAtual <= 1 ? '#c9c4b8' : NAVY }}>&lsaquo;</button>
+            <span>Página {paginaAtual} de {totalPaginas} · <b style={{ color: NAVY }}>{vendasF.length}</b> {vendasF.length === 1 ? 'venda' : 'vendas'} no filtro</span>
+            <button onClick={() => setPagina((n) => Math.min(totalPaginas, n + 1))} disabled={paginaAtual >= totalPaginas} style={{ border: 'none', background: 'none', cursor: paginaAtual >= totalPaginas ? 'default' : 'pointer', color: paginaAtual >= totalPaginas ? '#c9c4b8' : NAVY }}>&rsaquo;</button>
+            <button onClick={() => setPagina(totalPaginas)} disabled={paginaAtual >= totalPaginas} style={{ border: 'none', background: 'none', cursor: paginaAtual >= totalPaginas ? 'default' : 'pointer', color: paginaAtual >= totalPaginas ? '#c9c4b8' : NAVY }}>&raquo;</button>
+          </div>
         )}
       </div>
       </>)}

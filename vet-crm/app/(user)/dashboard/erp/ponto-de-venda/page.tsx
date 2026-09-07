@@ -122,6 +122,16 @@ export default function PDVPage() {
   const [detOrc, setDetOrc] = useState<any>(null); // orçamento aberto no modal de detalhe
   const [vendasEmAberto, setVendasEmAberto] = useState<Venda[]>([]);   // o que está em pé, de qualquer dia
   const [imprimindoDia, setImprimindoDia] = useState(false);          // relatório de comandas em preparo
+  // 🔍 Localizar venda: achar uma venda de QUALQUER dia sem ter que adivinhar a data no
+  // seletor. Pedido de 07/09/2026, olhando o SimplesVet.
+  const [buscaOpen, setBuscaOpen] = useState(false);
+  const [buscaCod, setBuscaCod] = useState('');
+  const [buscaCli, setBuscaCli] = useState('');
+  const [buscaDe, setBuscaDe] = useState('');
+  const [buscaAte, setBuscaAte] = useState('');
+  const [buscaSit, setBuscaSit] = useState<'' | 'ABERTA' | 'PAGA'>('');
+  const [buscaRes, setBuscaRes] = useState<any[] | null>(null);
+  const [buscando, setBuscando] = useState(false);
   // Baixar todas as comandas de um cliente de uma vez (portado do "Em atendimento")
   const buscaTimer = useRef<any>(null);
   const [vendaDia, setVendaDia] = useState<string>(() => new Date().toISOString().slice(0, 10));
@@ -787,6 +797,34 @@ export default function PDVPage() {
     return out;
   };
 
+  // 🔍 Procura a venda pelo número, pelo cliente ou por um período — na mesma consulta que a
+  // tela "Consulta de vendas" usa, então o resultado já vem com quanto falta receber.
+  const localizarVenda = async () => {
+    setBuscando(true);
+    try {
+      const p = new URLSearchParams();
+      if (buscaCod.trim()) p.set('cod', buscaCod.trim());
+      if (buscaCli.trim()) p.set('busca', buscaCli.trim());
+      if (buscaDe) p.set('de', buscaDe);
+      if (buscaAte) p.set('ate', buscaAte || buscaDe);
+      const r = await fetch(`/api/crm/consulta-vendas?${p.toString()}`, { cache: 'no-store' });
+      const d = await r.json().catch(() => ({}));
+      const arr: any[] = Array.isArray(d?.vendas) ? d.vendas : [];
+      // A situação vem calculada pelo backend (consulta-vendas.regras) — aqui é só filtro.
+      const filtradas = buscaSit ? arr.filter((v) => (buscaSit === 'PAGA' ? v.situacao === 'PAGA' : v.situacao !== 'PAGA')) : arr;
+      setBuscaRes(filtradas);
+      if (!filtradas.length) toast('Nenhuma venda com esses dados.', { icon: '🔍' });
+    } catch { toast.error('Não consegui buscar as vendas.'); setBuscaRes([]); }
+    finally { setBuscando(false); }
+  };
+
+  const abrirDaBusca = (v: any) => {
+    setBuscaOpen(false);
+    // A venda encontrada abre no MESMO painel de detalhe da lista — inclusive com o saldo
+    // devedor do cliente na hora de receber.
+    abrirDetVenda({ id: v.id, tutor: v.cliente || 'Cliente', tutorId: v.clienteId, pet: v.pet || '', valor: Number(v.valor) || 0, pago: Number(v.pago) || 0, status: v.status, pagoTotal: v.situacao === 'PAGA', date: v.date, numeroVenda: v.numeroVenda } as any);
+  };
+
   // 🖨️ AS COMANDAS DO DIA, com os itens de cada uma — o modelo do SimplesVet (Cintia, 07/09).
   // A lista de vendas não traz item; cada comanda é buscada em /api/atendimentos/:id, de 8 em 8
   // pra não abrir 40 requisições de uma vez. Comanda que falhar sai sem itens, não some.
@@ -1111,7 +1149,8 @@ export default function PDVPage() {
                   </div>
                 );
               })()}
-              <button onClick={imprimirComandasDia} disabled={imprimindoDia} title="Imprime as comandas deste dia com os itens de cada uma" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: imprimindoDia ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>{imprimindoDia ? 'Montando…' : '🖨️ Comandas do dia'}</button>
+              <button onClick={() => { setBuscaOpen(true); setBuscaRes(null); }} title="Achar uma venda de qualquer dia pelo número ou pelo cliente" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>🔍 Localizar venda</button>
+                            <button onClick={imprimirComandasDia} disabled={imprimindoDia} title="Imprime as comandas deste dia com os itens de cada uma" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: imprimindoDia ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>{imprimindoDia ? 'Montando…' : '🖨️ Comandas do dia'}</button>
             </div>
             <div style={{ padding: 13, display: 'flex', gap: 9 }}>
               <div style={{ flex: 1, background: OKB, borderRadius: 11, padding: '10px 12px' }}><div style={{ fontSize: 11, color: OK }}>Recebido</div><div style={{ fontSize: 16, fontWeight: 500, color: OK }}>{brl(recebidoHoje)}</div></div>
@@ -1201,6 +1240,68 @@ export default function PDVPage() {
           </div>
         </div>
       </div>
+
+      {/* ===== MODAL LOCALIZAR VENDA ===== */}
+      {buscaOpen && (
+        <div onClick={() => setBuscaOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 16, paddingTop: 60 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 520, maxWidth: '100%', maxHeight: '82vh', overflowY: 'auto', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16 }}>
+            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: SUAVE }}>
+              <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>🔍 Localizar venda</span>
+              <button onClick={() => setBuscaOpen(false)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <label style={{ fontSize: 11.5, color: MUT }}>Número da venda
+                  <input value={buscaCod} onChange={(e) => setBuscaCod(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') localizarVenda(); }} inputMode="numeric" placeholder="ex.: 25793" style={{ ...inp, width: '100%', marginTop: 3 }} />
+                </label>
+                <label style={{ fontSize: 11.5, color: MUT }}>Cliente ou pet
+                  <input value={buscaCli} onChange={(e) => setBuscaCli(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') localizarVenda(); }} placeholder="nome do cliente ou do animal" style={{ ...inp, width: '100%', marginTop: 3 }} />
+                </label>
+                <label style={{ fontSize: 11.5, color: MUT }}>De
+                  <input type="date" value={buscaDe} onChange={(e) => setBuscaDe(e.target.value)} style={{ ...inp, width: '100%', marginTop: 3 }} />
+                </label>
+                <label style={{ fontSize: 11.5, color: MUT }}>Até
+                  <input type="date" value={buscaAte} onChange={(e) => setBuscaAte(e.target.value)} style={{ ...inp, width: '100%', marginTop: 3 }} />
+                </label>
+                <label style={{ fontSize: 11.5, color: MUT, gridColumn: '1 / -1' }}>Situação
+                  <select value={buscaSit} onChange={(e) => setBuscaSit(e.target.value as any)} style={{ ...inp, width: '100%', marginTop: 3 }}>
+                    <option value="">Todas</option>
+                    <option value="ABERTA">Em aberto (falta receber)</option>
+                    <option value="PAGA">Pagas</option>
+                  </select>
+                </label>
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                <button onClick={() => { setBuscaCod(''); setBuscaCli(''); setBuscaDe(''); setBuscaAte(''); setBuscaSit(''); setBuscaRes(null); }} style={{ border: `1px solid ${LINE}`, background: '#fff', color: MUT, borderRadius: 10, padding: '9px 14px', fontSize: 13, cursor: 'pointer' }}>Limpar</button>
+                <button onClick={localizarVenda} disabled={buscando} style={{ flex: 1, border: 'none', background: buscando ? '#9DBDC2' : TEAL, color: '#fff', borderRadius: 10, padding: '9px', fontSize: 13, fontWeight: 600, cursor: buscando ? 'default' : 'pointer' }}>{buscando ? 'Procurando…' : '🔍 Pesquisar'}</button>
+              </div>
+
+              {buscaRes !== null && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontSize: 11.5, color: MUT, marginBottom: 6 }}>{buscaRes.length === 0 ? 'Nada encontrado.' : `${buscaRes.length} ${buscaRes.length === 1 ? 'venda encontrada' : 'vendas encontradas'}`}</div>
+                  {buscaRes.slice(0, 40).map((v: any) => {
+                    const paga = v.situacao === 'PAGA';
+                    const cor = paga ? OK : v.situacao === 'PARCIAL' ? WARN : ERR;
+                    const fundo = paga ? OKB : v.situacao === 'PARCIAL' ? WARNB : ERRB;
+                    return (
+                      <button key={v.id} onClick={() => abrirDaBusca(v)} style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 10, padding: '9px 10px', marginBottom: 6, background: '#fff', border: `1px solid ${LINE}`, borderLeft: `3px solid ${cor}`, borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, color: INK, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {v.numeroVenda != null ? `#${v.numeroVenda} · ` : ''}{v.cliente || 'Cliente'}
+                          </div>
+                          <div style={{ fontSize: 11, color: MUT }}>{v.pet || '—'} · {new Date(v.date).toLocaleDateString('pt-BR')}</div>
+                        </div>
+                        <span style={{ background: fundo, color: cor, fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(paga ? v.valor : v.aberto)}</span>
+                      </button>
+                    );
+                  })}
+                  {buscaRes.length > 40 && <div style={{ fontSize: 11, color: MUT, textAlign: 'center' }}>+ {buscaRes.length - 40} não listadas — refine a busca</div>}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ===== MODAL RECEBIMENTO ===== */}
       {modal && (
