@@ -14,6 +14,7 @@ import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForm
 import { montarResumoDoCaixa, avisoDoUsoDeCredito, avisoDoAdiantamento } from '@/lib/resumoDoCaixa';
 import { agruparRecebimentos, rotuloDaVenda } from '@/lib/recebimentosDoCaixa';
 import { seloDoFechamento, coresDoSelo } from '@/lib/fechamentoDoCaixa';
+import { imprimirCaixaDetalhado, imprimirResumoDeCaixas } from '@/lib/documentos/relatorio-caixa-print';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
@@ -442,7 +443,10 @@ export default function CaixaPage() {
                     </tbody>
                   </table>
                 </div>
-                <p style={{ fontSize: 11, color: '#8A938F', marginTop: 8 }}>Clique numa linha pra abrir aquele caixa.</p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+                  <p style={{ fontSize: 11, color: '#8A938F', margin: 0 }}>Clique numa linha pra abrir aquele caixa.</p>
+                  <button onClick={() => imprimirResumoDeCaixas(gradeRows as any, gradeNumero.trim() ? `caixa nº ${gradeNumero.trim()}` : `${gradeFrom.split('-').reverse().join('/')} a ${gradeTo.split('-').reverse().join('/')}`)} disabled={!gradeRows.length} style={{ background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, borderRadius: 9, padding: '7px 14px', fontSize: 12.5, fontWeight: 500, cursor: gradeRows.length ? 'pointer' : 'default', opacity: gradeRows.length ? 1 : .5 }}>🖨 Imprimir este resumo</button>
+                </div>
               </div>
             </div>
           </div>
@@ -517,7 +521,7 @@ export default function CaixaPage() {
                   <button onClick={() => abrirMov('DESPESA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Despesa</button>
                   <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} style={{ background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Transferência</button>
                   <button onClick={abrirCredito} disabled={!aberto} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL, border: `1px solid ${TEAL}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: aberto ? 1 : .4 }}><LuGift size={14} /> Crédito do pet</button>
-                  <button onClick={() => window.print()} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuPrinter size={14} /> Imprimir relatório</button>
+                  <button onClick={() => imprimirCaixaDetalhado(detail as any)} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuPrinter size={14} /> Imprimir movimento do caixa</button>
                   {aberto ? (
                     <button onClick={abrirFechar} style={{ gridColumn: '1 / -1', background: TEAL_DARK, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuLock size={14} /> Revisar e encerrar</button>
                   ) : podeEditar ? (

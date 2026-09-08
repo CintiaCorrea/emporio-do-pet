@@ -862,13 +862,42 @@ export class CaixaService {
     }
     if (status) where.status = String(status).toUpperCase();
     if (userId) where.userId = String(userId);
-    return this.prisma.caixaSessao.findMany({
+    const linhas = await this.prisma.caixaSessao.findMany({
       where, orderBy: { abertura: 'desc' }, take: 300,
       // obsFechamento e valorContado dizem se a gaveta foi CONFERIDA ou se o caixa so foi
       // encerrado sozinho a meia-noite. A Cintia, sobre o SimplesVet: "fechamento 23:59:00 e
       // automatico, nao fechamento feito por alguem. Um dev precisa dessa distincao — hoje ela
       // e implicita no valor da hora." Aqui ela e explicita.
-      select: { id: true, numero: true, status: true, abertura: true, fechamento: true, valorEsperado: true, valorContado: true, diferenca: true, obsFechamento: true, userId: true, user: { select: { id: true, name: true } } },
+      select: { id: true, numero: true, status: true, abertura: true, fechamento: true, suprimento: true, valorEsperado: true, valorContado: true, diferenca: true, obsFechamento: true, userId: true, user: { select: { id: true, name: true } } },
+    });
+    if (!linhas.length) return linhas;
+
+    // OS TOTAIS DE CADA CAIXA, em duas agregacoes. Sem eles o resumo em papel sai oco — o
+    // do SimplesVet traz Recebimentos, Despesas, Suprimentos e Sangria por caixa, e e essa
+    // linha que permite comparar um dia com o outro sem abrir caixa por caixa.
+    const ids = linhas.map((l) => l.id);
+    const [porRecebimento, porMovimento] = await Promise.all([
+      this.prisma.recebimento.groupBy({ by: ['caixaSessaoId'], where: { caixaSessaoId: { in: ids } }, _sum: { valorTotal: true } }).catch(() => [] as any[]),
+      this.prisma.caixaMovimento.groupBy({ by: ['caixaSessaoId', 'tipo'], where: { caixaSessaoId: { in: ids } }, _sum: { valor: true } }).catch(() => [] as any[]),
+    ]);
+    const recebido = new Map<string, number>();
+    for (const r of porRecebimento as any[]) recebido.set(r.caixaSessaoId, Number(r._sum?.valorTotal || 0));
+    const movs = new Map<string, Record<string, number>>();
+    for (const m of porMovimento as any[]) {
+      const atual = movs.get(m.caixaSessaoId) || {};
+      atual[String(m.tipo || '').toUpperCase()] = Number(m._sum?.valor || 0);
+      movs.set(m.caixaSessaoId, atual);
+    }
+    return linhas.map((l) => {
+      const m = movs.get(l.id) || {};
+      return {
+        ...l,
+        recebido: recebido.get(l.id) || 0,
+        suprimentos: Number(l.suprimento || 0) + (m.SUPRIMENTO || 0),
+        sangrias: m.SANGRIA || 0,
+        despesas: m.DESPESA || 0,
+        transferencias: m.TRANSFERENCIA || 0,
+      };
     });
   }
 
