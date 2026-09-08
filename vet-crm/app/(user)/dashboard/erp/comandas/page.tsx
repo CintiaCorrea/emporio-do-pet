@@ -9,6 +9,7 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useSession } from "next-auth/react";
 import { carregarMeuCaixa, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaParaReceber } from "@/lib/caixaAtual";
 import AbrirMeuCaixaModal from "@/components/caixa/AbrirMeuCaixaModal";
+import { imprimirVendasAbertas } from "@/lib/documentos/vendas-abertas-print";
 
 const FORMAS = ["Dinheiro", "Pix", "Cartão de crédito", "Cartão de débito", "Crédito do cliente"];
 const ORIGEM: Record<string, { lbl: string; bg: string; fg: string }> = {
@@ -41,6 +42,10 @@ export default function ComandasPage() {
   const [gruposAbertos, setGruposAbertos] = useState<Set<string>>(new Set());
   const alternarGrupo = (k: string) => setGruposAbertos((s) => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas configuradas (Fase 2)
+  // Busca por cliente/pet. NAO e filtro do que ja veio: o backend corta a lista de abertas,
+  // entao quem esta fora desse corte so aparece se a busca for ao banco.
+  const [busca, setBusca] = useState("");
+  const [buscando, setBuscando] = useState(false);
 
   const [det, setDet] = useState<any | null>(null);
   const [detItens, setDetItens] = useState<any[]>([]);
@@ -49,12 +54,18 @@ export default function ComandasPage() {
   const [baixando, setBaixando] = useState(false);
   const [detGrupo, setDetGrupo] = useState<any | null>(null); // baixar todas as comandas de um cliente (1B)
 
+  const urlComandas = (q: string) => {
+    const p = new URLSearchParams({ abertas: "1" });
+    if (q.trim()) p.set("busca", q.trim());
+    return `/api/caixa/vendas?${p.toString()}`;
+  };
+
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
     try {
       const hoje = hojeISO();
       const [c, cx, rec, fm] = await Promise.all([
-        fetch("/api/caixa/vendas?abertas=1").then((r) => r.json()).catch(() => []),
+        fetch(urlComandas(busca)).then((r) => r.json()).catch(() => []),
         Promise.resolve([]),  // caixa: quem decide é lib/caixaAtual (abaixo)
 
         fetch(`/api/caixa/recebimentos?from=${hoje}&to=${hoje}`).then((r) => r.json()).catch(() => []),
@@ -70,6 +81,25 @@ export default function ComandasPage() {
     jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  // Digitar refaz SO a lista; caixa e "baixado hoje" nao mudam com a busca.
+  const primeiraBusca = useRef(true);
+  const buscaSeq = useRef(0); // resposta atrasada de busca antiga nao pode sobrescrever a atual
+  useEffect(() => {
+    if (primeiraBusca.current) { primeiraBusca.current = false; return; }
+    setBuscando(true);
+    const t = setTimeout(() => {
+      const seq = ++buscaSeq.current;
+      fetch(urlComandas(busca))
+        .then((r) => r.json())
+        .catch(() => [])
+        .then((c) => {
+          if (seq !== buscaSeq.current) return; // chegou tarde: ja existe busca mais nova
+          setComandas(Array.isArray(c) ? c : (c.data || []));
+          setBuscando(false);
+        });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [busca]);
   // O recebimento entra no caixa de QUEM ESTÁ LOGADA (lib/caixaAtual). Só dá pra saber depois que a
   // sessão carrega — por isso este efeito separado, e não dentro do load().
   useEffect(() => {
@@ -192,11 +222,45 @@ export default function ComandasPage() {
     );
   };
 
+  // Relatorio de cobranca: leva as futuras junto — elas tambem estao em aberto, e quem
+  // cobra precisa ver a conta inteira do cliente, nao so o que ja venceu.
+  const relatorio = () => {
+    const lista = [...agora, ...futuras];
+    const nomes = [...new Set(lista.map((c: any) => c.tutor).filter(Boolean))];
+    const titulo = nomes.length === 1 ? String(nomes[0]) : (busca.trim() ? `Busca: ${busca.trim()}` : "Todos os clientes");
+    imprimirVendasAbertas(titulo, lista as any);
+  };
+
   return (
     <div className="p-6 w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <div className="text-[13px] text-[#374151]">{agora.length} venda(s) em aberto{meuCaixa ? ` · ${rotuloCaixa(meuCaixa)}` : (meId ? " · ⚠️ você não tem caixa aberto" : "")}</div>
-        <button onClick={() => setOlho((v) => !v)} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
+        <div className="text-[13px] text-[#374151]">
+          {buscando ? "buscando…" : `${agora.length} venda(s) em aberto`}
+          {busca.trim() && !buscando ? <span className="text-[#00798A]"> · filtrando por “{busca.trim()}”</span> : null}
+          {meuCaixa ? ` · ${rotuloCaixa(meuCaixa)}` : (meId ? " · ⚠️ você não tem caixa aberto" : "")}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="relative">
+            <input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar cliente ou pet..."
+              className="text-[12.5px] bg-white border rounded-lg pl-8 pr-7 py-1.5 w-[230px] outline-none focus:border-[#009AAC]"
+              style={{ borderColor: "#E8E2D6", color: "#014D5E" }}
+            />
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-[#9aa0a8]">🔍</span>
+            {busca && (
+              <button onClick={() => setBusca("")} title="Limpar busca" className="absolute right-2 top-1/2 -translate-y-1/2 text-[13px] text-[#9aa0a8] leading-none">✕</button>
+            )}
+          </div>
+          <button
+            onClick={relatorio}
+            disabled={agora.length + futuras.length === 0}
+            className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg disabled:opacity-45"
+            style={{ borderColor: "#E8E2D6" }}
+          >🖨️ Relatório</button>
+          <button onClick={() => setOlho((v) => !v)} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>{olho ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-3 mb-5">
@@ -216,9 +280,14 @@ export default function ComandasPage() {
         <div className="px-6 py-16 text-center text-sm text-[#374151]">Carregando...</div>
       ) : agora.length === 0 && futuras.length === 0 ? (
         <div className="bg-white border rounded-[14px] px-6 py-14 text-center" style={{ borderColor: "#E8E2D6" }}>
-          <div className="text-3xl mb-2">🛎️</div>
-          <div className="text-sm text-[#5C6B70]">Nenhuma venda em aberto no momento.</div>
-          <div className="text-[12px] text-[#374151] mt-1">Vendas de consulta e balcão aparecem aqui até serem recebidas no caixa.</div>
+          <div className="text-3xl mb-2">{busca.trim() ? "🔍" : "🛎️"}</div>
+          <div className="text-sm text-[#5C6B70]">
+            {busca.trim() ? `Nenhuma venda em aberto para “${busca.trim()}”.` : "Nenhuma venda em aberto no momento."}
+          </div>
+          <div className="text-[12px] text-[#374151] mt-1">
+            {busca.trim() ? "A busca procura por nome do cliente ou do pet, no sistema inteiro." : "Vendas de consulta e balcão aparecem aqui até serem recebidas no caixa."}
+          </div>
+          {busca.trim() ? <button onClick={() => setBusca("")} className="mt-3 text-[12px] font-medium text-[#00798A] bg-[#E0F4F6] px-3 py-1.5 rounded-lg">Limpar busca</button> : null}
         </div>
       ) : (
         <div className="bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: "#E8E2D6" }}>

@@ -104,6 +104,9 @@ export class CaixaService {
 
   async listVendas(query: any = {}) {
     const abertas = ['1', 'true', true].includes(query?.abertas);
+    // Busca por cliente/pet. Vai ao BANCO, antes do take — filtrar depois o que ja veio
+    // esconderia justamente quem se procura quando ele esta fora das N mais recentes.
+    const busca = String(query?.busca ?? '').trim();
     const where: any = {};
     if (query?.from || query?.to) {
       where.date = {};
@@ -120,6 +123,12 @@ export class CaixaService {
       // "a cobrar em breve" (futura: true), pra ninguém perder cobrança lançada pra frente.
       // O agendamento puro continua fora — ele não tem numeroVenda.
     }
+    if (busca) {
+      where.OR = [
+        { tutor: { name: { contains: busca, mode: 'insensitive' } } },
+        { pet: { name: { contains: busca, mode: 'insensitive' } } },
+      ];
+    }
     const appts = await this.prisma.appointment.findMany({
       where,
       include: {
@@ -132,7 +141,9 @@ export class CaixaService {
         _count: { select: { items: true } },
       },
       orderBy: { date: 'desc' },
-      take: abertas ? 300 : 60,
+      // Com busca o recorte ja foi feito no banco: a conta do cliente vem INTEIRA, senao
+      // o relatorio de cobranca dele sairia faltando venda.
+      take: busca ? 2000 : abertas ? 300 : 60,
     });
     let rows = appts.map((a: any) => {
       const pago = (a.recebimentos || []).reduce((s: number, r: any) => s + Number(r.valorTotal), 0);
