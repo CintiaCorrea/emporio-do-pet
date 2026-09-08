@@ -1,4 +1,4 @@
-import { ehFaseConcluida, ehFaseSolicitacao, exameElegivelLote } from './exames.regras';
+import { ehFaseConcluida, ehFaseSolicitacao, exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete } from './exames.regras';
 
 // BLINDAGEM: estes testes travam a regra de aviso ao laboratório. A regressão histórica foi o envio
 // preso em status.includes("coleta") — uma fase que NÃO existe (as reais são Solicitar/Retirado/…).
@@ -55,5 +55,47 @@ describe('exames.regras — aviso ao laboratório', () => {
       expect(exameElegivelLote(null, INICIAL)).toBe(false);
       expect(exameElegivelLote(undefined, INICIAL)).toBe(false);
     });
+  });
+});
+
+describe('Lembrete da solicitacao ao laboratorio', () => {
+  const INICIAL = 'Solicitar';
+
+  it('lembra o exame parado na fase de solicitacao', () => {
+    expect(precisaLembrarSolicitacao({ status: 'Solicitar' }, INICIAL)).toBe(true);
+  });
+
+  it('NAO lembra o que ja andou de fase', () => {
+    // Alerta que grita pelo que ja foi feito e alerta que a equipe aprende a ignorar.
+    expect(precisaLembrarSolicitacao({ status: 'Retirado' }, INICIAL)).toBe(false);
+    expect(precisaLembrarSolicitacao({ status: 'Resultado' }, INICIAL)).toBe(false);
+    expect(precisaLembrarSolicitacao({ status: 'Entregue' }, INICIAL)).toBe(false);
+  });
+
+  it('sem exame nenhum, nao manda lembrete', () => {
+    expect(textoDoLembrete([])).toBeNull();
+    expect(textoDoLembrete(null as any)).toBeNull();
+  });
+
+  it('o texto diz o tamanho do trabalho antes de abrir a tela', () => {
+    const t = textoDoLembrete([
+      { nome: 'Hemograma', petNome: 'Luna' },
+      { nome: 'Ultrassom', petNome: 'Chico' },
+    ])!;
+    expect(t.titulo).toBe('2 exames esperando solicitacao'.replace('solicitacao', 'solicitação'));
+    expect(t.mensagem).toContain('Luna — Hemograma');
+    expect(t.mensagem).toContain('Chico — Ultrassom');
+  });
+
+  it('lista longa nao vira parede de texto', () => {
+    const muitos = Array.from({ length: 9 }, (_, i) => ({ nome: `Exame ${i + 1}`, petNome: `Pet ${i + 1}` }));
+    const t = textoDoLembrete(muitos)!;
+    expect(t.titulo).toBe('9 exames esperando solicitação');
+    expect(t.mensagem).toContain('e mais 5');
+  });
+
+  it('exame sem pet ainda aparece', () => {
+    const t = textoDoLembrete([{ nome: 'Citologia' }])!;
+    expect(t.mensagem).toContain('Citologia');
   });
 });

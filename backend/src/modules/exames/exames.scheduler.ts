@@ -3,7 +3,11 @@ import { Cron } from '@nestjs/schedule';
 import { ExamesService } from './exames.service';
 import { CronHealthService } from '../../common/cron-health.service';
 
-/** Avisa os laboratórios sobre coletas pendentes 2x ao dia: 11:30 e 17:00 (Fortaleza). */
+/**
+ * Dois relógios diferentes, com donos diferentes:
+ *   · 11:30 e 17:00 — avisa os LABORATÓRIOS das coletas pendentes;
+ *   · 11:00, 15:00 e 17:00 — lembra a NOSSA RECEPÇÃO de fazer a solicitação (Cintia, 07/09/2026).
+ */
 @Injectable()
 export class ExamesScheduler {
   private readonly logger = new Logger(ExamesScheduler.name);
@@ -20,5 +24,15 @@ export class ExamesScheduler {
   async tarde(): Promise<void> {
     this.cronHealth.registrar('exames').catch(() => undefined);
     try { await this.exames.avisarLaboratorios(); } catch (e) { this.logger.error(`Aviso de coleta (tarde) falhou: ${String((e as any)?.message || e)}`); }
+  }
+
+  // Lembrete da recepção: 11:00, 15:00 e 17:00 (Fortaleza), como a Cintia pediu.
+  @Cron('0 11,15,17 * * *', { timeZone: 'America/Fortaleza' })
+  async lembrarRecepcao(): Promise<void> {
+    this.cronHealth.registrar('exames').catch(() => undefined);
+    try {
+      const r = await this.exames.lembrarRecepcaoDaSolicitacao();
+      if (r.exames) this.logger.log(`Lembrete de solicitação: ${r.exames} exame(s) para ${r.avisados} pessoa(s).`);
+    } catch (e) { this.logger.error(`Lembrete de solicitação falhou: ${String((e as any)?.message || e)}`); }
   }
 }

@@ -4,7 +4,7 @@ import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { exameElegivelLote } from './exames.regras';
+import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete } from './exames.regras';
 
 /**
  * Aviso de COLETA ao laboratório (Fatia 3 dos exames).
@@ -239,6 +239,72 @@ export class ExamesService {
       try { await this.prisma.listaItem.create({ data: { lista: `petexa_${petId}`, valor: JSON.stringify(d) } }); n++; } catch { /* não trava a venda */ }
     }
     return n;
+  }
+
+  /**
+   * LEMBRETE PARA A RECEPÇÃO — 11:00, 15:00 e 17:00 (Fortaleza).
+   *
+   * A Cintia, em 07/09/2026: "devemos ter lembretes para a recepção fazer a solicitação ao
+   * laboratório" — "para a recepção às 11:00, 15:00 e 17:00".
+   *
+   * É diferente do lote automático que avisa o LABORATÓRIO: este cutuca a NOSSA equipe sobre o
+   * exame que foi vendido e ficou parado na fase de solicitação. Exame que já andou de fase não
+   * entra — alerta que grita pelo que já foi feito é alerta que a equipe aprende a ignorar.
+   *
+   * Não manda nada quando não há o que cobrar: notificação vazia todo dia às 11h ensina a
+   * ignorar as cheias.
+   */
+  async lembrarRecepcaoDaSolicitacao(): Promise<{ exames: number; avisados: number }> {
+    const inicial = String((await this.faseInicialExame()) || '');
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: { startsWith: 'petexa_' } },
+      select: { id: true, lista: true, valor: true },
+      take: 3000,
+    });
+
+    const pendentes: any[] = [];
+    for (const it of itens) {
+      let d: any; try { d = JSON.parse(it.valor); } catch { continue; }
+      if (!precisaLembrarSolicitacao(d, inicial)) continue;
+      pendentes.push(d);
+    }
+
+    const texto = textoDoLembrete(pendentes);
+    if (!texto) return { exames: 0, avisados: 0 };
+
+    // O nome dos pets deixa o lembrete útil de ler; a lista completa está no kanban.
+    const petIds = [...new Set(itens.map((i) => i.lista.replace('petexa_', '')))];
+    const pets = petIds.length
+      ? await this.prisma.pet.findMany({ where: { id: { in: petIds } }, select: { id: true, name: true } }).catch(() => [])
+      : [];
+    const nomePorPet = new Map(pets.map((p: any) => [p.id, p.name]));
+    const comPet = itens
+      .map((it) => { let d: any; try { d = JSON.parse(it.valor); } catch { return null; } return precisaLembrarSolicitacao(d, inicial) ? { ...d, petNome: d.petNome || nomePorPet.get(it.lista.replace('petexa_', '')) } : null; })
+      .filter(Boolean) as any[];
+    const textoFinal = textoDoLembrete(comPet) || texto;
+
+    // Quem recebe: recepção e administrativo — quem faz a solicitação ao laboratório.
+    const destinos = await this.prisma.user.findMany({
+      // Os papeis reais do sistema sao ADMIN | VETERINARIAN | RECEPTIONIST. Escrever nome que
+      // nao existe aqui nao quebraria nada visivel — o catch engoliria, e o lembrete
+      // simplesmente nunca sairia. Silencio e o pior defeito de um alerta.
+      where: { isBlocked: false, role: { in: ['RECEPTIONIST', 'ADMIN'] } },
+      select: { id: true },
+    }).catch(() => [] as any[]);
+    if (!destinos.length) return { exames: pendentes.length, avisados: 0 };
+
+    await this.prisma.notification.createMany({
+      data: destinos.map((u: any) => ({
+        userId: u.id,
+        type: 'WARNING' as any,
+        channel: 'IN_APP' as any,
+        title: textoFinal.titulo,
+        message: textoFinal.mensagem,
+        link: '/dashboard/erp/exames-kanban',
+      })),
+    }).catch(() => undefined);
+
+    return { exames: pendentes.length, avisados: destinos.length };
   }
 
   /**

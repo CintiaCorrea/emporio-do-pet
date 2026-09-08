@@ -26,3 +26,49 @@ export function exameElegivelLote(
   if (!d) return false;
   return !!d.fornecedorId && !d.labAvisadoAt && ehFaseSolicitacao(d.status, inicial);
 }
+
+// ── LEMBRETE DA SOLICITAÇÃO AO LABORATÓRIO ───────────────────────────────────────────────
+//
+// A Cintia, em 07/09/2026: "todo exame lançado na comanda deve abrir em solicitar (...) devemos
+// ter lembretes para a recepção fazer a solicitação ao laboratório" — "para a recepção às 11:00,
+// 15:00 e 17:00".
+//
+// O que o lembrete cobra é exame que ficou parado na PRIMEIRA fase: ele foi vendido, o
+// laboratório não sabe, e o resultado não vai chegar. O que já andou de fase não é lembrado —
+// alerta que grita pelo que já foi feito é alerta que a equipe aprende a ignorar.
+
+export type ExameParaLembrete = {
+  nome?: string | null;
+  status?: string | null;
+  petNome?: string | null;
+  fornecedorNome?: string | null;
+  /** Quando o exame entrou no ciclo. */
+  date?: string | null;
+};
+
+/** Precisa de lembrete? Só o que ainda está na fase de solicitação. */
+export function precisaLembrarSolicitacao(e: ExameParaLembrete, faseInicial: string): boolean {
+  if (!e) return false;
+  return ehFaseSolicitacao(String(e.status || ''), faseInicial);
+}
+
+/**
+ * O texto do lembrete — curto, com o número e os nomes, para a pessoa saber o tamanho do
+ * trabalho antes de abrir a tela.
+ */
+export function textoDoLembrete(exames: ExameParaLembrete[]): { titulo: string; mensagem: string } | null {
+  const lista = (Array.isArray(exames) ? exames : []).filter(Boolean);
+  if (!lista.length) return null;
+
+  const nomes = lista.slice(0, 4).map((e) => {
+    const pet = String(e.petNome || '').trim();
+    const nome = String(e.nome || 'Exame').trim();
+    return pet ? `${pet} — ${nome}` : nome;
+  });
+  const resto = lista.length - nomes.length;
+
+  return {
+    titulo: lista.length === 1 ? '1 exame esperando solicitação' : `${lista.length} exames esperando solicitação`,
+    mensagem: `Ainda não foram pedidos ao laboratório: ${nomes.join('; ')}${resto > 0 ? ` e mais ${resto}` : ''}.`,
+  };
+}
