@@ -14,6 +14,7 @@ import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaCli
 import { buscarItens, avisoDeCorte } from '@/lib/buscaCatalogo';
 import BuscaItemCatalogo from '@/components/vendas/BuscaItemCatalogo';
 import SeletorModeloVenda from '@/components/vendas/SeletorModeloVenda';
+import MovimentoCaixaModal, { TipoMovimento, ROTULO_MOVIMENTO } from '@/components/caixa/MovimentoCaixaModal';
 import { imprimirContasDoCliente } from '@/lib/documentos/relatorio-vendas-print';
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from '@/lib/modelosVenda';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
@@ -122,6 +123,10 @@ export default function PDVPage() {
   const [detOrc, setDetOrc] = useState<any>(null); // orçamento aberto no modal de detalhe
   const [vendasEmAberto, setVendasEmAberto] = useState<Venda[]>([]);   // o que está em pé, de qualquer dia
   const [imprimindoDia, setImprimindoDia] = useState(false);          // relatório de comandas em preparo
+  // 💵 As operações do caixa à mão no ponto de venda (Cintia, 07/09/2026, olhando o SimplesVet).
+  // O formulário é o MESMO da tela de Caixa (components/caixa/MovimentoCaixaModal) — escrever um
+  // segundo formulário de dinheiro aqui é como a busca ficou quebrada em três telas.
+  const [movTipo, setMovTipo] = useState<TipoMovimento | null>(null);
   // 🔍 Localizar venda: achar uma venda de QUALQUER dia sem ter que adivinhar a data no
   // seletor. Pedido de 07/09/2026, olhando o SimplesVet.
   const [buscaOpen, setBuscaOpen] = useState(false);
@@ -1219,6 +1224,26 @@ export default function PDVPage() {
             </div>
           </div>
 
+          {/* 💵 O CAIXA À MÃO — as operações que alimentam a movimentação do caixa e o fluxo de
+              caixa no financeiro. Só aparecem com caixa aberto: sem caixa, não há onde lançar. */}
+          {caixaAbertoId && (
+            <div style={card}>
+              <div style={{ ...chLeve, justifyContent: 'space-between' }}>
+                <span style={{ color: NAVY, fontSize: 13.5, fontWeight: 500 }}>💵 Caixa {meuCaixa?.numero != null ? `nº ${meuCaixa.numero}` : 'aberto'}</span>
+                {meuCaixa?.abertura && <span style={{ fontSize: 11, color: MUT }}>{new Date(meuCaixa.abertura).toLocaleDateString('pt-BR')}</span>}
+              </div>
+              <div style={{ padding: 13, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {(['SUPRIMENTO', 'SANGRIA', 'DESPESA', 'TRANSFERENCIA'] as TipoMovimento[]).map((t) => (
+                  <button key={t} onClick={() => setMovTipo(t)} style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, borderRadius: 9, padding: '9px 6px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    {ROTULO_MOVIMENTO[t]}
+                  </button>
+                ))}
+                <Link href="/dashboard/erp/caixa" style={{ gridColumn: '1 / -1', textDecoration: 'none', textAlign: 'center', border: `1px solid ${LINE}`, borderRadius: 9, background: SUAVE, color: INK2, padding: '9px', fontSize: 12, fontWeight: 600 }}>
+                  🔒 Fechar o caixa · conferir
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1282,6 +1307,10 @@ export default function PDVPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {movTipo && caixaAbertoId && (
+        <MovimentoCaixaModal caixaId={caixaAbertoId} tipo={movTipo} onClose={() => setMovTipo(null)} onFeito={() => { loadVendas(); recarregarMeuCaixa(); }} />
       )}
 
       {/* ===== MODAL RECEBIMENTO ===== */}

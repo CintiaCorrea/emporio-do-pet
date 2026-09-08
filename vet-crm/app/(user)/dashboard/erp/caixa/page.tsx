@@ -15,6 +15,7 @@ import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
   LuX, LuWallet, LuTrash2, LuGift, LuSettings, LuCircleDollarSign, LuEye, LuEyeOff,
 } from 'react-icons/lu';
+import MovimentoCaixaModal, { TipoMovimento } from '@/components/caixa/MovimentoCaixaModal';
 
 const TEAL = '#009AAC';
 const TEAL_DARK = '#014D5E';
@@ -104,9 +105,10 @@ export default function CaixaPage() {
   const [obsReceb, setObsReceb] = useState('');
   const [tutorSaldo, setTutorSaldo] = useState<number | null>(null);
   const [tutorAReceber, setTutorAReceber] = useState<number | null>(null); // total a receber do cliente (todas as vendas)
+  // O FORMULARIO do movimento virou componente (components/caixa/MovimentoCaixaModal) — o mesmo
+  // que o ponto de venda usa desde 07/09/2026. Aqui fica so qual tipo esta aberto.
   const [movOpen, setMovOpen] = useState(false);
-  const [movTipo, setMovTipo] = useState('SUPRIMENTO');
-  const [movForm, setMovForm] = useState({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '' });
+  const [movTipo, setMovTipo] = useState<TipoMovimento>('SUPRIMENTO');
   const [categoriasDespesa, setCategoriasDespesa] = useState<any[]>([]); // categorias de DESPESA (DRE)
   const [contasFin, setContasFin] = useState<any[]>([]); // contas reais (id+nome) p/ transferência
   const [credOpen, setCredOpen] = useState(false);
@@ -302,16 +304,7 @@ export default function CaixaPage() {
       toast.success('Recebimento registrado!'); setReceberOpen(false); await fetchDetail(detail.id); await fetchAppointments();
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar recebimento'); }
   };
-  const abrirMov = (tipo: string) => { setMovTipo(tipo); setMovForm({ valor: '', forma: 'Dinheiro', conta: 'Banco', descricao: '', observacao: '', categoriaId: '', contaOrigemId: '', contaDestinoId: '' }); setMovOpen(true); };
-  const registrarMovimento = async () => {
-    if (!detail) return; const valor = Number(String(movForm.valor).replace(',', '.')) || 0;
-    if (valor <= 0) { toast.error('Informe o valor'); return; }
-    try {
-      const r = await fetch(`/api/caixa/${detail.id}/movimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: movTipo, valor, forma: movForm.forma || null, conta: movTipo === 'TRANSFERENCIA' ? movForm.conta : null, descricao: movForm.descricao || null, observacao: movForm.observacao || null, ...(movTipo === 'DESPESA' && movForm.categoriaId ? { categoriaId: movForm.categoriaId } : {}), ...((movTipo === 'SUPRIMENTO' || movTipo === 'TRANSFERENCIA') && movForm.contaOrigemId ? { contaOrigemId: movForm.contaOrigemId } : {}), ...((movTipo === 'SANGRIA' || movTipo === 'TRANSFERENCIA') && movForm.contaDestinoId ? { contaDestinoId: movForm.contaDestinoId } : {}) }) });
-      if (!r.ok) throw new Error('Erro ao registrar movimento');
-      toast.success(`${tipoLabel[movTipo]} registrada!`); setMovOpen(false); await fetchDetail(detail.id);
-    } catch (e: any) { toast.error(e.message || 'Erro ao registrar movimento'); }
-  };
+  const abrirMov = (tipo: TipoMovimento) => { setMovTipo(tipo); setMovOpen(true); };
   const abrirCredito = () => { setCredForm({ appointmentId: appointments[0]?.id || '', tipo: 'RECARGA', valor: '', descricao: '', forma: 'Dinheiro' }); setCredOpen(true); };
   const adicionarCredito = async () => {
     if (!detail) return; const valor = Number(String(credForm.valor).replace(',', '.')) || 0;
@@ -637,31 +630,8 @@ export default function CaixaPage() {
         </Modal>
       )}
 
-      {movOpen && (
-        <Modal title={tipoLabel[movTipo]} onClose={() => setMovOpen(false)} onConfirm={registrarMovimento} confirmLabel="Confirmar" dark={!ehEntrada(movTipo)}>
-          <Field label="Valor"><input value={movForm.valor} onChange={(e) => setMovForm({ ...movForm, valor: e.target.value })} inputMode="decimal" placeholder="0,00" style={inp} /></Field>
-          {movTipo === 'TRANSFERENCIA' && (<>
-            <Field label="Conta de origem"><select value={movForm.contaOrigemId} onChange={(e) => setMovForm({ ...movForm, contaOrigemId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
-            <Field label="Conta de destino"><select value={movForm.contaDestinoId} onChange={(e) => setMovForm({ ...movForm, contaDestinoId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
-          </>)}
-          {movTipo === 'SANGRIA' && (
-            <Field label="Conta de destino (sai do caixa em dinheiro)"><select value={movForm.contaDestinoId} onChange={(e) => setMovForm({ ...movForm, contaDestinoId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
-          )}
-          {movTipo === 'SUPRIMENTO' && (
-            <Field label="Conta de origem (entra no caixa em dinheiro)"><select value={movForm.contaOrigemId} onChange={(e) => setMovForm({ ...movForm, contaOrigemId: e.target.value })} style={inp}><option value="">— Escolher —</option>{contasFin.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}</select></Field>
-          )}
-          {movTipo === 'DESPESA' && (
-            <Field label="Forma"><select value={movForm.forma} onChange={(e) => setMovForm({ ...movForm, forma: e.target.value })} style={inp}>{formasList.filter((f) => !ehCredito(f)).map((f) => <option key={f} value={f}>{f}</option>)}</select></Field>
-          )}
-          {movTipo === 'DESPESA' && (
-            <Field label="Categoria (entra no DRE)"><select value={movForm.categoriaId} onChange={(e) => setMovForm({ ...movForm, categoriaId: e.target.value })} style={inp}>
-              <option value="">— Escolher categoria —</option>
-              {categoriasDespesa.map((c: any) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>{categoriasDespesa.length === 0 ? <div style={{ fontSize: 11, color: '#5C6B70', marginTop: 3 }}>Sem categorias — a despesa entra sem classificação.</div> : null}</Field>
-          )}
-          <Field label="Descrição"><input value={movForm.descricao} onChange={(e) => setMovForm({ ...movForm, descricao: e.target.value })} style={inp} /></Field>
-          <Field label="Observação"><input value={movForm.observacao} onChange={(e) => setMovForm({ ...movForm, observacao: e.target.value })} style={inp} /></Field>
-        </Modal>
+      {movOpen && detail && (
+        <MovimentoCaixaModal caixaId={detail.id} tipo={movTipo} onClose={() => setMovOpen(false)} onFeito={() => fetchDetail(detail.id)} />
       )}
 
       {credOpen && (

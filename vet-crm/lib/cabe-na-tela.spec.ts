@@ -43,3 +43,22 @@ describe("nenhuma coluna de grid empurra a página", () => {
     expect(culpados).toEqual([]);
   });
 });
+
+describe("o formulário de movimento do caixa é um só", () => {
+  it("as duas telas usam o mesmo componente", () => {
+    // Escrever um segundo formulário de dinheiro no ponto de venda é como a busca de itens
+    // ficou quebrada em três telas: um esquece um campo e o movimento chega torto no DRE.
+    const ler = (p: string) => fs.readFileSync(path.join(raiz, p), "utf8");
+    for (const tela of [
+      "app/(user)/dashboard/erp/caixa/page.tsx",
+      "app/(user)/dashboard/erp/ponto-de-venda/page.tsx",
+    ]) {
+      expect(ler(tela)).toContain("MovimentoCaixaModal");
+    }
+  });
+
+  it("ninguém volta a montar o POST do movimento à mão", () => {
+    const src = fs.readFileSync(path.join(raiz, "app/(user)/dashboard/erp/caixa/page.tsx"), "utf8");
+    expect(src).not.toContain("/movimento`, { method: 'POST'");
+  });
+});
