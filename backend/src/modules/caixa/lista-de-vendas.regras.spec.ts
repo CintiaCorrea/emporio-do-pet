@@ -1,14 +1,14 @@
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
 
-describe('Lista de vendas do caixa — consulta nao e venda', () => {
+describe('Lista de vendas do caixa — o que aparece', () => {
   it('venda de balcao entra', () => {
     expect(ehVendaDeVerdade({ origem: 'VENDA', itens: 3, pago: 0 })).toBe(true);
   });
 
-  it('consulta clinica sem item e sem dinheiro NAO entra', () => {
-    // Era a linha de R$ 150 que abria vazia: "para que serve registro de venda que nao lista
-    // o que foi vendido?" O que se cobra do atendimento entra pela comanda ou pelo balcao.
-    expect(ehVendaDeVerdade({ origem: 'ATENDIMENTO', itens: 0, pago: 0 })).toBe(false);
+  it('consulta clinica NAO some da lista', () => {
+    // "Nao e para sumir. E so para nao ser lancado quando inicia o atendimento clinico"
+    // (Cintia, 07/09/2026). Esconder registro que existe e outra coisa — e errado.
+    expect(ehVendaDeVerdade({ origem: 'ATENDIMENTO', itens: 0, pago: 0 })).toBe(true);
   });
 
   it('consulta COM item lancado continua na lista', () => {
@@ -38,6 +38,7 @@ describe('Lista de vendas do caixa — consulta nao e venda', () => {
 
   it('lixo nao derruba a lista', () => {
     expect(ehVendaDeVerdade(null)).toBe(false);
-    expect(ehVendaDeVerdade({ origem: 'ATENDIMENTO', itens: 'x' as any, pago: null })).toBe(false);
+    // Internacao com numero sujo continua fora (quem cobra sao as vendas de cada dia).
+    expect(ehVendaDeVerdade({ origem: 'INTERNACAO', itens: 'x' as any, pago: null })).toBe(false);
   });
 });
