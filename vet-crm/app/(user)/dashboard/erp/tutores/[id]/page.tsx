@@ -514,7 +514,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const phone = tutor.contacts?.find((c) => c.isPrimary)?.number;
   const pets = tutor.pets || [];
   const petsResp2 = (tutor as any).petsResp2 || []; // pets em que ESTE cliente é 2º responsável (co-tutor)
-  const compras = tutor.appointments || [];
+  // A ficha (findById) traz so as 10 ultimas compras — somar isso dava um "total gasto"
+  // menor que o real. O profile-stats calcula em cima de TODAS, entao ele manda aqui.
+  const compras: any[] = (stats?.compras?.length ? stats.compras : (tutor.appointments || [])) as any[];
   const porMarca: { marca: string; valor: number; pct: number }[] = stats?.porMarca || [];
   const money = (v?: number | null) =>
     v == null ? "—" : !showValues ? "R$ ••••" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -531,6 +533,17 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     (comprasPorPet[k] = comprasPorPet[k] || []).push(a);
   }
   const comprasFiltradas = comprasPet && comprasPorPet[comprasPet] ? comprasPorPet[comprasPet] : compras;
+  // Acumulado do cliente (respeita o filtro por pet). "Em aberto" = venda com valor que
+  // ainda nao foi baixada no caixa — e o que a recepcao precisa cobrar.
+  const acumulado = comprasFiltradas.reduce(
+    (acc: { total: number; aberto: number; qtdAberto: number }, a: any) => {
+      const v = Number(a.value) || 0;
+      acc.total += v;
+      if (v > 0 && a.paymentStatus && a.paymentStatus !== "PAID") { acc.aberto += v; acc.qtdAberto++; }
+      return acc;
+    },
+    { total: 0, aberto: 0, qtdAberto: 0 },
+  );
   // O mesmo filtro de pet vale para o orçamento. Ele NÃO entra no total gasto: é proposta.
   const orcamentosFiltrados = (orcamentos || [])
     .filter((o: any) => !comprasPet || o?.pet?.name === comprasPet)
@@ -1077,8 +1090,13 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         </div>
         <div className="flex gap-2.5 mb-3 flex-wrap">
           <div className="bg-white border border-[#E8E2D6] rounded-[12px] flex-1 min-w-[130px]" style={{ padding: "11px 14px" }}>
-            <div className="text-[11px] text-[#374151]">💰 Total {comprasPet ? `(${comprasPet})` : "gasto"}</div>
-            <div className="text-[19px] font-medium text-[#014D5E]" >{money(comprasFiltradas.reduce((s, a) => s + (a.value || 0), 0))}</div>
+            <div className="text-[11px] text-[#374151]">💰 Total {comprasPet ? `(${comprasPet})` : "acumulado"}</div>
+            <div className="text-[19px] font-medium text-[#014D5E]" >{money(acumulado.total)}</div>
+          </div>
+          <div className="bg-white border border-[#E8E2D6] rounded-[12px] flex-1 min-w-[130px]" style={{ padding: "11px 14px" }}>
+            <div className="text-[11px] text-[#374151]">⏳ Em aberto</div>
+            <div className="text-[19px] font-medium" style={{ color: acumulado.aberto > 0 ? "#D85A30" : "#0F6E56" }}>{money(acumulado.aberto)}</div>
+            {acumulado.qtdAberto > 0 && <div className="text-[10.5px] text-[#374151] mt-0.5">{acumulado.qtdAberto} venda(s) a receber</div>}
           </div>
           <div className="bg-white border border-[#E8E2D6] rounded-[12px] flex-1 min-w-[130px]" style={{ padding: "11px 14px" }}>
             <div className="text-[11px] text-[#374151]">🛒 Nº de compras</div>
@@ -1092,6 +1110,14 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <span className="text-[11.5px] text-[#374151] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
               <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{a.description || a.type || "Atendimento"}</span>
               {a.pet?.name && <span className="text-[11px] text-[#374151] shrink-0">🐾 {a.pet.name}</span>}
+              {Number(a.value) > 0 && a.paymentStatus && (
+                <span
+                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
+                  style={a.paymentStatus === "PAID"
+                    ? { background: "#E7F6EF", color: "#0F6E56" }
+                    : { background: "#FDECEC", color: "#b23b39" }}
+                >{a.paymentStatus === "PAID" ? "paga" : "em aberto"}</span>
+              )}
               <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
               <span className="text-[#374151] text-[12px] shrink-0">›</span>
             </Link>

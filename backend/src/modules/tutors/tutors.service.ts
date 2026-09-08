@@ -481,7 +481,10 @@ export class TutorsService {
     const now = new Date();
     const apps = await this.prisma.appointment.findMany({
       where: { tutorId },
-      select: { id: true, date: true, value: true, status: true, paymentStatus: true, petId: true },
+      select: {
+        id: true, date: true, value: true, status: true, paymentStatus: true, petId: true,
+        numeroVenda: true, description: true, type: true,
+      },
       orderBy: { date: 'desc' },
     });
     const pets = await this.prisma.pet.findMany({ where: { tutorId }, select: { id: true, name: true, species: true, status: true } });
@@ -522,7 +525,24 @@ export class TutorsService {
       }))
       .sort((a, b) => b.valor - a.valor);
 
+    // Lista COMPLETA para o historico de compras da ficha. O findById do tutor traz so as
+    // 10 ultimas (take: 10) — a aba Compras mostrava um pedaco e somava um total que nao
+    // batia com o que o cliente realmente gastou.
+    const nomePet = new Map(pets.map((p) => [p.id, p.name]));
+    const compras = apps.map((a) => ({
+      id: a.id,
+      date: a.date,
+      value: a.value || 0,
+      status: a.status,
+      paymentStatus: a.paymentStatus,
+      numeroVenda: a.numeroVenda ?? null,
+      description: a.description ?? null,
+      type: a.type,
+      pet: a.petId ? { name: nomePet.get(a.petId) ?? null } : null,
+    }));
+
     return {
+      compras,
       totalAppointments: realizadas.length,
       futurasAgendadas,
       diasDesdeUltima,
