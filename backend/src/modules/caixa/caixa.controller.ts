@@ -98,6 +98,12 @@ export class CaixaController {
     return this.service.listCaixasGrade(query);
   }
 
+  // Antes do :id pra nao colidir.
+  @Get('operadores')
+  operadores() {
+    return this.service.operadoresComCaixa();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.service.findOne(id);

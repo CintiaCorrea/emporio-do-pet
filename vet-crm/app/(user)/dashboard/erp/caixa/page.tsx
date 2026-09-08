@@ -13,6 +13,7 @@ import { idDoMeuCaixa } from '@/lib/caixaAtual';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
 import { montarResumoDoCaixa, avisoDoUsoDeCredito, avisoDoAdiantamento } from '@/lib/resumoDoCaixa';
 import { agruparRecebimentos, rotuloDaVenda } from '@/lib/recebimentosDoCaixa';
+import { seloDoFechamento, coresDoSelo } from '@/lib/fechamentoDoCaixa';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
@@ -71,9 +72,16 @@ export default function CaixaPage() {
   };
   const miniBtn: React.CSSProperties = { fontSize: 11.5, padding: '5px 9px', borderRadius: 8, border: '1px solid #E8E2D6', background: '#fff', color: '#5C6B70', cursor: 'pointer' };
   const [gradeOpen, setGradeOpen] = useState(false);
-  const [gradeFrom, setGradeFrom] = useState('');
-  const [gradeTo, setGradeTo] = useState('');
+  // PADRAO = ULTIMOS 7 DIAS. A Cintia, sobre o SimplesVet: "o padrao da tela e 'hoje', e hoje
+  // quase nunca tem resultado... o usuario cai em 'Nenhum resultado foi encontrado' com
+  // frequencia. Um dev deveria considerar default = ultimos 7 dias." Aqui e o padrao.
+  const diasAtras = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const [gradeFrom, setGradeFrom] = useState(diasAtras(7));
+  const [gradeTo, setGradeTo] = useState(hojeStr());
   const [gradeStatus, setGradeStatus] = useState('');
+  const [gradeUser, setGradeUser] = useState('');
+  const [gradeNumero, setGradeNumero] = useState('');
+  const [operadores, setOperadores] = useState<{ id: string; name: string }[]>([]);
   const [gradeRows, setGradeRows] = useState<any[]>([]);
   const [gradeLoading, setGradeLoading] = useState(false);
   const fetchGrade = async () => {
@@ -81,6 +89,10 @@ export default function CaixaPage() {
     try {
       const p = new URLSearchParams();
       if (gradeFrom) p.set('from', gradeFrom); if (gradeTo) p.set('to', gradeTo); if (gradeStatus) p.set('status', gradeStatus);
+      if (gradeUser) p.set('userId', gradeUser);
+      // O numero ignora o periodo de proposito (quem procura o caixa 12 sabe qual quer).
+      // A tela diz isso em vez de mudar o filtro sozinha, que foi o que a incomodou no outro.
+      if (gradeNumero.trim()) p.set('numero', gradeNumero.trim());
       const r = await fetch(`/api/caixa/grade?${p.toString()}`, { cache: 'no-store' });
       setGradeRows(r.ok ? await r.json() : []);
     } catch { setGradeRows([]); } finally { setGradeLoading(false); }
@@ -93,6 +105,14 @@ export default function CaixaPage() {
       toast.success('Status atualizado'); await fetchCaixas(); await fetchDetail(detail.id);
     } catch { toast.error('Erro ao mudar status'); }
   };
+  useEffect(() => {
+    if (!gradeOpen || operadores.length) return;
+    fetch('/api/caixa/operadores', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setOperadores(Array.isArray(d) ? d : []))
+      .catch(() => setOperadores([]));
+  }, [gradeOpen, operadores.length]);
+
   const [loading, setLoading] = useState(true);
   const [ocultar, setOcultar] = useState(false);
 
@@ -381,14 +401,26 @@ export default function CaixaPage() {
                       <option value="">Todos</option><option value="ABERTO">Aberto</option><option value="FECHADO">Fechado</option><option value="ENCERRADO">Encerrado</option><option value="EM_REVISAO">Em revisão</option>
                     </select>
                   </label>
+                  <label style={{ fontSize: 11, color: '#5C6B70' }}>Operador<br />
+                    <select value={gradeUser} onChange={(e) => setGradeUser(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13, minWidth: 160 }}>
+                      <option value="">Todos</option>
+                      {operadores.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+                    </select>
+                  </label>
+                  <label style={{ fontSize: 11, color: '#5C6B70' }}>Nº do caixa<br /><input value={gradeNumero} onChange={(e) => setGradeNumero(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') fetchGrade(); }} inputMode="numeric" placeholder="ex: 12" style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13, width: 92 }} /></label>
                   <button onClick={fetchGrade} style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 9, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>🔍 Filtrar</button>
                 </div>
+                {gradeNumero.trim() && (
+                  <div style={{ fontSize: 11.5, color: '#8A5B00', background: '#FBF1E2', border: '1px solid #F0DCB8', borderRadius: 9, padding: '7px 11px', marginBottom: 10 }}>
+                    Buscando o caixa nº {gradeNumero.trim()} em <b>qualquer data</b> — o período acima fica de fora enquanto houver número.
+                  </div>
+                )}
                 <div style={{ border: '1px solid #E8E2D6', borderRadius: 10, overflow: 'hidden', maxHeight: '55vh', overflowY: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead><tr style={{ background: '#FBF9F4' }}>{['Nº', 'Usuário', 'Abertura', 'Fechamento', 'Status', 'Diferença'].map((h, i) => <th key={h} style={{ padding: '9px 11px', fontSize: 10.5, color: '#5C6B70', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.4px', textAlign: i === 5 ? 'right' : 'left' }}>{h}</th>)}</tr></thead>
+                    <thead><tr style={{ background: '#FBF9F4' }}>{['Nº', 'Usuário', 'Abertura', 'Fechamento', 'Status', 'Conferência', 'Diferença'].map((h, i) => <th key={h} style={{ padding: '9px 11px', fontSize: 10.5, color: '#5C6B70', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.4px', textAlign: i === 6 ? 'right' : 'left' }}>{h}</th>)}</tr></thead>
                     <tbody>
-                      {gradeLoading ? <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: '#5C6B70' }}>Carregando…</td></tr>
-                        : gradeRows.length === 0 ? <tr><td colSpan={6} style={{ padding: 20, textAlign: 'center', color: '#5C6B70' }}>Nenhum caixa no filtro.</td></tr>
+                      {gradeLoading ? <tr><td colSpan={7} style={{ padding: 20, textAlign: 'center', color: '#5C6B70' }}>Carregando…</td></tr>
+                        : gradeRows.length === 0 ? <tr><td colSpan={7} style={{ padding: 20, textAlign: 'center', color: '#5C6B70' }}>Nenhum caixa no filtro.</td></tr>
                         : gradeRows.map((c) => { const u = STATUS_UI(c.status); return (
                           <tr key={c.id} style={{ borderTop: '1px solid #F0EBE0', cursor: 'pointer' }} onClick={() => { const d = new Date(c.abertura); setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); setSelectedId(c.id); setGradeOpen(false); }}>
                             <td style={{ padding: '9px 11px', color: '#014D5E', fontWeight: 500 }}>nº {c.numero}</td>
@@ -396,6 +428,14 @@ export default function CaixaPage() {
                             <td style={{ padding: '9px 11px', color: '#5C6B70' }}>{c.abertura ? new Date(c.abertura).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                             <td style={{ padding: '9px 11px', color: '#5C6B70' }}>{c.fechamento ? new Date(c.fechamento).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
                             <td style={{ padding: '9px 11px' }}><span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 9px', borderRadius: 20, background: u.bg, color: u.fg }}>{u.label}</span></td>
+                            {/* CONFERIDO x ENCERRADO SOZINHO (lib/fechamentoDoCaixa). Sem esta
+                                coluna, os dois aparecem como "Fechado" e a diferença some do
+                                histórico. */}
+                            <td style={{ padding: '9px 11px' }}>{(() => {
+                              const sel = seloDoFechamento(c); if (!sel) return <span style={{ color: '#8A9499', fontSize: 11.5 }}>—</span>;
+                              const cor = coresDoSelo(sel.chave);
+                              return <span title={sel.detalhe} style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 9px', borderRadius: 20, background: cor.bg, color: cor.fg, whiteSpace: 'nowrap' }}>{sel.texto}</span>;
+                            })()}</td>
                             <td style={{ padding: '9px 11px', textAlign: 'right', color: c.diferenca != null && c.diferenca < 0 ? '#C0392B' : '#5C6B70' }}>{c.diferenca != null ? (ocultar ? '•••' : c.diferenca.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })) : '—'}</td>
                           </tr>
                         ); })}
@@ -430,6 +470,11 @@ export default function CaixaPage() {
                   {detail.fechamento && <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Fechamento:</span> {dataHora(detail.fechamento)}</div>}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><span style={{ color: '#014D5E', fontWeight: 500 }}>Status:</span>
                     {(() => { const u = STATUS_UI(detail.status); return <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, background: u.bg, color: u.fg }}>{u.label}</span>; })()}
+                    {(() => {
+                      const sel = seloDoFechamento(detail as any); if (!sel) return null;
+                      const cor = coresDoSelo(sel.chave);
+                      return <span title={sel.detalhe} style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, background: cor.bg, color: cor.fg }}>{sel.texto}</span>;
+                    })()}
                     {podeEditar && detail.status !== 'ABERTO' && detail.status !== 'ENCERRADO' && <button onClick={() => mudarStatus('ENCERRADO')} style={miniBtn} title="Encerrar definitivamente">🔒 Encerrar</button>}
                     {podeEditar && detail.status !== 'ABERTO' && detail.status !== 'EM_REVISAO' && <button onClick={() => mudarStatus('EM_REVISAO')} style={miniBtn} title="Marcar em revisão">🔎 Em revisão</button>}
                   </div>

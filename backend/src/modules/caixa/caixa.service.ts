@@ -843,16 +843,46 @@ export class CaixaService {
     });
   }
 
-  // Grade de caixas (todos os dias) filtrável por período + status.
+  // Grade de caixas (todos os dias) filtravel por periodo + status + operador + numero.
+  //
+  // O NUMERO IGNORA O PERIODO de proposito. A Cintia notou isso no SimplesVet ("digitar em
+  // Cod. Caixa muda o filtro de data sozinho para Qualquer data") e o comportamento esta certo:
+  // quem procura o caixa 2000 sabe qual caixa quer, nao em que semana ele foi aberto. O que
+  // estava errado la era ser silencioso — a tela nossa diz que esta buscando em qualquer data.
   async listCaixasGrade(query: any = {}) {
-    const { from, to, status } = query || {};
+    const { from, to, status, userId, numero } = query || {};
     const where: any = {};
-    if (from || to) { where.abertura = {}; if (from) where.abertura.gte = new Date(String(from) + 'T00:00:00'); if (to) where.abertura.lte = new Date(String(to) + 'T23:59:59'); }
+    const num = Number(numero);
+    if (numero != null && String(numero).trim() !== '' && Number.isFinite(num)) {
+      where.numero = Math.trunc(num);
+    } else if (from || to) {
+      where.abertura = {};
+      if (from) where.abertura.gte = new Date(String(from) + 'T00:00:00');
+      if (to) where.abertura.lte = new Date(String(to) + 'T23:59:59');
+    }
     if (status) where.status = String(status).toUpperCase();
+    if (userId) where.userId = String(userId);
     return this.prisma.caixaSessao.findMany({
       where, orderBy: { abertura: 'desc' }, take: 300,
-      select: { id: true, numero: true, status: true, abertura: true, fechamento: true, valorEsperado: true, valorContado: true, diferenca: true, user: { select: { name: true } } },
+      // obsFechamento e valorContado dizem se a gaveta foi CONFERIDA ou se o caixa so foi
+      // encerrado sozinho a meia-noite. A Cintia, sobre o SimplesVet: "fechamento 23:59:00 e
+      // automatico, nao fechamento feito por alguem. Um dev precisa dessa distincao — hoje ela
+      // e implicita no valor da hora." Aqui ela e explicita.
+      select: { id: true, numero: true, status: true, abertura: true, fechamento: true, valorEsperado: true, valorContado: true, diferenca: true, obsFechamento: true, userId: true, user: { select: { id: true, name: true } } },
     });
+  }
+
+  /** Quem ja teve caixa — alimenta o filtro por operador da grade. */
+  async operadoresComCaixa() {
+    const ids = await this.prisma.caixaSessao.findMany({
+      distinct: ['userId'], select: { userId: true }, orderBy: { abertura: 'desc' }, take: 200,
+    });
+    const lista = ids.map((c) => c.userId).filter(Boolean) as string[];
+    if (!lista.length) return [];
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: lista } }, select: { id: true, name: true }, orderBy: { name: 'asc' },
+    });
+    return users;
   }
 
   // Muda o status do caixa (ABERTO/FECHADO/ENCERRADO/EM_REVISAO). Status é String no schema.
