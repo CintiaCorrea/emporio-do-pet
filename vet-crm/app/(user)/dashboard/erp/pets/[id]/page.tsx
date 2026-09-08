@@ -1750,7 +1750,7 @@ export default function PetDetailPage() {
         )}
 
         {/* 4–6 UNIFICADO — 2 colunas (esquerda: tutora + atendimentos · direita: cuidados + tratamento + sequências) */}
-        <div className="grid grid-cols-1 md:grid-cols-[1.5fr_1fr] gap-3 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] gap-3 items-start">
 
           {/* ══ COLUNA ESQUERDA ══ */}
           <div className="flex flex-col gap-3 min-w-0">
@@ -2085,7 +2085,7 @@ export default function PetDetailPage() {
                 📲 Enviar exame/receita pelo WhatsApp
               </button>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-5 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 items-start">
               <div className="lg:order-1">
                 <div style={{ maxHeight: "72vh", overflowY: "auto" }} className="pr-1">
                   <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} pet={pet} tutor={pet?.tutor} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />

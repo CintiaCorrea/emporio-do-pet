@@ -1569,7 +1569,7 @@ export default function InboxUnificadoPage() {
       </div>
 
       {tab === "conversas" && (
-        <div className="grid grid-cols-1 md:grid-cols-[310px_1fr_340px] grid-rows-[minmax(0,1fr)] flex-1 min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-[310px_minmax(0,1fr)_340px] grid-rows-[minmax(0,1fr)] flex-1 min-h-0">
           {/* LEFT - Lista (no celular: some quando uma conversa está aberta) */}
           <div className={"border-r border-[#e8e1d2] bg-white flex-col min-h-0 " + (selectedId ? "hidden md:flex" : "flex")}>
             {/* FILTROS EM ROLL-UP — ocupa 1 linha; abre o resto ao clicar */}
@@ -2174,7 +2174,7 @@ export default function InboxUnificadoPage() {
     )}
 
       {tab === "internas" && (
-        <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] grid-rows-[minmax(0,1fr)] flex-1 min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-[300px_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] flex-1 min-h-0">
           {/* LEFT - conversas internas (agrupadas por colega) — no celular some quando abre uma */}
           <div className={"border-r border-[#e8e1d2] bg-white flex-col min-h-0 " + ((internasCompose || internasConvSel) ? "hidden md:flex" : "flex")}>
             <div className="px-3 py-2.5 border-b border-[#e8e1d2] flex items-center justify-between">

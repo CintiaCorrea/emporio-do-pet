@@ -173,11 +173,11 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
         </div>
 
         <div className="flex flex-col gap-1.5 max-h-[46vh] overflow-auto">
-          <div className="grid grid-cols-[1fr_44px_84px_24px] gap-1.5 text-[10px] text-[#8A857A] uppercase tracking-wide px-0.5">
+          <div className="grid grid-cols-[minmax(0,1fr)_44px_84px_24px] gap-1.5 text-[10px] text-[#8A857A] uppercase tracking-wide px-0.5">
             <span>Item</span><span className="text-center">Qtd</span><span className="text-right">Valor</span><span></span>
           </div>
           {itens.map((it, i) => (
-            <div key={i} className="grid grid-cols-[1fr_44px_84px_24px] gap-1.5 items-center">
+            <div key={i} className="grid grid-cols-[minmax(0,1fr)_44px_84px_24px] gap-1.5 items-center">
               {/* Era um <datalist> com ~900 <option>. Quem filtrava era o navegador: comparava
                   COM acento, cortava a lista do jeito dele, e o onBlur limpava o campo quando
                   o texto nao batia letra por letra com o catalogo. Digitar "vacina antirrabica"

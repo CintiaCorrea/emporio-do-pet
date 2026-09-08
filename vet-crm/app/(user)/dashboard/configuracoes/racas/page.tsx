@@ -196,7 +196,7 @@ export default function RacasPage() {
                 <input value={form.nome || ""} onChange={e => setForm({ ...form, nome: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
               </div>
-              <div className="grid grid-cols-[1fr_80px] gap-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_80px] gap-3">
                 <div>
                   <label className="text-xs text-gray-600">Espécie *</label>
                   <select value={form.especie} onChange={e => setForm({ ...form, especie: e.target.value })}

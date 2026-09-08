@@ -320,7 +320,7 @@ export default function ExamesConfigPage() {
         {tab === "exames" && (
           <>
             {/* Filtros */}
-            <div className="bg-white rounded-xl border p-4 mb-4 grid grid-cols-1 md:grid-cols-[1fr_220px_220px_auto] gap-3" style={{ borderColor: "#E5DCC9" }}>
+            <div className="bg-white rounded-xl border p-4 mb-4 grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_220px_220px_auto] gap-3" style={{ borderColor: "#E5DCC9" }}>
               <div>
                 <label className="text-xs text-gray-500">Buscar nome/código</label>
                 <div className="relative">

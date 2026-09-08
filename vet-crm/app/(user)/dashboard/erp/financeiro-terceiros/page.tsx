@@ -192,11 +192,11 @@ export default function FinanceiroTerceirosPage() {
                 </div>
                 {aberto && (
                   <div style={{ background: "#fbfaf6", borderTop: "1px solid #f4eede" }}>
-                    <div className="grid grid-cols-[1.4fr_1.6fr_0.6fr_0.7fr_0.7fr] gap-2 px-4 py-2 text-[10px] uppercase text-[#94a3b8] border-b" style={{ borderColor: "#f4eede" }}>
+                    <div className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_minmax(0,0.6fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] gap-2 px-4 py-2 text-[10px] uppercase text-[#94a3b8] border-b" style={{ borderColor: "#f4eede" }}>
                       <span>Pet / Tutor</span><span>Exame</span><span>Data</span><span className="text-right">Custo</span><span className="text-right">Status</span>
                     </div>
                     {g.itens.map((e: any) => { const pg = examPago(e); return (
-                      <div key={e.id} className="grid grid-cols-[1.4fr_1.6fr_0.6fr_0.7fr_0.7fr] gap-2 px-4 py-2 text-[12px] text-[#0E2244] items-center border-b" style={{ borderColor: "#f4eede" }}>
+                      <div key={e.id} className="grid grid-cols-[minmax(0,1.4fr)_minmax(0,1.6fr)_minmax(0,0.6fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] gap-2 px-4 py-2 text-[12px] text-[#0E2244] items-center border-b" style={{ borderColor: "#f4eede" }}>
                         <span className="truncate">{e.petName}{e.tutorName ? ` · ${e.tutorName}` : ""}</span>
                         <span className="text-[#5b6470] truncate">{e.nome}</span>
                         <span className="text-[#5b6470]">{fmtDia(e.date)}</span>

@@ -193,7 +193,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
       </div>
 
       <div className="border rounded-xl overflow-hidden bg-white" style={{ borderColor: "#E8DFC8" }}>
-        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr]">
+        <div className="grid grid-cols-1 md:grid-cols-[240px_minmax(0,1fr)]">
           {/* LISTA (esquerda) */}
           <div className="md:border-r" style={{ borderColor: "#F0EBE0" }}>
             {loading ? (

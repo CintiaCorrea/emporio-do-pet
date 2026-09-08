@@ -167,7 +167,7 @@ export default function BoletimFisioPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-[1.4fr_1fr] gap-3 items-start">
+      <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-3 items-start">
         {/* Formulário */}
         <div className="flex flex-col gap-3 min-w-0">
           {/* PACIENTE */}

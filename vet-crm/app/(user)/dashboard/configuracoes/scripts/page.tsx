@@ -286,7 +286,7 @@ export default function ScriptsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setCModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{cEditId ? "Editar categoria" : "Nova categoria"}</h2>
-            <div className="grid grid-cols-[1fr_80px] gap-3">
+            <div className="grid grid-cols-[minmax(0,1fr)_80px] gap-3">
               <div><label className="text-xs text-gray-600">Nome *</label>
                 <input value={cForm.nome || ""} onChange={e => setCForm({ ...cForm, nome: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} /></div>
               <div><label className="text-xs text-gray-600">Emoji</label>

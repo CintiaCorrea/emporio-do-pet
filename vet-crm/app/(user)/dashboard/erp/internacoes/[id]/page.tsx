@@ -1690,7 +1690,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_minmax(0,1fr)] gap-4 items-start">
           {/* ===== COLUNA ESQUERDA ===== */}
           <div className="flex flex-col gap-4">
             {/* risco */}

@@ -52,7 +52,7 @@ export default function TutorProfilePanel({ tutorId }: { tutorId: string }) {
         { label: "Última visita", value: ultimaTxt, hint: `${stats.petsAtivos} pets ativos` },
       ]} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-3">
         <MiniBarChart title="Faturamento mensal (últimos 12 meses)" data={stats.frequenciaMensal.map(f => ({ label: f.mes, value: Math.round(f.valor) }))} unit="" color="#009AAC" />
         <div className="bg-white border rounded-xl p-4" style={{ borderColor: "#E5DCC9" }}>
           <div className="text-sm font-medium mb-3" style={{ color: "#009AAC" }}>Pets ({stats.pets.length})</div>

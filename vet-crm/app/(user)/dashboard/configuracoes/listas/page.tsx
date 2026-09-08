@@ -262,7 +262,7 @@ export default function ListasPage() {
           <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{tEditId ? "Editar lista" : "Nova lista"}</h2>
             <div className="space-y-3">
-              <div className="grid grid-cols-[1fr_80px] gap-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_80px] gap-3">
                 <div>
                   <label className="text-xs text-gray-600">Label (visível) *</label>
                   <input value={tForm.label || ""} onChange={e => { setTForm({ ...tForm, label: e.target.value, ...(autoSlug ? { nome: slugify(e.target.value) } : {}) }); }}

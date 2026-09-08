@@ -235,7 +235,7 @@ export default function PipelinesPage() {
             <div className="space-y-3">
               <div><label className="text-xs text-gray-600">Nome *</label>
                 <input value={pForm.nome || ""} onChange={e => setPForm({ ...pForm, nome: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} /></div>
-              <div className="grid grid-cols-[1fr_80px] gap-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_80px] gap-3">
                 <div><label className="text-xs text-gray-600">Escopo</label>
                   <select value={pForm.escopo} onChange={e => setPForm({ ...pForm, escopo: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }}>
                     {Object.entries(ESC_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -260,7 +260,7 @@ export default function PipelinesPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setEModalOpen(false)}>
           <div className="bg-white rounded-xl p-6 max-w-lg w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{eEditId ? "Editar estágio" : "Novo estágio"}</h2>
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_100px_80px] gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_100px_80px] gap-3">
               <div><label className="text-xs text-gray-600">Nome *</label>
                 <input value={eForm.nome || ""} onChange={e => setEForm({ ...eForm, nome: e.target.value })} className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} /></div>
               <div><label className="text-xs text-gray-600">Ordem *</label>

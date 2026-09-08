@@ -713,7 +713,7 @@ export default function NovoAtendimentoPage() {
         {/* PÓS-ATENDIMENTO → Follow-up */}
         <div className={card} style={{ padding: "13px 16px" }}>
           <div className="text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2">🔔 Pós-atendimento (follow-up)</div>
-          <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_200px] gap-3">
             <div><label className={lbl}>O que acompanhar</label><input value={form.followUpNotes} onChange={(e) => set("followUpNotes", e.target.value)} placeholder="Ex.: verificar se a coceira melhorou, se está tomando o remédio…" className={inp} /></div>
             <div><label className={lbl}>Data do follow-up</label><input type="date" value={form.followUpDate} onChange={(e) => set("followUpDate", e.target.value)} className={inp} /></div>
           </div>

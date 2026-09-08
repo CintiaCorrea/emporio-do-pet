@@ -322,7 +322,7 @@ export default function EtiquetasPage() {
                 <input value={eForm.texto || ""} onChange={e => setEForm({ ...eForm, texto: e.target.value })}
                   className="w-full px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8" }} />
               </div>
-              <div className="grid grid-cols-[1fr_80px] gap-3">
+              <div className="grid grid-cols-[minmax(0,1fr)_80px] gap-3">
                 <div>
                   <label className="text-xs text-gray-600">Tipo</label>
                   <select value={eForm.tipo} onChange={e => setEForm({ ...eForm, tipo: e.target.value })}
