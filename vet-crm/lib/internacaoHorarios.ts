@@ -157,3 +157,44 @@ export function rotuloDoPeriodo(p: Prescricao): string {
   if (tipo === 'DIAS') { const n = Math.max(1, Number(p?.periodoDias) || 1); return `por ${n} dia${n > 1 ? 's' : ''}`; }
   return 'enquanto internado';
 }
+
+/**
+ * OS HORÁRIOS VÁLIDOS NUM DIA — o que a equipe tem que aplicar naquele dia, e só.
+ *
+ * A Cintia, em 07/09/2026, sobre a ondansetrona do Chico: "é para começar a rodar a partir do
+ * horário registrado e não do dia todo. Não tem como se aplicar a medicação às 6:30 da manhã se
+ * você iniciou o protocolo às 18:30."
+ *
+ * O que acontecia: a grade de um dia dá a volta no relógio. "18:30" de 8 em 8 horas vira
+ * 18:30 · 02:30 · 10:30 — certo do SEGUNDO dia em diante, e errado no primeiro, porque 02:30 e
+ * 10:30 daquele dia já tinham passado quando a prescrição nasceu. O plantão então mostrava duas
+ * doses ATRASADAS no minuto seguinte ao cadastro, para uma medicação que ainda nem começou.
+ *
+ * Regra: no primeiro dia, a prescrição começa na primeira aplicação. Nos dias seguintes, a grade
+ * inteira vale.
+ */
+export function horariosNoDia(
+  p: Prescricao & { criadaEm?: string; horarios?: string[] },
+  dia: Date,
+  admissao?: string,
+): string[] {
+  const base = Array.isArray(p?.horarios) && p.horarios.length
+    ? p.horarios.map((h) => String(h).trim()).filter(Boolean)
+    : horariosDaPrescricao(p);
+  if (!base.length) return [];
+
+  const inicioTxt = p?.criadaEm || admissao;
+  if (!inicioTxt) return base;             // sem saber quando começou, não esconde dose
+  const inicio = new Date(inicioTxt);
+  if (Number.isNaN(inicio.getTime())) return base;
+
+  const soDia = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  if (soDia(dia) !== soDia(inicio)) return base;   // não é o primeiro dia: grade inteira
+
+  const primeira = minutosDoHorario(p?.primeira || '') ?? minutosDoHorario(base[0]);
+  if (primeira == null) return base;
+  return base.filter((h) => {
+    const m = minutosDoHorario(h);
+    return m == null || m >= primeira;
+  });
+}

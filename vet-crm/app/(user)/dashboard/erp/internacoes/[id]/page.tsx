@@ -16,7 +16,7 @@ import { usePodeEditar } from "@/lib/permissions/context";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, ehServicoDoCatalogo } from "@/lib/catalogoVendavel";
 import { buscarItens } from "@/lib/buscaCatalogo";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
-import { calcularHorarios as horariosDoDia, horariosDaPrescricao, prescricaoAtivaEm, rotuloDoPeriodo, minutosDaFrequencia, PERIODOS } from "@/lib/internacaoHorarios";
+import { calcularHorarios as horariosDoDia, horariosDaPrescricao, horariosNoDia, prescricaoAtivaEm, rotuloDoPeriodo, minutosDaFrequencia, PERIODOS } from "@/lib/internacaoHorarios";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -1237,7 +1237,11 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
       // contraste aplicado uma vez viraria alerta atrasado para sempre — e alerta que a
       // equipe aprende a ignorar deixa de proteger o paciente.
       if (!prescricaoAtivaEm(p, now, h?.admissionDate)) continue;
-      for (const hhmm of (p.horarios || [])) {
+      // NO PRIMEIRO DIA a prescricao comeca na primeira aplicacao. A grade de um dia da a volta
+      // no relogio ("18:30" de 8/8h = 18:30 · 02:30 · 10:30), e os horarios da volta pertencem
+      // ao dia SEGUINTE. Sem isto, a medicacao prescrita as 18:30 nascia com duas doses
+      // ATRASADAS as 02:30 e 10:30 daquele mesmo dia — horarios em que ela nem existia.
+      for (const hhmm of horariosNoDia(p, now, h?.admissionDate)) {
         const log = doses.find((d) => d.prescId === p.id && d.slot === hhmm && (d.at ? diaFortaleza(d.at) : d.date) === hj);
         let status: "feito" | "atrasado" | "pendente";
         if (log) status = "feito";

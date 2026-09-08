@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   minutosDaFrequencia, calcularHorarios, horariosDaPrescricao, prescricaoAtivaEm,
-  rotuloDoPeriodo, minutosDoHorario, MAX_HORARIOS_DIA,
+  rotuloDoPeriodo, minutosDoHorario, MAX_HORARIOS_DIA, horariosNoDia,
 } from "./internacaoHorarios";
 
 // BLINDAGEM DOS HORÁRIOS DA INTERNAÇÃO.
@@ -124,5 +124,47 @@ describe("horários da internação", () => {
       [{ periodoTipo: "INTERNACAO" }, "enquanto internado"],
       [{}, "enquanto internado"],
     ])("%o vira '%s'", (p, txt) => expect(rotuloDoPeriodo(p)).toBe(txt));
+  });
+});
+
+describe("horariosNoDia: o primeiro dia começa na primeira aplicação", () => {
+  const dia = (iso: string) => new Date(iso);
+
+  it("prescrição das 18:30 de 8/8h só tem 18:30 no dia em que foi criada", () => {
+    // O caso da ondansetrona do Chico (07/09/2026). A grade é 18:30 · 02:30 · 10:30 — as duas
+    // últimas são do dia seguinte, e apareciam como ATRASADAS no minuto seguinte ao cadastro.
+    const p = { primeira: "18:30", frequencia: "8/8h", horarios: ["18:30", "02:30", "10:30"], criadaEm: "2026-09-07T18:30:00" };
+    expect(horariosNoDia(p, dia("2026-09-07T19:00:00"))).toEqual(["18:30"]);
+  });
+
+  it("do segundo dia em diante, a grade inteira vale", () => {
+    const p = { primeira: "18:30", frequencia: "8/8h", horarios: ["18:30", "02:30", "10:30"], criadaEm: "2026-09-07T18:30:00" };
+    expect(horariosNoDia(p, dia("2026-09-08T07:00:00"))).toEqual(["18:30", "02:30", "10:30"]);
+  });
+
+  it("prescrição da manhã não perde nada no primeiro dia", () => {
+    const p = { primeira: "06:00", frequencia: "8/8h", horarios: ["06:00", "14:00", "22:00"], criadaEm: "2026-09-07T06:00:00" };
+    expect(horariosNoDia(p, dia("2026-09-07T06:05:00"))).toEqual(["06:00", "14:00", "22:00"]);
+  });
+
+  it("sem saber quando a prescrição começou, não esconde dose nenhuma", () => {
+    // Sumir com dose é pior do que mostrar uma a mais: a equipe confere o que está na tela.
+    const p = { primeira: "18:30", frequencia: "8/8h", horarios: ["18:30", "02:30", "10:30"] };
+    expect(horariosNoDia(p, dia("2026-09-07T19:00:00"))).toEqual(["18:30", "02:30", "10:30"]);
+  });
+
+  it("cai na admissão quando a prescrição não tem data própria", () => {
+    const p = { primeira: "20:00", frequencia: "6/6h", horarios: ["20:00", "02:00", "08:00", "14:00"] };
+    expect(horariosNoDia(p, dia("2026-09-07T21:00:00"), "2026-09-07T19:00:00")).toEqual(["20:00"]);
+  });
+
+  it("dose única não é afetada", () => {
+    const p = { primeira: "18:30", periodoTipo: "UNICA", horarios: ["18:30"], criadaEm: "2026-09-07T18:30:00" };
+    expect(horariosNoDia(p, dia("2026-09-07T23:00:00"))).toEqual(["18:30"]);
+  });
+
+  it("sem horários gravados, calcula a partir da prescrição", () => {
+    const p = { primeira: "22:00", frequencia: "12/12h", criadaEm: "2026-09-07T22:00:00" };
+    expect(horariosNoDia(p, dia("2026-09-07T22:10:00"))).toEqual(["22:00"]);
   });
 });

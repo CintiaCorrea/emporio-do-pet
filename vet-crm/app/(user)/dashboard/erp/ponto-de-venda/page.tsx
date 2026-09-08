@@ -14,7 +14,7 @@ import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaCli
 import { buscarItens, avisoDeCorte } from '@/lib/buscaCatalogo';
 import BuscaItemCatalogo from '@/components/vendas/BuscaItemCatalogo';
 import SeletorModeloVenda from '@/components/vendas/SeletorModeloVenda';
-import { imprimirComandasDoDia, imprimirContasDoCliente } from '@/lib/documentos/relatorio-vendas-print';
+import { imprimirContasDoCliente } from '@/lib/documentos/relatorio-vendas-print';
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from '@/lib/modelosVenda';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
@@ -829,16 +829,6 @@ export default function PDVPage() {
   // 🖨️ AS COMANDAS DO DIA, com os itens de cada uma — o modelo do SimplesVet (Cintia, 07/09).
   // A lista de vendas não traz item; cada comanda é buscada em /api/atendimentos/:id, de 8 em 8
   // pra não abrir 40 requisições de uma vez. Comanda que falhar sai sem itens, não some.
-  const imprimirComandasDia = async () => {
-    if (imprimindoDia) return;
-    setImprimindoDia(true);
-    try {
-      const comandas = await comandasComItens(vendas.filter((v) => Number(v.valor) > 0));
-      await imprimirComandasDoDia({ dia: vendaDia, comandas });
-    } catch { toast.error('Não consegui montar as comandas do dia.'); }
-    finally { setImprimindoDia(false); }
-  };
-
   // 💰 O SALDO DEVEDOR DO CLIENTE aparece na hora de receber — não na lista (Cintia, 07/09).
   // São as OUTRAS contas em aberto do mesmo cliente, de qualquer dia.
   const outrasEmAberto = (v: any): any[] => {
@@ -1151,7 +1141,6 @@ export default function PDVPage() {
                 );
               })()}
               <button onClick={() => { setBuscaOpen(true); setBuscaRes(null); }} title="Achar uma venda de qualquer dia pelo número ou pelo cliente" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>🔍 Localizar venda</button>
-                            <button onClick={imprimirComandasDia} disabled={imprimindoDia} title="Imprime as comandas deste dia com os itens de cada uma" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: imprimindoDia ? 'default' : 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>{imprimindoDia ? 'Montando…' : '🖨️ Comandas do dia'}</button>
             </div>
             <div style={{ padding: '6px 13px 13px', minHeight: 90 }}>
               {vendasFiltradas.length === 0 && orcamentosEmAberto.length === 0 && (
@@ -1169,7 +1158,15 @@ export default function PDVPage() {
                   <span style={{ width: 32, height: 32, borderRadius: '50%', background: avatarOf(v.tutor).bg, color: avatarOf(v.tutor).fg, fontSize: 11.5, fontWeight: 500, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{iniciais(v.tutor)}</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 500, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.tutor}</div>
-                    <div style={{ fontSize: 11, color: atrasada ? ERR : MUT }}>{v.pet}{atrasada ? ` · atrasada desde ${new Date(v.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}</div>
+                    <div style={{ fontSize: 11, color: atrasada ? ERR : MUT }}>
+                      {v.pet}
+                      {/* Consulta agendada e conta de internacao entram no caixa como valor a
+                          receber, mas NAO sao venda de balcao. Sem a marca, a recepcao abre a
+                          linha esperando itens e nao encontra nenhum. */}
+                      {(v as any).origem === 'ATENDIMENTO' && <span title="Veio do atendimento clínico — pode não ter itens lançados" style={{ marginLeft: 5, fontSize: 9.5, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: '#EEF2F6', color: '#4D6A8A' }}>ATENDIMENTO</span>}
+                      {(v as any).origem === 'INTERNACAO' && <span title="Conta da internação" style={{ marginLeft: 5, fontSize: 9.5, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: '#E1F5EE', color: '#0F6E56' }}>INTERNAÇÃO</span>}
+                      {atrasada ? ` · atrasada desde ${new Date(v.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}
+                    </div>
                   </div>
                   <span style={{ background: corFundo, color: cor, fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(Math.max(0, Number(v.valor) - Number(v.pago)))}</span>
                 </div>
@@ -1196,9 +1193,9 @@ export default function PDVPage() {
 
               {/* O corte da lista nunca é mudo: a tela mostra 8 e o papel mostra o dia inteiro. */}
               {vendasFiltradas.length > 8 && (
-                <button onClick={imprimirComandasDia} style={{ display: 'block', width: '100%', textAlign: 'center', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, color: TEAL, padding: '8px 0 2px' }}>
-                  + {vendasFiltradas.length - 8} vendas não couberam na lista · 🖨️ ver o dia inteiro
-                </button>
+                <div style={{ textAlign: 'center', fontSize: 11.5, color: MUT, padding: '8px 0 2px' }}>
+                  + {vendasFiltradas.length - 8} vendas não couberam na lista
+                </div>
               )}
 
               {/* 📄 ORÇAMENTOS — MESMA lista, em CINZA: não é dinheiro a receber, é proposta. */}
@@ -1412,7 +1409,24 @@ export default function PDVPage() {
                         ))}
                       </div>
                     ) : (
-                      <div style={{ color: MUT, fontSize: 12.5, padding: '4px 0 12px' }}>Sem itens detalhados.</div>
+                      <div style={{ background: WARNB, border: `1px solid ${WARN}33`, borderRadius: 10, padding: '10px 12px', marginBottom: 12, fontSize: 12.5, color: MUT }}>
+                        {/* Registro de venda sem item nao serve pra nada — e a Cintia tem razao.
+                            Mas o silencio era pior: a tela dizia "sem itens" e nao dizia POR QUE.
+                            Estas linhas vem de atendimento clinico e internacao, que nascem com
+                            um valor e nenhum item lancado. Agora a tela diz de onde veio e o que
+                            fazer, em vez de dar de ombros. */}
+                        <b style={{ color: '#8a6400' }}>Nenhum item foi lançado nesta venda.</b>
+                        <div style={{ marginTop: 3 }}>
+                          {detVenda.origem === 'ATENDIMENTO'
+                            ? <>Ela nasceu do <b>atendimento clínico</b>{detVenda.vet ? ` de ${detVenda.vet}` : ''}, que entra no caixa com o valor mas sem a lista do que foi cobrado.</>
+                            : detVenda.origem === 'INTERNACAO'
+                              ? <>Ela vem da <b>internação</b> — os itens ficam na conta do dia, dentro da ficha de internação.</>
+                              : <>A venda foi salva com valor e sem itens.</>}
+                        </div>
+                        {podeEditar && detVenda.origem !== 'INTERNACAO' && (
+                          <div style={{ marginTop: 4 }}>Use <b>✏️ Editar</b> aqui em cima para lançar o que foi cobrado.</div>
+                        )}
+                      </div>
                     )}
 
                     {temRecebimento && editItens === null && !detLoad && (

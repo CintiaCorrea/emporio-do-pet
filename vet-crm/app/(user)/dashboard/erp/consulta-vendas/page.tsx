@@ -7,6 +7,7 @@ import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import OrcamentosBusca from '@/components/vendas/OrcamentosBusca';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { resumoDeVendas } from '@/lib/resumoDeVendas';
+import { imprimirComandasDoDia } from '@/lib/documentos/relatorio-vendas-print';
 
 /* ---------------- paleta Base44 ---------------- */
 const BG = '#F6F2EA';
@@ -501,7 +502,14 @@ export default function ConsultaVendasPage() {
         {(([['VENDAS', '🧾 Vendas'], ['TOTAIS', '📊 Totais por produto'], ['RESUMO', '📈 Resumo'], ['ORCAMENTOS', '📄 Orçamentos']]) as [('VENDAS' | 'ORCAMENTOS' | 'TOTAIS' | 'RESUMO'), string][]).map(([k, lbl]) => (
           <button key={k} onClick={() => setModo(k)} style={{ fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: modo === k ? TEAL : '#fff', color: modo === k ? '#fff' : NAVY }}>{lbl}</button>
         ))}
-        <a href="/dashboard/erp/recebimentos" style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: '#fff', color: NAVY, textDecoration: 'none' }}>💰 Recebimentos →</a>
+        {/* O papel das comandas mora AQUI, não no ponto de venda: é nesta tela que os itens de
+            cada venda já vêm carregados, e é aqui que se escolhe o período. */}
+        <button onClick={() => imprimirComandasDoDia({ dia: de, ate, comandas: vendasF.map((v) => ({
+          id: v.id, numero: v.numeroVenda ?? v.codigoExterno ?? null, data: v.date,
+          tutor: v.cliente || 'Cliente', pet: v.pet || '', valor: Number(v.valor) || 0, pago: Number(v.pago) || 0,
+          itens: (v.itens || []).map((it) => ({ descricao: it.descricao || 'Item', quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, desconto: Number(it.desconto) || 0 })),
+        })) })} disabled={vendasF.length === 0} title="Imprime as comandas do período, dia a dia, com os itens de cada uma" style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: '#fff', color: NAVY, cursor: vendasF.length ? 'pointer' : 'not-allowed', opacity: vendasF.length ? 1 : .5 }}>🖨️ Comandas</button>
+        <a href="/dashboard/erp/recebimentos" style={{ fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: '#fff', color: NAVY, textDecoration: 'none' }}>💰 Recebimentos →</a>
       </div>
 
       {modo === 'ORCAMENTOS' ? <OrcamentosBusca /> : (<>

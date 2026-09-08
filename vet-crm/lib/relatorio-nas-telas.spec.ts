@@ -98,8 +98,11 @@ describe("o acumulado aparece na hora de receber", () => {
     expect(ler(PDV)).toContain("imprimirContasDoTutor");
   });
 
-  it("o Caixa imprime as comandas do dia", () => {
-    expect(ler(PDV)).toContain("imprimirComandasDia");
+  it("o papel das comandas mora na Consulta de vendas", () => {
+    // Saiu do ponto de venda a pedido dela (07/09): lá a coluna é estreita e os itens nem vêm
+    // carregados. Na Consulta, o período já é escolhido e cada venda já traz os seus itens.
+    expect(ler("app/(user)/dashboard/erp/consulta-vendas/page.tsx")).toContain("imprimirComandasDoDia");
+    expect(ler(PDV)).not.toContain("imprimirComandasDia");
   });
 });
 

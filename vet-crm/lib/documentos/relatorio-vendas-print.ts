@@ -97,24 +97,45 @@ const emitido = () => `<div style="margin-top:18px;font-size:11px;color:#9aa0a8"
  */
 export async function imprimirComandasDoDia(args: {
   dia: string;
+  /** Fim do período, quando o papel cobre mais de um dia. */
+  ate?: string;
   comandas: ComandaDoDia[];
   preview?: boolean;
 }): Promise<void> {
-  const dia = args.dia ? dataBR(args.dia + "T12:00:00") : dataBR(new Date());
   const comandas = (Array.isArray(args.comandas) ? args.comandas : [])
     .slice()
     .sort((a, b) => new Date(a.data || 0).getTime() - new Date(b.data || 0).getTime());
   const { total, recebido } = somaDe(comandas);
 
+  // Um dia por seção, sempre — com um dia só, é o papel do fechamento; com um período, é o
+  // mesmo papel repetido, dia a dia, que é como a conferência acontece.
+  const dias = new Map<string, ComandaDoDia[]>();
+  for (const c of comandas) dias.set(diaDe(c.data), [...(dias.get(diaDe(c.data)) || []), c]);
+
+  const secoes = [...dias.entries()].map(([d, cs]) => {
+    const soma = somaDe(cs);
+    return `<div style="margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #009AAC;padding-bottom:3px;margin-bottom:8px">
+        <b style="color:#014D5E;font-size:13.5px">${esc(dataBR(d + "T12:00:00"))}</b>
+        <span style="font-size:11.5px;color:#6B7280">${cs.length} ${cs.length === 1 ? "comanda" : "comandas"} · ${BRL(soma.total)}${soma.total - soma.recebido > 0.009 ? ` · a receber <b style="color:#b23b39">${BRL(soma.total - soma.recebido)}</b>` : ""}</span>
+      </div>
+      ${cs.map(blocoDaComanda).join("")}
+    </div>`;
+  }).join("");
+
+  const periodo = dias.size > 1
+    ? `${dataBR((args.dia || "") + "T12:00:00") || "—"} a ${dataBR((args.ate || args.dia || "") + "T12:00:00")}`
+    : dataBR(([...dias.keys()][0] || args.dia || "") + "T12:00:00") || dataBR(new Date());
+
   const body = `
     <div style="margin-bottom:14px;font-size:12.5px;color:#6B7280">
-      ${comandas.length} ${comandas.length === 1 ? "comanda" : "comandas"} em ${esc(dia)}
+      ${comandas.length} ${comandas.length === 1 ? "comanda" : "comandas"} · ${esc(periodo)}
     </div>
-    ${comandas.map(blocoDaComanda).join("") || `<p style="text-align:center;color:#9aa0a8;font-size:13px;padding:24px 0">Nenhuma comanda neste dia.</p>`}
+    ${secoes || `<p style="text-align:center;color:#9aa0a8;font-size:13px;padding:24px 0">Nenhuma comanda no período.</p>`}
     ${comandas.length ? rodape(total, recebido) : ""}
     ${emitido()}
   `;
-  await imprimirDocumento(`Comandas do dia ${dia}`, body, undefined, undefined, { preview: args.preview, compacto: true });
+  await imprimirDocumento(dias.size > 1 ? `Comandas · ${periodo}` : `Comandas do dia ${periodo}`, body, undefined, undefined, { preview: args.preview, compacto: true });
 }
 
 /**
