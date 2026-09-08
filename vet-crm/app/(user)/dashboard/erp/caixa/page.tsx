@@ -526,7 +526,7 @@ export default function CaixaPage() {
                   <>
                     {aberto && (
                       <div className="no-print" style={{ marginBottom: 12, fontSize: 12.5, color: '#5C6B70', background: '#EAF6F7', border: '1px solid #CFE7EA', borderRadius: 10, padding: '10px 13px' }}>
-                        💡 Recebimentos são registrados no <b style={{ color: '#014D5E' }}>Ponto de venda</b> (aba “Não pago”). Aqui você <b>acompanha e confere</b> os recebimentos do dia para o fechamento.
+                        💡 Recebimentos são registrados no <b style={{ color: '#014D5E' }}>Ponto de venda</b>. Aqui você <b>acompanha e confere</b> os recebimentos do dia para o fechamento.
                       </div>
                     )}
                     {prevCred && prevCred.totalCentavos > 0 && (
