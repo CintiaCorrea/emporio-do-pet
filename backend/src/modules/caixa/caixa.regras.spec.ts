@@ -1,4 +1,4 @@
-import { escolherMeuCaixa, avisoSemMeuCaixa, resolverCaixaDoRecebimento } from './caixa.regras';
+import { escolherMeuCaixa, avisoSemMeuCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa } from './caixa.regras';
 
 // BLINDAGEM do caixa por operadora: com duas funcionárias e dois caixas abertos, a venda
 // de uma não pode cair na gaveta da outra (era o que acontecia até 03/09/2026).
@@ -128,4 +128,33 @@ describe('quem pode abrir caixa', () => {
     expect(podeAbrirCaixa(p)).toBe(true));
   it.each(['VETERINARIAN', 'GROOMER', '', null, undefined, 'qualquer'])('%s não pode', (p) =>
     expect(podeAbrirCaixa(p as any)).toBe(false));
+});
+
+describe('O caixa e individual', () => {
+  it('so o dono lanca no proprio caixa', () => {
+    expect(podeLancarNoCaixa('u1', 'u1')).toBe(true);
+  });
+
+  it('outra pessoa NAO lanca, nem sendo admin', () => {
+    // Lancar na gaveta da colega faz a diferenca aparecer no fechamento da pessoa errada.
+    expect(podeLancarNoCaixa('u1', 'u2')).toBe(false);
+  });
+
+  it('sem saber de quem e o caixa, nao lanca', () => {
+    expect(podeLancarNoCaixa(null, 'u1')).toBe(false);
+    expect(podeLancarNoCaixa('u1', null)).toBe(false);
+    expect(podeLancarNoCaixa('', '')).toBe(false);
+  });
+
+  it('fechar: o dono pode', () => {
+    expect(podeFecharCaixa('u1', 'u1', 'RECEPTIONIST')).toBe(true);
+  });
+
+  it('fechar: o administrativo tambem pode — senao o caixa de quem faltou trava o dia', () => {
+    expect(podeFecharCaixa('u1', 'u2', 'ADMIN')).toBe(true);
+  });
+
+  it('fechar: outra recepcionista nao pode', () => {
+    expect(podeFecharCaixa('u1', 'u2', 'RECEPTIONIST')).toBe(false);
+  });
 });

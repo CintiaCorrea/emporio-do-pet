@@ -101,15 +101,22 @@ export type CaixaParaReceber = {
  * nos dois lados de propósito: a tela avisa antes, o servidor garante depois.
  */
 export function caixaParaReceber(m: MeuCaixa): CaixaParaReceber {
+  // O CAIXA É INDIVIDUAL (Cintia, 08/09/2026): "os caixas devem ser individuais e inacessíveis
+  // por outra pessoa, isto é, eles são independentes".
+  //
+  // Até aqui, quando havia UM caixa aberto e ele não era o seu, o sistema lançava nele mesmo
+  // assim (deOutraPessoa). Era conveniente e errado: o dinheiro entrava na gaveta de quem não
+  // recebeu, e a diferença só aparecia no fechamento — para a pessoa errada.
   if (m?.meu) return { caixa: m.meu };
   const outros = m?.deOutros || [];
   if (!outros.length) {
     return { caixa: null, erro: 'Nenhum caixa aberto. Abra o seu em Vendas › Caixa para receber.' };
   }
-  if (outros.length === 1) return { caixa: outros[0], deOutraPessoa: true };
   const nomes = outros.map((c) => c.operadorNome).join(', ');
   return {
     caixa: null,
-    erro: `Há mais de um caixa aberto (${nomes}) e nenhum é o seu — o sistema não tem como saber em qual lançar. Abra o seu em Vendas › Caixa.`,
+    erro: outros.length === 1
+      ? `O caixa aberto é de ${nomes}. Cada pessoa lança no próprio caixa — abra o seu em Vendas › Caixa.`
+      : `Os caixas abertos são de ${nomes}, e nenhum é o seu. Abra o seu em Vendas › Caixa.`,
   };
 }

@@ -6,7 +6,7 @@ import { RecebimentosService } from '../financeiro/recebimentos.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
-import { resolverCaixaDoRecebimento } from './caixa.regras';
+import { resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
@@ -787,7 +787,17 @@ export class CaixaService {
     });
   }
 
-  async fechar(id: string, dto: any = {}) {
+  async fechar(id: string, dto: any = {}, userId?: string, papel?: string) {
+    // FECHAR e conferencia de gaveta: o dono fecha o dele, e o administrativo pode fechar o que
+    // ficou aberto de quem nao veio trabalhar — senao o dia trava. Lancar dinheiro continua
+    // sendo so do dono (exigirDonoDoCaixa).
+    if (userId !== undefined) {
+      const dono = await this.prisma.caixaSessao.findUnique({ where: { id }, select: { userId: true, numero: true, user: { select: { name: true } } } });
+      if (!dono) throw new NotFoundException('Caixa nao encontrado');
+      if (!podeFecharCaixa(dono.userId, userId, papel)) {
+        throw new BadRequestException(`O caixa ${dono.numero} e de ${dono.user?.name || 'outra pessoa'}. So ela ou o administrativo podem fechar.`);
+      }
+    }
     const valorEsperado = dto.valorEsperado != null ? Number(dto.valorEsperado) : null;
     const valorContado = dto.valorContado != null ? Number(dto.valorContado) : null;
     const diferenca = (valorEsperado != null && valorContado != null)
@@ -836,7 +846,28 @@ export class CaixaService {
     return {};
   }
 
+  /**
+   * O CAIXA E INDIVIDUAL (Cintia, 08/09/2026): "os caixas devem ser individuais e inacessiveis
+   * por outra pessoa, isto e, eles sao independentes."
+   *
+   * A tela ja escolhe o caixa certo, mas tela nao e protecao: bastava mandar outro id na
+   * requisicao. Aqui e onde o dinheiro entra, entao e aqui que a regra vale.
+   */
+  private async exigirDonoDoCaixa(caixaId: string, userId: string): Promise<void> {
+    const caixa = await this.prisma.caixaSessao.findUnique({
+      where: { id: caixaId },
+      select: { userId: true, numero: true, user: { select: { name: true } } },
+    });
+    if (!caixa) throw new NotFoundException('Caixa nao encontrado');
+    if (!podeLancarNoCaixa(caixa.userId, userId)) {
+      throw new BadRequestException(
+        `O caixa ${caixa.numero} e de ${caixa.user?.name || 'outra pessoa'}. Cada um lanca no proprio caixa — abra o seu em Vendas › Caixa.`,
+      );
+    }
+  }
+
   async registrarRecebimento(caixaId: string, dto: any, userId: string) {
+    await this.exigirDonoDoCaixa(caixaId, userId);
     const appointmentId = dto.appointmentId || null;
     // Normaliza: achata malformado (ex.: [[]] de baixa sem forma) e mantém só objetos {forma,valor} válidos.
     const formas = (Array.isArray(dto.formas) ? (dto.formas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
@@ -1106,6 +1137,7 @@ export class CaixaService {
   }
 
   async registrarMovimento(caixaId: string, dto: any, userId: string) {
+    await this.exigirDonoDoCaixa(caixaId, userId);
     const caixa = await this.prisma.caixaSessao.findUnique({ where: { id: caixaId } });
     if (!caixa) throw new NotFoundException('Caixa nao encontrado');
     const mov = await this.prisma.caixaMovimento.create({

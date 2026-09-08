@@ -109,8 +109,13 @@ export class CaixaController {
   }
 
   @Patch(':id/fechar')
-  fechar(@Param('id') id: string, @Body() dto: FecharCaixaDto) {
-    return this.service.fechar(id, dto);
+  fechar(
+    @Param('id') id: string,
+    @Body() dto: FecharCaixaDto,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') papel: string,
+  ) {
+    return this.service.fechar(id, dto, userId, papel);
   }
 
   @Patch(':id/reabrir')

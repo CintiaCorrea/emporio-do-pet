@@ -124,3 +124,31 @@ export function podeAbrirCaixa(papel?: string | null): boolean {
   const p = String(papel || '').toUpperCase();
   return p === 'ADMIN' || p === 'RECEPTIONIST';
 }
+
+// ── O CAIXA É INDIVIDUAL ──────────────────────────────────────────────────────────────────
+//
+// A Cintia, em 08/09/2026: "os caixas devem ser individuais e inacessíveis por outra pessoa,
+// isto é, eles são independentes."
+//
+// Até aqui a tela escolhia o caixa e o backend aceitava qualquer um: bastava mandar o id. Quem
+// estivesse logada podia lançar na gaveta da colega sem querer — e a diferença só aparecia no
+// fechamento, para a pessoa errada. Proteção que só existe na tela não é proteção.
+
+/** Quem pode LANÇAR dinheiro num caixa: só o dono. */
+export function podeLancarNoCaixa(donoId?: string | null, quemId?: string | null): boolean {
+  const dono = String(donoId || '').trim();
+  const quem = String(quemId || '').trim();
+  if (!dono || !quem) return false; // sem saber de quem é, não lança
+  return dono === quem;
+}
+
+/**
+ * Quem pode FECHAR um caixa: o dono ou o administrativo.
+ *
+ * O fechamento é conferência de gaveta, e alguém precisa poder fechar o caixa que ficou aberto
+ * de quem não veio trabalhar hoje — senão o dia trava. Lançar dinheiro continua sendo só do dono.
+ */
+export function podeFecharCaixa(donoId?: string | null, quemId?: string | null, papel?: string | null): boolean {
+  if (podeLancarNoCaixa(donoId, quemId)) return true;
+  return String(papel || '').toUpperCase() === 'ADMIN';
+}

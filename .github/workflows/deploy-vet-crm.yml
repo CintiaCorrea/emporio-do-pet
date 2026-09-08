@@ -56,6 +56,19 @@ jobs:
 
       - uses: superfly/flyctl-actions/setup-flyctl@master
 
+      # 🛡️ PORTAO ANTI-REGRESSAO DO FRONT.
+      #
+      # Faltava. Ate 08/09/2026 o deploy do front so conferia a catraca de tipos: TODAS as travas
+      # escritas em lib/*.spec.ts (o modelo em todo ponto de venda, o orcamento no dia dele, a
+      # lista que nao rola pra lado, a devolucao unica, o descritivo no papel) nunca bloquearam
+      # uma publicacao — rodavam so na maquina de quem escreveu.
+      #
+      # A Cintia, em 08/09/2026: "preciso que a construcao esteja protegida. Ja tivemos muito
+      # retrabalho." Teste que nao trava o deploy nao protege nada.
+      - name: 🛡️ Testes (portão anti-regressão)
+        working-directory: vet-crm
+        run: pnpm test
+
       - name: Deploy to Fly.io
         working-directory: vet-crm
         run: flyctl deploy --remote-only
