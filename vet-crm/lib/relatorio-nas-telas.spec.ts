@@ -158,8 +158,12 @@ describe("o orçamento aparece onde a venda aparece", () => {
 
   it("orçamento não entra no total gasto do cliente", () => {
     // Proposta não é dinheiro. O total do cliente continua somando só as compras.
+    // 08/09: o total virou `acumulado`, calculado num reduce só sobre comprasFiltradas
+    // (ele passou a devolver também o quanto o cliente deve). A regra não mudou — a
+    // fonte continua sendo APENAS as compras —, só o formato da linha.
     const src = ler("app/(user)/dashboard/erp/tutores/[id]/page.tsx");
-    expect(src).toContain("comprasFiltradas.reduce((s, a) => s + (a.value || 0), 0)");
+    expect(src).toContain("comprasFiltradas.reduce(");
+    expect(src).toContain("money(acumulado.total)");
     expect(src).not.toContain("orcamentosFiltrados.reduce");
   });
 });
