@@ -119,11 +119,20 @@ enum ContactType {
   BUSINESS
 }
 
+// ARCHIVED ja existe no banco de PRODUCAO desde 08/09/2026, mas nao estava aqui: alguem
+// aplicou o valor direto no banco sem commitar o schema. O efeito foi travar o deploy do
+// backend inteiro — `prisma db push` passou a querer REMOVER o valor, viu perda de dados e
+// abortou a release (v788 failed). Enquanto o arquivo e o banco discordam, nada sobe.
+//
+// Escrever o valor aqui nao muda nada no banco: so faz o arquivo dizer a verdade sobre o que
+// ja existe. Se o recurso de arquivar for de outra frente, ele continua sendo dela — o que
+// nao pode e o schema seguir mentindo.
 enum PetStatus {
   ACTIVE
   DECEASED
   TRANSFERRED
   INACTIVE
+  ARCHIVED
 }
 
 enum PetSpecies {
@@ -420,6 +429,7 @@ enum TutorStatus {
   INACTIVE
   SUSPENDED
   CHURNED
+  ARCHIVED
 }
 
 enum TutorClassificacao {
