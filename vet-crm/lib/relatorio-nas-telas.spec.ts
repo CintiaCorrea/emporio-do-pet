@@ -159,3 +159,25 @@ describe("o orçamento aparece onde a venda aparece", () => {
     expect(src).not.toContain("orcamentosFiltrados.reduce");
   });
 });
+
+describe("devolução: desfaz as três consequências, não apaga a venda", () => {
+  it("o botão fica dentro da venda, onde estão os itens", () => {
+    const src = ler(PDV);
+    expect(src).toContain("abrirDevolucao");
+    expect(src).toContain("Devolver");
+  });
+
+  it("a devolução vai para o caixa aberto de hoje", () => {
+    // "O estorno sai no caixa do dia" (Cintia, 07/09/2026) — não no caixa do dia da venda.
+    expect(ler(PDV)).toContain("/api/caixa/${caixaAbertoId}/devolucao");
+  });
+
+  it("sem caixa aberto, não deixa lançar", () => {
+    expect(ler(PDV)).toContain("Sem caixa aberto não há de onde estornar");
+  });
+
+  it("avisa quando a comissão já fechada não pôde ser retirada", () => {
+    // Silêncio aqui seria o pior: a pessoa acha que a comissão saiu e ela continua paga.
+    expect(ler(PDV)).toContain("comissoesTravadas");
+  });
+});

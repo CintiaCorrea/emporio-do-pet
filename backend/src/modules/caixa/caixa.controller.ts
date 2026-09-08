@@ -128,6 +128,16 @@ export class CaixaController {
     return this.service.registrarRecebimento(id, dto, userId);
   }
 
+  /** Devolucao: devolve ao estoque, retira a comissao e lanca o estorno no caixa do dia. */
+  @Post(':id/devolucao')
+  devolucao(
+    @Param('id') id: string,
+    @Body() dto: { appointmentId: string; itens?: { itemId: string; quantidade?: number }[]; motivo?: string },
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.service.registrarDevolucao(id, dto, userId);
+  }
+
   @Post(':id/movimento')
   movimento(@Param('id') id: string, @Body() dto: MovimentoDto, @CurrentUser('id') userId: string) {
     return this.service.registrarMovimento(id, dto, userId);

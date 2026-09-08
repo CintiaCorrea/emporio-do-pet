@@ -10,6 +10,7 @@ import { resolverCaixaDoRecebimento } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
+import { planejarDevolucao, PedidoDeDevolucao } from './devolucao.regras';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
 // Ver caixa.regras.faixaDoDia: caixa aberto as 21h30 nascia no dia seguinte e sumia da
@@ -1103,6 +1104,113 @@ export class CaixaService {
     } catch (e: any) {
       console.error('criarPlanosDaVenda erro:', e?.message);
     }
+  }
+
+  /**
+   * DEVOLUCAO — devolve ao estoque, retira a comissao e lanca o estorno.
+   *
+   * A Cintia, em 07/09/2026: "devolve ao estoque / retira a comissao / lanca estorno. Acho que e
+   * melhor." E: "o estorno sai no caixa do dia."
+   *
+   * As tres consequencias em tres lugares — e e por isso que devolucao nunca pode ser um
+   * "excluir venda": apagar a venda nao devolve produto pra prateleira, nao tira a comissao de
+   * quem vendeu e nao deixa rastro do dinheiro que saiu.
+   *
+   * O estorno entra no caixa QUE ESTA ABERTO AGORA (o `caixaId` recebido), nao no caixa do dia
+   * da venda: o dinheiro sai da gaveta de hoje, e e a gaveta de hoje que tem que fechar.
+   *
+   * A venda NAO e apagada nem reescrita. Ela continua contando a historia do que foi vendido; a
+   * devolucao e um fato novo, com data propria.
+   */
+  async registrarDevolucao(
+    caixaId: string,
+    dto: { appointmentId: string; itens?: PedidoDeDevolucao[]; motivo?: string },
+    userId: string,
+  ) {
+    const caixa = await this.prisma.caixaSessao.findUnique({ where: { id: caixaId } });
+    if (!caixa) throw new NotFoundException('Caixa nao encontrado');
+    if (String(caixa.status || '').toUpperCase() !== 'ABERTO') {
+      throw new BadRequestException('O caixa precisa estar aberto para lancar a devolucao.');
+    }
+
+    const venda = await this.prisma.appointment.findUnique({
+      where: { id: dto?.appointmentId || '' },
+      select: {
+        id: true, numeroVenda: true, value: true,
+        tutor: { select: { name: true } },
+        items: {
+          select: {
+            id: true, catalogoItemId: true, quantidade: true, valorUnitario: true, desconto: true,
+            descricao: true, comissaoCalculada: true, comissaoExtratoId: true,
+          },
+        },
+      },
+    });
+    if (!venda) throw new NotFoundException('Venda nao encontrada');
+
+    // controlaEstoque vive no catalogo, nao no item da venda.
+    const idsCat = venda.items.map((i) => i.catalogoItemId).filter(Boolean) as string[];
+    const cats = idsCat.length
+      ? await this.prisma.itemCatalogo.findMany({ where: { id: { in: idsCat } }, select: { id: true, controlaEstoque: true, nome: true } })
+      : [];
+    const porCat = new Map(cats.map((c) => [c.id, c]));
+
+    const itensParaRegra = venda.items.map((i) => ({
+      ...i,
+      controlaEstoque: i.catalogoItemId ? !!porCat.get(i.catalogoItemId)?.controlaEstoque : false,
+    }));
+
+    // Sem lista de itens = devolve a venda inteira.
+    const pedidos = (dto?.itens && dto.itens.length)
+      ? dto.itens
+      : venda.items.map((i) => ({ itemId: i.id, quantidade: i.quantidade }));
+
+    const plano = planejarDevolucao(itensParaRegra as any, pedidos);
+    if (!plano.linhas.length) throw new BadRequestException('Nada a devolver nesta venda.');
+
+    // 1) ESTOQUE — o que baixou volta.
+    for (const l of plano.linhas) {
+      if (!l.devolveAoEstoque || !l.catalogoItemId) continue;
+      const nome = porCat.get(l.catalogoItemId)?.nome || '';
+      await this.catalogo.movimentarEstoque(l.catalogoItemId, {
+        tipo: 'ENTRADA', quantidade: l.quantidade, origem: 'DEVOLUCAO', refId: venda.id,
+        obs: `Devolucao da venda${venda.numeroVenda ? ' #' + venda.numeroVenda : ''}${nome ? ' — ' + nome : ''}`,
+      }, { id: userId }).catch((e: any) => console.error('[devolucao] estoque:', e?.message));
+    }
+
+    // 2) COMISSAO — sai a de quem vendeu, menos a que ja fechou em extrato.
+    const paraZerar = plano.linhas.filter((l) => l.retiraComissao).map((l) => l.itemId);
+    if (paraZerar.length) {
+      await this.prisma.appointmentItem.updateMany({
+        where: { id: { in: paraZerar } },
+        data: { comissaoCalculada: 0 },
+      }).catch((e: any) => console.error('[devolucao] comissao:', e?.message));
+    }
+
+    // 3) ESTORNO — sai do caixa de hoje, com rastro de qual venda.
+    const descricao = `Devolucao da venda${venda.numeroVenda ? ' #' + venda.numeroVenda : ''}${venda.tutor?.name ? ' — ' + venda.tutor.name : ''}`;
+    const mov = await this.prisma.caixaMovimento.create({
+      data: {
+        caixaSessaoId: caixaId,
+        tipo: 'DEVOLUCAO',
+        valor: plano.total,
+        forma: 'Dinheiro',
+        descricao,
+        observacao: dto?.motivo || null,
+        data: caixa.abertura,
+        createdById: userId,
+      },
+    });
+
+    return {
+      ok: true,
+      movimentoId: mov.id,
+      total: plano.total,
+      itens: plano.linhas.length,
+      devolvidosAoEstoque: plano.linhas.filter((l) => l.devolveAoEstoque).length,
+      comissoesRetiradas: paraZerar.length,
+      comissoesTravadas: plano.comissoesTravadas,
+    };
   }
 
   async registrarMovimento(caixaId: string, dto: any, userId: string) {

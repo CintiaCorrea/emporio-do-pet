@@ -127,6 +127,12 @@ export default function PDVPage() {
   // O formulário é o MESMO da tela de Caixa (components/caixa/MovimentoCaixaModal) — escrever um
   // segundo formulário de dinheiro aqui é como a busca ficou quebrada em três telas.
   const [movTipo, setMovTipo] = useState<TipoMovimento | null>(null);
+  // ↩️ DEVOLUÇÃO — devolve ao estoque, retira a comissão e lança o estorno no caixa do dia
+  // (regra da Cintia, 07/09/2026). Começa DENTRO da venda, que é onde estão os itens.
+  const [devolOpen, setDevolOpen] = useState(false);
+  const [devolQtd, setDevolQtd] = useState<Record<string, number>>({});
+  const [devolMotivo, setDevolMotivo] = useState('');
+  const [devolvendo, setDevolvendo] = useState(false);
   // 🔍 Localizar venda: achar uma venda de QUALQUER dia sem ter que adivinhar a data no
   // seletor. Pedido de 07/09/2026, olhando o SimplesVet.
   const [buscaOpen, setBuscaOpen] = useState(false);
@@ -803,6 +809,37 @@ export default function PDVPage() {
     return out;
   };
 
+  const abrirDevolucao = () => {
+    // Começa com a venda inteira marcada: devolução parcial é o caso raro.
+    const q: Record<string, number> = {};
+    for (const it of (detVenda?.itens || [])) q[it.id] = Number(it.quantidade) || 1;
+    setDevolQtd(q); setDevolMotivo(''); setDevolOpen(true);
+  };
+
+  const confirmarDevolucao = async () => {
+    if (!detVenda || !caixaAbertoId) { toast.error(caixaUsado?.erro || 'Abra o seu caixa para lançar a devolução.'); return; }
+    const itens = Object.entries(devolQtd).filter(([, q]) => Number(q) > 0).map(([itemId, quantidade]) => ({ itemId, quantidade: Number(quantidade) }));
+    if (!itens.length) { toast.error('Escolha o que está voltando.'); return; }
+    setDevolvendo(true);
+    try {
+      const r = await fetch(`/api/caixa/${caixaAbertoId}/devolucao`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+        body: JSON.stringify({ appointmentId: detVenda.id, itens, motivo: devolMotivo || undefined }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || 'Não consegui lançar a devolução.');
+      const partes = [`Devolução de ${brl(d?.total || 0)} lançada no caixa`];
+      if (d?.devolvidosAoEstoque) partes.push(`${d.devolvidosAoEstoque} ${d.devolvidosAoEstoque > 1 ? 'itens voltaram' : 'item voltou'} ao estoque`);
+      if (d?.comissoesRetiradas) partes.push(`${d.comissoesRetiradas} ${d.comissoesRetiradas > 1 ? 'comissões retiradas' : 'comissão retirada'}`);
+      toast.success(partes.join(' · '), { duration: 7000 });
+      // A comissão já fechada em extrato não é mexida — quem avisa é a tela, não o silêncio.
+      if (d?.comissoesTravadas) toast(`⚠️ ${d.comissoesTravadas} ${d.comissoesTravadas > 1 ? 'comissões já fechadas em extrato não foram retiradas' : 'comissão já fechada em extrato não foi retirada'} — acerte com o administrativo.`, { duration: 9000 });
+      setDevolOpen(false); setDetVenda(null);
+      await loadVendas();
+    } catch (e: any) { toast.error(e?.message || 'Não consegui lançar a devolução.'); }
+    finally { setDevolvendo(false); }
+  };
+
   // 🔍 Procura a venda pelo número, pelo cliente ou por um período — na mesma consulta que a
   // tela "Consulta de vendas" usa, então o resultado já vem com quanto falta receber.
   const localizarVenda = async () => {
@@ -1309,6 +1346,50 @@ export default function PDVPage() {
         </div>
       )}
 
+      {/* ===== MODAL DEVOLUÇÃO ===== */}
+      {devolOpen && detVenda && (
+        <div onClick={() => setDevolOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 95, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 470, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16 }}>
+            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>↩️ Devolver {detVenda.numeroVenda ? `— venda #${detVenda.numeroVenda}` : ''}</span>
+              <button onClick={() => setDevolOpen(false)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
+            </div>
+            <div style={{ padding: 18 }}>
+              <div style={{ fontSize: 12, color: MUT, marginBottom: 10 }}>
+                O que voltar sai do estoque de volta pra prateleira, tira a comissão de quem vendeu e lança o estorno no <b>caixa de hoje</b>. A venda não é apagada — a devolução é um fato novo.
+              </div>
+              {(detVenda.itens || []).map((it: any) => {
+                const max = Number(it.quantidade) || 1;
+                const q = devolQtd[it.id] ?? 0;
+                return (
+                  <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: `1px solid ${SOFT}` }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: INK, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.descricao || 'Item'}</div>
+                      <div style={{ fontSize: 11, color: MUT }}>vendido: {max} × {brl(Number(it.valorUnitario) || 0)}</div>
+                    </div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', border: `1px solid ${LINE}`, borderRadius: 8, overflow: 'hidden', flexShrink: 0 }}>
+                      <button onClick={() => setDevolQtd((m) => ({ ...m, [it.id]: Math.max(0, (m[it.id] ?? 0) - 1) }))} style={{ padding: '5px 9px', border: 'none', background: '#fff', color: TEAL, cursor: 'pointer' }}>−</button>
+                      <span style={{ padding: '5px 9px', minWidth: 26, textAlign: 'center', fontSize: 12.5, color: INK, borderLeft: `1px solid ${SOFT}`, borderRight: `1px solid ${SOFT}` }}>{q}</span>
+                      <button onClick={() => setDevolQtd((m) => ({ ...m, [it.id]: Math.min(max, (m[it.id] ?? 0) + 1) }))} style={{ padding: '5px 9px', border: 'none', background: '#fff', color: TEAL, cursor: 'pointer' }}>+</button>
+                    </div>
+                  </div>
+                );
+              })}
+              <label style={{ display: 'block', fontSize: 11.5, color: MUT, marginTop: 12 }}>Motivo (fica no movimento do caixa)
+                <input value={devolMotivo} onChange={(e) => setDevolMotivo(e.target.value)} placeholder="ex.: cliente desistiu do item" style={{ ...inp, width: '100%', marginTop: 3 }} />
+              </label>
+              {!caixaAbertoId && <div style={{ marginTop: 10, fontSize: 12, color: ERR }}>Sem caixa aberto não há de onde estornar — abra o caixa primeiro.</div>}
+              <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+                <button onClick={() => setDevolOpen(false)} style={{ flex: 1, border: `1px solid ${LINE}`, background: '#fff', color: MUT, borderRadius: 10, padding: '10px', fontSize: 13, cursor: 'pointer' }}>Cancelar</button>
+                <button onClick={confirmarDevolucao} disabled={devolvendo || !caixaAbertoId} style={{ flex: 2, border: 'none', background: (devolvendo || !caixaAbertoId) ? '#cfd8d9' : '#8a6400', color: '#fff', borderRadius: 10, padding: '10px', fontSize: 13, fontWeight: 600, cursor: devolvendo ? 'default' : 'pointer' }}>
+                  {devolvendo ? 'Lançando…' : '↩️ Confirmar devolução'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {movTipo && caixaAbertoId && (
         <MovimentoCaixaModal caixaId={caixaAbertoId} tipo={movTipo} onClose={() => setMovTipo(null)} onFeito={() => { loadVendas(); recarregarMeuCaixa(); }} />
       )}
@@ -1475,6 +1556,11 @@ export default function PDVPage() {
                       </div>
                     ) : (
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {/* Devolver é diferente de excluir: excluir apaga o registro, devolver
+                            desfaz as consequências (estoque, comissão e dinheiro) e deixa rastro. */}
+                        {podeEditar && (detVenda.itens || []).length > 0 && (
+                          <button onClick={abrirDevolucao} title="Devolve ao estoque, retira a comissão e lança o estorno no caixa de hoje" style={{ flex: 1, minWidth: 120, background: '#fff', color: '#8a6400', border: '1px solid #E8D9AE', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>↩️ Devolver</button>
+                        )}
                         {exclusaoDaVenda.pode ? (
                           <button onClick={excluirVenda} disabled={detExcluindo} style={{ flex: 1, minWidth: 120, background: '#fff', color: '#A32D2D', border: '1px solid #F0C9C9', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{detExcluindo ? 'Excluindo…' : '🗑 Excluir'}</button>
                         ) : (
