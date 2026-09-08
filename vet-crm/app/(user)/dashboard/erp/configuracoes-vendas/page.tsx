@@ -7,7 +7,6 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { usePodeEditar } from "@/lib/permissions/context";
 
 const DEFAULTS = {
-  fecharCaixaMeiaNoite: false,
   obrigarProfissionalItem: false,
   venderSemEstoque: true,
   unificarVendasDia: true,
@@ -89,7 +88,15 @@ export default function ConfigVendasPage() {
       <div className="text-[12.5px] text-[#374151] mb-4">As regras do módulo de vendas. Cada ajuste é salvo e passa a valer no Ponto de venda, atendimento e caixa.</div>
 
       <Card titulo="💵 Caixa">
-        <Row lab="Fechar caixa automaticamente à meia-noite" desc="Caixas abertos são fechados às 23:59." breve><Toggle k="fecharCaixaMeiaNoite" /></Row>
+        {/* DEIXOU DE SER OPÇÃO (Cintia, 08/09/2026): "os caixas DEVEM ser encerrados às 00:00
+            TODOS OS DIAS. Eles não devem permanecer abertos." Era um interruptor, e estava
+            desligado — então caixa nenhum fechava, e caixa aberto atravessando o dia é a origem
+            da confusão toda (a tela lista o caixa do DIA; o de ontem some dela). */}
+        <div className="px-4 py-3 text-[12.5px] text-[#374151]">
+          <b>O caixa encerra todo dia à meia-noite.</b> É regra da casa, não configuração: todo caixa
+          que ficar aberto é encerrado às 00:00, sem conferência de gaveta. Quem quiser conferir o
+          dinheiro fecha o próprio caixa antes disso.
+        </div>
       </Card>
 
       <Card titulo="🛒 Venda">

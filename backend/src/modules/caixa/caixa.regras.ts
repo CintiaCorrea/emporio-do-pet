@@ -36,22 +36,25 @@ export type ResolucaoCaixa<T> = {
   caixa: T | null;
   /** Preenchido so quando caixa e null: o que dizer pra pessoa. */
   erro?: string;
-  /** true quando caiu no caixa de outra pessoa por nao haver ambiguidade (so um aberto). */
-  deOutraPessoa?: boolean;
 };
 
 /**
- * Decide em qual caixa o recebimento entra. Tres casos, nesta ordem:
+ * Decide em qual caixa o recebimento entra. Uma regra so: E O MEU CAIXA, OU NAO E.
  *
- * 1. A pessoa tem o proprio caixa aberto  -> usa o dela. E a regra que importa: com duas
- *    recepcionistas e dois caixas abertos, a venda de uma nao pode cair na gaveta da outra.
- * 2. Ela nao tem, mas so existe UM caixa aberto -> usa esse. Nao ha ambiguidade: com um
- *    caixa so, e impossivel escolher errado. E o caso da administradora que vende sem ter
- *    aberto caixa proprio -- bloquear aqui so trava o balcao sem proteger nada.
- * 3. Ela nao tem e existe MAIS DE UM aberto -> ai sim recusa. Escolher seria cara ou coroa
- *    com o dinheiro dos outros.
+ * A Cintia, em 08/09/2026: "os caixas devem ser individuais e inacessiveis por outra pessoa,
+ * isto e, eles sao independentes." Quem da baixa e a recepcao (Gabriela e Victoria) e,
+ * eventualmente, o administrativo — e cada uma lanca no proprio caixa, sem excecao para o adm
+ * (decisao dela, 08/09: "adm abre o caixa dela tambem").
  *
- * (Em 04/09/2026 a regra recusava tambem no caso 2, e isso travava vendas legitimas.)
+ * ATE 08/09 HAVIA UM ATALHO AQUI, e ele custou caro: quando existia UM unico caixa aberto e ele
+ * nao era o seu, esta funcao entregava o da colega "porque nao havia ambiguidade". So que na
+ * noite de 07/09 o servico passou a exigir o dono na hora de gravar (exigirDonoDoCaixa) — entao
+ * esta funcao entregava um caixa que a linha seguinte recusava. A venda ja tinha sido criada, o
+ * recebimento estourava, e ninguem conseguia dar baixa. Duas regras diferentes para a mesma
+ * pergunta e pior que uma regra ruim.
+ *
+ * Nao ter caixa proprio nao trava mais o balcao: a tela abre o caixa da pessoa ali mesmo, sem
+ * sair da venda (AbrirMeuCaixaModal).
  */
 export function resolverCaixaDoRecebimento<T extends CaixaAbertoRef>(
   abertos: T[],
@@ -60,18 +63,32 @@ export function resolverCaixaDoRecebimento<T extends CaixaAbertoRef>(
   const meu = escolherMeuCaixa(abertos, meuUserId);
   if (meu) return { caixa: meu };
 
-  if (!abertos?.length) {
-    return { caixa: null, erro: 'Nenhum caixa aberto. Abra o caixa antes de receber.' };
-  }
-  if (abertos.length === 1) {
-    return { caixa: abertos[0], deOutraPessoa: true };
+  const outros = abertos || [];
+  if (!outros.length) {
+    return { caixa: null, erro: 'Nenhum caixa aberto. Abra o seu caixa para receber.' };
   }
   return {
     caixa: null,
     erro:
-      'Ha mais de um caixa aberto e nenhum deles e o seu — o sistema nao tem como saber ' +
-      'em qual lancar. Abra o seu caixa (Vendas > Caixa) para receber.',
+      outros.length === 1
+        ? 'O caixa aberto e de outra pessoa. Cada um lanca no proprio caixa — abra o seu para receber.'
+        : 'Ha mais de um caixa aberto e nenhum deles e o seu. Abra o seu caixa para receber.',
   };
+}
+
+/**
+ * A pessoa ja tem caixa aberto? Serve para nao abrir um segundo por engano.
+ *
+ * Em 05/09/2026 a Victoria abriu TRES caixas no mesmo dia: ela abria, nao via na lista (o dia
+ * estava sendo cortado no fuso errado) e abria de novo. O corte do dia ja foi consertado; esta
+ * regra fecha a outra ponta — e vale mais ainda agora que dá para abrir o caixa com um clique
+ * de dentro da venda.
+ */
+export function meuCaixaJaAberto<T extends CaixaAbertoRef>(
+  abertos: T[],
+  meuUserId?: string | null,
+): T | null {
+  return escolherMeuCaixa(abertos, meuUserId);
 }
 
 // ── O DIA DO CAIXA É O DIA DE FORTALEZA ─────────────────────────────────────────

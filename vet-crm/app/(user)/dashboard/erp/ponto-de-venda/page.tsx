@@ -9,6 +9,7 @@ import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
 import { useSession } from 'next-auth/react';
 import { carregarMeuCaixa, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaParaReceber } from '@/lib/caixaAtual';
+import AbrirMeuCaixaModal from '@/components/caixa/AbrirMeuCaixaModal';
 import { carregarEstoqueComprometido, avisoDeEstoque, MapaEstoque } from '@/lib/estoqueComprometido';
 import BuscaClientePet, { SelecaoClientePet } from '@/components/common/BuscaClientePet';
 import { buscarItens, avisoDeCorte } from '@/lib/buscaCatalogo';
@@ -279,6 +280,11 @@ export default function PDVPage() {
     } catch (e: any) { toast.error(e.message || 'Erro ao salvar'); } finally { setSavingEdit(false); }
   }
 
+  // ABRIR O CAIXA SEM SAIR DA VENDA. Regra da casa (Cintia, 08/09/2026): só recebe quem tem o
+  // próprio caixa aberto — adm inclusive. Mandar a pessoa para outra tela no meio de um
+  // recebimento é o que fazia ela receber na gaveta da colega. Aqui ela abre e continua.
+  const [abrirCaixaMotivo, setAbrirCaixaMotivo] = useState<string | null>(null);
+
   // Núcleo lib/caixaAtual: o caixa é o DE QUEM ESTÁ LOGADA (duas funcionárias, dois caixas abertos).
   const recarregarMeuCaixa = useCallback(async () => {
     const m = await carregarMeuCaixa(meId);
@@ -295,7 +301,8 @@ export default function PDVPage() {
 
   // ----- Registrar recebimento de venda existente -----
   function abrirRecVenda() {
-    if (!caixaAbertoId) { toast.error(caixaUsado?.erro || 'Abra o seu caixa para receber.'); return; }
+    // Sem caixa próprio a baixa não acontece — então em vez de só recusar, abre o caixa aqui.
+    if (!caixaAbertoId) { setAbrirCaixaMotivo(`Para receber a venda de ${detVenda?.tutor || 'o cliente'}`); return; }
     const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
     setRecFormas([{ forma: 'Dinheiro', valor: Number(aReceber.toFixed(2)) }]);
     setRecOpen(true);
@@ -1255,9 +1262,9 @@ export default function PDVPage() {
                 <div style={{ fontSize: 11.5, color: MUT, marginBottom: 8 }}>
                   Você não tem caixa aberto. Cada pessoa lança no próprio caixa.
                 </div>
-                <Link href="/dashboard/erp/caixa" style={{ display: 'block', textDecoration: 'none', textAlign: 'center', border: 'none', borderRadius: 9, background: TEAL, color: '#fff', padding: '10px', fontSize: 12.5, fontWeight: 600 }}>
+                <button onClick={() => setAbrirCaixaMotivo('Para receber no seu caixa')} style={{ display: 'block', width: '100%', textAlign: 'center', border: 'none', borderRadius: 9, background: TEAL, color: '#fff', padding: '10px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>
                   ＋ Abrir o meu caixa
-                </Link>
+                </button>
               </div>
             )}
 
@@ -1349,6 +1356,14 @@ export default function PDVPage() {
 
       {movTipo && caixaAbertoId && (
         <MovimentoCaixaModal caixaId={caixaAbertoId} tipo={movTipo} onClose={() => setMovTipo(null)} onFeito={() => { loadVendas(); recarregarMeuCaixa(); }} />
+      )}
+
+      {abrirCaixaMotivo !== null && (
+        <AbrirMeuCaixaModal
+          motivo={abrirCaixaMotivo}
+          onClose={() => setAbrirCaixaMotivo(null)}
+          onAberto={() => { recarregarMeuCaixa(); }}
+        />
       )}
 
       {/* ===== MODAL RECEBIMENTO ===== */}

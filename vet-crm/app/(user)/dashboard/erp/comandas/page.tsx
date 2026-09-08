@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useSession } from "next-auth/react";
 import { carregarMeuCaixa, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaParaReceber } from "@/lib/caixaAtual";
+import AbrirMeuCaixaModal from "@/components/caixa/AbrirMeuCaixaModal";
 
 const FORMAS = ["Dinheiro", "Pix", "Cartão de crédito", "Cartão de débito", "Crédito do cliente"];
 const ORIGEM: Record<string, { lbl: string; bg: string; fg: string }> = {
@@ -26,6 +27,9 @@ export default function ComandasPage() {
   const [comandas, setComandas] = useState<any[]>([]);
   const [caixaAberto, setCaixaAberto] = useState<string | null>(null); // id do MEU caixa (lib/caixaAtual)
   const [caixaUsado, setCaixaUsado] = useState<CaixaParaReceber | null>(null); // decisão dos 3 casos
+  // Sem caixa próprio não há baixa (regra da casa, 08/09/2026) — então a tela ABRE o caixa aqui,
+  // em vez de mandar a pessoa para outra tela no meio do recebimento.
+  const [abrirCaixaMotivo, setAbrirCaixaMotivo] = useState<string | null>(null);
   const [meuCaixa, setMeuCaixa] = useState<CaixaAberto | null>(null);
   const [caixasDeOutros, setCaixasDeOutros] = useState<CaixaAberto[]>([]);
   const { data: session } = useSession();
@@ -96,7 +100,7 @@ export default function ComandasPage() {
   const baixar = async () => {
     if (!det) return;
     if (!meId) { alert("Só um instante — ainda estou identificando o seu usuário. Tente de novo em 2 segundos."); return; }
-    if (!caixaAberto) { alert(caixaUsado?.erro || "Abra o seu caixa para receber."); return; }
+    if (!caixaAberto) { setAbrirCaixaMotivo(`Para receber a venda de ${det.tutor || "o cliente"}`); return; }
     const valor = Number(det.aberto || det.valor || 0);
     if (!confirm(`Receber a venda de ${det.tutor} em ${forma}? (${fmtBRL(valor)})`)) return;
     setBaixando(true);
@@ -133,7 +137,7 @@ export default function ComandasPage() {
   const baixarGrupo = async () => {
     if (!detGrupo) return;
     if (!meId) { alert("Só um instante — ainda estou identificando o seu usuário. Tente de novo em 2 segundos."); return; }
-    if (!caixaAberto) { alert(caixaUsado?.erro || "Abra o seu caixa para receber."); return; }
+    if (!caixaAberto) { setAbrirCaixaMotivo(`Para receber as vendas de ${detGrupo.tutor || "o cliente"}`); return; }
     if (!confirm(`Receber TODAS as ${detGrupo.comandas.length} vendas de ${detGrupo.tutor} em ${forma}? (${fmtBRL(detGrupo.total)})`)) return;
     setBaixando(true);
     try {
@@ -396,11 +400,22 @@ export default function ComandasPage() {
               </>
             ) : (
               <div className="px-5 py-4 border-t" style={{ borderColor: "#E8E2D6" }}>
-                <div className="text-[12.5px] text-[#b23b39] bg-[#FDECEC] border rounded-lg px-3 py-2" style={{ borderColor: "#F3D2D0" }}>⚠️ Não há caixa aberto. Abra um caixa em <b>Vendas → Caixa</b>.</div>
+                <div className="text-[12.5px] text-[#b23b39] bg-[#FDECEC] border rounded-lg px-3 py-2" style={{ borderColor: "#F3D2D0" }}>
+                  {caixaUsado?.erro || "Você não tem caixa aberto."}
+                  <button onClick={() => setAbrirCaixaMotivo("Para receber esta venda")} className="ml-2 underline font-semibold" style={{ color: "#0E7C86" }}>Abrir o meu caixa</button>
+                </div>
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {abrirCaixaMotivo !== null && (
+        <AbrirMeuCaixaModal
+          motivo={abrirCaixaMotivo}
+          onClose={() => setAbrirCaixaMotivo(null)}
+          onAberto={(c) => { setMeuCaixa(c); setCaixaAberto(c.id); setCaixaUsado({ caixa: c }); }}
+        />
       )}
     </div>
   );

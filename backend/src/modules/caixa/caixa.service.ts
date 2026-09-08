@@ -8,7 +8,7 @@ import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
 import { resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
-import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa } from './caixa.regras';
+import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
@@ -772,13 +772,35 @@ export class CaixaService {
         'Só a recepção e o administrativo abrem caixa. Quem abre responde pelo dinheiro da gaveta.',
       );
     }
-    const count = await this.prisma.caixaSessao.count();
+    const dono = dto.userId || userId;
     // Caixa retroativo: permite abrir com uma data passada (backfill). Meio-dia p/ evitar borda de fuso.
     const abertura = aberturaRetroativa(dto.abertura);
+
+    // UM CAIXA POR PESSOA. Em 05/09/2026 a Victoria abriu TRES caixas no mesmo dia: abria, nao
+    // via na lista e abria de novo. O corte do dia ja foi consertado; esta e a outra ponta — e
+    // ficou obrigatoria agora que da pra abrir o caixa com um clique de dentro da venda.
+    // Devolve o caixa que ela ja tem, em vez de erro: ela pediu um caixa, ela tem um caixa.
+    // (Abertura retroativa e backfill de dia passado — nao entra nessa conta.)
+    if (!abertura) {
+      const abertos = await this.prisma.caixaSessao.findMany({
+        where: { status: 'ABERTO' },
+        select: { id: true, userId: true, abertura: true },
+      });
+      const ja = meuCaixaJaAberto(abertos, dono);
+      if (ja) {
+        const atual = await this.prisma.caixaSessao.findUnique({
+          where: { id: ja.id },
+          include: { user: { select: { id: true, name: true } }, recebimentos: true },
+        });
+        return { ...(atual as any), jaEstavaAberto: true };
+      }
+    }
+
+    const count = await this.prisma.caixaSessao.count();
     return this.prisma.caixaSessao.create({
       data: {
         numero: count + 1,
-        userId: dto.userId || userId,
+        userId: dono,
         suprimento: Number(dto.suprimento || 0),
         observacao: dto.observacao || null,
         ...(abertura ? { abertura } : {}),
@@ -1258,6 +1280,32 @@ export class CaixaService {
 
     const orcamento = String(dto.tipo || 'VENDA').toUpperCase() === 'ORCAMENTO';
 
+    // ── O CAIXA PRIMEIRO, A VENDA DEPOIS ────────────────────────────────────────────────
+    // Ate 08/09/2026 a venda era criada e SO ENTAO o caixa era resolvido. Desde que o caixa
+    // virou individual, essa resolucao passou a recusar — e o que sobrava era uma venda em
+    // aberto que ninguem pediu, mais um erro na tela. Era isso que a Cintia via como "nao
+    // estamos conseguindo dar baixa no caixa".
+    //
+    // Agora a recusa vem antes de gravar qualquer coisa: ou da pra receber, ou nada aconteceu.
+    const formas = orcamento ? [] : (Array.isArray(dto.formas) ? dto.formas : []);
+    const somaFormas = formas.reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
+    let caixaId: string | null = null;
+    if (somaFormas > 0.001) {
+      caixaId = dto.caixaId || null;
+      if (!caixaId) {
+        // Nucleo unico (caixa.regras): o recebimento entra no caixa de QUEM esta recebendo.
+        const abertos = await this.prisma.caixaSessao.findMany({
+          where: { status: 'ABERTO' },
+          select: { id: true, userId: true, abertura: true },
+        });
+        const r = resolverCaixaDoRecebimento(abertos, userId);
+        if (!r.caixa) throw new BadRequestException(r.erro);
+        caixaId = r.caixa.id;
+      }
+      // Mesma pergunta, mesma resposta: o que a regra escolheu tem de passar pelo dono.
+      await this.exigirDonoDoCaixa(caixaId, userId);
+    }
+
     const appointment: any = await this.appointmentsService.create({
       tutorId: dto.tutorId, petId: dto.petId,
       userId: dto.userId || userId,
@@ -1290,33 +1338,12 @@ export class CaixaService {
       examesCriados = await this.examesService.iniciarExamesDaVenda(dto.petId, comVinculo).catch(() => 0);
     }
 
-    const formas = orcamento ? [] : (Array.isArray(dto.formas) ? dto.formas : []);
-    const somaFormas = formas.reduce((s: number, f: any) => s + Number(f.valor || 0), 0);
     const temDinheiro = formas.some((f: any) => /dinheiro/i.test(f.forma || ''));
     const troco = temDinheiro && somaFormas > valorVenda ? Number((somaFormas - valorVenda).toFixed(2)) : 0;
     const valorAplicado = Math.max(0, Number((somaFormas - troco).toFixed(2)));
 
     let recebimento: any = null;
-    if (somaFormas > 0.001) {
-      let caixaId = dto.caixaId || null;
-      if (!caixaId) {
-        // Núcleo único (caixa.regras): o recebimento entra no caixa de QUEM está recebendo.
-        // A clínica opera com dois caixas abertos ao mesmo tempo e o PDV não envia caixaId —
-        // então era aqui que a venda de uma funcionária caía na gaveta da outra.
-        const abertos = await this.prisma.caixaSessao.findMany({
-          where: { status: 'ABERTO' },
-          select: { id: true, userId: true, abertura: true },
-        });
-        const r = resolverCaixaDoRecebimento(abertos, userId);
-        if (!r.caixa) throw new BadRequestException(r.erro);
-        if (r.deOutraPessoa) {
-          this.logger.warn(
-            `Recebimento lancado no caixa ${r.caixa.id}, que nao e de quem esta logada (${userId}) — ` +
-              `era o unico caixa aberto, entao nao ha ambiguidade.`,
-          );
-        }
-        caixaId = r.caixa.id;
-      }
+    if (caixaId) {
       recebimento = await this.registrarRecebimento(caixaId, {
         appointmentId: appointment.id, valorTotal: valorAplicado,
         desconto: descontoGlobal, troco, formas,

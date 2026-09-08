@@ -234,11 +234,24 @@ export default function CaixaPage() {
     return linhas.sort((a, b) => +new Date(b.data) - +new Date(a.data));
   }, [detail]);
 
+  // A MENSAGEM DO SERVIDOR CHEGA INTEIRA. Até 08/09/2026 esta tela trocava tudo por "Erro ao
+  // abrir caixa" / "Erro ao encerrar caixa" — e junto ia embora a única explicação que existia
+  // ("só a recepção e o administrativo abrem caixa", "o caixa nº 7 é da Gabriela"). A pessoa
+  // ficava sem saber o que fazer, e eu ficava sem saber o que tinha acontecido.
+  const erroDoServidor = async (r: Response, padrao: string) => {
+    const e = await r.json().catch(() => ({} as any));
+    return new Error(e?.message || padrao);
+  };
+
   const abrirCaixa = async () => {
     try {
       const r = await fetch('/api/caixa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ suprimento: Number(String(abrirForm.suprimento).replace(',', '.')) || 0, observacao: abrirForm.observacao || null, abertura: abrirForm.abertura || undefined }) });
-      if (!r.ok) throw new Error('Erro ao abrir caixa');
-      toast.success(abrirForm.abertura ? `Caixa aberto para ${abrirForm.abertura.split('-').reverse().join('/')}!` : 'Caixa aberto!'); setAbrirOpen(false); setAbrirForm({ suprimento: '', observacao: '', abertura: '' }); await fetchCaixas();
+      if (!r.ok) throw await erroDoServidor(r, 'Erro ao abrir caixa');
+      // `jaEstavaAberto`: a pessoa já tinha um caixa e o servidor devolveu esse mesmo, em vez de
+      // criar um segundo. (Em 05/09 a Victoria abriu três no mesmo dia sem perceber.)
+      const c = await r.json().catch(() => ({} as any));
+      toast.success(c?.jaEstavaAberto ? `Você já tinha o caixa nº ${c.numero} aberto.`
+        : abrirForm.abertura ? `Caixa aberto para ${abrirForm.abertura.split('-').reverse().join('/')}!` : 'Caixa aberto!'); setAbrirOpen(false); setAbrirForm({ suprimento: '', observacao: '', abertura: '' }); await fetchCaixas();
     } catch (e: any) { toast.error(e.message || 'Erro ao abrir caixa'); }
   };
   const abrirFechar = () => { setFecharForm({ valorContado: '', observacao: '' }); setFecharOpen(true); };
@@ -247,13 +260,13 @@ export default function CaixaPage() {
     const valorContado = fecharForm.valorContado === '' ? null : Number(String(fecharForm.valorContado).replace(',', '.'));
     try {
       const r = await fetch(`/api/caixa/${detail.id}/fechar`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ valorEsperado: Number(saldoDinheiro.toFixed(2)), valorContado, observacao: fecharForm.observacao || null }) });
-      if (!r.ok) throw new Error('Erro ao encerrar caixa');
+      if (!r.ok) throw await erroDoServidor(r, 'Erro ao encerrar caixa');
       toast.success('Caixa encerrado!'); setFecharOpen(false); await fetchCaixas(); await fetchDetail(detail.id);
     } catch (e: any) { toast.error(e.message || 'Erro ao encerrar caixa'); }
   };
   const reabrirCaixa = async () => {
     if (!detail) return; if (!confirm(`Reabrir o Caixa nº ${detail.numero}?`)) return;
-    try { const r = await fetch(`/api/caixa/${detail.id}/reabrir`, { method: 'PATCH' }); if (!r.ok) throw new Error('Erro ao reabrir caixa'); toast.success('Caixa reaberto!'); await fetchCaixas(); await fetchDetail(detail.id); }
+    try { const r = await fetch(`/api/caixa/${detail.id}/reabrir`, { method: 'PATCH' }); if (!r.ok) throw await erroDoServidor(r, 'Erro ao reabrir caixa'); toast.success('Caixa reaberto!'); await fetchCaixas(); await fetchDetail(detail.id); }
     catch (e: any) { toast.error(e.message || 'Erro ao reabrir caixa'); }
   };
   const abrirReceber = async (venda: Appointment) => {

@@ -1,4 +1,4 @@
-import { escolherMeuCaixa, avisoSemMeuCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa } from './caixa.regras';
+import { escolherMeuCaixa, avisoSemMeuCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, meuCaixaJaAberto } from './caixa.regras';
 
 // BLINDAGEM do caixa por operadora: com duas funcionárias e dois caixas abertos, a venda
 // de uma não pode cair na gaveta da outra (era o que acontecia até 03/09/2026).
@@ -39,20 +39,45 @@ describe('caixa.regras', () => {
     });
   });
 
+  describe('meuCaixaJaAberto (nao abrir o segundo por engano)', () => {
+    it('acha o caixa que a pessoa ja tem aberto', () => {
+      expect(meuCaixaJaAberto([caixaAna, caixaBia], ana)?.id).toBe('cx-ana');
+    });
+    it('o caixa da colega nao conta como meu', () => {
+      expect(meuCaixaJaAberto([caixaBia], ana)).toBeNull();
+    });
+  });
+
   describe('resolverCaixaDoRecebimento (a regra que a venda usa de verdade)', () => {
     it('1) usa o caixa da pessoa logada quando ela tem um aberto', () => {
       const r = resolverCaixaDoRecebimento([caixaAna, caixaBia], ana);
       expect(r.caixa?.id).toBe('cx-ana');
-      expect(r.deOutraPessoa).toBeFalsy();
+      expect(r.erro).toBeUndefined();
     });
 
-    it('2) com UM caixa aberto que nao e o meu, usa esse mesmo (nao ha ambiguidade)', () => {
-      // Caso da administradora vendendo sem ter aberto caixa proprio. Bloquear aqui
-      // travava o balcao sem proteger nada -- foi o que aconteceu em 04/09/2026.
+    it('2) com UM caixa aberto que nao e o meu, RECUSA — nao lanca na gaveta da colega', () => {
+      // Ate 08/09/2026 esta funcao entregava o caixa da colega aqui, "porque nao havia
+      // ambiguidade". Duas coisas mudaram: a Cintia decidiu que o caixa e individual, e o
+      // servico passou a exigir o dono na hora de gravar. Enquanto os dois discordaram, a
+      // venda era criada e o recebimento estourava — ninguem conseguia dar baixa.
       const r = resolverCaixaDoRecebimento([caixaBia], ana);
-      expect(r.caixa?.id).toBe('cx-bia');
-      expect(r.deOutraPessoa).toBe(true);
-      expect(r.erro).toBeUndefined();
+      expect(r.caixa).toBeNull();
+      expect(r.erro).toMatch(/proprio caixa/i);
+    });
+
+    it('a regra da funcao e a MESMA que o servico exige na hora de gravar', () => {
+      // Esta e a trava que impede o bug de voltar: o que esta funcao entrega tem de passar
+      // por podeLancarNoCaixa, sempre. Se um dia alguem reabrir o atalho, cai aqui.
+      for (const [abertos, quem] of [
+        [[caixaAna, caixaBia], ana],
+        [[caixaBia], ana],
+        [[caixaAna, caixaBia], 'user-carla'],
+        [[caixaBia], null],
+        [[], ana],
+      ] as const) {
+        const r = resolverCaixaDoRecebimento(abertos as any, quem as any);
+        if (r.caixa) expect(podeLancarNoCaixa(r.caixa.userId, quem as any)).toBe(true);
+      }
     });
 
     it('3) com DOIS caixas abertos e nenhum meu, recusa (seria cara ou coroa)', () => {
@@ -67,9 +92,10 @@ describe('caixa.regras', () => {
       expect(r.erro).toMatch(/Nenhum caixa aberto/i);
     });
 
-    it('sem usuario logado e com um caixa so, ainda funciona', () => {
+    it('sem usuario logado, recusa — sem saber quem recebeu nao ha caixa certo', () => {
       const r = resolverCaixaDoRecebimento([caixaBia], null);
-      expect(r.caixa?.id).toBe('cx-bia');
+      expect(r.caixa).toBeNull();
+      expect(r.erro).toBeTruthy();
     });
   });
 });
