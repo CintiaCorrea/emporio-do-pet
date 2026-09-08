@@ -16,10 +16,12 @@ import { PetsService } from './pets.service';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @ApiTags('pets')
 @Controller('pets')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class PetsController {
   constructor(private readonly petsService: PetsService) {}
@@ -129,10 +131,26 @@ export class PetsController {
     return this.petsService.transferir(id, body?.tutorId);
   }
 
+  // Excluir apaga em cascata as vendas vinculadas (Appointment.pet e' onDelete: Cascade).
+  // Foi por esse caminho que 22 vendas sumiram em 31/08. So ADMIN chega aqui, e o service
+  // ainda barra quem tem historico — nesse caso, arquivar.
   @Delete(':id')
-  @ApiOperation({ summary: 'Remover pet' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Remover pet (somente ADMIN, e so se nao tiver historico)' })
   remove(@Param('id') id: string) {
     return this.petsService.remove(id);
+  }
+
+  @Patch(':id/arquivar')
+  @ApiOperation({ summary: 'Arquiva o pet (reversivel; nao apaga nada)' })
+  arquivar(@Param('id') id: string) {
+    return this.petsService.arquivar(id);
+  }
+
+  @Patch(':id/restaurar')
+  @ApiOperation({ summary: 'Tira o pet do arquivo e devolve para a lista' })
+  restaurar(@Param('id') id: string) {
+    return this.petsService.restaurar(id);
   }
 
   @Get(':id/profile-stats')

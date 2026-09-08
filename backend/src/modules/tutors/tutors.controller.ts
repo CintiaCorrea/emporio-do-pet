@@ -18,6 +18,8 @@ import { TutorsService } from './tutors.service';
 import { CreateTutorDto } from './dto/create-tutor.dto';
 import { UpdateTutorDto } from './dto/update-tutor.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 class UpdateStatusDto {
   @IsEnum(TutorStatus)
@@ -38,7 +40,7 @@ class RecordPurchaseDto {
 @ApiTags('tutors')
 
 @Controller('tutors')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class TutorsController {
   constructor(private readonly tutorsService: TutorsService) {}
@@ -125,9 +127,25 @@ export class TutorsController {
     return this.tutorsService.recordPurchase(id, dto.amountCents);
   }
 
+  // Excluir apaga em cascata as vendas vinculadas (Appointment.tutor e' onDelete: Cascade).
+  // Foi por esse caminho que 22 vendas sumiram em 31/08. So ADMIN chega aqui, e o service
+  // ainda barra quem tem historico — nesse caso, arquivar.
   @Delete(':id')
-  @ApiOperation({ summary: 'Remover tutor' })
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Remover tutor (somente ADMIN, e so se nao tiver historico)' })
   remove(@Param('id') id: string) {
     return this.tutorsService.remove(id);
+  }
+
+  @Patch(':id/arquivar')
+  @ApiOperation({ summary: 'Arquiva o tutor (reversivel; nao apaga nada)' })
+  arquivar(@Param('id') id: string) {
+    return this.tutorsService.arquivar(id);
+  }
+
+  @Patch(':id/restaurar')
+  @ApiOperation({ summary: 'Tira o tutor do arquivo e devolve para a lista' })
+  restaurar(@Param('id') id: string) {
+    return this.tutorsService.restaurar(id);
   }
 }

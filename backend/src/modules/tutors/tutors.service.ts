@@ -128,7 +128,10 @@ export class TutorsService {
     // pra casar com qualquer formato (5585xxx ou 85xxx)
     const onlyDigits = search ? search.replace(/\D/g, '') : '';
     const tail9 = onlyDigits.length > 9 ? onlyDigits.slice(-9) : onlyDigits;
-    const where = search
+    // Arquivado nao aparece em busca nem em autocomplete (PDV, agenda, nova conversa).
+    // Continua no banco e volta pela tela Clientes > Arquivados.
+    const semArquivados = { status: { not: 'ARCHIVED' as any } };
+    const whereBusca = search
       ? {
           OR: /^\d{1,6}$/.test(search.trim())
             ? [
@@ -149,6 +152,7 @@ export class TutorsService {
               ],
         }
       : {};
+    const where = { AND: [semArquivados, whereBusca] };
 
     const [tutors, total] = await Promise.all([
       this.prisma.tutor.findMany({
@@ -317,11 +321,48 @@ export class TutorsService {
     });
   }
 
+  /**
+   * Excluir cliente APAGA em cascata todas as vendas/atendimentos dele (Appointment.tutor
+   * e' onDelete: Cascade) — foi assim que 22 vendas sumiram em 31/08/2026. Por isso: com
+   * QUALQUER atendimento vinculado a exclusao e' recusada e o caminho passa a ser arquivar
+   * (reversivel). Vale ate para o ADMIN: cadastro com historico nao se apaga, se arquiva.
+   */
   async remove(id: string) {
     await this.findById(id);
 
-    return this.prisma.tutor.delete({
+    const [atendimentos, vendas] = await Promise.all([
+      this.prisma.appointment.count({ where: { tutorId: id } }),
+      this.prisma.appointment.count({ where: { tutorId: id, numeroVenda: { not: null } } }),
+    ]);
+    if (atendimentos > 0) {
+      const detalhe = vendas > 0
+        ? `${vendas} venda(s) e ${atendimentos} atendimento(s)`
+        : `${atendimentos} atendimento(s)`;
+      throw new BadRequestException(
+        `TEM_HISTORICO: Este cliente tem ${detalhe} no histórico. Excluir apagaria tudo junto, sem volta. Arquive o cliente em vez de excluir — ele sai das listas e pode ser restaurado quando quiser.`,
+      );
+    }
+
+    return this.prisma.tutor.delete({ where: { id } });
+  }
+
+  /** Arquivar: some das listas, NAO apaga nada, e da pra desfazer com restaurar(). */
+  async arquivar(id: string) {
+    await this.findById(id);
+    return this.prisma.tutor.update({
       where: { id },
+      data: { status: 'ARCHIVED' as any },
+      select: { id: true, name: true, status: true },
+    });
+  }
+
+  /** Desfaz o arquivamento e devolve o cliente para a lista. */
+  async restaurar(id: string) {
+    await this.findById(id);
+    return this.prisma.tutor.update({
+      where: { id },
+      data: { status: 'ACTIVE' as any },
+      select: { id: true, name: true, status: true },
     });
   }
 

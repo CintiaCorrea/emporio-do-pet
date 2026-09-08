@@ -8,7 +8,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useRolePreview } from "@/lib/ui/RolePreview";
-import { Nivel, LISTA_PERM, LISTA_PERFIL_USUARIO, resolvePerfil, pathToKey } from "@/lib/permissions";
+import { Nivel, LISTA_PERM, LISTA_PERFIL_USUARIO, resolvePerfil, pathToKey, nivelDe } from "@/lib/permissions";
 
 interface PermCtx {
   loaded: boolean;
@@ -17,7 +17,7 @@ interface PermCtx {
   reload: () => void;
 }
 
-const Ctx = createContext<PermCtx>({ loaded: false, perfilAtual: "Admin", nivel: () => "EDITA", reload: () => {} });
+const Ctx = createContext<PermCtx>({ loaded: false, perfilAtual: "Admin", nivel: (k) => nivelDe(undefined, k), reload: () => {} });
 export const usePermissions = () => useContext(Ctx);
 
 export function PermissionsProvider({ children }: { children: React.ReactNode }) {
@@ -57,7 +57,7 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
 
   const perfilAtual = resolvePerfil({ meId, realRole, previewRole: effectiveRole, isPreviewing, userMap });
   const matriz = matrices[perfilAtual] || {};
-  const nivel = (key: string): Nivel => (matriz[key] as Nivel) || "EDITA";
+  const nivel = (key: string): Nivel => nivelDe(matriz as Record<string, Nivel>, key);
 
   return <Ctx.Provider value={{ loaded, perfilAtual, nivel, reload: load }}>{children}</Ctx.Provider>;
 }
@@ -68,6 +68,13 @@ export function useTelaNivel(): Nivel {
   const pathname = usePathname();
   const key = pathToKey(pathname || "");
   return key ? nivel(key) : "EDITA";
+}
+
+/** true se o perfil atual pode executar a ação (chave "acao:..." da matriz).
+ *  Ação destrutiva sem configuração salva vem bloqueada — ver nivelDe(). */
+export function usePodeAcao(acaoKey: string): boolean {
+  const { nivel } = usePermissions();
+  return nivel(acaoKey) === "EDITA";
 }
 
 /** C2: true se o perfil pode EDITAR a tela atual (senão é só Visualiza). */

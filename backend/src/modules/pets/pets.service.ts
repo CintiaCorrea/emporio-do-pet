@@ -323,11 +323,45 @@ export class PetsService {
     return atualizado;
   }
 
+  /**
+   * Mesmo motivo do cliente: Appointment.pet e' onDelete: Cascade, entao apagar o pet leva
+   * as vendas dele junto. Com historico, a saida e' arquivar (reversivel).
+   */
   async remove(id: string) {
     await this.findById(id);
 
-    return this.prisma.pet.delete({
+    const [atendimentos, vendas] = await Promise.all([
+      this.prisma.appointment.count({ where: { petId: id } }),
+      this.prisma.appointment.count({ where: { petId: id, numeroVenda: { not: null } } }),
+    ]);
+    if (atendimentos > 0) {
+      const detalhe = vendas > 0
+        ? `${vendas} venda(s) e ${atendimentos} atendimento(s)`
+        : `${atendimentos} atendimento(s)`;
+      throw new BadRequestException(
+        `TEM_HISTORICO: Este pet tem ${detalhe} no histórico. Excluir apagaria tudo junto, sem volta. Arquive o pet em vez de excluir — ele sai das listas e pode ser restaurado quando quiser.`,
+      );
+    }
+
+    return this.prisma.pet.delete({ where: { id } });
+  }
+
+  /** Arquivar: some das listas, NAO apaga nada, reversivel com restaurar(). */
+  async arquivar(id: string) {
+    await this.findById(id);
+    return this.prisma.pet.update({
       where: { id },
+      data: { status: 'ARCHIVED' as any },
+      select: { id: true, name: true, status: true },
+    });
+  }
+
+  async restaurar(id: string) {
+    await this.findById(id);
+    return this.prisma.pet.update({
+      where: { id },
+      data: { status: 'ACTIVE' as any },
+      select: { id: true, name: true, status: true },
     });
   }
 

@@ -1,6 +1,6 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
-import { usePodeEditar } from "@/lib/permissions/context";
+import { usePodeEditar, usePodeAcao } from "@/lib/permissions/context";
 import ResolverFuModal, { type FuAlvo } from "@/components/followup/ResolverFuModal";
 /* ─────────────────────────────────────────────────────────────
    EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
@@ -128,6 +128,13 @@ const semAcento = (s?: string | null) =>
 
 export default function ClientesPage() {
   const podeEditar = usePodeEditar(); // perfil VISUALIZA = esconde criar/excluir
+  // Excluir apaga as vendas em cascata; arquivar nao apaga nada. Quem nao pode excluir ve
+  // so o arquivar. A trava de verdade e no servidor (@Roles('ADMIN')) — isto so evita
+  // oferecer um botao que ia dar erro.
+  const podeExcluirCliente = usePodeAcao("acao:cliente.excluir");
+  const podeArquivarCliente = usePodeAcao("acao:cliente.arquivar");
+  const [verArquivados, setVerArquivados] = useState(false);
+  const [arquivandoId, setArquivandoId] = useState<string | null>(null);
   const [tutores, setTutores] = useState<Tutor[]>([]);
   const [resolverAlvo, setResolverAlvo] = useState<FuAlvo | null>(null); // resolver-com-observação (FU do cliente OU de um pet)
   // FU do cliente = o mais próximo entre o do tutor e os dos pets dele (agregado).
@@ -216,18 +223,59 @@ export default function ClientesPage() {
   const handleDeleteTutor = async (tutor: Tutor) => {
     if (deletingId) return;
     const label = tutor.name || "este cliente";
-    if (!(await confirmDelete({ entityLabel: "cliente", itemName: label, consequenceText: "Os pets vinculados também serão removidos." }))) return;
+    if (!(await confirmDelete({ entityLabel: "cliente", itemName: label, consequenceText: "Os pets e o histórico vinculados também serão removidos." }))) return;
     setDeletingId(tutor.id);
     try {
       const res = await fetch(`/api/tutors/${tutor.id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) {
+        // O servidor recusa excluir quem tem historico e explica o porque. Mostrar essa
+        // mensagem e' o que evita a pessoa insistir e procurar outro caminho pra apagar.
+        const txt = await res.text();
+        let msg = "";
+        try { msg = JSON.parse(txt)?.message || ""; } catch { msg = txt; }
+        if (msg.includes("TEM_HISTORICO")) {
+          const limpa = msg.replace("TEM_HISTORICO: ", "");
+          if (window.confirm(`${limpa}
+
+Quer arquivar agora?`)) await handleArquivar(tutor);
+          return;
+        }
+        if (res.status === 403) { window.alert("Só o perfil Admin pode excluir clientes."); return; }
+        throw new Error(txt);
+      }
       setTutores((prev) => prev.filter((x) => x.id !== tutor.id));
     } catch (e) {
       console.error(e);
-      window.alert("Nao foi possivel excluir o cliente. Tente novamente.");
+      window.alert("Não foi possível excluir o cliente. Tente novamente.");
     } finally {
       setDeletingId(null);
     }
+  };
+
+  /** Arquivar NAO apaga: tira das listas e pode ser desfeito aqui mesmo. */
+  const handleArquivar = async (tutor: Tutor) => {
+    if (arquivandoId) return;
+    if (!window.confirm(`Arquivar ${tutor.name || "este cliente"}?
+
+Ele sai das listas e da busca, mas nada e' apagado — dá pra restaurar quando quiser.`)) return;
+    setArquivandoId(tutor.id);
+    try {
+      const res = await fetch(`/api/tutors/${tutor.id}/arquivar`, { method: "PATCH" });
+      if (!res.ok) throw new Error(await res.text());
+      setTutores((prev) => prev.map((x) => (x.id === tutor.id ? { ...x, status: "ARCHIVED" } : x)));
+    } catch { window.alert("Não foi possível arquivar."); }
+    finally { setArquivandoId(null); }
+  };
+
+  const handleRestaurar = async (tutor: Tutor) => {
+    if (arquivandoId) return;
+    setArquivandoId(tutor.id);
+    try {
+      const res = await fetch(`/api/tutors/${tutor.id}/restaurar`, { method: "PATCH" });
+      if (!res.ok) throw new Error(await res.text());
+      setTutores((prev) => prev.map((x) => (x.id === tutor.id ? { ...x, status: "ACTIVE" } : x)));
+    } catch { window.alert("Não foi possível restaurar."); }
+    finally { setArquivandoId(null); }
   };
 
   useEffect(() => {
@@ -452,6 +500,8 @@ export default function ClientesPage() {
 
   const filtered = useMemo(() => {
     let arr = tutores.filter((t) => t.classificacao === "Cliente" || !t.classificacao);
+    // O arquivo e' uma visao a parte: ou voce ve a lista normal, ou ve os arquivados.
+    arr = arr.filter((t) => (verArquivados ? t.status === "ARCHIVED" : t.status !== "ARCHIVED"));
     // Duas buscas independentes que se CRUZAM (E, não OU): "renata" + "zeus" = 1 linha.
     const qc = search.trim();
     const qp = searchPet.trim();
@@ -471,7 +521,12 @@ export default function ClientesPage() {
     arr.sort((a, b) => (a.name || "").localeCompare(b.name || "", "pt-BR"));
     if (cliOrdem === "ZA") arr.reverse();
     return arr;
-  }, [tutores, search, searchPet, cliOrdem]);
+  }, [tutores, search, searchPet, cliOrdem, verArquivados]);
+
+  const qtdArquivados = useMemo(
+    () => tutores.filter((t) => t.status === "ARCHIVED" && (t.classificacao === "Cliente" || !t.classificacao)).length,
+    [tutores],
+  );
 
   // A lupa do topo manda UM termo (?q=) que pode ser nome de pet. Com uma caixinha só
   // isso funcionava (ela olhava tudo); com duas, o termo cairia na de cliente e sumiria.
@@ -514,6 +569,19 @@ export default function ClientesPage() {
           <input ref={importInputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={handleImportTutores} />
           <button onClick={() => importInputRef.current?.click()} className="bg-white border border-[#E8E2D6] px-3 py-1.5 rounded-lg text-xs text-[#5C6B70] flex items-center gap-1.5 hover:border-[#009AAC] hover:text-[#009AAC]">
             📥 Importar CSV
+          </button>
+          <button
+            onClick={() => setVerArquivados((v) => !v)}
+            title="Clientes arquivados continuam no sistema e podem ser restaurados"
+            className="border px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5"
+            style={verArquivados
+              ? { background: "#014D5E", borderColor: "#014D5E", color: "#fff" }
+              : { background: "#fff", borderColor: "#E8E2D6", color: "#5C6B70" }}
+          >
+            📦 {verArquivados ? "Voltar à lista" : "Arquivados"}
+            {!verArquivados && qtdArquivados > 0 && (
+              <span className="text-[10px] font-semibold px-1.5 rounded-full" style={{ background: "#F0EBE0", color: "#5C6B70" }}>{qtdArquivados}</span>
+            )}
           </button>
           {podeEditar && (
           <button onClick={() => { setNovoNome(""); setNovoTel(""); setNovoOpen(true); }} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5">
@@ -686,10 +754,28 @@ export default function ClientesPage() {
                     </td>
                     <td className="py-2.5 px-3 text-right text-[#4d5a66] text-[11px]" title="Soma dos valores dos atendimentos">{fmtMoney(apptStats[t.id]?.ltv || 0)}</td>
                     <td className="py-2.5 px-3 text-right">
-                      {podeEditar && (
-                      <button type="button" onClick={() => handleDeleteTutor(t)} disabled={deletingId === t.id} title="Excluir cliente" className="disabled:opacity-40 p-1 hover:bg-gray-100 rounded">
-                        <LuTrash className="w-3.5 h-3.5 text-[#cfd8e0] hover:text-[#A32D2D]" />
-                      </button>
+                      {verArquivados ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRestaurar(t)}
+                          disabled={arquivandoId === t.id}
+                          title="Tirar do arquivo e devolver para a lista"
+                          className="disabled:opacity-40 text-[11px] font-medium px-2 py-1 rounded"
+                          style={{ background: "#E7F6EE", color: "#1c7a47" }}
+                        >↶ Restaurar</button>
+                      ) : podeEditar && (
+                        <div className="inline-flex items-center gap-1">
+                          {podeArquivarCliente && (
+                            <button type="button" onClick={() => handleArquivar(t)} disabled={arquivandoId === t.id} title="Arquivar cliente (reversível)" className="disabled:opacity-40 p-1 hover:bg-gray-100 rounded">
+                              <span className="text-[13px]">📦</span>
+                            </button>
+                          )}
+                          {podeExcluirCliente && (
+                            <button type="button" onClick={() => handleDeleteTutor(t)} disabled={deletingId === t.id} title="Excluir cliente" className="disabled:opacity-40 p-1 hover:bg-gray-100 rounded">
+                              <LuTrash className="w-3.5 h-3.5 text-[#cfd8e0] hover:text-[#A32D2D]" />
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
                   </tr>

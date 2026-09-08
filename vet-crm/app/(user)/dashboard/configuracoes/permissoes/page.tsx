@@ -13,7 +13,7 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { PageShell, HeaderCard, Card, Btn, Pill, Tabs, Modal, B44 } from "@/components/ui/base44";
 import {
-  PERM_SECTIONS, PermItem, Nivel, NIVEIS, NIVEL_LABEL,
+  PERM_SECTIONS, PermItem, Nivel, NIVEIS, NIVEL_LABEL, isAcao,
   LISTA_PERFIS, LISTA_PERM, PERFIS_SISTEMA, LOCKED_KEYS,
   matrizPadrao, nivelDe,
 } from "@/lib/permissions";
@@ -75,6 +75,38 @@ function Seg({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* Controle de AÇÃO: não é tela, então "Visualiza" não significa nada aqui.
+   Só duas respostas — pode executar ou não. Guardado como EDITA / OCULTO. */
+function SegAcao({ value, onChange }: { value: Nivel; onChange: (n: Nivel) => void }) {
+  const pode = value === "EDITA";
+  const opcoes: { n: Nivel; txt: string; on: { bg: string; fg: string } }[] = [
+    { n: "OCULTO", txt: "Não pode", on: { bg: "#FDECEC", fg: "#b23b39" } },
+    { n: "EDITA", txt: "Pode", on: { bg: "#E7F6EE", fg: "#1c7a47" } },
+  ];
+  return (
+    <div className="inline-flex" style={{ background: B44.soft, border: `1px solid ${B44.line}`, borderRadius: 10, padding: 3, gap: 2 }}>
+      {opcoes.map((o) => {
+        const ativo = (o.n === "EDITA") === pode;
+        return (
+          <button
+            key={o.n}
+            type="button"
+            onClick={() => onChange(o.n)}
+            className="transition"
+            style={{
+              borderRadius: 8, padding: "4px 13px", fontSize: 12,
+              fontWeight: ativo ? 600 : 500,
+              background: ativo ? o.on.bg : "transparent",
+              color: ativo ? o.on.fg : B44.text3,
+              whiteSpace: "nowrap",
+            }}
+          >{o.txt}</button>
+        );
+      })}
     </div>
   );
 }
@@ -229,7 +261,9 @@ export default function PermissoesPage() {
       <span className="text-[13px] flex items-center gap-1.5" style={{ color: indent ? B44.text1 : B44.navy, fontWeight: indent ? 400 : 500 }}>
         <span>{item.emoji}</span>{item.label}
       </span>
-      <Seg value={nivelDe(matriz, item.key)} onChange={(n) => setNivel(active, item.key, n)} />
+      {isAcao(item.key)
+        ? <SegAcao value={nivelDe(matriz, item.key)} onChange={(n) => setNivel(active, item.key, n)} />
+        : <Seg value={nivelDe(matriz, item.key)} onChange={(n) => setNivel(active, item.key, n)} />}
     </div>
   );
 

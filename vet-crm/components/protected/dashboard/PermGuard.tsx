@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { usePermissions } from "@/lib/permissions/context";
-import { pathToKey, LOCKED_KEYS, allLeafKeys } from "@/lib/permissions";
+import { pathToKey, LOCKED_KEYS, allTelaKeys } from "@/lib/permissions";
 
 export default function PermGuard() {
   const { loaded, nivel } = usePermissions();
@@ -16,7 +16,7 @@ export default function PermGuard() {
     const key = pathToKey(pathname);
     if (key && !LOCKED_KEYS.includes(key) && nivel(key) === "OCULTO") {
       // destino seguro = 1ª tela visível (evita loop se a rota-destino também estiver oculta)
-      const dest = allLeafKeys().find((k) => nivel(k) !== "OCULTO") || "/dashboard/hoje";
+      const dest = allTelaKeys().find((k) => nivel(k) !== "OCULTO") || "/dashboard/hoje";
       toast.error("Você não tem acesso a esta tela.");
       router.replace(dest);
     }

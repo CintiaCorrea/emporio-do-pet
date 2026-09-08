@@ -149,7 +149,23 @@ export const PERM_SECTIONS: PermSection[] = [
       { key: "/dashboard/erp/dados-clinica", label: "Dados da clínica", emoji: "🏢" },
     ],
   },
+  {
+    titulo: "Ações críticas", emoji: "⚠️", itens: [
+      { key: "acao:cliente.arquivar", label: "Arquivar cliente", emoji: "📦" },
+      { key: "acao:cliente.excluir", label: "Excluir cliente", emoji: "🗑️" },
+      { key: "acao:pet.arquivar", label: "Arquivar pet", emoji: "📦" },
+      { key: "acao:pet.excluir", label: "Excluir pet", emoji: "🗑️" },
+    ],
+  },
 ];
+
+/** Prefixo das chaves que são AÇÃO (botão), não TELA (rota). */
+export const ACAO_PREFIX = "acao:";
+export const isAcao = (key: string) => key.startsWith(ACAO_PREFIX);
+
+/** Excluir cliente/pet apaga as vendas em cascata. Diferente das telas, que nascem em
+ *  EDITA (permissivo), estas nascem liberadas SÓ para o Admin. */
+export const ACOES_SO_ADMIN = ["acao:cliente.excluir", "acao:pet.excluir"];
 
 /** Todas as chaves-folha (hrefs) da matriz. */
 export function allLeafKeys(): string[] {
@@ -159,6 +175,12 @@ export function allLeafKeys(): string[] {
     else out.push(it.key);
   }
   return out;
+}
+
+/** Só as chaves de TELA (rotas). O PermGuard escolhe o destino seguro daqui — se pegasse
+ *  de allLeafKeys() poderia tentar navegar para uma chave "acao:", que não é rota. */
+export function allTelaKeys(): string[] {
+  return allLeafKeys().filter((k) => !isAcao(k));
 }
 
 /** Cargo (Role) → nome do perfil de acesso. */
@@ -171,15 +193,21 @@ export function roleToPerfil(role?: string | null): string {
 }
 
 /** Matriz padrão de um perfil: tudo EDITA (permissivo). A Cintia define os OCULTO. */
-export function matrizPadrao(_perfil: string): Record<string, Nivel> {
+export function matrizPadrao(perfil: string): Record<string, Nivel> {
   const m: Record<string, Nivel> = {};
   for (const k of allLeafKeys()) m[k] = "EDITA";
+  // Excluir cliente/pet nasce FECHADO para quem não é Admin — o permissivo padrão das
+  // telas seria perigoso numa ação que apaga venda em cascata.
+  if (perfil !== "Admin") for (const k of ACOES_SO_ADMIN) m[k] = "OCULTO";
   return m;
 }
 
 /** Nível de uma tela num perfil (default EDITA quando não definido = visível). */
 export function nivelDe(matriz: Record<string, Nivel> | undefined, key: string): Nivel {
-  return (matriz && matriz[key]) || "EDITA";
+  const v = matriz && matriz[key];
+  if (v) return v;
+  // Sem configuração salva: tela = liberada, ação destrutiva = bloqueada.
+  return ACOES_SO_ADMIN.includes(key) ? "OCULTO" : "EDITA";
 }
 
 /** Resolve o caminho atual (pathname) para a chave (href) da matriz.
@@ -187,7 +215,7 @@ export function nivelDe(matriz: Record<string, Nivel> | undefined, key: string):
  *  '/dashboard' (Painel) só casa exato. Retorna null se a rota não estiver na matriz. */
 export function pathToKey(pathname: string): string | null {
   if (!pathname) return null;
-  const keys = allLeafKeys();
+  const keys = allTelaKeys();
   if (pathname === "/dashboard") return keys.includes("/dashboard") ? "/dashboard" : null;
   let best: string | null = null;
   for (const k of keys) {
