@@ -10,6 +10,7 @@ import { usePodeEditar } from '@/lib/permissions/context';
 import { useSession } from 'next-auth/react';
 import { idDoMeuCaixa } from '@/lib/caixaAtual';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
+import { montarResumoDoCaixa, avisoDoUsoDeCredito, avisoDoAdiantamento } from '@/lib/resumoDoCaixa';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
@@ -190,24 +191,11 @@ export default function CaixaPage() {
   const mudarDia = (delta: number) => { const d = new Date(date + 'T00:00:00'); d.setDate(d.getDate() + delta); setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); };
   const tutorIdDe = (a?: Appointment | null) => a?.tutorId || a?.tutor?.id || null;
 
-  const resumo = useMemo(() => {
-    const map = new Map<string, { vendas: number; sup: number }>();
-    const add = (forma: string, campo: 'vendas' | 'sup', valor: number) => { const cur = map.get(forma) || { vendas: 0, sup: 0 }; cur[campo] += valor; map.set(forma, cur); };
-    (detail?.recebimentos || []).forEach((rec) => {
-      // formas pode vir malformado (ex.: [[]] de baixa sem forma) → achata e filtra objetos válidos.
-      const fs = (Array.isArray(rec.formas) ? (rec.formas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
-      let soma = 0;
-      fs.forEach((f: any) => { const v = Number(f.valor || 0); soma += v; add(f.forma || 'Outros', 'vendas', v); });
-      // o que sobrou do valorTotal (recebimento sem forma / forma parcial) NÃO some — cai em "Outros".
-      const resto = Number(rec.valorTotal || 0) - soma;
-      if (resto > 0.005) add('Outros', 'vendas', resto);
-    });
-    if (detail?.suprimento) add('Dinheiro', 'sup', Number(detail.suprimento));
-    (detail?.movimentos || []).filter((m) => m.tipo === 'SUPRIMENTO').forEach((m) => add(m.forma || 'Dinheiro', 'sup', Number(m.valor || 0)));
-    const linhas = Array.from(map.entries()).map(([forma, v]) => ({ forma, vendas: v.vendas, sup: v.sup, resultado: v.vendas + v.sup }));
-    const tot = linhas.reduce((s, l) => ({ vendas: s.vendas + l.vendas, sup: s.sup + l.sup, resultado: s.resultado + l.resultado }), { vendas: 0, sup: 0, resultado: 0 });
-    return { linhas, tot };
-  }, [detail]);
+  // A CONTA DO RESUMO MORA NO NUCLEO (lib/resumoDoCaixa, com teste). Ela estava aqui e estava
+  // errada: somava Vendas + Suprimentos e chamava de "Resultado", enquanto sangria, despesa e
+  // transferencia ficavam escondidas na aba de Movimentacoes. O resumo anunciava mais dinheiro
+  // do que havia na gaveta - e quem confere o caixa le o resumo.
+  const resumo = useMemo(() => montarResumoDoCaixa(detail as any), [detail]);
 
   const saldoDinheiro = useMemo(() => {
     if (!detail) return 0;
@@ -497,28 +485,88 @@ export default function CaixaPage() {
                 {tab === 'resumo' && (
                   <>
                     <div style={{ fontSize: 14, fontWeight: 600, margin: '0 0 10px' }}>Valores recebidos no caixa</div>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead><tr><th style={thStyle}>Forma de recebimento</th><th style={{ ...thStyle, textAlign: 'right' }}>Vendas</th><th style={{ ...thStyle, textAlign: 'right' }}>Suprimentos</th><th style={{ ...thStyle, textAlign: 'right' }}>Resultado</th></tr></thead>
-                      <tbody>
-                        {resumo.linhas.length === 0 && (<tr><td colSpan={4} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Nenhum valor recebido ainda.</td></tr>)}
-                        {resumo.linhas.map((l) => (
-                          <tr key={l.forma}>
-                            <td style={{ ...tdStyle, color: '#014D5E' }}>{l.forma}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right' }}>{l.vendas ? money(l.vendas) : '—'}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right' }}>{l.sup ? money(l.sup) : '—'}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500 }}>{money(l.resultado)}</td>
-                          </tr>
-                        ))}
-                        {resumo.linhas.length > 0 && (
-                          <tr style={{ borderTop: '1px solid #E8E2D6' }}>
-                            <td style={{ ...tdStyle, fontWeight: 600 }}>Total</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{money(resumo.tot.vendas)}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{money(resumo.tot.sup)}</td>
-                            <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: TEAL_DARK }}>{money(resumo.tot.resultado)}</td>
-                          </tr>
+                    {/* COLUNAS FIXAS, sempre as mesmas. A Cintia, lendo o SimplesVet: a tabela
+                        deles muda de largura conforme o caixa e isso "quebra comparacao visual
+                        entre dois caixas". O papel deles acerta; a tela, nao. Aqui vale o papel. */}
+                    <div style={{ overflowX: 'auto' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 660 }}>
+                        <thead><tr>
+                          <th style={thStyle}>Forma de recebimento</th>
+                          <th style={{ ...thStyle, textAlign: 'right' }}>Vendas</th>
+                          <th style={{ ...thStyle, textAlign: 'right' }}>Suprimentos</th>
+                          <th style={{ ...thStyle, textAlign: 'right' }}>Sangrias</th>
+                          <th style={{ ...thStyle, textAlign: 'right' }}>Despesas</th>
+                          <th style={{ ...thStyle, textAlign: 'right' }}>Transferências</th>
+                          <th style={{ ...thStyle, textAlign: 'right' }}>Total</th>
+                        </tr></thead>
+                        <tbody>
+                          {resumo.linhas.length === 0 && (<tr><td colSpan={7} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Nenhum valor recebido ainda.</td></tr>)}
+                          {resumo.linhas.map((l) => {
+                            // Saida aparece com o sinal na frente: sem isso "300,00" na coluna
+                            // Sangria parece dinheiro que entrou.
+                            const saida = (v: number) => (v ? <span style={{ color: ORANGE }}>− {money(v)}</span> : '—');
+                            return (
+                              <tr key={l.forma}>
+                                <td style={{ ...tdStyle, color: '#014D5E' }}>{l.forma}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{l.vendas ? money(l.vendas) : '—'}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{l.suprimentos ? money(l.suprimentos) : '—'}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{saida(l.sangrias)}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{saida(l.despesas)}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right' }}>{saida(l.transferencias)}</td>
+                                <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500 }}>{money(l.total)}</td>
+                              </tr>
+                            );
+                          })}
+                          {resumo.linhas.length > 0 && (
+                            <tr style={{ borderTop: '1px solid #E8E2D6' }}>
+                              <td style={{ ...tdStyle, fontWeight: 600 }}>Total</td>
+                              <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{money(resumo.total.vendas)}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>{money(resumo.total.suprimentos)}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: resumo.total.sangrias ? ORANGE : undefined }}>{resumo.total.sangrias ? `− ${money(resumo.total.sangrias)}` : money(0)}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: resumo.total.despesas ? ORANGE : undefined }}>{resumo.total.despesas ? `− ${money(resumo.total.despesas)}` : money(0)}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: resumo.total.transferencias ? ORANGE : undefined }}>{resumo.total.transferencias ? `− ${money(resumo.total.transferencias)}` : money(0)}</td>
+                              <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 700, color: TEAL_DARK }}>{money(resumo.total.total)}</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* TIPO DE MOVIMENTO QUE O NUCLEO NAO CONHECE. Sai do total (o seguro) e
+                        e denunciado - dinheiro nao some calado de uma tela de caixa. */}
+                    {resumo.tiposDesconhecidos.length > 0 && (
+                      <div style={{ marginTop: 10, fontSize: 12.5, background: '#FBF1E2', border: '1px solid #F0DCB8', color: '#8A5B00', borderRadius: 10, padding: '9px 12px' }}>
+                        ⚠️ Há movimento de tipo <b>{resumo.tiposDesconhecidos.join(', ')}</b> neste caixa. Está descontado do total, mas não tem coluna própria — me avise para eu dar um lugar a ele.
+                      </div>
+                    )}
+
+                    {/* O QUE NAO E DINHEIRO DA GAVETA - mas precisa estar escrito.
+                        A Cintia, sobre o SimplesVet: "um caixa pode exibir 'Caixa sem movimento'
+                        e ainda assim ter tido quase mil reais de servico prestado". Nos tinhamos
+                        o mesmo buraco. Somar seria contar duas vezes; omitir foi o erro dela. */}
+                    {(resumo.usoDeCredito > 0.005 || resumo.adiantamentos > 0.005) && (
+                      <div style={{ marginTop: 14, border: '1px solid #E8E2D6', borderRadius: 12, overflow: 'hidden' }}>
+                        <div style={{ background: '#FAF7F1', padding: '8px 13px', fontSize: 11.5, color: '#5C6B70', textTransform: 'uppercase', letterSpacing: '.4px' }}>Fora do total do caixa</div>
+                        {resumo.usoDeCredito > 0.005 && (
+                          <div style={{ padding: '11px 13px', borderTop: '1px solid #F0EBE0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                              <b style={{ fontSize: 13, color: '#1F2A2E' }}>Serviço pago com crédito do cliente</b>
+                              <b style={{ fontSize: 13.5, color: TEAL_DARK }}>{money(resumo.usoDeCredito)}</b>
+                            </div>
+                            <div style={{ fontSize: 11.5, color: '#5C6B70', marginTop: 3 }}>{avisoDoUsoDeCredito(resumo.usoDeCredito)}</div>
+                          </div>
                         )}
-                      </tbody>
-                    </table>
+                        {resumo.adiantamentos > 0.005 && (
+                          <div style={{ padding: '11px 13px', borderTop: '1px solid #F0EBE0' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                              <b style={{ fontSize: 13, color: '#1F2A2E' }}>Crédito comprado pelo cliente hoje</b>
+                              <b style={{ fontSize: 13.5, color: '#1F2A2E' }}>{money(resumo.adiantamentos)}</b>
+                            </div>
+                            <div style={{ fontSize: 11.5, color: '#5C6B70', marginTop: 3 }}>{avisoDoAdiantamento(resumo.adiantamentos)}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </>
                 )}
 

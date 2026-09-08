@@ -761,7 +761,16 @@ export class CaixaService {
       orderBy: { data: 'desc' },
       include: { tutor: { select: { id: true, name: true } } },
     });
-    return { ...c, creditosUtilizados };
+    // CREDITO QUE NASCEU NESTE CAIXA (adiantamento/caucao do cliente, e estorno de devolucao).
+    // O dinheiro do adiantamento ja entrou como SUPRIMENTO (credito.service) — entao no resumo
+    // ele aparece a parte, fora do total, so para dizer que aquele suprimento tem dono. Sem
+    // isso o caixa mostra um suprimento sem explicacao e ninguem sabe de quem e o dinheiro.
+    const creditosGerados = await this.prisma.creditoMovimento.findMany({
+      where: { caixaSessaoId: id, tipo: { in: ['RECARGA', 'ESTORNO'] } },
+      orderBy: { data: 'asc' },
+      include: { tutor: { select: { id: true, name: true } } },
+    });
+    return { ...c, creditosUtilizados, creditosGerados };
   }
 
   async abrir(dto: any, userId: string, papel?: string) {
