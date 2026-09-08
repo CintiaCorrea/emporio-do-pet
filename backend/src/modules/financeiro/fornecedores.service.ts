@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { inicioDoFinanceiro } from '../../common/financeiro-inicio';
 import { LancamentosService } from './lancamentos.service';
+import { ExamesService } from '../exames/exames.service';
 
 /**
  * Contas a pagar de fornecedor — geradas a partir do Caixa.
@@ -23,6 +24,8 @@ export class FornecedoresService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly lancamentos: LancamentosService,
+    // Quem sabe se o exame ja foi retirado e o modulo de exames — nao o financeiro.
+    private readonly exames: ExamesService,
   ) {}
 
   /* ---------- helpers ---------- */
@@ -89,11 +92,25 @@ export class FornecedoresService {
     // Trava do INÍCIO DO FINANCEIRO (common/financeiro-inicio.ts): a-pagar de laboratório/parceiro
     // só nasce de venda recebida a partir da data. Antes disso a venda existe só no CRM.
     const inicioFin = await inicioDoFinanceiro(this.prisma as any);
+    // O EXAME segue outra regra desde 07/09/2026 (Cintia): "o pagamento do laboratório tem que
+    // ser criado quando for para aba retirar, pois alguns clientes só pagam quando o animal é
+    // retirado da internação, então ele está na comanda, mas não está pago". O serviço do
+    // laboratório já foi prestado — esperar o cliente pagar deixaria a conta do lab presa para
+    // sempre. Então:
+    //   · exame LIGADO a um ciclo (vinculo novo) → nasce ao chegar na coluna de retirada,
+    //     recebido ou não; e NÃO nasce antes disso;
+    //   · qualquer outro item (e exame antigo, sem vínculo) → continua como era: venda recebida.
+    const prontosPorRetirada = await this.exames.itensDeVendaProntosParaPagar().catch(() => new Set<string>());
+    const comCicloDeExame = await this.exames.itensDeVendaComExame().catch(() => new Set<string>());
+
     const brutos = await this.prisma.appointmentItem.findMany({
       where: {
         fornecedorId: { not: null },
         custoUnitario: { gt: 0 },
-        appointment: { is: { recebimentos: { some: { data: { gte: inicioFin } } } } }, // venda concluída no caixa, dentro do financeiro
+        OR: [
+          { appointment: { is: { recebimentos: { some: { data: { gte: inicioFin } } } } } }, // venda concluída no caixa
+          { id: { in: [...prontosPorRetirada] } },                                            // exame retirado, pago ou não
+        ],
       },
       select: {
         id: true,
@@ -132,7 +149,11 @@ export class FornecedoresService {
       select: { appointmentItemId: true },
     });
     const processados = new Set(jaProc.map((x) => x.appointmentItemId));
-    const novos = brutos.filter((b) => b.fornecedor && !processados.has(b.id));
+    const novos = brutos
+      .filter((b) => b.fornecedor && !processados.has(b.id))
+      // Exame que TEM ciclo e ainda não chegou na retirada não gera conta a pagar, mesmo que a
+      // venda já tenha sido paga. Exame antigo (sem ciclo ligado) não é afetado.
+      .filter((b) => !comCicloDeExame.has(b.id) || prontosPorRetirada.has(b.id));
 
     const contaId = await this.contaPadrao(); // pode ser null se nada cadastrado ainda
     const catForn = await this.catFornecedor(); // P0: classifica em Custos Variáveis (senão fica "a classificar")

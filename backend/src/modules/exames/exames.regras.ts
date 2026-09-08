@@ -27,15 +27,43 @@ export function exameElegivelLote(
   return !!d.fornecedorId && !d.labAvisadoAt && ehFaseSolicitacao(d.status, inicial);
 }
 
-// ── LEMBRETE DA SOLICITAÇÃO AO LABORATÓRIO ───────────────────────────────────────────────
+// ── A COLUNA "RETIRAR" É O MARCO ─────────────────────────────────────────────────────────
 //
-// A Cintia, em 07/09/2026: "todo exame lançado na comanda deve abrir em solicitar (...) devemos
-// ter lembretes para a recepção fazer a solicitação ao laboratório" — "para a recepção às 11:00,
-// 15:00 e 17:00".
+// A Cintia, em 07/09/2026, corrigindo o gatilho que eu tinha usado: "o aviso para recepção e o
+// a pagar só aparece depois que forem para a coluna do retirar. O pagamento do laboratório tem
+// que ser criado quando for para aba retirar, pois alguns clientes só pagam quando o animal é
+// retirado da internação, então ele está na comanda, mas não está pago."
 //
-// O que o lembrete cobra é exame que ficou parado na PRIMEIRA fase: ele foi vendido, o
-// laboratório não sabe, e o resultado não vai chegar. O que já andou de fase não é lembrado —
-// alerta que grita pelo que já foi feito é alerta que a equipe aprende a ignorar.
+// Duas coisas nascem nesse momento: o lembrete da recepção (11h, 15h e 17h) e a conta a pagar do
+// laboratório. E é por isso que a conta do laboratório NÃO pode depender de a venda ter sido
+// recebida: o serviço do laboratório já foi feito, mesmo que o cliente só pague na alta.
+
+/** Ordem das fases configuradas. A comparação é POSICIONAL — nome de fase muda, ordem não. */
+export function indiceDaFase(status: string | null | undefined, fases: string[]): number {
+  const s = String(status || '').toLowerCase().trim();
+  const lista = (Array.isArray(fases) ? fases : []).map((f) => String(f || '').toLowerCase().trim());
+  return lista.indexOf(s);
+}
+
+/**
+ * O exame já chegou na coluna alvo (ou passou dela)?
+ *
+ * Posicional de propósito: "Retirado" já foi "Retirar" e pode virar outra palavra amanhã. O que
+ * não muda é que ela vem depois da solicitação. Fase desconhecida devolve false — na dúvida, não
+ * cria conta a pagar sozinho.
+ */
+export function atingiuFase(status: string | null | undefined, alvo: string, fases: string[]): boolean {
+  const iStatus = indiceDaFase(status, fases);
+  const iAlvo = indiceDaFase(alvo, fases);
+  if (iStatus < 0 || iAlvo < 0) return false;
+  return iStatus >= iAlvo;
+}
+
+/** A coluna de retirada, dentro das fases configuradas. Sem ela, nada dispara. */
+export function faseDeRetirada(fases: string[]): string | null {
+  const achada = (Array.isArray(fases) ? fases : []).find((f) => /retir/i.test(String(f || '')));
+  return achada || null;
+}
 
 export type ExameParaLembrete = {
   nome?: string | null;
@@ -46,10 +74,18 @@ export type ExameParaLembrete = {
   date?: string | null;
 };
 
-/** Precisa de lembrete? Só o que ainda está na fase de solicitação. */
-export function precisaLembrarSolicitacao(e: ExameParaLembrete, faseInicial: string): boolean {
+/**
+ * Precisa de lembrete? Só o que JÁ CHEGOU na coluna de retirada e ainda não terminou.
+ *
+ * Era a primeira fase até 07/09/2026 — a Cintia corrigiu: o que interessa lembrar é o exame que
+ * está pronto para ser retirado, não o que acabou de ser vendido.
+ */
+export function precisaLembrarRetirada(e: ExameParaLembrete, fases: string[]): boolean {
   if (!e) return false;
-  return ehFaseSolicitacao(String(e.status || ''), faseInicial);
+  const retirar = faseDeRetirada(fases);
+  if (!retirar) return false;
+  if (ehFaseConcluida(e.status)) return false;
+  return atingiuFase(e.status, retirar, fases);
 }
 
 /**
@@ -68,7 +104,7 @@ export function textoDoLembrete(exames: ExameParaLembrete[]): { titulo: string; 
   const resto = lista.length - nomes.length;
 
   return {
-    titulo: lista.length === 1 ? '1 exame esperando solicitação' : `${lista.length} exames esperando solicitação`,
-    mensagem: `Ainda não foram pedidos ao laboratório: ${nomes.join('; ')}${resto > 0 ? ` e mais ${resto}` : ''}.`,
+    titulo: lista.length === 1 ? '1 exame para retirar' : `${lista.length} exames para retirar`,
+    mensagem: `Na coluna de retirada: ${nomes.join('; ')}${resto > 0 ? ` e mais ${resto}` : ''}.`,
   };
 }

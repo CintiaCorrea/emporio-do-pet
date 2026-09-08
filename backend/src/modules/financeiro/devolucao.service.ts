@@ -3,6 +3,8 @@ import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { LancamentosService } from './lancamentos.service';
 import { calcDevolucao } from './financeiro.regras';
+import { planejarDevolucao } from './devolucao-efeitos.regras';
+import { CatalogoService } from '../catalogo/catalogo.service';
 
 /**
  * Devolução de venda (estorno completo, ligado ao Financeiro).
@@ -25,6 +27,9 @@ export class DevolucaoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly lancamentos: LancamentosService,
+    // Estoque e comissao sao as outras duas pontas da devolucao (Cintia, 07/09/2026):
+    // "devolve ao estoque / retira a comissao / lanca estorno".
+    private readonly catalogo: CatalogoService,
   ) {}
 
   private norm(s: string) {
@@ -83,7 +88,9 @@ export class DevolucaoService {
       select: {
         id: true, numeroVenda: true, date: true, value: true, tutorId: true,
         tutor: { select: { name: true } }, pet: { select: { name: true } },
-        items: { select: { id: true, descricao: true, quantidade: true, valorUnitario: true, valorTotal: true, grupo: true, marca: true } },
+        // desconto/comissao/catalogo entram porque a devolucao mexe em estoque e comissao,
+        // nao so no dinheiro (Cintia, 07/09/2026).
+        items: { select: { id: true, descricao: true, quantidade: true, valorUnitario: true, valorTotal: true, desconto: true, catalogoItemId: true, comissaoCalculada: true, comissaoExtratoId: true, grupo: true, marca: true } },
         recebimentos: { select: { formas: true, valorTotal: true } },
       },
     });
@@ -233,6 +240,11 @@ export class DevolucaoService {
       },
     });
 
+    // ── AS OUTRAS DUAS PONTAS (Cintia, 07/09/2026): estoque e comissao ──────────────────
+    // O dinheiro ja foi tratado acima. Falta devolver o produto pra prateleira e tirar a
+    // comissao de quem vendeu — senao a devolucao some do estoque e continua paga.
+    const efeitos = await this.aplicarEstoqueEComissao(selecionados, numTxt, userId);
+
     return {
       ok: true,
       devId,
@@ -242,6 +254,61 @@ export class DevolucaoService {
       parcelas: N,
       forma: formaEstorno,
       parcelasValor: parcelasCent.map((c) => c / 100),
+      ...efeitos,
     };
+  }
+
+  /**
+   * Devolve ao estoque e retira a comissao dos itens devolvidos.
+   *
+   * Duas regras que estao no nucleo (devolucao-efeitos.regras, com teste):
+   *   · so volta pro estoque o que baixou do estoque — servico e exame nao tem prateleira;
+   *   · comissao JA FECHADA em extrato nao e mexida. O fechamento do dia 30 e um acerto com
+   *     pessoas; desfazer por dentro, depois de pago, e pior que deixar e resolver na mao —
+   *     e quem avisa e a tela, com o numero, em vez do silencio.
+   */
+  private async aplicarEstoqueEComissao(
+    selecionados: any[],
+    numTxt: string,
+    userId: string,
+  ): Promise<{ devolvidosAoEstoque: number; comissoesRetiradas: number; comissoesTravadas: number }> {
+    const ids = selecionados.map((i) => i.catalogoItemId).filter(Boolean) as string[];
+    const cats = ids.length
+      ? await this.prisma.itemCatalogo.findMany({ where: { id: { in: ids } }, select: { id: true, controlaEstoque: true, nome: true } }).catch(() => [] as any[])
+      : [];
+    const porCat = new Map(cats.map((c: any) => [c.id, c]));
+
+    const plano = planejarDevolucao(
+      selecionados.map((i) => ({
+        id: i.id,
+        catalogoItemId: i.catalogoItemId ?? null,
+        controlaEstoque: i.catalogoItemId ? !!porCat.get(i.catalogoItemId)?.controlaEstoque : false,
+        quantidade: i.quantidade,
+        valorUnitario: i.valorUnitario,
+        desconto: i.desconto,
+        comissaoCalculada: i.comissaoCalculada,
+        comissaoExtratoId: i.comissaoExtratoId ?? null,
+      })),
+      selecionados.map((i) => ({ itemId: i.id, quantidade: i.quantidade })),
+    );
+
+    let devolvidosAoEstoque = 0;
+    for (const l of plano.linhas) {
+      if (!l.devolveAoEstoque || !l.catalogoItemId) continue;
+      const nome = porCat.get(l.catalogoItemId)?.nome || '';
+      await this.catalogo.movimentarEstoque(l.catalogoItemId, {
+        tipo: 'ENTRADA', quantidade: l.quantidade, origem: 'DEVOLUCAO',
+        obs: `Devolucao da venda ${numTxt}${nome ? ' — ' + nome : ''}`,
+      }, { id: userId }).then(() => { devolvidosAoEstoque++; })
+        .catch((e: any) => this.logger.error(`[devolucao] estoque: ${e?.message}`));
+    }
+
+    const paraZerar = plano.linhas.filter((l) => l.retiraComissao).map((l) => l.itemId);
+    if (paraZerar.length) {
+      await this.prisma.appointmentItem.updateMany({ where: { id: { in: paraZerar } }, data: { comissaoCalculada: 0 } })
+        .catch((e: any) => this.logger.error(`[devolucao] comissao: ${e?.message}`));
+    }
+
+    return { devolvidosAoEstoque, comissoesRetiradas: paraZerar.length, comissoesTravadas: plano.comissoesTravadas };
   }
 }

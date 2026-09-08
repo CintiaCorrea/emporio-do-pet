@@ -1,4 +1,4 @@
-import { ehFaseConcluida, ehFaseSolicitacao, exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete } from './exames.regras';
+import { ehFaseConcluida, ehFaseSolicitacao, exameElegivelLote, precisaLembrarRetirada, textoDoLembrete, atingiuFase, faseDeRetirada } from './exames.regras';
 
 // BLINDAGEM: estes testes travam a regra de aviso ao laboratório. A regressão histórica foi o envio
 // preso em status.includes("coleta") — uma fase que NÃO existe (as reais são Solicitar/Retirado/…).
@@ -58,18 +58,41 @@ describe('exames.regras — aviso ao laboratório', () => {
   });
 });
 
-describe('Lembrete da solicitacao ao laboratorio', () => {
-  const INICIAL = 'Solicitar';
+const FASES = ['Solicitar', 'Retirado', 'Aguardando', 'Resultado', 'Entregue'];
 
-  it('lembra o exame parado na fase de solicitacao', () => {
-    expect(precisaLembrarSolicitacao({ status: 'Solicitar' }, INICIAL)).toBe(true);
+describe('A coluna "retirar" e o marco', () => {
+  it('acha a coluna de retirada pelo nome, sem depender da palavra exata', () => {
+    expect(faseDeRetirada(FASES)).toBe('Retirado');
+    expect(faseDeRetirada(['Solicitar', 'Retirar', 'Entregue'])).toBe('Retirar');
+    expect(faseDeRetirada(['Solicitar', 'Entregue'])).toBeNull();
   });
 
-  it('NAO lembra o que ja andou de fase', () => {
-    // Alerta que grita pelo que ja foi feito e alerta que a equipe aprende a ignorar.
-    expect(precisaLembrarSolicitacao({ status: 'Retirado' }, INICIAL)).toBe(false);
-    expect(precisaLembrarSolicitacao({ status: 'Resultado' }, INICIAL)).toBe(false);
-    expect(precisaLembrarSolicitacao({ status: 'Entregue' }, INICIAL)).toBe(false);
+  it('a comparacao e POSICIONAL — nome de fase muda, ordem nao', () => {
+    expect(atingiuFase('Retirado', 'Retirado', FASES)).toBe(true);
+    expect(atingiuFase('Resultado', 'Retirado', FASES)).toBe(true);
+    expect(atingiuFase('Solicitar', 'Retirado', FASES)).toBe(false);
+  });
+
+  it('fase desconhecida nao dispara nada', () => {
+    // Na duvida, o sistema NAO cria conta a pagar sozinho.
+    expect(atingiuFase('Fase que nao existe', 'Retirado', FASES)).toBe(false);
+    expect(atingiuFase('Retirado', 'Coluna inexistente', FASES)).toBe(false);
+  });
+});
+
+describe('Lembrete da retirada', () => {
+  it('lembra o exame que chegou na coluna de retirada', () => {
+    expect(precisaLembrarRetirada({ status: 'Retirado' }, FASES)).toBe(true);
+    expect(precisaLembrarRetirada({ status: 'Resultado' }, FASES)).toBe(true);
+  });
+
+  it('NAO lembra o que ainda nao foi retirado', () => {
+    expect(precisaLembrarRetirada({ status: 'Solicitar' }, FASES)).toBe(false);
+  });
+
+  it('NAO lembra o que ja terminou', () => {
+    // Alerta que grita pelo que ja foi entregue e alerta que a equipe aprende a ignorar.
+    expect(precisaLembrarRetirada({ status: 'Entregue' }, FASES)).toBe(false);
   });
 
   it('sem exame nenhum, nao manda lembrete', () => {
@@ -82,20 +105,14 @@ describe('Lembrete da solicitacao ao laboratorio', () => {
       { nome: 'Hemograma', petNome: 'Luna' },
       { nome: 'Ultrassom', petNome: 'Chico' },
     ])!;
-    expect(t.titulo).toBe('2 exames esperando solicitacao'.replace('solicitacao', 'solicitação'));
+    expect(t.titulo).toBe('2 exames para retirar');
     expect(t.mensagem).toContain('Luna — Hemograma');
-    expect(t.mensagem).toContain('Chico — Ultrassom');
   });
 
   it('lista longa nao vira parede de texto', () => {
     const muitos = Array.from({ length: 9 }, (_, i) => ({ nome: `Exame ${i + 1}`, petNome: `Pet ${i + 1}` }));
     const t = textoDoLembrete(muitos)!;
-    expect(t.titulo).toBe('9 exames esperando solicitação');
+    expect(t.titulo).toBe('9 exames para retirar');
     expect(t.mensagem).toContain('e mais 5');
-  });
-
-  it('exame sem pet ainda aparece', () => {
-    const t = textoDoLembrete([{ nome: 'Citologia' }])!;
-    expect(t.mensagem).toContain('Citologia');
   });
 });

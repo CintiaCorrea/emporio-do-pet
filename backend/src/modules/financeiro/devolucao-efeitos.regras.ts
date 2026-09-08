@@ -1,4 +1,8 @@
-// A DEVOLUCAO — regras puras.
+// AS CONSEQUENCIAS NAO-FINANCEIRAS DA DEVOLUCAO — estoque e comissao.
+//
+// A parte do DINHEIRO ja existia (devolucao.service.ts): devolve o liquido menos a taxa do
+// cartao, espelha as parcelas, vira deducao "Devolucoes de Vendas" no DRE e volta como credito
+// ou dinheiro. O que faltava eram as duas outras pontas que a Cintia pediu em 07/09/2026.
 //
 // A Cintia, em 07/09/2026, quando perguntei o que a devolucao faz: "devolve ao estoque / retira
 // a comissao / lanca estorno. Acho que e melhor." E, sobre onde o dinheiro sai: "o estorno sai

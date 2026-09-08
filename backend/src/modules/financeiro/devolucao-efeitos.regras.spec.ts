@@ -1,4 +1,4 @@
-import { planejarDevolucao } from './devolucao.regras';
+import { planejarDevolucao } from './devolucao-efeitos.regras';
 
 const item = (p: any) => ({ id: 'i1', quantidade: 1, valorUnitario: 100, desconto: 0, ...p });
 

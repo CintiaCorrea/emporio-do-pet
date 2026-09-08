@@ -4,7 +4,7 @@ import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete } from './exames.regras';
+import { exameElegivelLote, precisaLembrarRetirada, textoDoLembrete, atingiuFase, faseDeRetirada } from './exames.regras';
 
 /**
  * Aviso de COLETA ao laboratório (Fatia 3 dos exames).
@@ -179,6 +179,16 @@ export class ExamesService {
   }
 
   /** 1ª fase configurada dos exames (Config › Exames = exame_fases). Fallback "Solicitado". */
+  /** As fases configuradas, na ordem (Config › Exames = exame_fases). */
+  private async fasesExame(): Promise<string[]> {
+    try {
+      const arr = await this.prisma.listaItem.findMany({ where: { lista: 'exame_fases' }, orderBy: { createdAt: 'asc' } });
+      const nomes = arr.map((i) => { try { const o = JSON.parse(i.valor); return o?.nome || i.valor; } catch { return i.valor; } }).filter(Boolean);
+      if (nomes.length) return nomes;
+    } catch { /* usa o padrao */ }
+    return ['Solicitar', 'Retirado', 'Aguardando', 'Resultado', 'Entregue'];
+  }
+
   private async faseInicialExame(): Promise<string> {
     try {
       const arr = await this.prisma.listaItem.findMany({ where: { lista: 'exame_fases' }, orderBy: { createdAt: 'asc' } });
@@ -229,6 +239,10 @@ export class ExamesService {
       const origem = it.origem || 'PDV';
       const d = {
         nome: it.descricao || it.nome || 'Exame', status: fase, date: now, externo: true,
+        // O ITEM DA VENDA que gerou este exame. Sem isso nao da pra dizer "esta conta a pagar e
+        // deste exame que chegou em retirar" — so daria pra casar por nome, que erra em cliente
+        // com dois exames iguais. (Cintia, 07/09/2026: o a-pagar nasce na coluna de retirada.)
+        itemVendaId: it.appointmentItemId || null,
         fornecedorId,
         fornecedorNome,
         custo: custo ?? (it.custoUnitario != null ? Number(it.custoUnitario) : null),
@@ -242,20 +256,62 @@ export class ExamesService {
   }
 
   /**
+   * OS ITENS DE VENDA cujo exame ja chegou na coluna de retirada.
+   *
+   * E o que autoriza a conta a pagar do laboratorio a nascer (Cintia, 07/09/2026): o servico do
+   * lab ja foi feito, mesmo que o cliente so pague na alta.
+   */
+  async itensDeVendaProntosParaPagar(): Promise<Set<string>> {
+    const fases = await this.fasesExame();
+    const retirar = faseDeRetirada(fases);
+    const prontos = new Set<string>();
+    if (!retirar) return prontos; // sem coluna de retirada configurada, nada dispara
+
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: { startsWith: 'petexa_' } },
+      select: { valor: true },
+      take: 5000,
+    }).catch(() => [] as any[]);
+
+    for (const it of itens) {
+      let d: any; try { d = JSON.parse(it.valor); } catch { continue; }
+      if (!d?.itemVendaId) continue;
+      if (atingiuFase(d.status, retirar, fases)) prontos.add(String(d.itemVendaId));
+    }
+    return prontos;
+  }
+
+  /** Todos os itens de venda que TEM ciclo de exame — com ou sem retirada. */
+  async itensDeVendaComExame(): Promise<Set<string>> {
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: { startsWith: 'petexa_' } },
+      select: { valor: true },
+      take: 5000,
+    }).catch(() => [] as any[]);
+    const todos = new Set<string>();
+    for (const it of itens) {
+      let d: any; try { d = JSON.parse(it.valor); } catch { continue; }
+      if (d?.itemVendaId) todos.add(String(d.itemVendaId));
+    }
+    return todos;
+  }
+
+  /**
    * LEMBRETE PARA A RECEPÇÃO — 11:00, 15:00 e 17:00 (Fortaleza).
    *
-   * A Cintia, em 07/09/2026: "devemos ter lembretes para a recepção fazer a solicitação ao
-   * laboratório" — "para a recepção às 11:00, 15:00 e 17:00".
+   * A Cintia, em 07/09/2026: "o aviso para recepção e o a pagar só aparece depois que forem
+   * para a coluna do retirar" — "para a recepção às 11:00, 15:00 e 17:00".
    *
    * É diferente do lote automático que avisa o LABORATÓRIO: este cutuca a NOSSA equipe sobre o
-   * exame que foi vendido e ficou parado na fase de solicitação. Exame que já andou de fase não
-   * entra — alerta que grita pelo que já foi feito é alerta que a equipe aprende a ignorar.
+   * exame que já chegou na coluna de retirada e ainda não foi entregue. O que ainda nem foi
+   * retirado não entra, e o que já terminou também não — alerta que grita pelo que já foi feito
+   * é alerta que a equipe aprende a ignorar.
    *
    * Não manda nada quando não há o que cobrar: notificação vazia todo dia às 11h ensina a
    * ignorar as cheias.
    */
   async lembrarRecepcaoDaSolicitacao(): Promise<{ exames: number; avisados: number }> {
-    const inicial = String((await this.faseInicialExame()) || '');
+    const fases = await this.fasesExame();
     const itens = await this.prisma.listaItem.findMany({
       where: { lista: { startsWith: 'petexa_' } },
       select: { id: true, lista: true, valor: true },
@@ -265,7 +321,7 @@ export class ExamesService {
     const pendentes: any[] = [];
     for (const it of itens) {
       let d: any; try { d = JSON.parse(it.valor); } catch { continue; }
-      if (!precisaLembrarSolicitacao(d, inicial)) continue;
+      if (!precisaLembrarRetirada(d, fases)) continue;
       pendentes.push(d);
     }
 
@@ -279,7 +335,7 @@ export class ExamesService {
       : [];
     const nomePorPet = new Map(pets.map((p: any) => [p.id, p.name]));
     const comPet = itens
-      .map((it) => { let d: any; try { d = JSON.parse(it.valor); } catch { return null; } return precisaLembrarSolicitacao(d, inicial) ? { ...d, petNome: d.petNome || nomePorPet.get(it.lista.replace('petexa_', '')) } : null; })
+      .map((it) => { let d: any; try { d = JSON.parse(it.valor); } catch { return null; } return precisaLembrarRetirada(d, fases) ? { ...d, petNome: d.petNome || nomePorPet.get(it.lista.replace('petexa_', '')) } : null; })
       .filter(Boolean) as any[];
     const textoFinal = textoDoLembrete(comPet) || texto;
 

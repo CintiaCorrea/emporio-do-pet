@@ -160,24 +160,13 @@ describe("o orçamento aparece onde a venda aparece", () => {
   });
 });
 
-describe("devolução: desfaz as três consequências, não apaga a venda", () => {
-  it("o botão fica dentro da venda, onde estão os itens", () => {
+describe("devolução: existe UMA só, e ela desfaz as três consequências", () => {
+  it("o ponto de venda leva para a devolução que já existia, em vez de ter a sua", () => {
+    // Erro meu em 07/09: escrevi uma segunda devolução sem ver que já havia uma completa no
+    // financeiro (taxa do cartão, parcelas, dedução no DRE, crédito ou dinheiro). Duas
+    // devoluções com contas diferentes é pior que nenhuma.
     const src = ler(PDV);
-    expect(src).toContain("abrirDevolucao");
-    expect(src).toContain("Devolver");
-  });
-
-  it("a devolução vai para o caixa aberto de hoje", () => {
-    // "O estorno sai no caixa do dia" (Cintia, 07/09/2026) — não no caixa do dia da venda.
-    expect(ler(PDV)).toContain("/api/caixa/${caixaAbertoId}/devolucao");
-  });
-
-  it("sem caixa aberto, não deixa lançar", () => {
-    expect(ler(PDV)).toContain("Sem caixa aberto não há de onde estornar");
-  });
-
-  it("avisa quando a comissão já fechada não pôde ser retirada", () => {
-    // Silêncio aqui seria o pior: a pessoa acha que a comissão saiu e ela continua paga.
-    expect(ler(PDV)).toContain("comissoesTravadas");
+    expect(src).toContain("consulta-vendas?venda=");
+    expect(src).not.toContain("/devolucao`");
   });
 });

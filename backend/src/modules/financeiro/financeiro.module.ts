@@ -27,12 +27,16 @@ import { MapVendasController } from './mapvendas.controller';
 import { MapVendasService } from './mapvendas.service';
 import { DevolucaoController } from './devolucao.controller';
 import { DevolucaoService } from './devolucao.service';
+import { CatalogoModule } from '../catalogo/catalogo.module';
+import { ExamesModule } from '../exames/exames.module';
 
 /**
  * Módulo Financeiro (DRE multi-unidade) — isolado do `finance` (FinanceEntry antigo).
  * Tabelas fin_ com prefixo, dinheiro em centavos, sem FK para o CRM.
  */
 @Module({
+  // Estoque (devolucao) e fase do exame (a-pagar do laboratorio) vivem nos modulos deles.
+  imports: [CatalogoModule, ExamesModule],
   controllers: [
     RegrasController,
     LancamentosController,
