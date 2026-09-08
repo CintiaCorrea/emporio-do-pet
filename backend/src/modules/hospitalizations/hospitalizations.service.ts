@@ -195,7 +195,13 @@ export class HospitalizationsService {
       // Venda apagada na mao (pelo caixa) nao volta sozinha: o registro dela sai do metadata.
       if (vendaSumiu) { delete vendas[dia]; mudou = true; continue; }
 
-      const acao = acaoDaVendaDoDia({ temAlgoACobrar: !!f, vendaId, vendaRecebeu });
+      // Dia fechado nao e mexido — nem para apagar. A marca vem do fechamento; para as
+      // internacoes fechadas ANTES desta correcao, o sinal e o item do dia ja estar baixado.
+      const itensDoDia = conta.filter((i: any) => diaDe(i.at) === dia);
+      const diaFechado = !!(meta as any).diasFechados?.[dia]
+        || (itensDoDia.length > 0 && itensDoDia.every((i: any) => i.baixado));
+
+      const acao = acaoDaVendaDoDia({ temAlgoACobrar: !!f, vendaId, vendaRecebeu, diaFechado });
       if (acao === 'NADA') continue;
 
       if (acao === 'APAGAR') {
@@ -306,6 +312,12 @@ export class HospitalizationsService {
         data: { valor: JSON.stringify({ ...i, _listaId: undefined, baixado: true, comandaId: venda.id, faturadoEm: new Date().toISOString() }) },
       }).catch(() => undefined);
     }
+    // O DIA FICA MARCADO COMO FECHADO. Sem esta marca, a sincronizacao olhava o dia depois do
+    // fechamento, via que nao havia mais nada a cobrar (os itens viraram "baixado") e APAGAVA a
+    // venda que o fechamento tinha acabado de criar — a conta a receber sumia do caixa, calada,
+    // na proxima vez que alguem abrisse a ficha. Defeito publicado em 07/09/2026 e corrigido em
+    // 08/09/2026, com a Cintia perguntando por recebimentos que sumiram.
+    meta.diasFechados = { ...((meta as any).diasFechados || {}), [dia]: true };
     if (f.diaria) meta.diariasFaturadas = Math.max(Number(meta.diariasFaturadas) || 0, f.diaria.indice + 1);
     (meta as any).totalFaturado = Number((meta as any).totalFaturado || 0) + value;
     await this.prisma.appointment.update({ where: { id }, data: { notes: JSON.stringify(meta) } });

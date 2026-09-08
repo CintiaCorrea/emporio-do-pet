@@ -237,3 +237,22 @@ describe('acaoDaVendaDoDia — a conta do dia em aberto e uma venda em aberto', 
     expect(acaoDaVendaDoDia({ temAlgoACobrar: true, vendaId: 'v1', diaFechado: true })).toBe('NADA');
   });
 });
+
+describe('O dia fechado nunca perde a venda (defeito de 07/09, corrigido em 08/09)', () => {
+  it('depois de fechar, a venda do dia NAO e apagada por nao haver mais o que cobrar', () => {
+    // Era o defeito: fechar o dia marcava os itens como cobrados; na proxima leitura da ficha a
+    // sincronizacao via o dia "vazio" e apagava a venda que o fechamento tinha criado. A conta a
+    // receber sumia do caixa, calada.
+    expect(acaoDaVendaDoDia({ temAlgoACobrar: false, vendaId: 'v1', diaFechado: true })).toBe('NADA');
+  });
+
+  it('dia fechado tambem nao e atualizado quando aparece lancamento novo', () => {
+    // Lancamento depois do fechamento e conta do dia SEGUINTE, nao remendo no que ja foi cobrado.
+    expect(acaoDaVendaDoDia({ temAlgoACobrar: true, vendaId: 'v1', diaFechado: true })).toBe('NADA');
+  });
+
+  it('dia ABERTO que ficou sem item continua sendo apagado', () => {
+    // Este e o caso legitimo do APAGAR: apagaram o ultimo item antes de fechar.
+    expect(acaoDaVendaDoDia({ temAlgoACobrar: false, vendaId: 'v1', diaFechado: false })).toBe('APAGAR');
+  });
+});

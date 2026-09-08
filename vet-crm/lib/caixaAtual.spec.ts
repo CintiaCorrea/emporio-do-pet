@@ -34,3 +34,24 @@ describe("o caixa é individual — ninguém lança no caixa de outra pessoa", (
     expect(rotuloCaixa(cx("a", "Gabriela"))).toContain("Gabriela");
   });
 });
+
+describe("a caixinha do caixa está no ponto de venda", () => {
+  const ler = () => require("fs").readFileSync(
+    require("path").resolve(__dirname, "..", "app/(user)/dashboard/erp/ponto-de-venda/page.tsx"), "utf8");
+
+  it("dá para ABRIR o caixa de dentro do ponto de venda", () => {
+    // Em 07/09 eu tirei o bloco "Outros caixas" e depois trouxe o painel de operações só para
+    // quem já tinha caixa — ou seja, ele sumia justamente na hora de abrir um.
+    expect(ler()).toContain("Abrir o meu caixa");
+  });
+
+  it("mostra os outros caixas abertos", () => {
+    const src = ler();
+    expect(src).toContain("Outros caixas abertos");
+    expect(src).toContain("caixasDeOutros.map");
+  });
+
+  it("e o atalho para os meus caixas", () => {
+    expect(ler()).toContain("Meus caixas");
+  });
+});

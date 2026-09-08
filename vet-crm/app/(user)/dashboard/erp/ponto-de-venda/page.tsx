@@ -1224,14 +1224,20 @@ export default function PDVPage() {
             </div>
           </div>
 
-          {/* 💵 O CAIXA À MÃO — as operações que alimentam a movimentação do caixa e o fluxo de
-              caixa no financeiro. Só aparecem com caixa aberto: sem caixa, não há onde lançar. */}
-          {caixaAbertoId && (
-            <div style={card}>
-              <div style={{ ...chLeve, justifyContent: 'space-between' }}>
-                <span style={{ color: NAVY, fontSize: 13.5, fontWeight: 500 }}>💵 Caixa {meuCaixa?.numero != null ? `nº ${meuCaixa.numero}` : 'aberto'}</span>
-                {meuCaixa?.abertura && <span style={{ fontSize: 11, color: MUT }}>{new Date(meuCaixa.abertura).toLocaleDateString('pt-BR')}</span>}
-              </div>
+          {/* 💵 O CAIXA — SEMPRE VISÍVEL.
+              Ontem eu tirei o bloco "Outros caixas" e depois trouxe o painel de operações, mas
+              só quando já havia caixa aberto — ou seja, ele sumia justamente na hora de ABRIR um.
+              A Cintia, 08/09/2026: "ficou faltando a caixinha onde abre o caixa e lista os outros
+              caixas". Voltou, com as operações junto. */}
+          <div style={card}>
+            <div style={{ ...chLeve, justifyContent: 'space-between' }}>
+              <span style={{ color: NAVY, fontSize: 13.5, fontWeight: 500 }}>
+                💵 {meuCaixa ? `Caixa nº ${meuCaixa.numero}` : 'Caixa'}
+              </span>
+              {meuCaixa?.abertura && <span style={{ fontSize: 11, color: MUT }}>{new Date(meuCaixa.abertura).toLocaleDateString('pt-BR')}</span>}
+            </div>
+
+            {meuCaixa ? (
               <div style={{ padding: 13, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 {(['SUPRIMENTO', 'SANGRIA', 'DESPESA', 'TRANSFERENCIA'] as TipoMovimento[]).map((t) => (
                   <button key={t} onClick={() => setMovTipo(t)} style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, borderRadius: 9, padding: '9px 6px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
@@ -1242,8 +1248,40 @@ export default function PDVPage() {
                   🔒 Fechar o caixa · conferir
                 </Link>
               </div>
+            ) : (
+              // Sem caixa: o que a pessoa precisa aqui é ABRIR o dela. O caixa é individual —
+              // ninguém lança no caixa de outra pessoa (lib/caixaAtual).
+              <div style={{ padding: 13 }}>
+                <div style={{ fontSize: 11.5, color: MUT, marginBottom: 8 }}>
+                  Você não tem caixa aberto. Cada pessoa lança no próprio caixa.
+                </div>
+                <Link href="/dashboard/erp/caixa" style={{ display: 'block', textDecoration: 'none', textAlign: 'center', border: 'none', borderRadius: 9, background: TEAL, color: '#fff', padding: '10px', fontSize: 12.5, fontWeight: 600 }}>
+                  ＋ Abrir o meu caixa
+                </Link>
+              </div>
+            )}
+
+            {/* OS OUTROS CAIXAS ABERTOS — informação, não destino: com o caixa individual,
+                saber quem está com caixa aberto ajuda a recepção a se organizar. */}
+            {caixasDeOutros.length > 0 && (
+              <div style={{ padding: '0 13px 13px' }}>
+                <div style={{ fontSize: 10.5, color: MUT, textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 5 }}>Outros caixas abertos</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {caixasDeOutros.map((c) => (
+                    <span key={c.id} title={`Caixa de ${c.operadorNome} — cada pessoa lança no próprio`} style={{ fontSize: 11, fontWeight: 600, color: INK2, background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 999, padding: '3px 9px', whiteSpace: 'nowrap' }}>
+                      CX {c.numero} · {c.operadorNome}{c.abertura ? ` · ${new Date(c.abertura).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ padding: '0 13px 13px' }}>
+              <Link href="/dashboard/erp/caixa" style={{ display: 'block', textDecoration: 'none', textAlign: 'center', border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', color: INK2, padding: '8px', fontSize: 12 }}>
+                💵 Meus caixas
+              </Link>
             </div>
-          )}
+          </div>
         </div>
       </div>
 

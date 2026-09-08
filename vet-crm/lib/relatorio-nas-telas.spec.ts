@@ -115,13 +115,17 @@ describe("o orçamento fica no dia em que foi feito", () => {
     expect(src).toContain("=== vendaDia");
   });
 
-  it("a coluna de vendas ficou só com a lista", () => {
-    // "Junta tudo" (Cintia, 07/09): saíram a legenda das cores e o cartão "Outros caixas" —
-    // o menu lateral já leva ao Caixa. A cor continua contando a situação, e cada linha
-    // explica no title.
+  it("o bloco do caixa tem função — não são dois atalhos vazios", () => {
+    // Historia desta trava, que vale mais que a regra:
+    //   07/09 — a Cintia mandou TIRAR o cartão "Outros caixas": eram dois links soltos pro
+    //           Caixa, sem informação nenhuma. Esta trava nasceu proibindo o texto.
+    //   08/09 — ela mandou TRAZER DE VOLTA: "ficou faltando a caixinha onde abre o caixa e
+    //           lista os outros caixas". O que ela não queria era o bloco VAZIO.
+    // Então o que a trava guarda agora não é a ausência do bloco: é que ele faça alguma coisa.
     const src = ler(PDV);
-    expect(src).not.toContain("Outros caixas");
-    expect(src).not.toContain("Meus caixas");
+    expect(src).toContain("Abrir o meu caixa");     // dá pra abrir o caixa daqui
+    expect(src).toContain("caixasDeOutros.map");     // e ver quem está com caixa aberto
+    expect(src).toContain("MovimentoCaixaModal");    // e lançar suprimento/sangria/despesa
   });
 
   it("o ponto de venda não mostra mais o resumo do dia", () => {
