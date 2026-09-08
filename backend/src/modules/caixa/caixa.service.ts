@@ -750,7 +750,7 @@ export class CaixaService {
         user: { select: { id: true, name: true } },
         recebimentos: {
           orderBy: { data: 'desc' },
-          include: { appointment: { select: { id: true, value: true, numeroVenda: true, codigoExterno: true, pet: { select: { name: true } }, tutor: { select: { name: true } } } } },
+          include: { appointment: { select: { id: true, value: true, numeroVenda: true, codigoExterno: true, pet: { select: { id: true, name: true } }, tutor: { select: { id: true, name: true } } } } },
         },
         movimentos: { orderBy: { data: 'desc' } },
       },

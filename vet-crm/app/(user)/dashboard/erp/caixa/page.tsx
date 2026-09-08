@@ -3,6 +3,7 @@
 // botao de esconder valores e exclusao de registros.
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
@@ -11,6 +12,7 @@ import { useSession } from 'next-auth/react';
 import { idDoMeuCaixa } from '@/lib/caixaAtual';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
 import { montarResumoDoCaixa, avisoDoUsoDeCredito, avisoDoAdiantamento } from '@/lib/resumoDoCaixa';
+import { agruparRecebimentos, rotuloDaVenda } from '@/lib/recebimentosDoCaixa';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
@@ -196,6 +198,12 @@ export default function CaixaPage() {
   // transferencia ficavam escondidas na aba de Movimentacoes. O resumo anunciava mais dinheiro
   // do que havia na gaveta - e quem confere o caixa le o resumo.
   const resumo = useMemo(() => montarResumoDoCaixa(detail as any), [detail]);
+
+  // A LISTA DE RECEBIMENTOS AGRUPADA POR VENDA, EM ORDEM CRONOLOGICA (lib/recebimentosDoCaixa,
+  // com teste). Conferencia de caixa se faz pela hora em que o dinheiro entrou; agrupar por
+  // venda e o que deixa a conta legivel. O SimplesVet ordena pelo numero da venda e a Cintia
+  // apontou o problema: "para conferencia de caixa, que e cronologica por natureza, atrapalha".
+  const recebPorVenda = useMemo(() => agruparRecebimentos((detail?.recebimentos || []) as any), [detail]);
 
   const saldoDinheiro = useMemo(() => {
     if (!detail) return 0;
@@ -598,28 +606,65 @@ export default function CaixaPage() {
                         </div>
                       </div>
                     )}
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                      <thead><tr><th style={thStyle}>Venda</th><th style={thStyle}>Hora</th><th style={thStyle}>Cliente · Pet</th><th style={thStyle}>Formas</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th><th style={{ ...thStyle, textAlign: 'right' }}>Status</th>{aberto && <th style={{ ...thStyle, textAlign: 'right' }} className="no-print"></th>}</tr></thead>
-                      <tbody>
-                        {(detail.recebimentos || []).length === 0 && (<tr><td colSpan={aberto ? 7 : 6} style={{ ...tdStyle, textAlign: 'center', color: '#374151', padding: 16 }}>Nenhum recebimento registrado.</td></tr>)}
-                        {(detail.recebimentos || []).map((rec) => {
-                          const value = Number(rec.appointment?.value || 0);
-                          const pago = rec.appointmentId ? pagoPorAppt.get(rec.appointmentId) || 0 : 0;
-                          const st = statusVenda(value, pago);
-                          return (
-                            <tr key={rec.id}>
-                              <td style={{ ...tdStyle, color: '#014D5E', fontWeight: 500, whiteSpace: 'nowrap' }}>{vendaLabel(rec.appointment)}</td>
-                              <td style={{ ...tdStyle, color: '#5C6B70' }}>{hora(rec.data)}</td>
-                              <td style={{ ...tdStyle, color: '#1F2A2E' }}>{rec.appointment?.tutor?.name || 'Cliente'} · {rec.appointment?.pet?.name || 'Pet'}</td>
-                              <td style={{ ...tdStyle, color: '#374151' }}>{(rec.formas || []).map((f) => f.forma).join(' + ') || '—'}</td>
-                              <td style={{ ...tdStyle, textAlign: 'right' }}>{money(Number(rec.valorTotal))}</td>
-                              <td style={{ ...tdStyle, textAlign: 'right' }}><span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.label}</span></td>
-                              {aberto && <td style={{ ...tdStyle, textAlign: 'right' }} className="no-print">{delBtn(() => delRec(rec.id))}</td>}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                    {recebPorVenda.grupos.length === 0 && (
+                      <div style={{ textAlign: 'center', color: '#374151', padding: 20, fontSize: 13 }}>Nenhum recebimento registrado.</div>
+                    )}
+
+                    {recebPorVenda.grupos.map((g) => {
+                      const st = statusVenda(g.valorDaVenda, g.appointmentId ? (pagoPorAppt.get(g.appointmentId) || 0) : g.recebido);
+                      return (
+                        <div key={g.chave} style={{ border: '1px solid #E8E2D6', borderRadius: 12, marginBottom: 10, overflow: 'hidden' }}>
+                          {/* CABECALHO DA VENDA. Cliente e venda sao LINK: a Cintia chamou de
+                              "desperdicio obvio de UX" o SimplesVet mostrar os dois como texto morto. */}
+                          <div style={{ background: '#FAF7F1', padding: '9px 13px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                              {g.numeroVenda ? (
+                                <Link href={`/dashboard/erp/consulta-vendas?venda=${g.numeroVenda}`} style={{ fontSize: 13, fontWeight: 600, color: '#014D5E', textDecoration: 'none' }}>Venda {rotuloDaVenda(g)}</Link>
+                              ) : (
+                                <span style={{ fontSize: 13, fontWeight: 600, color: '#014D5E' }}>Venda {rotuloDaVenda(g)}</span>
+                              )}
+                              <span style={{ fontSize: 12, color: '#5C6B70' }}>baixa às {hora(g.primeiraBaixa)}</span>
+                              {g.tutorId ? (
+                                <Link href={`/dashboard/erp/tutores/${g.tutorId}`} style={{ fontSize: 12.5, color: '#1F2A2E', textDecoration: 'none', borderBottom: '1px dotted #B9C4C7' }}>{g.tutorNome}</Link>
+                              ) : (
+                                <span style={{ fontSize: 12.5, color: '#1F2A2E' }}>{g.tutorNome}</span>
+                              )}
+                              {g.petNome && <span style={{ fontSize: 12.5, color: '#5C6B70' }}>· {g.petNome}</span>}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <span style={{ fontSize: 11, padding: '3px 9px', borderRadius: 20, background: st.bg, color: st.fg }}>{st.label}</span>
+                              <b style={{ fontSize: 13.5, color: '#1F2A2E' }}>{money(g.recebido)}</b>
+                            </div>
+                          </div>
+
+                          {/* AS FORMAS, uma por linha, com a condicao. O papel do SimplesVet perde
+                              o parcelamento; sem ele nao da pra conferir maquininha. */}
+                          {g.linhas.map((l, i) => (
+                            <div key={`${l.recebimentoId}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 13px', borderTop: '1px solid #F0EBE0' }}>
+                              <span style={{ fontSize: 12.5, color: '#374151', flex: 1, minWidth: 0 }}>
+                                {l.forma} <i style={{ color: '#8A9499', fontSize: 11.5 }}>({l.condicao})</i>
+                              </span>
+                              <span style={{ fontSize: 12.5, color: '#5C6B70' }}>{hora(l.data)}</span>
+                              <b style={{ fontSize: 13, minWidth: 92, textAlign: 'right' }}>{money(l.valor)}</b>
+                              {aberto && (
+                                <span className="no-print" style={{ width: 26, textAlign: 'right' }}>
+                                  {l.primeiraDaBaixa ? delBtn(() => delRec(l.recebimentoId)) : null}
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+
+                    {/* O TOTAL DA ABA. "Nao ha total da aba - para conferir o caixa a pessoa
+                        precisa ir na aba Resumo. Essa ausencia e uma lacuna real" (Cintia). */}
+                    {recebPorVenda.grupos.length > 0 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px solid #E8E2D6', paddingTop: 11, marginTop: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#1F2A2E' }}>Total recebido neste caixa</span>
+                        <b style={{ fontSize: 16, color: TEAL_DARK }}>{money(recebPorVenda.total)}</b>
+                      </div>
+                    )}
                   </>
                 )}
 
