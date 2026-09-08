@@ -1,6 +1,6 @@
 import {
   diaDe, itensDoDia, diaDaDiaria, diariasComecadas, diariaDoDia,
-  montarFechamento, diasEmAberto, podeEditarItem, totalDoItem, dentroDaSemanaDeAjuste, AJUSTE_ATE,
+  montarFechamento, diasEmAberto, podeEditarItem, totalDoItem, dentroDaSemanaDeAjuste, AJUSTE_ATE, acaoDaVendaDoDia,
 } from './fechamento.regras';
 
 // BLINDAGEM DO FECHAMENTO DIÁRIO.
@@ -206,5 +206,34 @@ describe('fechamento diário da internação', () => {
       [{ quantidade: -1, valorUnitario: 100 }, 0],
       [{}, 0],
     ])('%o = %s', (i, t) => expect(totalDoItem(i as any)).toBeCloseTo(t, 2));
+  });
+});
+
+describe('acaoDaVendaDoDia — a conta do dia em aberto e uma venda em aberto', () => {
+  it('primeiro lancamento do dia cria a venda', () => {
+    expect(acaoDaVendaDoDia({ temAlgoACobrar: true })).toBe('CRIAR');
+  });
+
+  it('lancamento seguinte atualiza a venda que ja existe', () => {
+    expect(acaoDaVendaDoDia({ temAlgoACobrar: true, vendaId: 'v1' })).toBe('ATUALIZAR');
+  });
+
+  it('apagar o ultimo item apaga a venda vazia', () => {
+    // Venda de R$ 0 no caixa e pior que venda nenhuma: a recepcao tenta receber e nao ha o que.
+    expect(acaoDaVendaDoDia({ temAlgoACobrar: false, vendaId: 'v1' })).toBe('APAGAR');
+  });
+
+  it('dia sem lancamento nenhum nao cria nada', () => {
+    expect(acaoDaVendaDoDia({ temAlgoACobrar: false })).toBe('NADA');
+  });
+
+  it('dia que JA RECEBEU dinheiro nao e tocado', () => {
+    // Sincronizar por cima de um recebimento mudaria o valor de uma conta ja paga.
+    expect(acaoDaVendaDoDia({ temAlgoACobrar: true, vendaId: 'v1', vendaRecebeu: true })).toBe('NADA');
+    expect(acaoDaVendaDoDia({ temAlgoACobrar: false, vendaId: 'v1', vendaRecebeu: true })).toBe('NADA');
+  });
+
+  it('dia fechado nao e tocado', () => {
+    expect(acaoDaVendaDoDia({ temAlgoACobrar: true, vendaId: 'v1', diaFechado: true })).toBe('NADA');
   });
 });

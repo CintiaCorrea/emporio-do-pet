@@ -21,8 +21,14 @@ describe('Lista de vendas do caixa — consulta nao e venda', () => {
     expect(ehVendaDeVerdade({ origem: 'ATENDIMENTO', itens: 0, pago: 150 })).toBe(true);
   });
 
-  it('internacao segue o caminho dela', () => {
-    expect(ehVendaDeVerdade({ origem: 'INTERNACAO', itens: 0, pago: 0 })).toBe(true);
+  it('a internacao em si NAO entra — quem entra e a venda de cada dia', () => {
+    // Desde 07/09/2026 a conta de cada dia vira venda propria. A internacao e um atendimento
+    // com o valor da diaria; se ela tambem entrasse, o mesmo dinheiro apareceria duas vezes.
+    expect(ehVendaDeVerdade({ origem: 'INTERNACAO', itens: 0, pago: 0 })).toBe(false);
+  });
+
+  it('internacao que ja recebeu continua aparecendo', () => {
+    expect(ehVendaDeVerdade({ origem: 'INTERNACAO', itens: 0, pago: 300 })).toBe(true);
   });
 
   it('linha sem origem conhecida entra — na duvida, mostra', () => {

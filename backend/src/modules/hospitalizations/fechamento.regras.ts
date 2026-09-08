@@ -209,3 +209,37 @@ export function dentroDaSemanaDeAjuste(agora?: Date | string): boolean {
   if (!Number.isFinite(t)) return false;
   return t <= new Date(AJUSTE_ATE).getTime();
 }
+
+/**
+ * O QUE FAZER COM A VENDA DE UM DIA DA INTERNACAO.
+ *
+ * A Cintia, em 07/09/2026: "e para puxar TODOS os lancamentos feitos na internacao. As
+ * informacoes devem aparecer em TODOS os lugares. Venda por data."
+ *
+ * Ate aqui, os lancamentos do dia so viravam venda quando alguem clicava "Fechar o dia". Antes
+ * disso nao existiam fora da internacao: o caixa nao via, o relatorio nao contava, e quem abria
+ * a linha da internacao no caixa encontrava valor sem item nenhum.
+ *
+ * Agora a conta do dia em aberto E uma venda em aberto, que segue os lancamentos. Fechar o dia
+ * deixou de criar venda: ele so TRAVA a que ja existe.
+ *
+ * As duas travas que importam:
+ *   · dia que ja recebeu dinheiro nao e mais tocado — sincronizar por cima de um recebimento
+ *     mudaria o valor de uma conta ja paga;
+ *   · dia fechado tambem nao — ele virou dinheiro no caixa.
+ */
+export type AcaoDaVendaDoDia = 'CRIAR' | 'ATUALIZAR' | 'APAGAR' | 'NADA';
+
+export function acaoDaVendaDoDia(p: {
+  temAlgoACobrar: boolean;
+  vendaId?: string | null;
+  vendaRecebeu?: boolean;
+  diaFechado?: boolean;
+}): AcaoDaVendaDoDia {
+  if (p?.diaFechado) return 'NADA';
+  if (p?.vendaRecebeu) return 'NADA';
+  const tem = !!p?.temAlgoACobrar;
+  const id = p?.vendaId || null;
+  if (tem) return id ? 'ATUALIZAR' : 'CRIAR';
+  return id ? 'APAGAR' : 'NADA';
+}

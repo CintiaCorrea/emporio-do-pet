@@ -14,7 +14,10 @@
 //     e venda de verdade;
 //   · atendimento clinico que JA RECEBEU dinheiro continua na lista — sumir com recebimento
 //     seria bem pior que mostrar uma linha a mais;
-//   · a internacao tem tratamento proprio (a conta e faturada dia a dia).
+//   · a internacao segue a MESMA regra, e pelo mesmo motivo: desde 07/09/2026 a conta de cada
+//     dia da internacao e uma venda propria, com os itens daquele dia. A internacao em si e um
+//     atendimento com o valor da diaria — se ela tambem entrasse na lista, o mesmo dinheiro
+//     apareceria duas vezes, uma sem item nenhum.
 
 export type LinhaDeVenda = {
   origem?: string | null;      // VENDA | ATENDIMENTO | INTERNACAO
@@ -25,7 +28,7 @@ export type LinhaDeVenda = {
 /** A linha e uma venda de verdade, que a recepcao precisa ver e cobrar? */
 export function ehVendaDeVerdade(r: LinhaDeVenda | null | undefined): boolean {
   if (!r) return false;
-  if (r.origem !== 'ATENDIMENTO') return true;
+  if (r.origem !== 'ATENDIMENTO' && r.origem !== 'INTERNACAO') return true;
   const itens = Number(r.itens) || 0;
   const pago = Number(r.pago) || 0;
   return itens > 0 || pago > 0;

@@ -5,7 +5,7 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { CreateHospitalizationDto } from './dto/create-hospitalization.dto';
 import { UpdateHospitalizationDto } from './dto/update-hospitalization.dto';
 import { diariasDevidas, diariasAFaturar } from './diaria.regras';
-import { montarFechamento, diasEmAberto, diaDe, dentroDaSemanaDeAjuste, type ItemDaConta } from './fechamento.regras';
+import { montarFechamento, diasEmAberto, acaoDaVendaDoDia, diaDe, dentroDaSemanaDeAjuste, type ItemDaConta } from './fechamento.regras';
 
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -135,6 +135,125 @@ export class HospitalizationsService {
    * venda. Era exatamente isso que faltava quando "Comanda do dia" e "Enviar pro Caixa"
    * se ignoravam e cobravam o cliente duas vezes.
    */
+  /**
+   * A CONTA DO DIA EM ABERTO E UMA VENDA EM ABERTO.
+   *
+   * Pedido da Cintia (07/09/2026): "e para puxar TODOS os lancamentos feitos na internacao. As
+   * informacoes devem aparecer em TODOS os lugares. Venda por data."
+   *
+   * Antes, os lancamentos do dia so viravam venda quando alguem clicava "Fechar o dia" — ate la
+   * eles nao existiam fora da internacao. Agora cada dia em aberto tem a sua venda, que segue os
+   * lancamentos, e fechar o dia so trava a venda que ja existe.
+   *
+   * Roda na LEITURA da internacao de proposito: a tela grava item por quatro caminhos diferentes
+   * (lancamento manual, cobranca automatica da prescricao, diaria automatica e o "editar o dia"),
+   * e todos recarregam a internacao em seguida. Um ponto so de sincronismo erra menos que quatro
+   * pontos de escrita — e pega tambem os caminhos que eu nao conheco.
+   *
+   * Nunca toca em dia que ja recebeu dinheiro nem em dia fechado. Falhar aqui nao pode derrubar
+   * a ficha: a internacao abre do mesmo jeito, so nao sincroniza.
+   */
+  private async sincronizarVendasDosDiasAbertos(id: string, userId?: string): Promise<void> {
+    const appt = await this.prisma.appointment.findUnique({
+      where: { id },
+      select: { id: true, tutorId: true, petId: true, date: true, notes: true, userId: true },
+    });
+    if (!appt?.tutorId) return;
+    const meta: any = this.parseMetadata(appt.notes);
+    if (!meta) return;
+
+    const conta = await this.lerConta(id);
+    const abertos = diasEmAberto({
+      itens: conta,
+      entrada: appt.date,
+      ate: new Date(),
+      diariaValor: Number(meta.dailyRate) || 0,
+      diariasFaturadas: Number(meta.diariasFaturadas) || 0,
+      diariasGeradas: !!meta?.vitalSigns?.diariasGeradas,
+    });
+
+    const vendas: Record<string, string> = { ...(meta.vendasDoDia || {}) };
+    const diasComAlgo = new Set(abertos.map((f) => f.dia));
+    // Dias que tinham venda e ficaram sem nada a cobrar entram na volta para serem apagados.
+    for (const dia of Object.keys(vendas)) diasComAlgo.add(dia);
+
+    let mudou = false;
+    for (const dia of [...diasComAlgo].sort()) {
+      const f = abertos.find((x) => x.dia === dia);
+      const vendaId = vendas[dia] || null;
+
+      let vendaRecebeu = false;
+      let vendaSumiu = false;
+      if (vendaId) {
+        const v = await this.prisma.appointment.findUnique({
+          where: { id: vendaId },
+          select: { id: true, recebimentos: { select: { id: true }, take: 1 } },
+        }).catch(() => null);
+        if (!v) vendaSumiu = true;
+        else vendaRecebeu = (v.recebimentos || []).length > 0;
+      }
+      // Venda apagada na mao (pelo caixa) nao volta sozinha: o registro dela sai do metadata.
+      if (vendaSumiu) { delete vendas[dia]; mudou = true; continue; }
+
+      const acao = acaoDaVendaDoDia({ temAlgoACobrar: !!f, vendaId, vendaRecebeu });
+      if (acao === 'NADA') continue;
+
+      if (acao === 'APAGAR') {
+        await this.prisma.appointment.delete({ where: { id: vendaId as string } }).catch(() => undefined);
+        delete vendas[dia];
+        mudou = true;
+        continue;
+      }
+
+      const items = this.itensDaVendaDoDia(f as any, dia, meta);
+      const value = items.reduce((t, i) => t + Number(i.valorTotal || 0), 0);
+
+      if (acao === 'CRIAR') {
+        const nova: any = await this.appointmentsService.create({
+          tutorId: appt.tutorId, petId: appt.petId || undefined, userId: userId || appt.userId || undefined,
+          // A venda leva a data do DIA, nao a de agora — o faturamento fica no dia em que
+          // o atendimento aconteceu.
+          date: new Date(`${dia}T12:00:00-03:00`).toISOString(),
+          type: 'Venda', status: 'COMPLETED', value, items,
+        } as any).catch(() => null);
+        if (nova?.id) { vendas[dia] = nova.id; mudou = true; }
+      } else {
+        await this.appointmentsService.update(vendaId as string, { value, items } as any).catch(() => undefined);
+      }
+    }
+
+    if (mudou) {
+      meta.vendasDoDia = vendas;
+      await this.prisma.appointment.update({ where: { id }, data: { notes: JSON.stringify(meta) } }).catch(() => undefined);
+    }
+  }
+
+  /** As linhas da venda de um dia: a diaria (quando devida) e os itens lancados naquele dia. */
+  private itensDaVendaDoDia(f: any, dia: string, meta: any): any[] {
+    const items: any[] = [];
+    if (f?.diaria) {
+      items.push({
+        descricao: `Diária de internação — ${dia.slice(8)}/${dia.slice(5, 7)}`,
+        quantidade: 1, valorUnitario: f.diaria.valor, valorTotal: f.diaria.valor,
+        servicoId: meta.diariaServicoId || undefined,
+        catalogoItemId: meta.diariaCatalogoItemId || undefined,
+        custoUnitario: meta.diariaCusto != null ? Number(meta.diariaCusto) : undefined,
+      });
+    }
+    for (const i of (f?.itens || []) as any[]) {
+      const q = Number(i.quantidade) || 1, vu = Number(i.valorUnitario) || 0;
+      items.push({
+        descricao: i.descricao || 'Item', quantidade: q, valorUnitario: vu, valorTotal: q * vu,
+        servicoId: i.servicoId || undefined,
+        productId: i.productId || undefined,
+        catalogoItemId: i.catalogoItemId || undefined,
+        custoUnitario: i.custoUnitario != null ? Number(i.custoUnitario) : undefined,
+        fornecedorId: i.fornecedorId || undefined,
+      });
+    }
+    return items;
+  }
+
   async fecharDia(id: string, dia: string, userId: string) {
     const appt = await this.prisma.appointment.findUnique({ where: { id }, select: { id: true, tutorId: true, petId: true, date: true, notes: true } });
     if (!appt) throw new NotFoundException('Internação não encontrada');
@@ -152,36 +271,32 @@ export class HospitalizationsService {
     });
     if (f.vazio) throw new BadRequestException(`Não há nada a cobrar em ${dia.slice(8)}/${dia.slice(5, 7)}.`);
 
-    const items: any[] = [];
-    if (f.diaria) {
-      items.push({
-        descricao: `Diária de internação — ${dia.slice(8)}/${dia.slice(5, 7)}`,
-        quantidade: 1, valorUnitario: f.diaria.valor, valorTotal: f.diaria.valor,
-        servicoId: meta.diariaServicoId || undefined,
-        catalogoItemId: meta.diariaCatalogoItemId || undefined,
-        custoUnitario: meta.diariaCusto != null ? Number(meta.diariaCusto) : undefined,
-      });
-    }
-    for (const i of f.itens) {
-      const q = Number(i.quantidade) || 1, vu = Number(i.valorUnitario) || 0;
-      items.push({
-        descricao: i.descricao || 'Item', quantidade: q, valorUnitario: vu, valorTotal: q * vu,
-        servicoId: (i as any).servicoId || undefined,
-        productId: (i as any).productId || undefined,
-        catalogoItemId: (i as any).catalogoItemId || undefined,
-        custoUnitario: (i as any).custoUnitario != null ? Number((i as any).custoUnitario) : undefined,
-        fornecedorId: (i as any).fornecedorId || undefined,
-      });
-    }
+    const items = this.itensDaVendaDoDia(f, dia, meta);
     const value = items.reduce((s, i) => s + Number(i.valorTotal), 0);
 
-    const venda: any = await this.appointmentsService.create({
-      tutorId: appt.tutorId, petId: appt.petId || undefined, userId,
-      // A venda leva a DATA DO DIA FECHADO, nao a de agora: fechar segunda na terca de
-      // manha nao pode jogar o faturamento da segunda pra terca.
-      date: new Date(`${dia}T12:00:00-03:00`).toISOString(),
-      type: 'Venda', status: 'COMPLETED', value, items,
-    } as any);
+    // A venda do dia JA EXISTE — ela nasce no primeiro lancamento e segue a conta
+    // (sincronizarVendasDosDiasAbertos). Fechar o dia nao cria outra: sincroniza pela ultima
+    // vez e trava. Criar aqui de novo, como era ate 07/09/2026, cobraria o dia duas vezes.
+    await this.sincronizarVendasDosDiasAbertos(id, userId);
+    const metaAtual: any = this.parseMetadata(
+      (await this.prisma.appointment.findUnique({ where: { id }, select: { notes: true } }))?.notes,
+    ) || meta;
+    meta.vendasDoDia = { ...(metaAtual.vendasDoDia || {}) };
+    const vendaId = meta.vendasDoDia?.[dia];
+
+    let venda: any = vendaId
+      ? await this.prisma.appointment.findUnique({ where: { id: vendaId }, select: { id: true, numeroVenda: true } })
+      : null;
+    // Cinto de seguranca: se por qualquer motivo a venda do dia nao existir, cria agora — o
+    // fechamento nunca pode deixar o dia sem cobranca.
+    if (!venda) {
+      venda = await this.appointmentsService.create({
+        tutorId: appt.tutorId, petId: appt.petId || undefined, userId,
+        date: new Date(`${dia}T12:00:00-03:00`).toISOString(),
+        type: 'Venda', status: 'COMPLETED', value, items,
+      } as any);
+      meta.vendasDoDia[dia] = venda.id;
+    }
 
     // Marca o que entrou. Falhar aqui seria pior que nao ter fechado: o item ficaria
     // cobrado na venda e livre na conta, pronto pra ser cobrado de novo.
@@ -472,6 +587,11 @@ export class HospitalizationsService {
   }
 
   async getById(id: string) {
+    // A conta do dia em aberto vira venda em aberto aqui. É o único ponto por onde todos os
+    // caminhos de lançamento passam (a tela recarrega a internação depois de cada um), e é
+    // best-effort de propósito: se a sincronização falhar, a ficha abre do mesmo jeito.
+    await this.sincronizarVendasDosDiasAbertos(id).catch(() => undefined);
+
     const appointment = await this.prisma.appointment.findUnique({
       where: { id },
       include: {
