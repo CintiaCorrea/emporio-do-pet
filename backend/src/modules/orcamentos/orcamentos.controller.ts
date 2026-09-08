@@ -19,13 +19,18 @@ export class OrcamentosController {
   @ApiQuery({ name: 'petId', required: false })
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'busca', required: false })
+  @ApiQuery({ name: 'tutorId', required: false })
   list(
     @Query('petId') petId?: string,
     @Query('status') status?: string,
     @Query('busca') busca?: string,
+    // Por CLIENTE: o orcamento passa a aparecer no historico dele, com data e itens, do mesmo
+    // jeito que a venda aparece (Cintia, 07/09/2026) — inclusive o enviado pelo WhatsApp, que
+    // e gravado aqui como qualquer outro.
+    @Query('tutorId') tutorId?: string,
   ) {
     if (petId) return this.orcamentosService.findByPet(petId);
-    return this.orcamentosService.findAll({ status, busca });
+    return this.orcamentosService.findAll({ status, busca, tutorId });
   }
 
   @Get(':id')

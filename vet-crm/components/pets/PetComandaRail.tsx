@@ -489,7 +489,21 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                     <span className="text-[12.5px] font-semibold text-[#0F6E56]">{BRL(o.valorTotal)}</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: conv ? "#E6F1FB" : st.b, color: conv ? "#185FA5" : st.c }}>{conv ? "Vendido" : st.l}</span>
                   </div>
-                  <div className="text-[11px] text-gray-400 mt-0.5">{o.createdAt ? new Date(o.createdAt).toLocaleDateString("pt-BR") : ""} · {(o.itens || []).length} itens</div>
+                  <div className="text-[11px] text-gray-400 mt-0.5">{o.createdAt ? new Date(o.createdAt).toLocaleDateString("pt-BR") : ""} · {(o.itens || []).length} {(o.itens || []).length === 1 ? "item" : "itens"}</div>
+                  {/* OS ITENS, e não só a contagem: "com data e itens, como a venda aparece"
+                      (Cintia, 07/09/2026). Orçamento que não diz o que tem dentro obriga a
+                      abrir o PDF pra saber o que foi proposto ao cliente. */}
+                  {(o.itens || []).length > 0 && (
+                    <div className="mt-1 border-t pt-1" style={{ borderColor: "#F5F1E8" }}>
+                      {(o.itens || []).map((it: any, i: number) => (
+                        <div key={i} className="flex justify-between gap-2 text-[11px] text-[#5C6B70] py-[1px]">
+                          <span className="truncate">{(Number(it.quantidade) || 1) > 1 ? `${Number(it.quantidade)}× ` : ""}{it.descricao || "Item"}</span>
+                          <span className="tabular-nums shrink-0">{BRL((Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0))}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {o.observacao ? <div className="text-[10.5px] text-gray-400 mt-1"><b>Obs:</b> {o.observacao}</div> : null}
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
                     <button onClick={() => imprimirOrcamento(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={11} /> Imprimir</button>
                     {!conv && <button onClick={() => converterOrc(o.id)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded text-white" style={{ background: "#009AAC" }}><LuArrowRight size={11} /> Transformar em venda</button>}

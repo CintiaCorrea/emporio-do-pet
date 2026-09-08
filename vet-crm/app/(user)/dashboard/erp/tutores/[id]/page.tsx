@@ -201,6 +201,12 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const [notaOpen, setNotaOpen] = useState(false);
   const [situacaoOpen, setSituacaoOpen] = useState(false);
   const [comprasPet, setComprasPet] = useState<string>("");
+  // ORÇAMENTOS DO CLIENTE — "o orçamento passa a aparecer na ficha do pet e no histórico do
+  // cliente, com data e itens, como a venda aparece" (Cintia, 07/09/2026), incluindo o que sai
+  // pelo WhatsApp: ele é gravado aqui como qualquer outro. Continua FORA do total gasto — é
+  // proposta, não dinheiro.
+  const [orcamentos, setOrcamentos] = useState<any[]>([]);
+  const [orcAberto, setOrcAberto] = useState<string>("");
   const [emailOpen, setEmailOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
   const [tutor, setTutor] = useState<TutorDetail | null>(null);
@@ -361,6 +367,14 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     try { const r = await fetch(`/api/tutors/${id}/profile-stats`); if (r.ok) setStats(await r.json()); } catch {}
   }
   useEffect(() => { load(); loadStats(); loadInteracoes(); loadTemplates(); loadPipelineCliente();
+    // Os orçamentos deste cliente, para o histórico de Compras.
+    (async () => {
+      try {
+        const r = await fetch(`/api/orcamentos?tutorId=${id}`, { cache: "no-store" });
+        const d = await r.json().catch(() => []);
+        setOrcamentos(Array.isArray(d) ? d : (d.data || d.orcamentos || []));
+      } catch { setOrcamentos([]); }
+    })();
     (async () => { try { const r = await fetch(`/api/listas?lista=origens`, { cache: "no-store" }); const d = await r.json(); const arr = Array.isArray(d) ? d : (d.itens || d.data || []); setOrigensCat(arr.map((i: any) => { const v = i?.valor; if (typeof v !== "string") return ""; const t = v.trim(); if (t.startsWith("{")) { try { const o = JSON.parse(t); return o.nome || o.valor || t; } catch { return t; } } return t; }).filter(Boolean)); } catch {} })();
     (async () => {
       try { const u = await fetch(`/api/users`, { cache: "no-store" }).then((r) => r.json()).catch(() => []); const arr = Array.isArray(u) ? u : (u.users || u.data || []); setFuStaff(arr.filter((x: any) => !x.isBlocked)); } catch {}
@@ -517,6 +531,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     (comprasPorPet[k] = comprasPorPet[k] || []).push(a);
   }
   const comprasFiltradas = comprasPet && comprasPorPet[comprasPet] ? comprasPorPet[comprasPet] : compras;
+  // O mesmo filtro de pet vale para o orçamento. Ele NÃO entra no total gasto: é proposta.
+  const orcamentosFiltrados = (orcamentos || [])
+    .filter((o: any) => !comprasPet || o?.pet?.name === comprasPet)
+    .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   // Selos de conquista (dados reais)
   const anosCasa = Math.max(0, new Date().getFullYear() - new Date(tutor.primeiraCompraAt || tutor.createdAt).getFullYear());
   const aniversarioNoMes = tutor.birthDate ? new Date(tutor.birthDate).getMonth() === new Date().getMonth() : false;
@@ -1068,7 +1086,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         </div>
         <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "6px 15px" }}>
-          {comprasFiltradas.length === 0 && <p className="text-[12.5px] text-[#374151] py-3 text-center">Nenhuma compra registrada{comprasPet ? ` para ${comprasPet}` : ""} ainda.</p>}
+          {comprasFiltradas.length === 0 && orcamentosFiltrados.length === 0 && <p className="text-[12.5px] text-[#374151] py-3 text-center">Nenhuma compra registrada{comprasPet ? ` para ${comprasPet}` : ""} ainda.</p>}
           {comprasFiltradas.map((a, i) => (
             <Link key={a.id} href={`/dashboard/erp/atendimentos/${a.id}`} className="flex items-center gap-2.5 py-2.5 hover:opacity-70 transition-opacity" style={{ borderBottom: i < comprasFiltradas.length - 1 ? "1px solid #F0EBE0" : "none" }}>
               <span className="text-[11.5px] text-[#374151] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
@@ -1078,6 +1096,42 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
               <span className="text-[#374151] text-[12px] shrink-0">›</span>
             </Link>
           ))}
+
+          {/* ORÇAMENTOS — na mesma lista, em CINZA: é proposta, não dinheiro. Ficam fora do
+              total gasto de propósito. Clicar abre os itens, que é o que o cliente recebeu. */}
+          {orcamentosFiltrados.map((o: any) => {
+            const aberto = orcAberto === o.id;
+            const convertido = !!o.appointmentId;
+            return (
+              <div key={o.id} style={{ borderTop: "1px solid #F0EBE0" }}>
+                <button onClick={() => setOrcAberto(aberto ? "" : o.id)} className="flex items-center gap-2.5 py-2.5 w-full text-left hover:opacity-70 transition-opacity">
+                  <span className="text-[11.5px] text-[#374151] w-[46px] shrink-0">{fmtDataBR(o.createdAt).slice(0, 5)}</span>
+                  <span className="flex-1 text-[12.5px] text-[#5C6B70] truncate">
+                    Orçamento
+                    <span className="ml-1.5 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={convertido ? { background: "#E6F1FB", color: "#185FA5" } : { background: "#F1F0EE", color: "#6B7280" }}>
+                      {convertido ? "VIROU VENDA" : "PROPOSTA"}
+                    </span>
+                  </span>
+                  {o.pet?.name && <span className="text-[11px] text-[#374151] shrink-0">🐾 {o.pet.name}</span>}
+                  <span className="text-[12.5px] text-[#6B7280] font-medium shrink-0">{money(o.valorTotal)}</span>
+                  <span className="text-[#374151] text-[12px] shrink-0">{aberto ? "⌄" : "›"}</span>
+                </button>
+                {aberto && (
+                  <div className="pb-2.5 pl-[58px]">
+                    {(o.itens || []).length === 0 && <div className="text-[11.5px] text-[#374151]">Sem itens.</div>}
+                    {(o.itens || []).map((it: any, i: number) => (
+                      <div key={i} className="flex justify-between gap-2 text-[11.5px] text-[#5C6B70] py-[1px]">
+                        <span className="truncate">{(Number(it.quantidade) || 1) > 1 ? `${Number(it.quantidade)}× ` : ""}{it.descricao || "Item"}</span>
+                        <span className="tabular-nums shrink-0">{money((Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0))}</span>
+                      </div>
+                    ))}
+                    {o.observacao ? <div className="text-[11px] text-[#374151] mt-1"><b>Obs:</b> {o.observacao}</div> : null}
+                    {convertido && <div className="text-[11px] mt-1" style={{ color: "#185FA5" }}>Já virou venda — não cobre de novo.</div>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
       )}

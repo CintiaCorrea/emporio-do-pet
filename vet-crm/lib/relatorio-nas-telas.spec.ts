@@ -132,3 +132,30 @@ describe("o orçamento fica no dia em que foi feito", () => {
     expect(src).not.toContain("aReceberHoje");
   });
 });
+
+describe("o orçamento aparece onde a venda aparece", () => {
+  it("a ficha do pet mostra os ITENS do orçamento, não só a contagem", () => {
+    // "com data e itens, como a venda aparece" (Cintia, 07/09/2026). Antes dizia só "3 itens",
+    // e para saber o que foi proposto ao cliente era preciso abrir o PDF.
+    const src = ler("components/pets/PetComandaRail.tsx");
+    expect(src).toContain("(o.itens || []).map");
+  });
+
+  it("o histórico do cliente traz os orçamentos dele", () => {
+    const src = ler("app/(user)/dashboard/erp/tutores/[id]/page.tsx");
+    expect(src).toContain("/api/orcamentos?tutorId=");
+    expect(src).toContain("orcamentosFiltrados");
+  });
+
+  it("orçamento convertido avisa que já virou venda", () => {
+    // O vínculo existe no banco (appointmentId). Mostrá-lo é o que impede cobrar duas vezes.
+    expect(ler("app/(user)/dashboard/erp/tutores/[id]/page.tsx")).toContain("Já virou venda");
+  });
+
+  it("orçamento não entra no total gasto do cliente", () => {
+    // Proposta não é dinheiro. O total do cliente continua somando só as compras.
+    const src = ler("app/(user)/dashboard/erp/tutores/[id]/page.tsx");
+    expect(src).toContain("comprasFiltradas.reduce((s, a) => s + (a.value || 0), 0)");
+    expect(src).not.toContain("orcamentosFiltrados.reduce");
+  });
+});

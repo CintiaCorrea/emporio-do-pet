@@ -49,9 +49,10 @@ export class OrcamentosService {
   }
 
   // Busca global de orçamentos (localizar) — filtro por status + busca por tutor/pet
-  async findAll(params?: { status?: string; busca?: string }) {
-    const { status, busca } = params || {};
+  async findAll(params?: { status?: string; busca?: string; tutorId?: string }) {
+    const { status, busca, tutorId } = params || {};
     const where: any = {};
+    if (tutorId && tutorId.trim()) where.tutorId = tutorId.trim();
     if (status && status !== 'TODOS') where.status = status;
     if (busca && busca.trim()) {
       const q = busca.trim();
