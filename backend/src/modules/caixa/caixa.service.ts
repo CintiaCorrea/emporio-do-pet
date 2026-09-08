@@ -9,6 +9,7 @@ import { ensureNumeroVenda } from '../../common/venda-numero';
 import { resolverCaixaDoRecebimento } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa } from './caixa.regras';
+import { ehVendaDeVerdade } from './lista-de-vendas.regras';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
 // Ver caixa.regras.faixaDoDia: caixa aberto as 21h30 nascia no dia seguinte e sumia da
@@ -126,6 +127,9 @@ export class CaixaService {
         tutor: { select: { id: true, name: true } },
         user: { select: { id: true, name: true } },
         recebimentos: { select: { valorTotal: true } },
+        // Quantos itens a venda tem — e o que separa a venda de verdade da consulta que ganhou
+        // numero so por ter preco (ver lista-de-vendas.regras).
+        _count: { select: { items: true } },
       },
       orderBy: { date: 'desc' },
       take: abertas ? 300 : 60,
@@ -145,11 +149,15 @@ export class CaixaService {
         pet: a.pet?.name || '', petSpecies: a.pet?.species || null,
         vet: a.user?.name || null,
         valor, pago, aberto: Math.max(0, valor - pago), status: a.paymentStatus,
+        itens: a._count?.items ?? 0,
         pagoTotal: pago >= valor - 0.001 && valor > 0, date: a.date, origem,
       };
     });
     // "Comandas abertas": só o que ainda tem saldo e NÃO é internação (essa é faturada pela conta da F5)
     if (abertas) rows = rows.filter((r) => !r.pagoTotal && r.origem !== 'INTERNACAO');
+    // Consulta clínica não é venda (Cintia, 07/09/2026). Vale para a lista do dia também — era
+    // por ali que ela entrava, porque o número de venda é dado a todo atendimento com preço.
+    rows = rows.filter(ehVendaDeVerdade);
     return rows;
   }
 
