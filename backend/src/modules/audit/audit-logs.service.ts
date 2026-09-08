@@ -6,6 +6,8 @@ interface ListParams {
   from?: string;
   to?: string;
   module?: string;
+  /** Filtra a trilha de UMA coisa so (ex.: um caixa). Ver o comentario em `list`. */
+  entityId?: string;
   userId?: string;
   search?: string;
   page?: number;
@@ -17,7 +19,7 @@ export class AuditLogsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(params: ListParams) {
-    const { from, to, module, userId, search } = params;
+    const { from, to, module, userId, search, entityId } = params;
     const page = Number(params.page) > 0 ? Number(params.page) : 1;
     const limit = Number(params.limit) > 0 ? Number(params.limit) : 50;
 
@@ -29,6 +31,11 @@ export class AuditLogsService {
       if (to) where.createdAt.lte = new Date(to);
     }
     if (module) where.module = module;
+    // A TRILHA DE UMA COISA SO. O interceptor grava entityId = o :id da rota, entao para um
+    // caixa isso pega abertura, recebimento, movimento, fechamento e exclusao — tudo que
+    // aconteceu naquela gaveta. Sem esse filtro, ver o log de um caixa exigia procurar o id
+    // no meio do log da casa inteira.
+    if (entityId) where.entityId = entityId;
     if (userId) where.userId = userId;
     if (search) {
       where.OR = [

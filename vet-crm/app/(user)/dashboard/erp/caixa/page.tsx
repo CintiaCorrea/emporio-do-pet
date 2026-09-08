@@ -15,6 +15,7 @@ import { montarResumoDoCaixa, avisoDoUsoDeCredito, avisoDoAdiantamento } from '@
 import { agruparRecebimentos, rotuloDaVenda } from '@/lib/recebimentosDoCaixa';
 import { seloDoFechamento, coresDoSelo } from '@/lib/fechamentoDoCaixa';
 import { imprimirCaixaDetalhado, imprimirResumoDeCaixas } from '@/lib/documentos/relatorio-caixa-print';
+import { trilhaDoCaixa } from '@/lib/trilhaDoCaixa';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
@@ -113,6 +114,30 @@ export default function CaixaPage() {
       .then((d) => setOperadores(Array.isArray(d) ? d : []))
       .catch(() => setOperadores([]));
   }, [gradeOpen, operadores.length]);
+
+  // A TRILHA DO CAIXA. O interceptor de auditoria ja gravava toda escrita (quem, quando, qual
+  // rota) e nunca mostramos: o registro existia e nao servia a ninguem. A Cintia viu o Log do
+  // SimplesVet e quis o mesmo. Filtra por entityId, que e o :id da rota = o proprio caixa.
+  const [logOpen, setLogOpen] = useState(false);
+  const [logRows, setLogRows] = useState<any[]>([]);
+  const [logLoading, setLogLoading] = useState(false);
+  useEffect(() => {
+    if (!logOpen || !detail?.id) return;
+    setLogLoading(true);
+    fetch(`/api/audit-logs?entityId=${encodeURIComponent(detail.id)}&limit=200`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : { logs: [] }))
+      .then((d) => setLogRows(Array.isArray(d?.logs) ? d.logs : []))
+      .catch(() => setLogRows([]))
+      .finally(() => setLogLoading(false));
+  }, [logOpen, detail?.id]);
+
+  // A ABERTURA nao tem entityId no log (a rota e POST /caixa, sem :id), entao ela viria a
+  // faltar justamente no comeco da trilha. Ela esta no proprio caixa — e verdade registrada,
+  // nao invencao: aquele caixa foi aberto naquela hora por aquela pessoa.
+  const trilha = useMemo(() => trilhaDoCaixa([
+    ...(detail?.abertura ? [{ id: `abertura-${detail.id}`, createdAt: detail.abertura, userName: detail.user?.name || null, method: 'POST', path: '/api/caixa', statusCode: 201 }] : []),
+    ...logRows,
+  ]), [logRows, detail]);
 
   const [loading, setLoading] = useState(true);
   const [ocultar, setOcultar] = useState(false);
@@ -521,6 +546,7 @@ export default function CaixaPage() {
                   <button onClick={() => abrirMov('DESPESA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Despesa</button>
                   <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} style={{ background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Transferência</button>
                   <button onClick={abrirCredito} disabled={!aberto} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL, border: `1px solid ${TEAL}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: aberto ? 1 : .4 }}><LuGift size={14} /> Crédito do pet</button>
+                  <button onClick={() => setLogOpen(true)} style={{ gridColumn: '1 / -1', background: '#fff', color: '#5C6B70', border: '1px solid #E8E2D6', fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>🔎 Quem mexeu neste caixa</button>
                   <button onClick={() => imprimirCaixaDetalhado(detail as any)} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuPrinter size={14} /> Imprimir movimento do caixa</button>
                   {aberto ? (
                     <button onClick={abrirFechar} style={{ gridColumn: '1 / -1', background: TEAL_DARK, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuLock size={14} /> Revisar e encerrar</button>
@@ -761,6 +787,44 @@ export default function CaixaPage() {
       </div>
 
       {/* MODAIS */}
+      {/* A GAVETA DA TRILHA. Conferencia de caixa e uma pergunta sobre PESSOAS: quem lancou,
+          quem excluiu, quem reabriu. Sem isso, a diferenca da gaveta nao tem a quem perguntar. */}
+      {logOpen && (
+        <div className="no-print" onClick={() => setLogOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', zIndex: 80, display: 'flex', justifyContent: 'flex-end' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', background: '#fff', height: '100%', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 18px', borderBottom: '1px solid #F0EBE0', position: 'sticky', top: 0, background: '#fff' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 15.5, fontWeight: 600, color: '#1F2A2E' }}>Quem mexeu neste caixa</h3>
+                <div style={{ fontSize: 11.5, color: '#8A9499' }}>Caixa nº {detail?.numero} · {detail?.user?.name || '—'}</div>
+              </div>
+              <button onClick={() => setLogOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 17, color: '#374151' }} aria-label="Fechar">✕</button>
+            </div>
+            <div style={{ padding: 16 }}>
+              {logLoading && <div style={{ fontSize: 13, color: '#5C6B70' }}>Carregando…</div>}
+              {!logLoading && trilha.length === 0 && <div style={{ fontSize: 13, color: '#5C6B70' }}>Nada registrado para este caixa.</div>}
+              {trilha.map((e) => (
+                <div key={e.id} style={{ borderLeft: `3px solid ${e.falhou ? '#C0392B' : e.desfeito ? ORANGE : '#CFE7EA'}`, paddingLeft: 11, marginBottom: 13 }}>
+                  <div style={{ fontSize: 10.5, color: '#8A9499', textTransform: 'uppercase', letterSpacing: '.4px' }}>{e.trilha}</div>
+                  <div style={{ fontSize: 13, color: '#1F2A2E', margin: '2px 0' }}>{e.texto}</div>
+                  <div style={{ fontSize: 11.5, color: '#5C6B70' }}>
+                    {e.quando} · {e.quem}{e.falhou ? ' · a tentativa foi recusada' : ''}
+                  </div>
+                </div>
+              ))}
+              {/* O que ainda NAO da pra ver aqui, dito na cara: o log guarda quem/quando/qual
+                  acao, mas nao O QUE mudou (qual venda, qual valor). Guardar o corpo da
+                  requisicao resolveria — e traria junto senha de liberacao de desconto para
+                  dentro do log. Fica para quando houver uma lista do que pode ser guardado. */}
+              {trilha.length > 0 && (
+                <div style={{ fontSize: 11, color: '#8A9499', borderTop: '1px solid #F0EBE0', paddingTop: 10 }}>
+                  A trilha mostra quem fez e quando. O valor de cada lançamento está nas abas do caixa.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {abrirOpen && (
         <Modal title="Abrir caixa" onClose={() => setAbrirOpen(false)} onConfirm={abrirCaixa} confirmLabel="Abrir caixa">
           <Field label="Data do caixa (deixe vazio = hoje; escolha um dia passado p/ lançar retroativo)"><input type="date" value={abrirForm.abertura} max={hojeStr()} onChange={(e) => setAbrirForm({ ...abrirForm, abertura: e.target.value })} style={inp} /></Field>
