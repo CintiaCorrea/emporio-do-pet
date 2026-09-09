@@ -10,6 +10,7 @@ import BuscaClientePet from "@/components/common/BuscaClientePet";
 import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { rotuloDaFaixa, ordenarFaixas, lerFaixas, precoPorPorte, type FaixaPorte } from "@/lib/porte";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -470,7 +471,7 @@ export default function InternacoesPage() {
 
       {/* ===== GERENCIAR BOXES ===== */}
       {gerOpen && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setGerOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setGerOpen(false))}>
           <div className="bg-[#FBF9F4] rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} style={{ border: "1px solid #E8E2D6" }}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">⚙️ Gerenciar boxes</h3>
@@ -528,7 +529,7 @@ export default function InternacoesPage() {
 
       {/* ===== NOVA INTERNAÇÃO ===== */}
       {novoOpen && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setNovoOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setNovoOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-xl w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between sticky top-0 z-10" style={{ borderColor: "#E8E2D6", background: "#FBF9F4" }}>
               <div>
@@ -655,7 +656,7 @@ export default function InternacoesPage() {
 
       {/* ===== DETALHES ===== */}
       {det && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setDetId(null)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setDetId(null))}>
           <div className="rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <div><h3 className="text-base font-medium text-[#014D5E]">{especieEmoji(det.pet?.species)} {det.pet?.name} <span className="text-[12px] text-[#374151] font-normal">· {det.tutor?.name}</span></h3></div>

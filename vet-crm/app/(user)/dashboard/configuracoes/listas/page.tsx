@@ -6,6 +6,7 @@ import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 import { usePodeEditar } from "@/lib/permissions/context";
 import CsvImporter from "@/components/import/CsvImporter";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 interface ListaTipo { id: string; nome: string; label?: string | null; emoji?: string | null; descricao?: string | null; ordem: number; ativo: boolean; _count?: { itens: number }; }
 interface ListaItem { id: string; lista: string; valor: string; ordem: number; ativo: boolean; }
@@ -224,7 +225,7 @@ export default function ListasPage() {
       </div>
 
       {iModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setIModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setIModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{iEditId ? "Editar item" : "Novo item"}</h2>
             <div className="space-y-3">
@@ -258,7 +259,7 @@ export default function ListasPage() {
       )}
 
       {tModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setTModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setTModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{tEditId ? "Editar lista" : "Nova lista"}</h2>
             <div className="space-y-3">

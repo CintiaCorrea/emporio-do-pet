@@ -2,6 +2,7 @@
 // Aba de modelos de BOLETIM de internação (texto simples com [PET]). Guarda em
 // /api/listas (modelo_boletim). Extraído da antiga tela pra entrar na tela única de Modelos.
 import { useEffect, useRef, useState } from "react";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Modelo = { id: string; nome: string; texto: string };
 
@@ -111,7 +112,7 @@ export default function ModelosBoletimTab() {
       </div>
 
       {excluindo && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setExcluindo(null)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setExcluindo(null))}>
           <div className="rounded-2xl shadow-xl max-w-sm w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b" style={{ borderColor: "#E8E2D6" }}><h3 className="text-base font-medium text-[#014D5E]">Excluir modelo</h3></div>
             <div className="p-5 text-[13px] text-[#5C6B70]">Excluir o modelo <b className="text-[#1F2A2E]">{excluindo.nome}</b>? Essa ação não pode ser desfeita.</div>

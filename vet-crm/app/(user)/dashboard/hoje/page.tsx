@@ -17,6 +17,7 @@ import { roleShort } from "@/lib/ui/role";
 import { PageShell, ProgressBar, B44 } from "@/components/ui/base44";
 import { loadExameFases, EXAME_FASES_PADRAO, EXAME_FASES_CONCLUIDAS } from "@/lib/exameFases";
 import { pollVisivel } from "@/lib/pollVisivel";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 interface HojeData {
   retornosVencidos: { id: string }[];
@@ -1522,7 +1523,7 @@ export default function HojePage() {
 
       {/* Encaminhar follow-up → escolhe quem vai resolver (grava responsável + avisa a pessoa). */}
       {encaminhando && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.30)" }} onClick={() => setEncaminhando(null)}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.30)" }} {...fundoDeModal(() => setEncaminhando(null))}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[80vh] overflow-hidden flex flex-col" style={{ border: "1px solid " + B44.line }} onClick={(e) => e.stopPropagation()}>
             <div className="px-4 py-3 border-b" style={{ borderColor: B44.lineSoft }}>
               <div className="text-[14px] font-semibold" style={{ color: B44.navy }}>Encaminhar follow-up</div>
@@ -1548,7 +1549,7 @@ export default function HojePage() {
 
       {/* Resolver follow-up → registra a observação (individualizada, autor = você) e zera o retorno. */}
       {fuResolving && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.30)" }} onClick={() => !fuSaving && setFuResolving(null)}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.30)" }} {...fundoDeModal(() => !fuSaving && setFuResolving(null))}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm" style={{ border: "1px solid " + B44.line }} onClick={(e) => e.stopPropagation()}>
             <div className="px-4 py-3 border-b" style={{ borderColor: B44.lineSoft }}>
               <div className="text-[14px] font-semibold" style={{ color: B44.navy }}>✓ Resolver follow-up</div>

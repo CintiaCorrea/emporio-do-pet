@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch, LuEye } from "react-icons/lu";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Categoria = "TRANSACIONAL" | "BOAS_VINDAS" | "EDUCATIVO" | "PROMOCIONAL" | "ANIVERSARIO" | "REENGAJAMENTO" | "OUTRO";
 
@@ -215,7 +216,7 @@ export default function EmailTemplatesPage() {
       </div>
 
       {varDrawerOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50" onClick={() => setVarDrawerOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 z-50" {...fundoDeModal(() => setVarDrawerOpen(false))}>
           <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl overflow-y-auto" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
               <h2 className="font-semibold" style={{ color: "#0E2244" }}>Variáveis</h2>
@@ -248,7 +249,7 @@ export default function EmailTemplatesPage() {
       )}
 
       {tModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setTModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setTModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{tEditId ? "Editar template" : "Novo template"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -279,7 +280,7 @@ export default function EmailTemplatesPage() {
       )}
 
       {varModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setVarModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setVarModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{varEditId ? "Editar variável" : "Nova variável"}</h2>
             <div className="space-y-3">
@@ -302,7 +303,7 @@ export default function EmailTemplatesPage() {
       )}
 
       {preview && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setPreviewId(null)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setPreviewId(null))}>
           <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
             <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
               <div className="min-w-0 flex-1">

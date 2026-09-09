@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuSend, LuX, LuTrash, LuStar } from "react-icons/lu";
 import { hojeNaClinicaISO } from "@/lib/datas";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const CANAIS = ["WhatsApp", "Email"];
 const fmtData = (s?: string) => { if (!s) return "—"; try { return new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); } catch { return "—"; } };
@@ -128,7 +129,7 @@ export default function AvaliacoesGooglePage() {
       </div>
 
       {open && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setOpen(false))}>
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}><h3 className="text-base font-semibold text-[#014D5E]">Solicitar avaliação</h3><button onClick={() => setOpen(false)} className="text-[#94a3b8]"><LuX className="w-4 h-4" /></button></div>
             <div className="p-5 space-y-3 text-[13px]">

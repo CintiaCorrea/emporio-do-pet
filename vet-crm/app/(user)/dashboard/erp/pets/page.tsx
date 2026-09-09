@@ -8,6 +8,7 @@ import { LuPlus, LuSearch, LuPencil, LuEye, LuTrash, LuX } from "react-icons/lu"
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel, speciesKey, statusLabel, ageFromBirth } from "@/lib/pets/labels";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const ETAPA_BADGE = (v?: string | null) => {
   const s = (v || "").toLowerCase();
@@ -333,7 +334,7 @@ export default function PetsListPage() {
       </div>
 
       {novoOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" onClick={() => setNovoOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" {...fundoDeModal(() => setNovoOpen(false))}>
           <div className="bg-white rounded-2xl p-5 w-[420px] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-medium" style={{ color: "#0E2244" }}>Novo Pet</h2>

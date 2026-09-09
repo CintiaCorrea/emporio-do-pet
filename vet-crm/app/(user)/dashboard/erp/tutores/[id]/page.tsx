@@ -23,6 +23,7 @@ import { assignFollowUpFor, loadFuRespFor } from "@/lib/followup";
 import ResolverFuModal, { type FuAlvo } from "@/components/followup/ResolverFuModal";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
   LuTrash, LuPhone, LuCalendar, LuUser, LuPlus, LuCheck, LuX} from "react-icons/lu";
@@ -652,6 +653,14 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <div className="flex gap-1.5 flex-wrap items-center">
             <button onClick={() => setShowValues((v) => !v)} className="border border-[#EAD9B6] bg-[#FBF6EC] rounded-[9px] px-3 py-2 text-[12.5px] text-[#8A5A0B] hover:border-[#E0A100] flex items-center gap-1.5">{showValues ? "🙈 Ocultar valores" : "👁️ Mostrar valores"}</button>
             <button onClick={() => openWhatsAppMeta(phone)} className="bg-[#009AAC] text-white rounded-[9px] px-3.5 py-2 text-[12.5px] hover:bg-[#00808f] flex items-center gap-1.5">💬 WhatsApp</button>
+            {!naoCliente && (
+              <button
+                onClick={imprimirRelatorio}
+                title="Imprime TODAS as vendas deste cliente — pagas e em aberto — com o descritivo de cada uma"
+                className="rounded-[9px] px-3 py-2 text-[12.5px] font-medium text-white"
+                style={{ background: "#009AAC" }}
+              >🖨️ Relatório de vendas</button>
+            )}
             <div className="relative">
               <button onClick={() => setMoreOpen((v) => !v)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">⋯ Mais</button>
               {moreOpen && (
@@ -1114,8 +1123,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           <button
             onClick={imprimirRelatorio}
             title="Imprime TODAS as vendas deste cliente — pagas e em aberto — com o descritivo de cada uma"
-            className="text-[12px] font-medium px-3 py-1.5 rounded-lg border flex items-center gap-1.5"
-            style={{ background: "#fff", borderColor: "#E8E2D6", color: "#014D5E" }}
+            className="text-[12.5px] font-medium px-3.5 py-1.5 rounded-lg text-white flex items-center gap-1.5"
+            style={{ background: "#009AAC" }}
           >🖨️ Relatório de vendas</button>
         </div>
         <div className="flex gap-2.5 mb-3 flex-wrap">
@@ -1339,7 +1348,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       {fuOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setFuOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(() => setFuOpen(false))}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[360px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">📞 Agendar follow-up</h3>
             <p className="text-[12px] text-[#374151] mb-3">Quando falar de novo com {tutor.name?.split(" ")[0] || "o cliente"}?</p>
@@ -1365,7 +1374,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       <ResolverFuModal alvo={resolverAlvo} onClose={() => setResolverAlvo(null)} onResolved={() => load()} />
 
       {notaOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setNotaOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(() => setNotaOpen(false))}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[400px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">💗 Nota do cliente</h3>
             <p className="text-[12px] text-[#374151] mb-3">Algo que vale lembrar sobre {tutor.name?.split(" ")[0] || "o cliente"}.</p>
@@ -1379,7 +1388,7 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       {situacaoOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setSituacaoOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(() => setSituacaoOpen(false))}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[340px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-3">♻️ Situação do cliente</h3>
             {estagios.length > 0 ? (

@@ -8,6 +8,7 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { assignFollowUpFor, loadFuRespFor, FuResp } from "@/lib/followup";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const TEAL = "#009AAC";
 const NAVY = "#014D5E";
@@ -229,7 +230,7 @@ export default function OrcamentosPage() {
 
       {/* Follow-up: escolhe quem acompanha (mesmo padrão da ficha/inbox) */}
       {fuAberto && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setFuAberto(null)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setFuAberto(null))}>
           <div className="rounded-2xl shadow-xl max-w-sm w-full" style={{ background: "#FBF9F4", border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: LINE }}>
               <div>

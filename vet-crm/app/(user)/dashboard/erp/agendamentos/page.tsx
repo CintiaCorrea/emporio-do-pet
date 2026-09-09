@@ -16,6 +16,7 @@ import {
 import ConfirmDeleteModal from '@/components/common/ConfirmDeleteModal';
 import toast from 'react-hot-toast';
 import NovoAgendamentoModal from '@/components/agendamentos/NovoAgendamentoModal';
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 // Tipos baseados no schema Prisma
 type AppointmentStatus = 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELED' | 'IN_PROGRESS';
@@ -471,7 +472,7 @@ export default function AppointmentsPage() {
       </div>
 
       {isModalOpen && selectedAppointment && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setIsModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setIsModalOpen(false))}>
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}>
               <h3 className="text-base font-semibold text-[#014D5E]">Detalhes do agendamento</h3>

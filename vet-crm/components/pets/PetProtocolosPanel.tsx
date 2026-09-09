@@ -5,6 +5,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import toast from "react-hot-toast";
 import { carregarCatalogoVendavel, nomeSemMarcador } from "@/lib/catalogoVendavel";
 import { diaCalendario, hojeLocalISO, hojeNaClinicaISO } from "@/lib/datas";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Tipo = "VACINA" | "VERMIFUGO" | "ECTOPARASITA" | "OUTRO";
 const TIPO_LABEL: Record<string, string> = { VACINA: "Vacinas", VERMIFUGO: "Vermífugo", ECTOPARASITA: "Antipulgas", OUTRO: "Outros" };
@@ -330,7 +331,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
       </div>
 
       {doseModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setDoseModal(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" {...fundoDeModal(() => setDoseModal(null))}>
           <div className="bg-white rounded-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold" style={{ color: "#0E2244" }}>Registrar aplicação — dose {doseModal.dose.numero}</h2>

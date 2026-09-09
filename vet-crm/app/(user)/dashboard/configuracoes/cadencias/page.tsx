@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Gatilho = "AGENDAMENTO_CRIADO" | "AGENDAMENTO_CONFIRMADO" | "ATENDIMENTO_FINALIZADO" | "EXAME_SOLICITADO" | "EXAME_PRONTO" | "LEAD_NOVO" | "LEAD_INATIVO_7D" | "PACOTE_ATIVADO" | "PACOTE_PROXIMO_DO_FIM" | "CLIENTE_INATIVO_90D" | "POS_CIRURGICO" | "CLIENTE_NOVO" | "PET_PALIATIVO" | "PET_FALECEU" | "NIVER_PET" | "NIVER_TUTOR" | "MANUAL";
 type TipoPasso = "WHATSAPP" | "EMAIL" | "TAREFA_INTERNA" | "AGUARDAR";
@@ -250,7 +251,7 @@ export default function CadenciasPage() {
       </div>
 
       {cModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setCModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setCModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-lg w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{cEditId ? "Editar cadência" : "Nova cadência"}</h2>
             <div className="space-y-3">
@@ -275,7 +276,7 @@ export default function CadenciasPage() {
       )}
 
       {pModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setPModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setPModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{pEditId ? "Editar passo" : "Novo passo"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

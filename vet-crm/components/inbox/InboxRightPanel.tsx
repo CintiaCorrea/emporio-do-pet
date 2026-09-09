@@ -25,6 +25,7 @@ import { loadExameFases, podeAvisarLab } from "@/lib/exameFases";
 import { loadFuResp, assignFollowUp } from "@/lib/followup";
 import { pollVisivel } from "@/lib/pollVisivel";
 import { erroDoPeso } from "@/lib/peso";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 function scorePie(score: number, max: number, color: string) {
   const f = Math.max(0, Math.min(1, max ? score / max : 0));
@@ -2489,7 +2490,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
 
             {/* Seletor de sequência (cadência) — item 6 */}
             {seqPickerOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => !seqSaving && setSeqPickerOpen(false)}>
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" {...fundoDeModal(() => !seqSaving && setSeqPickerOpen(false))}>
                 <div className="bg-white rounded-xl w-full max-w-sm p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2 mb-3">
                     <LuRepeat size={16} style={{ color: "#009AAC" }} />
@@ -2532,7 +2533,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
 
             {/* Painel de exames do pet (Fatia 4B) — acompanhar a pipeline POR LABORATÓRIO */}
             {exOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setExOpen(false)}>
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" {...fundoDeModal(() => setExOpen(false))}>
                 <div className="bg-white rounded-xl w-full max-w-md p-4 shadow-xl max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                   <div className="flex items-center gap-2 mb-1">
                     <LuFlaskConical size={16} style={{ color: "#009AAC" }} />

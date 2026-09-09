@@ -4,6 +4,7 @@ import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuCheck, LuClock, LuUsers, LuPalette, LuArrowLeft, LuCalendarPlus, LuPencil, LuTrash2, LuPlus } from "react-icons/lu";
 import toast from "react-hot-toast";
 import EscalaEditor, { parseEsc } from "@/components/agendamentos/EscalaEditor";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const CORES_AVULSA = ["#7C3AED", "#009AAC", "#0F6E56", "#B45309", "#A32D2D", "#2563EB", "#DB2777", "#475569"];
 function uid() { try { return crypto.randomUUID(); } catch { return "av-" + Date.now() + "-" + Math.floor(Math.random() * 1e6); } }
@@ -166,7 +167,7 @@ export default function AgendaConfigPage() {
       </div>
 
       {avForm && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setAvForm(null)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setAvForm(null))}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-[#014D5E] mb-3">{avForm._id ? "Editar agenda" : "Nova agenda avulsa"}</h3>
             <label className={lbl}>Nome</label>
@@ -227,7 +228,7 @@ export default function AgendaConfigPage() {
       )}
 
       {avDel && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setAvDel(null)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setAvDel(null))}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base font-semibold text-[#9b2c3a] mb-2">Excluir agenda</h3>
             <p className="text-[14px] text-[#334155] mb-1">Excluir a agenda <b>{avDel.nome}</b>?</p>

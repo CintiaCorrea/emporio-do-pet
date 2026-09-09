@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Escopo = "LEAD" | "CLIENTE" | "PROJETO" | "CUSTOM";
 
@@ -229,7 +230,7 @@ export default function PipelinesPage() {
       </div>
 
       {pModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setPModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setPModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-lg w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{pEditId ? "Editar pipeline" : "Novo pipeline"}</h2>
             <div className="space-y-3">
@@ -257,7 +258,7 @@ export default function PipelinesPage() {
       )}
 
       {eModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setEModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setEModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-lg w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{eEditId ? "Editar estágio" : "Novo estágio"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_100px_80px] gap-3">

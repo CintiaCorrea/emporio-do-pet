@@ -19,6 +19,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LuSearch, LuPlus, LuUpload, LuPawPrint, LuTrash, LuX, LuExternalLink } from "react-icons/lu";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Filter = "Cliente" | "Fornecedor" | "Parceiro" | "Ex_cliente" | "Todos";
 
@@ -919,7 +920,7 @@ Ele sai das listas e da busca, mas nada e' apagado — dá pra restaurar quando 
       )}
 
       {novoOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" onClick={() => setNovoOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" {...fundoDeModal(() => setNovoOpen(false))}>
           <div className="bg-white rounded-2xl p-5 w-[400px] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-medium text-[#0E2244]">Novo Cliente</h2>

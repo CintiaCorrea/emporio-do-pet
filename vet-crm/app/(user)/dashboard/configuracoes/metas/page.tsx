@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuTarget } from "react-icons/lu";
 import { hojeNaClinicaISO } from "@/lib/datas";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Periodicidade = "SEMANAL" | "MENSAL" | "TRIMESTRAL" | "SEMESTRAL" | "ANUAL";
 type Medida = "VALOR" | "QUANTIDADE";
@@ -160,7 +161,7 @@ export default function MetasPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setModalOpen(false))}>
           <div className="bg-white rounded-2xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{editId ? "Editar meta" : "Nova meta"}</h2>
 

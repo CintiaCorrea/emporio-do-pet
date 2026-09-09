@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuUpload, LuTrash2, LuDownload } from "react-icons/lu";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 interface Sticker { id: string; nome?: string | null; url: string; mime: string; createdAt: string; }
 interface StickerChat { id: string; conversa: string; jaImportada: boolean; }
@@ -189,7 +190,7 @@ export default function FigurinhasPage() {
 
       {/* MODAL Importar das conversas */}
       {impOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => !importando && setImpOpen(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" {...fundoDeModal(() => !importando && setImpOpen(false))}>
           <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#E8DFC8" }}>
               <div>

@@ -27,6 +27,7 @@ import EmojiPicker from "@/components/inbox/EmojiPicker";
 import BoletimModal from "@/components/pets/BoletimModal";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
 import { pollVisivel } from "@/lib/pollVisivel";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
   import InboxRightPanel from "@/components/inbox/InboxRightPanel";
   import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 type Tab = "conversas" | "internas" | "encaminhadas";
@@ -1588,7 +1589,7 @@ export default function InboxUnificadoPage() {
               })()}
               {filtrosOpen && (
                 <>
-                <div className="fixed inset-0 z-20" onClick={() => setFiltrosOpen(false)} />
+                <div className="fixed inset-0 z-20" {...fundoDeModal(() => setFiltrosOpen(false))} />
                 <div className="absolute left-2.5 right-2.5 top-full mt-1 z-30 bg-white border border-[#e8e1d2] rounded-lg shadow-lg p-2.5 space-y-2.5">
                   <div>
                     <div className="text-[9.5px] text-[#888780] font-medium mb-1">TIPO</div>
@@ -2323,7 +2324,7 @@ export default function InboxUnificadoPage() {
 
       {/* Boletim: seletor de pet quando o cliente tem mais de um */}
       {boletimPicker && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setBoletimPicker(null)}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" {...fundoDeModal(() => setBoletimPicker(null))}>
           <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base text-[#0E2244] font-medium mb-1">Boletim — qual pet?</h3>
             <p className="text-[12px] text-[#888780] mb-3">Este cliente tem mais de um pet. Escolha para qual é o boletim:</p>
@@ -2368,7 +2369,7 @@ export default function InboxUnificadoPage() {
 
       {/* MODAL Galeria de mídia da conversa */}
       {galeriaOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setGaleriaOpen(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" {...fundoDeModal(() => setGaleriaOpen(false))}>
           <div className="bg-white rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3 border-b border-[#e8e1d2] flex items-center justify-between">
               <h3 className="text-base text-[#0E2244] font-medium">🖼️ Galeria de mídia
@@ -2438,7 +2439,7 @@ export default function InboxUnificadoPage() {
 
       {/* MODAL Exportar conversa (PDF) */}
       {exportOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !exportando && setExportOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" {...fundoDeModal(() => !exportando && setExportOpen(false))}>
           <div className="bg-white rounded-xl p-5 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-base text-[#0E2244] font-medium mb-1">📄 Exportar conversa</h3>
             <p className="text-[12px] text-[#5F5E5A] mb-3">Gera um PDF com papel timbrado (cliente, telefone, datas e todas as mensagens). Use "Salvar como PDF" na janela de impressão.</p>
@@ -2456,7 +2457,7 @@ export default function InboxUnificadoPage() {
 
       {/* MODAL Nova mensagem com agendamento + scripts */}
       {novaMsgOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setNovaMsgOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" {...fundoDeModal(() => setNovaMsgOpen(false))}>
           <div className="bg-white rounded-xl p-5 max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base text-[#0E2244] font-medium">Nova conversa</h3>
@@ -2612,7 +2613,7 @@ export default function InboxUnificadoPage() {
 
       {/* MODAL Nota clínica no Pet */}
       {notaPetOpen && selectedPet && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setNotaPetOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" {...fundoDeModal(() => setNotaPetOpen(false))}>
           <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base text-[#0E2244] font-medium">Nota clínica — {selectedPet.name}</h3>
@@ -2633,7 +2634,7 @@ export default function InboxUnificadoPage() {
 
       {/* MODAL Agendar atendimento no Pet */}
       {agendaPetOpen && selectedPet && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setAgendaPetOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" {...fundoDeModal(() => setAgendaPetOpen(false))}>
           <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base text-[#0E2244] font-medium">Agendar — {selectedPet.name}</h3>
@@ -2658,7 +2659,7 @@ export default function InboxUnificadoPage() {
 
       {/* MODAL Adicionar atendimento */}
       {atendModalOpen && selectedPet && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setAtendModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" {...fundoDeModal(() => setAtendModalOpen(false))}>
           <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base text-[#0E2244] font-medium">Registrar atendimento — {selectedPet.name}</h3>
@@ -2683,7 +2684,7 @@ export default function InboxUnificadoPage() {
 
       {/* MODAL Encaminhar */}
       {encaminharOpen && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEncaminharOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" {...fundoDeModal(() => setEncaminharOpen(false))}>
           <div className="bg-white rounded-xl p-5 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base text-[#0E2244] font-medium">Encaminhar conversa</h3>
@@ -2731,7 +2732,7 @@ export default function InboxUnificadoPage() {
 
       {/* Encaminhar mídia/texto para outra conversa */}
       {(fwdMsgId || fwdBatch) && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]" onClick={() => { if (!fwdEnviando) { setFwdMsgId(null); setFwdBatch(false); } }}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]" {...fundoDeModal(() => { if (!fwdEnviando) { setFwdMsgId(null); setFwdBatch(false); } })}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[80vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}>
               <h3 className="text-[15px] font-semibold text-[#014D5E]">↷ Encaminhar {fwdBatch && selIds.size > 1 ? `${selIds.size} mensagens ` : ""}para…</h3>

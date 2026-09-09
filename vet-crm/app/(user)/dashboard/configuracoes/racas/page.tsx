@@ -6,6 +6,7 @@ import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 import { usePodeEditar } from "@/lib/permissions/context";
 import CsvImporter from "@/components/import/CsvImporter";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Especie = "CAO" | "GATO" | "OUTRO";
 
@@ -187,7 +188,7 @@ export default function RacasPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{editId ? "Editar raça" : "Nova raça"}</h2>
             <div className="space-y-3">

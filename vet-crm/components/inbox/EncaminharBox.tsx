@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Tipo = "cliente" | "pet" | "lead";
 type Props = { tipo: Tipo; id: string; nome: string; onChange?: () => void };
@@ -82,7 +83,7 @@ export default function EncaminharBox({ tipo, id, nome, onChange }: Props) {
         </button>
       )}
       {open && (
-        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4" {...fundoDeModal(() => setOpen(false))}>
           <div className="bg-white rounded-xl p-4 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-sm font-semibold mb-3" style={{ color: "#014D5E" }}>Encaminhar {LABEL[tipo]}: {nome}</h3>
             <label className="text-[11px] text-gray-500">Para quem</label>

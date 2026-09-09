@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 // Modal ÚNICO de "resolver follow-up com observação" — usado no Meu painel, lista de clientes e fichas.
 // Registra a observação como NOTA (autor = usuário logado → individualizado) e zera o proximoFollowupAt
@@ -31,7 +32,7 @@ export default function ResolverFuModal({ alvo, onClose, onResolved }: { alvo: F
     finally { setSaving(false); }
   }
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.30)" }} onClick={() => !saving && onClose()}>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.30)" }} {...fundoDeModal(() => !saving && onClose())}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
         <div className="px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
           <div className="text-[14px] font-semibold" style={{ color: "#014D5E" }}>✓ Resolver follow-up</div>

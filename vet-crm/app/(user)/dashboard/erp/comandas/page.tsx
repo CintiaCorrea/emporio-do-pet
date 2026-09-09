@@ -11,6 +11,7 @@ import { carregarMeuCaixa, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaPara
 import AbrirMeuCaixaModal from "@/components/caixa/AbrirMeuCaixaModal";
 import { imprimirVendasAbertas } from "@/lib/documentos/vendas-abertas-print";
 import { hojeNaClinicaISO } from "@/lib/datas";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const FORMAS = ["Dinheiro", "Pix", "Cartão de crédito", "Cartão de débito", "Crédito do cliente"];
 const ORIGEM: Record<string, { lbl: string; bg: string; fg: string }> = {
@@ -365,7 +366,7 @@ export default function ComandasPage() {
 
       {/* ===== VENDA (por dentro) ===== */}
       {det && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setDet(null)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setDet(null))}>
           <div className="rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <div>
@@ -432,7 +433,7 @@ export default function ComandasPage() {
 
       {/* ===== GRUPO (baixar todas as comandas do cliente) ===== */}
       {detGrupo && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setDetGrupo(null)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setDetGrupo(null))}>
           <div className="rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <div>

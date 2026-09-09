@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch, LuCheck } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 interface Category { id: string; nome: string; emoji?: string | null; ordem: number; ativo: boolean; _count?: { scripts: number }; }
 interface Script {
@@ -248,7 +249,7 @@ export default function ScriptsPage() {
       </div>
 
       {sModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setSModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setSModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{sEditId ? "Editar script" : "Novo script"}</h2>
             <div className="space-y-3">
@@ -283,7 +284,7 @@ export default function ScriptsPage() {
       )}
 
       {cModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setCModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setCModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-md w-full" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{cEditId ? "Editar categoria" : "Nova categoria"}</h2>
             <div className="grid grid-cols-[minmax(0,1fr)_80px] gap-3">

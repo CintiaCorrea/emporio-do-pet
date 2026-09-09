@@ -10,6 +10,7 @@ import { usePodeEditar } from "@/lib/permissions/context";
 import { carregarCatalogoVendavel } from "@/lib/catalogoVendavel";
 import { buscarItens } from "@/lib/buscaCatalogo";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 const num = (s: any) => Number(String(s ?? "").replace(",", ".")) || 0;
@@ -123,7 +124,7 @@ export default function ModelosOrcamentoPage() {
 
       {/* ===== EDITOR ===== */}
       {open && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">📄 {form.id ? "Editar modelo" : "Novo modelo"}</h3>

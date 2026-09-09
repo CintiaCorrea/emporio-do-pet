@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import toast, { Toaster } from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const PIPELINE_STAGES = [
   "Aguardando triagem",
@@ -657,7 +658,7 @@ export default function ComercialPage() {
 
       {/* Modal Novo Lead (reaproveitado da tela de Leads) */}
       {novoOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" onClick={() => setNovoOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-24" {...fundoDeModal(() => setNovoOpen(false))}>
           <div className="bg-white rounded-2xl p-5 w-[420px] max-w-[92vw]" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-base font-medium text-[#014D5E]">Novo Lead</h2>

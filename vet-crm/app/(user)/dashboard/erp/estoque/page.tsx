@@ -8,6 +8,7 @@ import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { usePodeEditar } from '@/lib/permissions/context';
 import { useCanSeeCost } from '@/lib/permissions/useCanSeeCost';
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 // Tipos
 type ProductType = 'MEDICINE' | 'VACCINE';
@@ -450,7 +451,7 @@ export default function StockPage() {
 
       {/* Modal de Movimentação */}
       {isMovementModalOpen && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print" style={{ background: 'rgba(1,30,36,.45)' }} onClick={() => setIsMovementModalOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print" style={{ background: 'rgba(1,30,36,.45)' }} {...fundoDeModal(() => setIsMovementModalOpen(false))}>
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: '#E8DFC8' }}>
               <span className="text-base font-bold" style={{ color: '#014D5E' }}>{movementType === 'IN' ? '➕ Entrada de estoque' : '➖ Saída de estoque'}</span>
@@ -518,7 +519,7 @@ export default function StockPage() {
 
       {/* Modal de Histórico */}
       {isHistoryModalOpen && selectedProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print" style={{ background: 'rgba(1,30,36,.45)' }} onClick={() => { setIsHistoryModalOpen(false); fetchMovements(); }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 no-print" style={{ background: 'rgba(1,30,36,.45)' }} {...fundoDeModal(() => { setIsHistoryModalOpen(false); fetchMovements(); })}>
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden" style={{ maxHeight: '82vh' }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: '#E8DFC8' }}>
               <div>

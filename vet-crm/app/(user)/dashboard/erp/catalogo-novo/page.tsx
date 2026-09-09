@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import toast from "react-hot-toast";
 import { FAIXAS_PADRAO, ESCADAS, escadaDasFaixas, lerFaixas, rotuloDaFaixa, erroDasFaixas, ordenarFaixas, type FaixaPorte } from "@/lib/porte";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const B = "#014D5E", T = "#009AAC", LINE = "#E8DFC8", PAPER = "#F6F2EA", INK = "#1F2A2E", MUT = "#5C6B70";
 type Tipo = "PRODUTO" | "SERVICO" | "EXAME" | "VACINA" | "PACOTE" | "KIT";
@@ -307,7 +308,7 @@ export default function CatalogoNovoPage() {
 
       {/* ── MODAL: item ── */}
       {form && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} onClick={() => !salvando && setForm(null)}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} {...fundoDeModal(() => !salvando && setForm(null))}>
           <div className="bg-white rounded-2xl w-full max-w-2xl my-6" style={{ border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: LINE }}>
               <div className="font-semibold text-[15px]" style={{ color: B }}>{form.id ? "Editar item" : "Novo item"}</div>

@@ -18,6 +18,7 @@ import { buscarItens } from "@/lib/buscaCatalogo";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { calcularHorarios as horariosDoDia, horariosDaPrescricao, horariosNoDia, prescricaoAtivaEm, rotuloDoPeriodo, minutosDaFrequencia, PERIODOS } from "@/lib/internacaoHorarios";
 import { hojeNaClinicaISO } from "@/lib/datas";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -1556,7 +1557,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                 <button onClick={() => setMaisAberto((v) => !v)} title="Mais ações" className="text-[12px] font-medium text-[#5C6B70] bg-white border px-2.5 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>⋯</button>
                 {maisAberto && (
                   <>
-                    <div className="fixed inset-0 z-40" onClick={() => setMaisAberto(false)} />
+                    <div className="fixed inset-0 z-40" {...fundoDeModal(() => setMaisAberto(false))} />
                     <div className="absolute right-0 mt-1 z-50 bg-white border rounded-xl shadow-lg overflow-hidden" style={{ borderColor: "#E8E2D6", minWidth: 210 }}>
                       {!alta && <button onClick={() => { setMaisAberto(false); setTrocaBoxOpen(true); }} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#374151] hover:bg-[#F0FBFC]">🛏️ Trocar box</button>}
                       {!alta && h.status !== "DECEASED" && <button onClick={() => { setMaisAberto(false); setObitoForm({ data: hojeNaClinicaISO(), causa: "" }); setObitoOpen(true); }} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#374151] hover:bg-[#F0FBFC] border-t" style={{ borderColor: "#F0EBE0" }}>🕊️ Registrar óbito</button>}
@@ -1573,7 +1574,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
 
         {/* ===== EDITAR O DIA INTEIRO ===== */}
       {diaEdit && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setDiaEdit(null)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" {...fundoDeModal(() => setDiaEdit(null))}>
           <div className="rounded-2xl shadow-xl w-full flex flex-col" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6", maxWidth: 760, maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3.5 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: "#E8E2D6" }}>
               <div>
@@ -1632,7 +1633,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
 
       {/* ===== REGISTRAR ÓBITO ===== */}
         {obitoOpen && (
-          <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setObitoOpen(false)}>
+          <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setObitoOpen(false))}>
             <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
                 <h3 className="text-base font-medium text-[#014D5E]">🕊️ Registrar óbito — {h.pet?.name}</h3>
@@ -1664,7 +1665,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
 
         {/* ===== TROCAR BOX ===== */}
         {trocaBoxOpen && (
-          <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setTrocaBoxOpen(false)}>
+          <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setTrocaBoxOpen(false))}>
             <div className="rounded-2xl shadow-xl max-w-sm w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
               <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
                 <h3 className="text-base font-medium text-[#014D5E]">🛏️ Trocar box</h3>
@@ -2488,7 +2489,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
 
       {/* ===== POPUP EDITAR ADMISSÃO ===== */}
       {admOpen && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setAdmOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" {...fundoDeModal(() => setAdmOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">📋 Editar admissão</h3>
@@ -2532,7 +2533,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
 
       {/* ===== POPUP MEDICAÇÃO (prescrição) ===== */}
       {prescOpen && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setPrescOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" {...fundoDeModal(() => setPrescOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-md w-full flex flex-col" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6", maxHeight: "90vh" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3.5 border-b flex items-center justify-between flex-shrink-0" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">💊 {prescForm.id ? "Editar medicação" : "Adicionar medicação"}</h3>
@@ -2633,7 +2634,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
       {/* ===== POPUP AFERIÇÃO (sinais vitais) ===== */}
       {/* ===== POPUP VISUALIZAR BOLETIM (preview estilo WhatsApp) ===== */}
       {previewBol && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setPreviewBol(null)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" {...fundoDeModal(() => setPreviewBol(null))}>
           <div className="rounded-2xl shadow-xl max-w-md w-full max-h-[85vh] flex flex-col" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">👁 {previewBol.titulo}</h3>
@@ -2655,7 +2656,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
       )}
 
       {vitalOpen && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setVitalOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" {...fundoDeModal(() => setVitalOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">{vitalEditId ? "🩺 Editar aferição" : "🩺 Registrar aferição"}</h3>
@@ -2695,7 +2696,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
 
       {/* ===== POPUP CONTROLE (fluidos) ===== */}
       {fluidoOpen && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setFluidoOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" {...fundoDeModal(() => setFluidoOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">{fluidoEditId ? "💧 Editar controle" : "💧 Registrar controle"}</h3>
@@ -2733,7 +2734,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
 
       {/* ===== POPUP ITEM DA CONTA ===== */}
       {itemOpen && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setItemOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" {...fundoDeModal(() => setItemOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-md w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">🧾 {itemForm.id ? "Editar item" : "Adicionar item"}</h3>
@@ -2780,7 +2781,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
 
       {/* ===== POPUP CAUÇÃO ===== */}
       {caucaoOpen && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" onClick={() => setCaucaoOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" {...fundoDeModal(() => setCaucaoOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-sm w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">💳 Adicionar caução</h3>

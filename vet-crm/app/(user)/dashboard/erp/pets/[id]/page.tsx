@@ -53,6 +53,7 @@ import { montarPetExame, acharExameNoCatalogo, registrarHistoricoFase } from "@/
 import BoletimModal from "@/components/pets/BoletimModal";
 import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
 import { erroDoPeso } from '@/lib/peso';
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 // Emoji da espécie (avatar do cabeçalho — padrão Base44)
 const PET_EMOJI = (species: string) => {
@@ -1591,7 +1592,7 @@ export default function PetDetailPage() {
 
       {/* Pop-up do LAUDO do exame (imagem/PDF) — fecha no X, ESC ou clique fora */}
       {laudoView && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 no-print" style={{ background: "rgba(20,35,40,.55)" }} onClick={() => setLaudoView(null)}>
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 no-print" style={{ background: "rgba(20,35,40,.55)" }} {...fundoDeModal(() => setLaudoView(null))}>
           <div className="bg-white rounded-2xl w-full flex flex-col" style={{ maxWidth: 900, height: "88vh", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-4 py-2.5 border-b flex items-center justify-between gap-2" style={{ borderColor: "#F0EBE0" }}>
               <div className="text-[13.5px] font-semibold truncate" style={{ color: "#014D5E" }}>🔬 {laudoView.nome || "Laudo do exame"}</div>
@@ -2091,7 +2092,7 @@ export default function PetDetailPage() {
                   <FeedTimeline atendimentos={atendimentos} clinDocs={clinDocs} historico={historico} exames={exames} pet={pet} tutor={pet?.tutor} onEditar={editarEntrada} onExcluir={excluirEntrada} onDetalhe={abrirDetalheHist} />
                 </div>
                 {detalheHist && (
-                  <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.3)" }} onClick={() => setDetalheHist(null)}>
+                  <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" style={{ background: "rgba(20,35,40,.3)" }} {...fundoDeModal(() => setDetalheHist(null))}>
                     <div className="bg-white rounded-2xl w-full flex flex-col" style={{ maxWidth: 680, maxHeight: "85vh", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
                       <div className="px-5 py-3 border-b flex items-center justify-between" style={{ borderColor: "#F0EBE0" }}>
                         <div className="min-w-0">
@@ -2640,7 +2641,7 @@ export default function PetDetailPage() {
 
       {/* ── Popups (padrão bege) ── */}
       {statusOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setStatusOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(() => setStatusOpen(false))}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[360px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">🩺 Status de saúde</h3>
             <p className="text-[12px] text-[#374151] mb-3">Atualize a etapa clínica de {pet.name}.</p>
@@ -2656,7 +2657,7 @@ export default function PetDetailPage() {
       )}
 
       {notaOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setNotaOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(() => setNotaOpen(false))}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[400px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">❤️ Nota médica</h3>
             <p className="text-[12px] text-[#374151] mb-3">Algo clínico que vale lembrar sobre {pet.name}.</p>
@@ -2671,7 +2672,7 @@ export default function PetDetailPage() {
 
       {/* Modal: transferir pet para outro tutor */}
       {tutorPicker === "transferir" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => !tutorSaving && setTutorPicker(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(() => !tutorSaving && setTutorPicker(null))}>
           <div className="bg-white rounded-[16px] w-full max-w-[420px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">↔ Transferir pet para outro tutor</h3>
             <p className="text-[12px] text-[#5C6B70] mb-3">{pet.name} passa a pertencer ao tutor que você escolher (sai da ficha do tutor atual).</p>
@@ -2699,7 +2700,7 @@ export default function PetDetailPage() {
 
       {/* Modal: 2º responsável — info leve (nome + telefone) */}
       {resp2Open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => !resp2Saving && setResp2Open(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(() => !resp2Saving && setResp2Open(false))}>
           <div className="bg-white rounded-[16px] w-full max-w-[380px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">👥 2º responsável pelo pet</h3>
             <p className="text-[12px] text-[#5C6B70] mb-3">Outra pessoa que também cuida de {pet.name}. Se ela <b>tiver cadastro</b>, escolha abaixo — o pet passa a aparecer na ficha e no WhatsApp dela também.</p>
@@ -2730,7 +2731,7 @@ export default function PetDetailPage() {
       )}
 
       {fuOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={() => setFuOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(() => setFuOpen(false))}>
           <div className="bg-[#FBF9F4] rounded-[16px] w-full max-w-[360px] p-5" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-[15px] font-medium text-[#014D5E] mb-1">📞 Agendar follow-up</h3>
             <p className="text-[12px] text-[#374151] mb-3">Quando acompanhar o tratamento de {pet.name}?</p>
@@ -2749,7 +2750,7 @@ export default function PetDetailPage() {
       <ResolverFuModal alvo={resolverFuOpen ? { kind: "pet", id: petId, nome: pet?.name || "Pet" } : null} onClose={() => setResolverFuOpen(false)} onResolved={async () => { await load(); await loadInteracoesPet(); }} />
 
       {verAtd && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto py-10" onClick={() => setVerAtd(null)}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto py-10" {...fundoDeModal(() => setVerAtd(null))}>
           <div className="bg-white rounded-2xl w-[600px] max-w-[94vw] p-5" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-base font-semibold" style={{ color: "#0E2244" }}>Atendimento · {new Date(verAtd.date).toLocaleDateString("pt-BR")} {new Date(verAtd.date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</h2>
@@ -2831,7 +2832,7 @@ export default function PetDetailPage() {
 
       {/* ===== ENVIAR EXAME/RECEITA PELO WHATSAPP (mensagem + anexos; aguardo se fechada) ===== */}
       {waOpen && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-[80]" onClick={() => setWaOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-[80]" {...fundoDeModal(() => setWaOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-md w-full max-h-[88vh] flex flex-col" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">📲 Enviar pelo WhatsApp{pet?.tutor?.name ? ` — ${pet.tutor.name}` : ""}</h3>

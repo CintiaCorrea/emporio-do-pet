@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPlus, LuPencil, LuTrash, LuSearch, LuUpload, LuSparkles } from "react-icons/lu";
 import { usePodeEditar } from "@/lib/permissions/context";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type CategoriaExame = "HEMATOLOGIA" | "BIOQUIMICA" | "IMAGEM" | "CITOLOGIA" | "MICROBIOLOGIA" | "ENDOCRINOLOGIA" | "HISTOPATOLOGIA" | "OUTROS";
 type FornTipo = "LABORATORIO" | "PROFISSIONAL" | "PARCEIRO" | "FORNECEDOR" | "OUTRO";
@@ -461,7 +462,7 @@ export default function ExamesConfigPage() {
 
       {/* Modal Exame */}
       {eModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setEModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setEModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>{eEditId ? "Editar exame" : "Novo exame"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -515,7 +516,7 @@ export default function ExamesConfigPage() {
 
       {/* Modal Fornecedor */}
       {fModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setFModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setFModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#009AAC" }}>{fEditId ? "Editar fornecedor" : "Novo fornecedor"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -574,7 +575,7 @@ export default function ExamesConfigPage() {
 
       {/* Modal Importação */}
       {importOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setImportOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setImportOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-2" style={{ color: "#009AAC" }}>Importar planilha de exames</h2>
             <div className="text-xs text-gray-600 mb-4">

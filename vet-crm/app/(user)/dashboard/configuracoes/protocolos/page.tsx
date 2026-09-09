@@ -3,6 +3,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useState , useRef} from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Tipo = "VACINA" | "VERMIFUGO" | "ECTOPARASITA";
 
@@ -210,7 +211,7 @@ export default function ProtocolosConfigPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={() => setModalOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" {...fundoDeModal(() => setModalOpen(false))}>
           <div className="bg-white rounded-xl w-full max-w-lg p-5" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold" style={{ color: "#0E2244" }}>{editId ? "Editar protocolo" : "Novo protocolo"}</h2>

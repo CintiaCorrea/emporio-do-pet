@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { EQUIP_DEFS, CINESIO_EXERCICIOS, EquipVal } from "@/lib/pets/boletim";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 // Editor dos equipamentos do boletim de fisio (2 colunas, campos por aparelho,
 // Cinesioterapia com multi-seleção + T). Usado na ficha do pet e no popup do boletim.
@@ -32,7 +33,7 @@ export default function EquipamentosFisioEditor({ equipamentos, onChange }: {
                       <button type="button" onClick={() => setCinesioOpen((o) => !o)} className="text-[11.5px] px-2.5 py-1.5 rounded-[8px] border border-[#E8E2D6] bg-white text-[#5C6B70] inline-flex items-center gap-1.5">Selecionar exercícios{(v.exercicios?.length || 0) > 0 ? ` (${v.exercicios!.length})` : ""} ▾</button>
                       {cinesioOpen && (
                         <>
-                          <div className="fixed inset-0 z-10" onClick={() => setCinesioOpen(false)} />
+                          <div className="fixed inset-0 z-10" {...fundoDeModal(() => setCinesioOpen(false))} />
                           <div className="absolute left-0 mt-1 z-20 bg-white border border-[#E8E2D6] rounded-[10px] shadow-lg p-2 w-[240px]">
                             {CINESIO_EXERCICIOS.map((ex) => { const selx = (v.exercicios || []).includes(ex); return (
                               <label key={ex} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-[#F6FDFD] cursor-pointer text-[12px]">

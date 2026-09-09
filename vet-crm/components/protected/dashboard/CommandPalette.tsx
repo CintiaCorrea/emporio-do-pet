@@ -3,6 +3,7 @@
 // navegáveis por teclado. Um único lugar, o que o SimplesVet não tem. Abre também via evento "cmdk:open".
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type PetLite = { id: string; name: string; species?: string };
 type TutorLite = { id: string; name: string; codigo?: number; contacts?: { number?: string }[]; pets?: PetLite[] };
@@ -65,7 +66,7 @@ export default function CommandPalette() {
 
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh] px-4 bg-black/40 print:hidden" onClick={() => setOpen(false)}>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[12vh] px-4 bg-black/40 print:hidden" {...fundoDeModal(() => setOpen(false))}>
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-2xl overflow-hidden" style={{ border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
           <span style={{ fontSize: 15 }}>🔎</span>

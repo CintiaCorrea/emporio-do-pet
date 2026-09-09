@@ -8,6 +8,7 @@ import { usePodeEditar } from "@/lib/permissions/context";
 // Fonte única dos tipos e do "isto é cartão?" — a mesma que o recebimento usa pra decidir se
 // pede bandeira/parcelas e se cobra a AUT. Ver lib/formasPagamento.
 import { TIPOS_FORMA, tipoEhCartao, tipoEhMaquininha, tipoEhLink } from "@/lib/formasPagamento";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const TIPOS = [...TIPOS_FORMA];
 const TIPO_EMOJI: Record<string, string> = { Dinheiro: "💵", Pix: "📱", "Maquininha (cartão)": "💳", "Link de pagamento": "🔗", "Crédito do cliente": "🏦", Boleto: "🧾", Outro: "💠" };
@@ -144,7 +145,7 @@ export default function FormasRecebimentoPage() {
 
       {/* ===== POPUP ADD/EDIT ===== */}
       {open && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
               <h3 className="text-base font-medium text-[#014D5E]">💳 {form.id ? "Editar forma" : "Nova forma de recebimento"}</h3>

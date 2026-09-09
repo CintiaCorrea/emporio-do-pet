@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState , useRef} from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuSearch } from "react-icons/lu";
 import CsvImporter from "@/components/import/CsvImporter";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Tipo = "VETERINARIO" | "RECEPCIONISTA" | "ESTAGIARIO" | "GERENTE" | "OUTRO";
 
@@ -211,7 +212,7 @@ export default function ProfissionaisPage() {
       </div>
 
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setModalOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" {...fundoDeModal(() => setModalOpen(false))}>
           <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <h2 className="text-lg font-semibold mb-4" style={{ color: "#0E2244" }}>{editId ? "Editar membro da equipe" : "Novo membro da equipe"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

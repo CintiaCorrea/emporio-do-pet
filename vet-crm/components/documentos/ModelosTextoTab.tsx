@@ -6,6 +6,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useRef, useState } from "react";
 import { usePodeEditar } from "@/lib/permissions/context";
 import EditorDocumento from "@/components/documentos/EditorDocumento";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Modelo = { id: string; nome: string; corpo: string };
 
@@ -100,7 +101,7 @@ export default function ModelosTextoTab({ lista, tipo }: { lista: string; tipo: 
         <button onClick={() => { setNovo(""); setNovoModalOpen(true); }} className="px-4 py-2 rounded-lg text-sm text-white font-medium" style={{ background: "#009AAC" }}>+ Novo modelo</button>
       )}
       {novoModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(1,30,36,.45)" }} onClick={() => setNovoModalOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(1,30,36,.45)" }} {...fundoDeModal(() => setNovoModalOpen(false))}>
           <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-3.5 border-b text-sm font-bold" style={{ borderColor: "#E8DFC8", color: "#014D5E", background: "linear-gradient(180deg,#F7FCFD,#EFF9FA)" }}>Novo modelo de {rotulo.toLowerCase()}</div>
             <div className="p-5">

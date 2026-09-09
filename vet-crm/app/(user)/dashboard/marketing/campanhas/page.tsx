@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuPlus, LuTrash, LuX, LuPencil } from "react-icons/lu";
 import { usePodeEditar } from "@/lib/permissions/context";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const PLATAFORMAS = ["Meta Ads", "Google Ads", "Instagram", "Facebook", "TikTok", "Indicação", "Outro"];
 const TIPOS = ["Aquisição", "Remarketing", "Branding", "Conteúdo", "Outro"];
@@ -104,7 +105,7 @@ export default function CampanhasPage() {
       </div>
 
       {open && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={() => setOpen(false)}>
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setOpen(false))}>
           <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#eef0e6" }}><h3 className="text-base font-semibold text-[#014D5E]">{editId ? "Editar campanha" : "Nova campanha"}</h3><button onClick={() => setOpen(false)} className="text-[#94a3b8]"><LuX className="w-4 h-4" /></button></div>
             <div className="p-5 grid grid-cols-2 gap-3 text-[13px]">
