@@ -126,6 +126,7 @@ export default function PDVPage() {
   const [detOrc, setDetOrc] = useState<any>(null); // orçamento aberto no modal de detalhe
   const [vendasEmAberto, setVendasEmAberto] = useState<Venda[]>([]);   // o que está em pé, de qualquer dia
   const [contasOpen, setContasOpen] = useState(false);                // painel do saldo devedor do cliente
+  const [descricoesJaNaVenda, setDescricoesJaNaVenda] = useState<Set<string>>(new Set());
   const [imprimindoDia, setImprimindoDia] = useState(false);          // relatório de comandas em preparo
   // 💵 As operações do caixa à mão no ponto de venda (Cintia, 07/09/2026, olhando o SimplesVet).
   // O formulário é o MESMO da tela de Caixa (components/caixa/MovimentoCaixaModal) — escrever um
@@ -253,6 +254,11 @@ export default function PDVPage() {
       valorUnitario: Number(it.valorUnitario ?? 0),
       desconto: Number(it.desconto ?? 0),
     }));
+    // As descricoes que JA estavam na venda passam na conferencia do catalogo sem discussao.
+    // Item vindo da internacao carrega a data no nome ("Diaria de internacao — 09/09",
+    // "ONDANSETRONA — aplicacao 08:27") e nunca casa com o catalogo — com a regra valendo
+    // para todos, NENHUMA comanda de internacao podia ser salva (Cintia, 09/09/2026).
+    setDescricoesJaNaVenda(new Set(its.map((i: any) => (i.descricao || '').trim()).filter(Boolean)));
     setEditItens(its.length ? its : [{ descricao: '', quantidade: 1, valorUnitario: 0, desconto: 0 }]);
   }
   const editTotal = useMemo(() => (editItens || []).reduce((s, it) => s + Math.max(0, it.quantidade * it.valorUnitario - (it.desconto || 0)), 0), [editItens]);
@@ -263,7 +269,11 @@ export default function PDVPage() {
     // Item da venda so pode vir do catalogo (regra da casa). Antes isso era garantido
     // APAGANDO o campo assim que a pessoa saia dele — o que parecia que a busca "nao
     // trazia nada". Agora a conferencia e no salvar, dizendo QUAL item nao serve.
-    const foraDoCatalogo = limpos.find((it) => !servicos.some((x: any) => (x.nome || '') === (it.descricao || '').trim()));
+    const foraDoCatalogo = limpos.find((it) => {
+      const nome = (it.descricao || '').trim();
+      if (descricoesJaNaVenda.has(nome)) return false;   // ja estava na venda: nao e' item novo
+      return !servicos.some((x: any) => (x.nome || '') === nome);
+    });
     if (foraDoCatalogo) { toast.error(`"${foraDoCatalogo.descricao}" nao esta no catalogo. Escolha um item da lista.`); return; }
     setSavingEdit(true);
     try {

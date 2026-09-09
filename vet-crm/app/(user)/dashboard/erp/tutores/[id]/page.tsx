@@ -518,7 +518,11 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const petsResp2 = (tutor as any).petsResp2 || []; // pets em que ESTE cliente é 2º responsável (co-tutor)
   // A ficha (findById) traz so as 10 ultimas compras — somar isso dava um "total gasto"
   // menor que o real. O profile-stats calcula em cima de TODAS, entao ele manda aqui.
-  const compras: any[] = (stats?.compras?.length ? stats.compras : (tutor.appointments || [])) as any[];
+  // SO' COMPRA. A lista do profile-stats traz TODOS os atendimentos do cliente — consulta,
+  // retorno, receita, termo de internacao. Sem este filtro, o diagnostico aparecia na aba
+  // Compras como se fosse item vendido (Cintia, 09/09/2026).
+  const compras: any[] = ((stats?.compras?.length ? stats.compras : (tutor.appointments || [])) as any[])
+    .filter((a: any) => Number(a?.value || 0) > 0);
   const porMarca: { marca: string; valor: number; pct: number }[] = stats?.porMarca || [];
   const money = (v?: number | null) =>
     v == null ? "—" : !showValues ? "R$ ••••" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });

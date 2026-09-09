@@ -19,6 +19,7 @@ import {
   LuPackage, LuMessageSquare, LuShare2, LuTag, LuClock, LuCalendar, LuX, LuCheck,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
+import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
 import FeedTimeline from "@/components/pets/FeedTimeline";
 import ResolverFuModal from "@/components/followup/ResolverFuModal";
 import WeightChart from "@/components/pets/WeightChart";
@@ -366,6 +367,30 @@ export default function PetDetailPage() {
     return () => window.removeEventListener("keydown", onEsc);
   }, [artefato, atdOpen, laudoView]);
   useEffect(() => { const t = searchParams?.get("tab"); if (t === "fisio") setMainTab("FISIO"); /* eslint-disable-next-line */ }, [searchParams]);
+  // Relatorio de vendas DO TUTOR, chamado da ficha do pet: quem atende chega no cliente
+  // pelo bicho ("a Luna"), nao pelo nome dele — entao o papel precisa sair daqui tambem.
+  // O relatorio e' do TUTOR (todas as vendas dele), nao so' as deste pet.
+  const imprimirRelatorioDoTutor = async () => {
+    const tid = (pet as any)?.tutorId || pet?.tutor?.id;
+    if (!tid) { toast.error("Este pet nao tem tutor vinculado."); return; }
+    try {
+      const r = await fetch(`/api/tutors/${tid}/vendas`, { cache: "no-store" });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      const vendas = Array.isArray(d?.vendas) ? d.vendas : [];
+      if (!vendas.length) { toast.error("Este cliente ainda nao tem vendas registradas."); return; }
+      await imprimirVendasDoCliente({
+        tutor: d?.tutor?.name || pet?.tutor?.name || "Cliente",
+        codigo: d?.tutor?.codigo ?? null,
+        comandas: vendas.map((v: any) => ({
+          id: v.id, numero: v.numero, data: v.data, pet: v.pet,
+          valor: v.valor, pago: v.pago, observacao: v.observacao,
+          formaPagamento: v.formaPagamento, itens: v.itens,
+        })),
+      });
+    } catch { toast.error("Nao foi possivel gerar o relatorio."); }
+  };
+
   // 💳 Crédito do tutor (Fig 3a) — saldo mostrado na Visão geral
   useEffect(() => {
     const tid = (pet as any)?.tutorId;
@@ -2621,12 +2646,26 @@ export default function PetDetailPage() {
             <div className="bg-white border border-[#E8E2D6] rounded-[13px]">
               <div className="flex items-center justify-between border-b border-[#F0EBE0]" style={{ padding: "11px 14px" }}>
                 <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🧾 Histórico de compras</h3>
-                <span className="text-[11px] text-[#374151]">registre novas vendas pelo atendimento →</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-[#374151]">registre novas vendas pelo atendimento →</span>
+                  <button
+                    onClick={imprimirRelatorioDoTutor}
+                    title="Imprime TODAS as vendas do tutor — pagas e em aberto — com o descritivo de cada uma"
+                    className="text-[11.5px] font-medium px-2.5 py-1 rounded-lg text-white"
+                    style={{ background: "#009AAC" }}
+                  >🖨️ Relatório de vendas</button>
+                </div>
               </div>
               <div style={{ padding: "6px 15px" }}>
-                {atendimentos.length === 0 && <p className="text-[12.5px] text-[#374151] py-4 text-center">Nenhuma compra registrada ainda.</p>}
-                {atendimentos.map((a: any, i: number) => (
-                  <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left" style={{ borderBottom: i < atendimentos.length - 1 ? "1px solid #F0EBE0" : "none" }}>
+                {/* SO' COMPRA entra aqui. A lista percorria `atendimentos` — todos os registros do
+                    pet — entao consulta, retorno, receita e ate' "Termo de Internacao e
+                    Tratamento" apareciam como se fossem item vendido, com o texto do
+                    diagnostico no lugar do produto (Cintia, 09/09/2026: "por que outros itens
+                    estao entrando em vendas, coisas que nao tem nada a ver com a venda"). O
+                    ticket medio logo acima ja usava `compras`; so' a lista nao usava. */}
+                {compras.length === 0 && <p className="text-[12.5px] text-[#374151] py-4 text-center">Nenhuma compra registrada ainda.</p>}
+                {compras.map((a: any, i: number) => (
+                  <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left" style={{ borderBottom: i < compras.length - 1 ? "1px solid #F0EBE0" : "none" }}>
                     <span className="text-[11.5px] text-[#374151] w-[42px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
                     <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{resumoItens(a)}</span>
                     <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
