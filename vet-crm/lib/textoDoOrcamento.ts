@@ -27,8 +27,10 @@ export type OrcamentoParaTexto = {
   data?: string | Date | null;
 };
 
-/** A linha de um item: "• 2× Consulta — *R$ 300,00*". Quantidade 1 não vira "1×". */
-function linhaDoItem(it: ItemDoOrcamento): string {
+/** A linha de um item: "• 2× Consulta — *R$ 300,00*". Quantidade 1 não vira "1×".
+ *  Exportada porque o extrato de vendas usa a MESMA linha — duas formas de escrever o
+ *  mesmo item seriam a clínica se contradizendo na frente do cliente. */
+export function linhaDoItem(it: ItemDoOrcamento): string {
   const q = Number(it.quantidade) || 1;
   const valor = q * (Number(it.valorUnitario) || 0);
   const nome = String(it.descricao || "Item").trim();

@@ -20,6 +20,8 @@ import {
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
+import { textoDoRelatorioVendas } from "@/lib/textoDoRelatorioVendas";
+import { enviarExtratoPdfNoWhats, baixarExtratoPdf } from "@/lib/documentos/enviarPdfWhats";
 import FeedTimeline from "@/components/pets/FeedTimeline";
 import ResolverFuModal from "@/components/followup/ResolverFuModal";
 import WeightChart from "@/components/pets/WeightChart";
@@ -242,6 +244,13 @@ export default function PetDetailPage() {
   const [clinDocs, setClinDocs] = useState<any[]>([]);
   const [historico, setHistorico] = useState<any[]>([]);
   // Enviar exame/receita do prontuário pelo WhatsApp (mensagem + anexos; fica no aguardo se fechada)
+  // Escolher O QUE vai no WhatsApp. Antes eram dois botoes fixos (tudo / so' em aberto) e a
+  // Cintia perguntou: "posso selecionar o que quero enviar ou vai sempre o historico todo?".
+  // Vai o que ela marcar.
+  const [selVendasOpen, setSelVendasOpen] = useState(false);
+  const [vendasDoTutor, setVendasDoTutor] = useState<any[]>([]);
+  const [selVendas, setSelVendas] = useState<Set<string>>(new Set());
+  const [tutorDoRelatorio, setTutorDoRelatorio] = useState<{ name?: string; codigo?: number | null }>({});
   const [waOpen, setWaOpen] = useState(false);
   const [waMsg, setWaMsg] = useState("");
   const [waSel, setWaSel] = useState<Record<string, boolean>>({});
@@ -389,6 +398,95 @@ export default function PetDetailPage() {
         })),
       });
     } catch { toast.error("Nao foi possivel gerar o relatorio."); }
+  };
+
+  // Abre a escolha do que mandar. `apenasEmAberto` so' define o que ja vem MARCADO — a
+  // decisao final e' dela, na lista.
+  const abrirSelecaoWhats = async (apenasEmAberto: boolean) => {
+    const tid = (pet as any)?.tutorId || pet?.tutor?.id;
+    if (!tid) { toast.error("Este pet nao tem tutor vinculado."); return; }
+    try {
+      const r = await fetch(`/api/tutors/${tid}/vendas`, { cache: "no-store" });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      const vendas = Array.isArray(d?.vendas) ? d.vendas : [];
+      if (!vendas.length) { toast.error("Este cliente ainda nao tem vendas registradas."); return; }
+      setVendasDoTutor(vendas);
+      setTutorDoRelatorio({ name: d?.tutor?.name || pet?.tutor?.name, codigo: d?.tutor?.codigo ?? null });
+      const marcadas = vendas.filter((v: any) => !apenasEmAberto || Number(v.aberto || 0) > 0.009);
+      setSelVendas(new Set(marcadas.map((v: any) => v.id)));
+      setSelVendasOpen(true);
+    } catch { toast.error("Nao foi possivel carregar as vendas."); }
+  };
+
+  // Confirmada a selecao, monta o texto e abre o modal de WhatsApp que ja existe nesta tela —
+  // inclusive a escolha do modelo que ABRE a conversa quando ela esta fechada (janela de 24h).
+  const seguirParaWhats = () => {
+    const escolhidas = vendasDoTutor.filter((v: any) => selVendas.has(v.id));
+    if (!escolhidas.length) { toast.error("Marque ao menos uma venda."); return; }
+    setWaMsg(textoDoRelatorioVendas({
+      cliente: tutorDoRelatorio.name || "Cliente",
+      petNome: escolhidas.every((v: any) => v.pet === escolhidas[0].pet) ? escolhidas[0].pet : null,
+      vendas: escolhidas,
+    }));
+    setWaSel({});
+    setSelVendasOpen(false);
+    setWaOpen(true);   // da' pra revisar e editar o texto antes de enviar
+  };
+
+  const [enviandoPdf, setEnviandoPdf] = useState(false);
+
+  /** Manda as selecionadas como ANEXO PDF, com a mensagem escrita no modal do WhatsApp. */
+  const enviarPdfSelecionadas = async () => {
+    const escolhidas = vendasDoTutor.filter((v: any) => selVendas.has(v.id));
+    if (!escolhidas.length) { toast.error("Marque ao menos uma venda."); return; }
+    const tid = (pet as any)?.tutorId || pet?.tutor?.id;
+    if (!tid) { toast.error("Este pet nao tem tutor vinculado."); return; }
+    setEnviandoPdf(true);
+    try {
+      const r = await enviarExtratoPdfNoWhats({
+        tutorId: tid,
+        cliente: tutorDoRelatorio.name || "Cliente",
+        codigo: tutorDoRelatorio.codigo ?? null,
+        vendas: escolhidas,
+        texto: waMsg?.trim() || "Ola! Segue o extrato de compras. Qualquer duvida, estamos a disposicao!",
+        petNome: pet?.name,
+        template: waTemplate || undefined,
+        templateParams: waTemplate ? waTplVars : undefined,
+      });
+      if (!r.ok) { toast.error(r.erro || "Erro ao enviar."); return; }
+      toast.success(r.status === "na_fila"
+        ? "PDF na fila - sai assim que o tutor responder"
+        : "PDF enviado no WhatsApp");
+      setSelVendasOpen(false); setWaOpen(false);
+    } finally { setEnviandoPdf(false); }
+  };
+
+  const baixarPdfSelecionadas = async () => {
+    const escolhidas = vendasDoTutor.filter((v: any) => selVendas.has(v.id));
+    if (!escolhidas.length) { toast.error("Marque ao menos uma venda."); return; }
+    try {
+      await baixarExtratoPdf({
+        cliente: tutorDoRelatorio.name || "Cliente",
+        codigo: tutorDoRelatorio.codigo ?? null,
+        vendas: escolhidas,
+      });
+    } catch { toast.error("Nao foi possivel gerar o PDF."); }
+  };
+
+  const imprimirSelecionadas = async () => {
+    const escolhidas = vendasDoTutor.filter((v: any) => selVendas.has(v.id));
+    if (!escolhidas.length) { toast.error("Marque ao menos uma venda."); return; }
+    await imprimirVendasDoCliente({
+      tutor: tutorDoRelatorio.name || "Cliente",
+      codigo: tutorDoRelatorio.codigo ?? null,
+      comandas: escolhidas.map((v: any) => ({
+        id: v.id, numero: v.numero, data: v.data, pet: v.pet,
+        valor: v.valor, pago: v.pago, observacao: v.observacao,
+        formaPagamento: v.formaPagamento, itens: v.itens,
+      })),
+    });
+    setSelVendasOpen(false);
   };
 
   // 💳 Crédito do tutor (Fig 3a) — saldo mostrado na Visão geral
@@ -2654,6 +2752,12 @@ export default function PetDetailPage() {
                     className="text-[11.5px] font-medium px-2.5 py-1 rounded-lg text-white"
                     style={{ background: "#009AAC" }}
                   >🖨️ Relatório de vendas</button>
+                  <button
+                    onClick={() => abrirSelecaoWhats(true)}
+                    title="Escolha quais vendas mandar pelo WhatsApp — dá pra revisar e editar o texto antes de enviar"
+                    className="text-[11.5px] font-medium px-2.5 py-1 rounded-lg text-white"
+                    style={{ background: "#1c7a47" }}
+                  >💬 Enviar por WhatsApp</button>
                 </div>
               </div>
               <div style={{ padding: "6px 15px" }}>
@@ -2870,6 +2974,67 @@ export default function PetDetailPage() {
       )}
 
       {/* ===== ENVIAR EXAME/RECEITA PELO WHATSAPP (mensagem + anexos; aguardo se fechada) ===== */}
+      {/* ESCOLHER O QUE MANDAR — lista INTEIRA das vendas do tutor, com rolagem. Cortar aqui
+          esconderia justamente a conta que se quer cobrar. */}
+      {selVendasOpen && (
+        <div {...fundoDeModal(() => setSelVendasOpen(false))} className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50">
+          <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+            <div className="px-5 py-4 border-b border-[#E8E2D6] flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[15px] font-medium text-[#014D5E]">O que enviar de {tutorDoRelatorio.name || "cliente"}?</div>
+                <div className="text-[11.5px] text-[#374151]">{selVendas.size} de {vendasDoTutor.length} venda(s) marcada(s)</div>
+              </div>
+              <button onClick={() => setSelVendasOpen(false)} className="text-[#374151] text-lg leading-none">✕</button>
+            </div>
+
+            <div className="px-5 py-2 border-b border-[#F0EBE0] flex gap-2 flex-wrap">
+              <button onClick={() => setSelVendas(new Set(vendasDoTutor.map((v: any) => v.id)))} className="text-[11.5px] px-2.5 py-1 rounded-lg border border-[#E8E2D6] text-[#5C6B70]">Todas</button>
+              <button onClick={() => setSelVendas(new Set(vendasDoTutor.filter((v: any) => Number(v.aberto || 0) > 0.009).map((v: any) => v.id)))} className="text-[11.5px] px-2.5 py-1 rounded-lg border border-[#E8E2D6] text-[#b23b39]">Só em aberto</button>
+              <button onClick={() => setSelVendas(new Set())} className="text-[11.5px] px-2.5 py-1 rounded-lg border border-[#E8E2D6] text-[#5C6B70]">Nenhuma</button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-3 py-2">
+              {vendasDoTutor.map((v: any) => {
+                const marcada = selVendas.has(v.id);
+                const aberto = Number(v.aberto || 0);
+                return (
+                  <label key={v.id} className="flex items-center gap-2.5 px-2 py-2 rounded-lg cursor-pointer" style={{ background: marcada ? "#F0FBFC" : "transparent" }}>
+                    <input
+                      type="checkbox"
+                      checked={marcada}
+                      onChange={() => setSelVendas((prev) => { const n = new Set(prev); if (n.has(v.id)) n.delete(v.id); else n.add(v.id); return n; })}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12.5px] text-[#1F2A2E]">
+                        {v.numero ? `#${v.numero}` : "Venda"} · {fmtDataBR(v.data)}{v.pet ? ` · ${v.pet}` : ""}
+                      </div>
+                      <div className="text-[11px]" style={{ color: aberto > 0.009 ? "#b23b39" : "#0F6E56" }}>
+                        {aberto > 0.009 ? (Number(v.pago || 0) > 0.009 ? `parcial — falta ${money(aberto)}` : "em aberto") : "paga"}
+                        {" · "}{(v.itens || []).length} item(ns)
+                      </div>
+                    </div>
+                    <span className="text-[12.5px] font-medium text-[#014D5E] shrink-0">{money(v.valor)}</span>
+                  </label>
+                );
+              })}
+            </div>
+
+            <div className="px-5 py-3 border-t border-[#E8E2D6] flex gap-2 justify-end flex-wrap">
+              <button onClick={imprimirSelecionadas} className="px-3.5 py-2 text-[12.5px] rounded-lg border border-[#E8E2D6] text-[#014D5E]">🖨️ Imprimir</button>
+              <button onClick={baixarPdfSelecionadas} className="px-3.5 py-2 text-[12.5px] rounded-lg border border-[#E8E2D6] text-[#014D5E]">📄 Baixar PDF</button>
+              <button
+                onClick={enviarPdfSelecionadas}
+                disabled={enviandoPdf}
+                title="Gera o PDF, anexa e manda pelo WhatsApp do tutor"
+                className="px-3.5 py-2 text-[12.5px] font-medium rounded-lg text-white disabled:opacity-60"
+                style={{ background: "#0F6E56" }}
+              >{enviandoPdf ? "Enviando…" : "📎 Enviar PDF"}</button>
+              <button onClick={seguirParaWhats} className="px-3.5 py-2 text-[12.5px] font-medium rounded-lg text-white" style={{ background: "#1c7a47" }}>💬 Enviar texto</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {waOpen && (
         <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-[80]" {...fundoDeModal(() => setWaOpen(false))}>
           <div className="rounded-2xl shadow-xl max-w-md w-full max-h-[88vh] flex flex-col" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>

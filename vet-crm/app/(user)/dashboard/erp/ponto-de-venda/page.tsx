@@ -878,6 +878,23 @@ export default function PDVPage() {
   }, [cliente, vendasEmAberto]);
   const saldoDoCliente = somaEmAberto(contasDoCliente);
 
+  // Quanto CADA cliente deve no total, somando todas as contas em aberto dele (de qualquer
+  // dia). A lista do caixa mostra uma venda por linha; sem isto, a recepcao ve R$ 382 e nao
+  // sabe que o mesmo cliente deve R$ 3.288 no acumulado (Cintia, 09/09/2026).
+  const deveNoTotal = useMemo(() => {
+    const m = new Map<string, { total: number; qtd: number }>();
+    for (const o of vendasEmAberto as any[]) {
+      const chave = o.tutorId || o.tutor;
+      if (!chave || o.pagoTotal) continue;
+      const aberto = Math.max(0, Number(o.valor || 0) - Number(o.pago || 0));
+      if (aberto <= 0.009) continue;
+      const at = m.get(chave) || { total: 0, qtd: 0 };
+      at.total += aberto; at.qtd++;
+      m.set(chave, at);
+    }
+    return m;
+  }, [vendasEmAberto]);
+
   // 🖨️ As contas em aberto DESTE cliente, por dia e com o descritivo de cada comanda.
   const imprimirContasDoTutor = async (tutor: string, lista: any[]) => {
     if (imprimindoDia) return;
@@ -1191,14 +1208,16 @@ export default function PDVPage() {
               })()}
               <button onClick={() => { setBuscaOpen(true); setBuscaRes(null); }} title="Achar uma venda de qualquer dia pelo número ou pelo cliente" style={{ border: `1px solid ${LINE}`, background: '#fff', color: NAVY, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 600, height: 28, padding: '0 10px', borderRadius: 8, whiteSpace: 'nowrap' }}>🔍 Localizar venda</button>
             </div>
-            <div style={{ padding: '6px 13px 13px', minHeight: 90 }}>
+            <div style={{ padding: '6px 13px 13px', minHeight: 90, maxHeight: 420, overflowY: 'auto' }}>
               {vendasFiltradas.length === 0 && orcamentosEmAberto.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '18px 0' }}>
                   <div style={{ fontSize: 22, marginBottom: 4 }}>🧾</div>
                   <p style={{ fontSize: 12, color: MUT, margin: 0 }}>Nada em aberto. Tudo recebido. 🎉</p>
                 </div>
               )}
-              {vendasFiltradas.slice(0, 8).map((v) => {
+              {/* A lista vinha cortada em 8, sem dizer que havia mais — a conta procurada
+                  podia estar fora. Agora vem inteira e rola. */}
+              {vendasFiltradas.map((v) => {
                 const atrasada = ehAtrasada(v);
                 const cor = atrasada ? ERR : OK, corFundo = atrasada ? ERRB : OKB;
                 return (
@@ -1216,6 +1235,15 @@ export default function PDVPage() {
                       {(v as any).origem === 'INTERNACAO' && <span title="Conta da internação" style={{ marginLeft: 5, fontSize: 9.5, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: '#E1F5EE', color: '#0F6E56' }}>INTERNAÇÃO</span>}
                       {atrasada ? ` · atrasada desde ${new Date(v.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}
                     </div>
+                    {(() => {
+                      const acc = deveNoTotal.get((v as any).tutorId || v.tutor);
+                      if (!acc || acc.qtd < 2) return null;   // uma conta so': o valor da linha ja diz tudo
+                      return (
+                        <div style={{ fontSize: 10.5, color: ERR, fontWeight: 600, marginTop: 1 }}>
+                          deve {brl(acc.total)} no total · {acc.qtd} contas
+                        </div>
+                      );
+                    })()}
                   </div>
                   <span style={{ background: corFundo, color: cor, fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 999, whiteSpace: 'nowrap' }}>{brl(Math.max(0, Number(v.valor) - Number(v.pago)))}</span>
                 </div>
