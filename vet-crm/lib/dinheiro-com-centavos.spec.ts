@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
-import * as fs from "fs";
-import * as path from "path";
+import { codigoDoProjeto } from "@/lib/testes/varreduraDoProjeto";
 import { formatBRL } from "@/lib/format";
 
 // 🛡️ DINHEIRO SEMPRE COM DOIS DÍGITOS DEPOIS DA VÍRGULA.
@@ -15,26 +14,14 @@ import { formatBRL } from "@/lib/format";
 // Nada disso quebra o build nem aparece no tsc: é a tela arredondando em silêncio. Por isso a
 // trava lê os arquivos.
 
-const raiz = path.resolve(__dirname, "..");
-
-/** Todos os .ts/.tsx do app, sem node_modules nem testes. */
-function arquivos(dir: string, achados: string[] = []): string[] {
-  for (const nome of fs.readdirSync(dir)) {
-    if (nome === "node_modules" || nome === ".next" || nome.startsWith(".")) continue;
-    const p = path.join(dir, nome);
-    const st = fs.statSync(p);
-    if (st.isDirectory()) arquivos(p, achados);
-    else if (/\.tsx?$/.test(nome) && !/\.spec\.tsx?$/.test(nome)) achados.push(p);
-  }
-  return achados;
-}
-
-const fontes = ["app", "components", "lib"]
-  .flatMap((d) => arquivos(path.join(raiz, d)))
-  .map((p) => ({ p: path.relative(raiz, p), src: fs.readFileSync(p, "utf8") }));
+// A VARREDURA E COMPARTILHADA (lib/testes/varreduraDoProjeto): esta trava e a do fuso, em
+// lib/datas.test.ts, nasceram no mesmo dia em abas diferentes e as duas liam a arvore inteira.
+// Juntas, disputavam o disco e uma estourava o tempo da outra.
+const fontes = codigoDoProjeto().map(({ caminho, src }) => ({ p: caminho, src }));
 
 describe("nenhuma tela corta os centavos", () => {
-  it("não existe formatador de moeda com maximumFractionDigits: 0", () => {
+  // 30s: le o disco, igual a trava do fuso em lib/datas.test.ts.
+  it("não existe formatador de moeda com maximumFractionDigits: 0", { timeout: 30000 }, () => {
     const culpados = fontes
       .filter(({ src }) => /currency[\s\S]{0,120}maximumFractionDigits:\s*0/.test(src)
         || /maximumFractionDigits:\s*0[\s\S]{0,120}currency/.test(src))
@@ -42,7 +29,7 @@ describe("nenhuma tela corta os centavos", () => {
     expect(culpados).toEqual([]);
   });
 
-  it("não existe 'R$' montado com toFixed(0)", () => {
+  it("não existe 'R$' montado com toFixed(0)", { timeout: 30000 }, () => {
     // `R$ ${Number(v).toFixed(0)}` era o formato do perfil do pet e do cliente.
     const culpados = fontes
       .filter(({ src }) => /R\$[^`"']{0,20}toFixed\(0\)/.test(src))

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import { diaCalendario, fmtDataBR, hojeLocalISO, hojeNaClinicaISO, diaNaClinicaISO } from "@/lib/datas";
 import * as fs from "fs";
 import * as path from "path";
+import { codigoDoProjeto } from "@/lib/testes/varreduraDoProjeto";
 
 // BLINDAGEM do bug de FUSO em datas de calendário (vacina/boletim/follow-up/dose).
 // O dia certo NÃO pode virar o dia anterior por causa do UTC−3.
@@ -59,20 +60,20 @@ describe("o dia é o dia DA CLÍNICA, não o do UTC nem o do computador", () => 
     expect(hojeLocalISO()).toBe(hojeNaClinicaISO()); // o alias antigo segue o mesmo fuso
   });
 
-  it("nenhuma tela calcula 'hoje' em UTC", () => {
+  // 30s, e nao os 5s padrao: esta trava LE O DISCO (mil arquivos). O limite padrao e medida
+  // de teste de unidade; sob execucao paralela com a trava dos centavos, a leitura passava de
+  // 5s e o teste ficava vermelho sem nada de errado no codigo.
+  it("nenhuma tela calcula 'hoje' em UTC", { timeout: 30000 }, () => {
     // toISOString() devolve o dia em UTC. Quem precisa do dia de hoje usa hojeNaClinicaISO().
-    const proibido = 'new Date().toISOString().slice(0, 10)';
-    const achados: string[] = [];
-    const varrer = (dir: string) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const p = path.join(dir, e.name);
-        if (e.isDirectory()) { if (e.name !== "node_modules" && e.name !== ".next") varrer(p); }
-        else if (/\.tsx?$/.test(e.name) && !p.includes("datas.ts") && !p.includes("datas.test.ts")) {
-          if (fs.readFileSync(p, "utf8").includes(proibido)) achados.push(p);
-        }
-      }
-    };
-    for (const d of ["app", "lib", "components"]) if (fs.existsSync(d)) varrer(d);
+    //
+    // A VARREDURA MORA EM lib/testes/varreduraDoProjeto: em 09/09/2026 esta trava e a dos
+    // centavos nasceram no mesmo dia, em abas diferentes, e as duas liam a arvore inteira. Cada
+    // uma sozinha leva ~2s; juntas, disputavam o disco e uma estourava o tempo da outra — teste
+    // vermelho sem nada de errado no codigo, que e o pior jeito de uma trava falhar.
+    const proibido = "new Date().toISOString().slice(0, 10)";
+    const achados = codigoDoProjeto(["datas.ts"])
+      .filter((a) => a.src.includes(proibido))
+      .map((a) => a.caminho);
     expect(achados).toEqual([]);
   });
 });
