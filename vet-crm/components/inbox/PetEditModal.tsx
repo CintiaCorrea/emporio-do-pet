@@ -4,6 +4,7 @@ import toast from "react-hot-toast";
 import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { erroDoPeso } from "@/lib/peso";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 // Edição/cadastro do pet no inbox. inline = renderiza no painel (sem pop-up). Sem pet.id = cadastra novo (POST).
 export default function PetEditModal({ pet, tutorId, onClose, onSaved, inline }: { pet?: any; tutorId?: string; onClose: () => void; onSaved: (patch: any) => void; inline?: boolean }) {
@@ -144,7 +145,7 @@ export default function PetEditModal({ pet, tutorId, onClose, onSaved, inline }:
 
   if (inline) return card;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: "rgba(1,42,50,.45)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: "rgba(1,42,50,.45)" }} {...fundoDeModal(onClose)}>
       {card}
     </div>
   );

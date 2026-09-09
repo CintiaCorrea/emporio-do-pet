@@ -3,6 +3,7 @@ import { useState } from "react";
 import toast from "react-hot-toast";
 import { buscarCep } from "@/lib/cep";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 function onlyDigits(s: string) { return (s || "").replace(/\D/g, ""); }
 function normalizePhone(raw: string): string {
@@ -153,7 +154,7 @@ export default function ClienteEditModal({ tutor, onClose, onSaved, inline }: { 
 
   if (inline) return card;
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: "rgba(1,42,50,.45)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: "rgba(1,42,50,.45)" }} {...fundoDeModal(onClose)}>
       {card}
     </div>
   );

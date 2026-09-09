@@ -25,6 +25,7 @@ import { rotuloDaFaixa, ordenarFaixas, type FaixaPorte } from '@/lib/porte';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma } from '@/lib/formasPagamento';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import { hojeNaClinicaISO } from "@/lib/datas";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const TEAL = '#009AAC';
 const NAVY = '#014D5E';
@@ -124,6 +125,7 @@ export default function PDVPage() {
   const [orcamentos, setOrcamentos] = useState<{ id: string; tutor: string; pet: string; valor: number; tutorId?: string; petId?: string; dia?: string; _orc?: any }[]>([]);
   const [detOrc, setDetOrc] = useState<any>(null); // orçamento aberto no modal de detalhe
   const [vendasEmAberto, setVendasEmAberto] = useState<Venda[]>([]);   // o que está em pé, de qualquer dia
+  const [contasOpen, setContasOpen] = useState(false);                // painel do saldo devedor do cliente
   const [imprimindoDia, setImprimindoDia] = useState(false);          // relatório de comandas em preparo
   // 💵 As operações do caixa à mão no ponto de venda (Cintia, 07/09/2026, olhando o SimplesVet).
   // O formulário é o MESMO da tela de Caixa (components/caixa/MovimentoCaixaModal) — escrever um
@@ -854,6 +856,18 @@ export default function PDVPage() {
   };
   const somaEmAberto = (arr: any[]) => arr.reduce((s: number, o: any) => s + Math.max(0, Number(o.valor || 0) - Number(o.pago || 0)), 0);
 
+  // SALDO DEVEDOR DO CLIENTE, visivel assim que ele e' escolhido — como no SimplesVet
+  // (Cintia, 09/09/2026). Clicar abre as comandas dele para conferir uma a uma.
+  // Diferente do resumo do dia que saiu em 07/09: aquilo era do CAIXA, isto e' do CLIENTE.
+  const contasDoCliente = useMemo(() => {
+    if (!cliente?.id) return [] as any[];
+    return vendasEmAberto
+      .filter((o: any) => o.tutorId === cliente.id && !o.pagoTotal
+        && Math.max(0, Number(o.valor || 0) - Number(o.pago || 0)) > 0)
+      .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  }, [cliente, vendasEmAberto]);
+  const saldoDoCliente = somaEmAberto(contasDoCliente);
+
   // 🖨️ As contas em aberto DESTE cliente, por dia e com o descritivo de cada comanda.
   const imprimirContasDoTutor = async (tutor: string, lista: any[]) => {
     if (imprimindoDia) return;
@@ -942,6 +956,18 @@ export default function PDVPage() {
                     <option value="">Selecione o pet…</option>
                     {pets.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
+                )}
+                {saldoDoCliente > 0.009 && (
+                  <button
+                    onClick={() => setContasOpen(true)}
+                    title="Ver as contas em aberto deste cliente"
+                    style={{ border: `1px solid ${ERR}`, background: ERRB, color: ERR, borderRadius: 9, padding: '7px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 600, display: 'flex', flexDirection: 'column', alignItems: 'flex-start', lineHeight: 1.25 }}
+                  >
+                    <span>⚠️ Deve {brl(saldoDoCliente)}</span>
+                    <span style={{ fontSize: 10.5, fontWeight: 500, opacity: .85 }}>
+                      {contasDoCliente.length === 1 ? '1 conta em aberto' : `${contasDoCliente.length} contas em aberto`} · clique para ver
+                    </span>
+                  </button>
                 )}
                 <button onClick={limparCliente} style={{ border: `1px solid ${LINE}`, background: '#fff', borderRadius: 9, padding: '8px 11px', cursor: 'pointer', color: INK2, fontSize: 12 }}>↺ trocar</button>
               </div>
@@ -1295,7 +1321,7 @@ export default function PDVPage() {
 
       {/* ===== MODAL LOCALIZAR VENDA ===== */}
       {buscaOpen && (
-        <div onClick={() => setBuscaOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 16, paddingTop: 60 }}>
+        <div {...fundoDeModal(() => setBuscaOpen(false))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 16, paddingTop: 60 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 520, maxWidth: '100%', maxHeight: '82vh', overflowY: 'auto', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16 }}>
             <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, background: SUAVE }}>
               <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>🔍 Localizar venda</span>
@@ -1369,7 +1395,7 @@ export default function PDVPage() {
 
       {/* ===== MODAL RECEBIMENTO ===== */}
       {modal && (
-        <div onClick={() => setModal(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div {...fundoDeModal(() => setModal(false))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: '100%', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden' }}>
             <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>💰 Registrar recebimento</span>
@@ -1396,7 +1422,7 @@ export default function PDVPage() {
 
       {/* ===== DETALHE DO ORÇAMENTO (abre ao clicar na linha roxa) ===== */}
       {detOrc && (
-        <div onClick={() => setDetOrc(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div {...fundoDeModal(() => setDetOrc(null))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', maxHeight: '88vh', overflowY: 'auto', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16 }}>
             <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#6D28D9', fontSize: 15, fontWeight: 500 }}>📄 Orçamento</span>
@@ -1430,8 +1456,62 @@ export default function PDVPage() {
       )}
 
       {/* ===== DETALHE DA VENDA ===== */}
+      {/* AS CONTAS EM ABERTO DO CLIENTE — abre pelo "Deve R$ X" do cartao do cliente.
+          A lista vem INTEIRA e rola: cortar em N e escrever "+ X nao listadas" esconde
+          justamente a conta que a pessoa foi procurar. */}
+      {contasOpen && (
+        <div {...fundoDeModal(() => setContasOpen(false))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 75, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 560, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 600, color: NAVY, fontSize: 15 }}>Contas em aberto de {cliente?.name}</div>
+                <div style={{ fontSize: 11.5, color: MUT }}>{contasDoCliente.length} conta(s) · clique numa para abrir e receber</div>
+              </div>
+              <button onClick={() => setContasOpen(false)} style={{ border: 'none', background: 'transparent', fontSize: 18, cursor: 'pointer', color: MUT }}>✕</button>
+            </div>
+
+            <div style={{ overflowY: 'auto', padding: '6px 10px', flex: 1 }}>
+              {contasDoCliente.map((o: any) => {
+                const aberto = Math.max(0, Number(o.valor || 0) - Number(o.pago || 0));
+                const parcial = Number(o.pago || 0) > 0.009;
+                return (
+                  <button
+                    key={o.id}
+                    onClick={() => { setContasOpen(false); abrirDetVenda(o); }}
+                    style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 10, padding: '10px 10px', marginBottom: 4, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}
+                  >
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: NAVY, fontWeight: 500 }}>
+                        {o.numeroVenda ? `#${o.numeroVenda}` : 'Venda'} · {new Date(o.date).toLocaleDateString('pt-BR')}
+                        {o.pet ? <span style={{ color: INK2, fontWeight: 400 }}> · {o.pet}</span> : null}
+                      </div>
+                      {parcial && (
+                        <div style={{ fontSize: 11, color: WARN }}>parcial — já pagou {brl(Number(o.pago))} de {brl(Number(o.valor))}</div>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: ERR, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{brl(aberto)}</div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ borderTop: `1px solid ${LINE}`, padding: '12px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 13, color: INK2 }}>Saldo devedor</span>
+              <span style={{ fontSize: 18, fontWeight: 600, color: ERR, fontVariantNumeric: 'tabular-nums' }}>{brl(saldoDoCliente)}</span>
+            </div>
+            <div style={{ padding: '0 18px 14px' }}>
+              <button
+                onClick={() => imprimirContasDoTutor(cliente?.name || 'Cliente', contasDoCliente)}
+                disabled={imprimindoDia}
+                style={{ width: '100%', border: `1px solid ${ERR}`, background: '#fff', color: ERR, borderRadius: 9, padding: '9px', fontSize: 12.5, fontWeight: 600, cursor: imprimindoDia ? 'default' : 'pointer' }}
+              >{imprimindoDia ? 'Montando…' : '🖨️ Imprimir estas contas'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {detVenda && (
-        <div onClick={() => { setDetVenda(null); setEditItens(null); setRecOpen(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
+        <div {...fundoDeModal(() => { setDetVenda(null); setEditItens(null); setRecOpen(false); })} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
           <style>{`@keyframes pdvSlideOver{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 460, maxWidth: '100%', height: '100vh', overflowY: 'auto', background: SUAVE, borderLeft: `1px solid ${LINE}`, boxShadow: '-12px 0 30px rgba(0,0,0,.14)', animation: 'pdvSlideOver .18s ease-out' }}>
             <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1565,7 +1645,7 @@ export default function PDVPage() {
         const pagoR = Math.max(0, soma - trocoR);
         const restanteR = Math.max(0, aReceber - pagoR);
         return (
-          <div onClick={() => setRecOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 80, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
+          <div {...fundoDeModal(() => setRecOpen(false))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 80, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
             <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', height: '100vh', overflowY: 'auto', background: SUAVE, borderLeft: `1px solid ${LINE}`, boxShadow: '-12px 0 30px rgba(0,0,0,.14)', animation: 'pdvSlideOver .18s ease-out' }}>
               <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>💰 Registrar recebimento</span>
@@ -1593,13 +1673,16 @@ export default function PDVPage() {
                       <div style={{ fontSize: 11, color: MUT, margin: '2px 0 6px' }}>
                         {outras.length === 1 ? 'mais 1 conta em aberto' : `mais ${outras.length} contas em aberto`}, além desta
                       </div>
-                      {outras.slice(0, 4).map((o: any) => (
-                        <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: INK2, padding: '2px 0' }}>
-                          <span>{new Date(o.date).toLocaleDateString('pt-BR')}{o.pet ? ` · ${o.pet}` : ''}</span>
-                          <span style={{ fontVariantNumeric: 'tabular-nums' }}>{brl(Math.max(0, Number(o.valor || 0) - Number(o.pago || 0)))}</span>
-                        </div>
-                      ))}
-                      {outras.length > 4 && <div style={{ fontSize: 11, color: MUT, paddingTop: 2 }}>+ {outras.length - 4} não listadas</div>}
+                      {/* TODAS as contas, com rolagem. Antes cortava em 4 e dizia "+ N nao
+                          listadas" — escondendo justamente a conta que se foi procurar. */}
+                      <div style={{ maxHeight: 132, overflowY: 'auto' }}>
+                        {outras.map((o: any) => (
+                          <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: INK2, padding: '2px 0' }}>
+                            <span>{new Date(o.date).toLocaleDateString('pt-BR')}{o.pet ? ` · ${o.pet}` : ''}</span>
+                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{brl(Math.max(0, Number(o.valor || 0) - Number(o.pago || 0)))}</span>
+                          </div>
+                        ))}
+                      </div>
                       <button onClick={() => imprimirContasDoTutor(detVenda.tutor, [detVenda, ...outras])} disabled={imprimindoDia} title="Imprime as contas em aberto deste cliente, por dia e com o descritivo de cada uma" style={{ marginTop: 8, width: '100%', border: `1px solid ${ERR}`, background: '#fff', color: ERR, borderRadius: 9, padding: '7px', fontSize: 12, fontWeight: 600, cursor: imprimindoDia ? 'default' : 'pointer' }}>
                         {imprimindoDia ? 'Montando…' : '🖨️ Imprimir as contas deste cliente'}
                       </button>
@@ -1623,7 +1706,7 @@ export default function PDVPage() {
 
       {/* 🔓 Liberação de gerente — desconto acima do limite (senha mascarada) */}
       {libOpen && (
-        <div onClick={() => fecharLiberacao(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 90, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div {...fundoDeModal(() => fecharLiberacao(null))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 90, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <form
             onClick={(e) => e.stopPropagation()}
             onSubmit={(e) => { e.preventDefault(); if (libEmail.trim() && libSenha) fecharLiberacao({ email: libEmail.trim(), senha: libSenha }); }}

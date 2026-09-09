@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useCanSeeCost } from "@/lib/permissions/useCanSeeCost";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const B = { line: "#E8E2D6", soft: "#FBF9F4", lineSoft: "#F0EBE0", navy: "#014D5E", primary: "#009AAC", t1: "#1F2A2E", t2: "#5C6B70", t3: "#374151" };
 const inp: React.CSSProperties = { border: `1px solid ${B.line}`, borderRadius: 9, padding: "9px 11px", fontSize: 13, fontFamily: "inherit", background: "#fff", color: B.t1, width: "100%", boxSizing: "border-box" };
@@ -72,7 +73,7 @@ export default function ExameFormModal({ exame, onClose, onSaved }: { exame: Exa
   };
 
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: "fixed", inset: 0, background: "rgba(1,43,46,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", zIndex: 60, overflowY: "auto" }}>
+    <div {...fundoDeModal(() => onClose())} style={{ position: "fixed", inset: 0, background: "rgba(1,43,46,.45)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", zIndex: 60, overflowY: "auto" }}>
       <div style={{ background: "#fff", borderRadius: 16, width: "100%", maxWidth: 480, border: `1px solid ${B.line}` }} onClick={(e) => e.stopPropagation()}>
         <div style={{ padding: "16px 20px", borderBottom: `1px solid ${B.lineSoft}` }}>
           <h2 style={{ fontSize: 17, fontWeight: 600, color: B.navy, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>🔬 {isCreate ? "Novo exame" : "Editar exame"}</h2>

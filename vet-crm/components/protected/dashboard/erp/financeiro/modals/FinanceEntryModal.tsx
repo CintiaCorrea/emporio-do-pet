@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {  LuFileText, LuUser, LuDollarSign, LuCalendar, LuLoader } from "react-icons/lu";
 import { hojeNaClinicaISO } from "@/lib/datas";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 export type FinanceEntryType = "INCOME" | "EXPENSE";
 export type FinanceEntryStatus = "PAID" | "PENDING" | "OVERDUE" | "CANCELED";
@@ -77,11 +78,7 @@ const FinanceEntryModal = ({ isOpen, title, initialValues, onClose, onSubmit }: 
     setTimeout(() => onClose(), 300);
   };
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) handleClose();
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       setLoading(true);
@@ -97,7 +94,7 @@ const FinanceEntryModal = ({ isOpen, title, initialValues, onClose, onSubmit }: 
   if (!isOpen || !isMounted) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={handleOverlayClick}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" {...fundoDeModal(handleClose)}>
       <div
         className={`absolute inset-0 bg-gradient-to-br from-purple-900/20 via-blue-900/20 to-cyan-900/20 backdrop-blur-xl transition-opacity duration-500 ${
           isVisible ? "opacity-100" : "opacity-0"

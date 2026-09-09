@@ -6,6 +6,7 @@ import { LuX, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus, LuExternalLink } 
 import BuscaClientePet, { SelecaoClientePet } from "@/components/common/BuscaClientePet";
 import toast from "react-hot-toast";
 import { hojeNaClinicaISO } from "@/lib/datas";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Defaults = { date?: string; time?: string; userId?: string; duration?: number; tutor?: any; petId?: string; agendaAvulsa?: string; avulsaNome?: string; novoCliente?: { nome?: string; tel?: string } } | null;
 // agendarAposCriar: ao criar um cliente novo aqui, EM VEZ de pular pra ficha, continua pro
@@ -341,7 +342,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
   if (!open) return null;
 
   return (
-    <div className={inline ? "mt-2" : "fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"} onClick={inline ? undefined : fechar}>
+    <div className={inline ? "mt-2" : "fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"} {...(inline ? {} : fundoDeModal(fechar))}>
       <div className={inline ? "bg-white border rounded-xl w-full overflow-y-auto" : "bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[92vh] overflow-y-auto"} style={inline ? { borderColor: "#E8DFC8", maxHeight: 520 } : undefined} onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-4 border-b flex items-center gap-2" style={{ borderColor: "#eef0e6" }}>
           <h3 className="text-base font-semibold text-[#014D5E]">{editId ? "Editar agendamento" : "Novo agendamento"}</h3>

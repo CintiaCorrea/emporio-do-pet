@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type ComissaoBase = "VALOR_CHEIO" | "MARGEM" | "SEM_COMISSAO";
 interface Categoria { id: string; nome: string; comissaoBasePadrao: ComissaoBase; ativo: boolean; _count?: { servicos: number } }
@@ -64,7 +65,7 @@ export default function CategoriasModal({ onClose, onChanged }: { onClose: () =>
   function fechar() { if (mudou.current) onChanged?.(); onClose(); }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(1,30,36,.45)" }} onClick={fechar}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(1,30,36,.45)" }} {...fundoDeModal(fechar)}>
       <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
         <div className="px-5 py-3.5 border-b flex items-center justify-between" style={{ borderColor: "#E8DFC8", background: "linear-gradient(180deg,#F7FCFD,#EFF9FA)" }}>
           <span className="text-sm font-bold" style={{ color: "#014D5E" }}>🏷️ Categorias</span>

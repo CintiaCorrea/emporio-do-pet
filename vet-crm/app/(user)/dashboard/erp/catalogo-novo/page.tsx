@@ -614,7 +614,7 @@ function ConveniosModal({ onClose }: { onClose: () => void }) {
   const inp = { border: `1px solid ${LINE}`, borderRadius: 9, padding: "8px 10px", fontSize: 13, background: "#fff", color: "#1F2A2E" } as const;
   const brl = (v: any) => (Number(v) || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} {...fundoDeModal(onClose)}>
       <div className="bg-white rounded-2xl w-full max-w-2xl my-6" style={{ border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: LINE }}>
           <div className="font-semibold text-[15px]" style={{ color: B }}>🏥 Convênios {atual ? `· ${atual.nome}` : ""}</div>
@@ -715,7 +715,7 @@ function InventarioModal({ itensEstoque, onClose, onChanged }: { itensEstoque: a
   const inp = { border: `1px solid ${LINE}`, borderRadius: 9, padding: "8px 10px", fontSize: 13, background: "#fff", color: "#1F2A2E" } as const;
   const aberto = atual && atual.status === "ABERTO";
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} {...fundoDeModal(onClose)}>
       <div className="bg-white rounded-2xl w-full max-w-2xl my-6" style={{ border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: LINE }}>
           <div className="font-semibold text-[15px]" style={{ color: B }}>📋 Inventário {atual ? (aberto ? "· em contagem" : "· fechado") : ""}</div>
@@ -829,7 +829,7 @@ function EstoqueModal({ item, onClose, onChanged }: { item: { id: string; nome: 
   const abaixoMin = it && it.estoqueMin != null && Number(it.estoqueAtual) < Number(it.estoqueMin);
   const fmtMov = (m: any) => ({ ENTRADA: "⬆️ Entrada", SAIDA: "⬇️ Saída", AJUSTE: "✏️ Ajuste", INVENTARIO: "📋 Inventário" } as any)[m.tipo] || m.tipo;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} {...fundoDeModal(onClose)}>
       <div className="bg-white rounded-2xl w-full max-w-lg my-6" style={{ border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: LINE }}><div className="font-semibold text-[15px]" style={{ color: B }}>📦 Estoque · {item.nome}</div><button onClick={onClose} className="text-[18px]" style={{ color: MUT }}>✕</button></div>
         <div className="p-5 flex flex-col gap-4">
@@ -916,7 +916,7 @@ function ImportModal({ onClose, onDone }: { onClose: () => void; onDone: () => v
     <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 11, padding: "10px 13px" }}><div style={{ fontSize: 20, fontWeight: 800, color: cor || B }}>{n}</div><div style={{ fontSize: 11.5, color: MUT }}>{k}</div></div>
   );
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} {...fundoDeModal(onClose)}>
       <div className="bg-white rounded-2xl w-full max-w-2xl my-6" style={{ border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: LINE }}><div className="font-semibold text-[15px]" style={{ color: B }}>📥 Importar catálogo</div><button onClick={onClose} className="text-[18px]" style={{ color: MUT }}>✕</button></div>
         <div className="p-5 flex flex-col gap-3">
@@ -981,7 +981,7 @@ function GruposModal({ grupos, onClose, onChanged }: { grupos: any[]; onClose: (
   }
   const inp = { border: `1px solid ${LINE}`, borderRadius: 9, padding: "8px 10px", fontSize: 13, width: "100%", background: "#fff", color: "#1F2A2E" } as const;
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(20,35,40,.35)" }} {...fundoDeModal(onClose)}>
       <div className="bg-white rounded-2xl w-full max-w-lg my-6" style={{ border: `1px solid ${LINE}` }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3.5 border-b" style={{ borderColor: LINE }}><div className="font-semibold text-[15px]" style={{ color: B }}>🌳 Grupos</div><button onClick={onClose} className="text-[18px]" style={{ color: MUT }}>✕</button></div>
         <div className="p-5">

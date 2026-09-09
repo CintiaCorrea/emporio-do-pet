@@ -13,6 +13,7 @@ import EquipamentosFisioEditor from "@/components/pets/EquipamentosFisioEditor";
 import { imprimirDocumento } from "@/lib/print";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
 import { hojeNaClinicaISO } from "@/lib/datas";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 interface PetLite {
   id: string; name: string; species?: string; breed?: string | null; gender?: string | null; birthDate?: string | null;
@@ -220,7 +221,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
   const sec = "text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(0,0,0,0.45)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(onClose)}>
       <div className="bg-[#FBF9F4] rounded-[16px] w-full my-6" style={{ maxWidth: "900px", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
         {/* Cabeçalho fixo do modal */}
         <div className="flex items-center justify-between border-b border-[#E8E2D6] sticky top-0 bg-[#FBF9F4] rounded-t-[16px] z-10" style={{ padding: "13px 16px" }}>

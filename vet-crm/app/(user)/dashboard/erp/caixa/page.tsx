@@ -24,6 +24,7 @@ import {
   LuX, LuWallet, LuTrash2, LuGift, LuSettings, LuCircleDollarSign, LuEye, LuEyeOff,
 } from 'react-icons/lu';
 import MovimentoCaixaModal, { TipoMovimento } from '@/components/caixa/MovimentoCaixaModal';
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const TEAL = '#009AAC';
 const TEAL_DARK = '#014D5E';
@@ -869,7 +870,7 @@ export default function CaixaPage() {
       {/* A GAVETA DA TRILHA. Conferencia de caixa e uma pergunta sobre PESSOAS: quem lancou,
           quem excluiu, quem reabriu. Sem isso, a diferenca da gaveta nao tem a quem perguntar. */}
       {logOpen && (
-        <div className="no-print" onClick={() => setLogOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', zIndex: 80, display: 'flex', justifyContent: 'flex-end' }}>
+        <div className="no-print" {...fundoDeModal(() => setLogOpen(false))} style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', zIndex: 80, display: 'flex', justifyContent: 'flex-end' }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', background: '#fff', height: '100%', overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 18px', borderBottom: '1px solid #F0EBE0', position: 'sticky', top: 0, background: '#fff' }}>
               <div>
@@ -1001,7 +1002,7 @@ function Modal({ title, children, onClose, onConfirm, confirmLabel, confirmDisab
     ? { background: '#fff', width: '100%', maxWidth: 480, height: '100vh', overflow: 'auto', borderLeft: '1px solid #F0EBE0', boxShadow: '-12px 0 30px rgba(0,0,0,.14)', animation: 'cxSlideOver .18s ease-out' }
     : { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 430, maxHeight: '92vh', overflow: 'auto' };
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', display: 'flex', alignItems: 'center', justifyContent: slide ? 'flex-end' : 'center', padding: slide ? 0 : 16, zIndex: 50 }}>
+    <div {...fundoDeModal(() => onClose())} style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', display: 'flex', alignItems: 'center', justifyContent: slide ? 'flex-end' : 'center', padding: slide ? 0 : 16, zIndex: 50 }}>
       <style>{`@keyframes cxSlideOver{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
       <div style={painel}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 18px', borderBottom: '1px solid #F0EBE0' }}>

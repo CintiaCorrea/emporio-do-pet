@@ -6,6 +6,7 @@ import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem, ItemVe
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import SeletorModeloVenda from "@/components/vendas/SeletorModeloVenda";
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from "@/lib/modelosVenda";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ddmm = (iso: string) => { const [, m, d] = String(iso).split("-"); return d && m ? `${d}/${m}` : iso; };
@@ -161,7 +162,7 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
   const inp: any = { border: "1px solid #E8E2D6", borderRadius: 8, padding: "6px 8px", fontSize: 12.5 };
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] bg-black/40 flex items-center justify-center p-4" {...fundoDeModal(onClose)}>
       <div className="bg-white rounded-xl w-full max-w-md p-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold" style={{ color: "#014D5E" }}>💲 Orçamento / Venda — {pet?.name || "pet"}</h3>

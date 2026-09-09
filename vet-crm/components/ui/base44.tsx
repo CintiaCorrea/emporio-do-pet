@@ -9,6 +9,7 @@
    ───────────────────────────────────────────────────────────── */
 import React, { useState } from "react";
 import Link from "next/link";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 /* ═══════════════════════════ TOKENS ═══════════════════════════
    Fonte da verdade das cores. Trocar aqui = trocar em todo o app. */
@@ -441,7 +442,7 @@ export function Modal({
   );
   if (slide) {
     return (
-      <div className="fixed inset-0 z-50 print:hidden" style={{ background: "rgba(0,0,0,0.45)" }} onClick={onClose}>
+      <div className="fixed inset-0 z-50 print:hidden" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(onClose)}>
         <style>{`@keyframes b44SlideOver{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
         <div className="fixed top-0 right-0 bottom-0 p-5 overflow-y-auto" style={{ width: "100%", maxWidth: width + 60, background: B44.soft, borderLeft: `1px solid ${B44.line}`, boxShadow: "-12px 0 30px rgba(0,0,0,.14)", animation: "b44SlideOver .18s ease-out" }} onClick={(e) => e.stopPropagation()}>
           {conteudo}
@@ -450,7 +451,7 @@ export function Modal({
     );
   }
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.45)" }} {...fundoDeModal(onClose)}>
       <div className="w-full p-5" style={{ maxWidth: width, background: B44.soft, border: `1px solid ${B44.line}`, borderRadius: B44.rXl }} onClick={(e) => e.stopPropagation()}>
         {conteudo}
       </div>

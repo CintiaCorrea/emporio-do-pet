@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {  LuTrash, LuTriangleAlert, LuLoader } from "react-icons/lu";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 interface Props {
   isOpen: boolean;
@@ -34,11 +35,7 @@ const ConfirmDeleteFinanceEntryModal = ({ isOpen, title, subtitle, onClose, onCo
     setTimeout(() => onClose(), 300);
   };
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) handleClose();
-  };
-
-  const handleConfirm = async () => {
+    const handleConfirm = async () => {
     try {
       setIsSubmitting(true);
       setError(null);
@@ -53,7 +50,7 @@ const ConfirmDeleteFinanceEntryModal = ({ isOpen, title, subtitle, onClose, onCo
   if (!isOpen || !isMounted) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={handleOverlayClick}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" {...fundoDeModal(handleClose)}>
       <div
         className={`absolute inset-0 bg-gradient-to-br from-red-900/20 via-gray-900/20 to-purple-900/15 backdrop-blur-xl transition-opacity duration-500 ${
           isVisible ? "opacity-100" : "opacity-0"

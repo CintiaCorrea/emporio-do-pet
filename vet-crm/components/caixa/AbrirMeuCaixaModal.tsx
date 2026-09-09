@@ -18,6 +18,7 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import type { CaixaAberto } from "@/lib/caixaAtual";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 type Props = {
   onClose: () => void;
@@ -62,7 +63,7 @@ export default function AbrirMeuCaixaModal({ onClose, onAberto, motivo }: Props)
   const lbl: React.CSSProperties = { display: "block", fontSize: 11.5, color: "#5C6B70", marginBottom: 4 };
 
   return (
-    <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: "fixed", inset: 0, background: "rgba(1,43,46,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 95 }}>
+    <div {...fundoDeModal(() => onClose())} style={{ position: "fixed", inset: 0, background: "rgba(1,43,46,.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 95 }}>
       <div style={{ background: "#fff", borderRadius: 14, width: "100%", maxWidth: 400, maxHeight: "92vh", overflow: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "15px 18px", borderBottom: "1px solid #F0EBE0" }}>
           <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: "#1F2A2E" }}>Abrir o meu caixa</h3>

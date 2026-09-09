@@ -11,6 +11,7 @@
 
 import { useState } from "react";
 import { PRESETS, Faixa, faixaDoPreset, rotuloDoPeriodo, presetDaFaixa, ordenar, hojeNaCasa } from "@/lib/periodoDeBusca";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const TEAL = "#009AAC";
 const TEAL_DARK = "#014D5E";
@@ -47,7 +48,7 @@ export default function SeletorDePeriodo({ faixa, onMudar, rotulo }: Props) {
       {aberto && (
         <>
           {/* A cortina fecha o menu ao clicar fora — sem ela o menu fica preso aberto. */}
-          <div onClick={() => setAberto(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+          <div {...fundoDeModal(() => setAberto(false))} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
           <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 41, background: "#fff", border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: "0 10px 30px rgba(1,43,46,.13)", width: 268, overflow: "hidden" }}>
             {PRESETS.filter((x) => x.chave !== "PERSONALIZADO").map((x) => {
               const ativo = presetDaFaixa(faixa) === x.chave;

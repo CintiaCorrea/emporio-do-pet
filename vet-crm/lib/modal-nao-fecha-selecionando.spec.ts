@@ -7,10 +7,11 @@ import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 // toda e ela simplesmente fecha".
 //
 // Ao arrastar para selecionar texto, o mouse desce DENTRO do campo e sobe FORA. O navegador
-// dispara o `click` no ancestral comum — o fundo do modal — e o fundo fechava. O
-// stopPropagation() do miolo não protege: o alvo do clique já É o fundo.
+// dispara o `click` no ancestral comum — o fundo do modal — e o fundo fechava. Nem o
+// stopPropagation() do miolo nem o `if (e.target === e.currentTarget)` protegem: nos dois
+// casos o alvo do clique já É o fundo. Só resolve exigindo que o clique tenha COMEÇADO nele.
 
-const evt = (target: any, currentTarget: any) => ({ target, currentTarget }) as any;
+const evt = (target: unknown, currentTarget: unknown) => ({ target, currentTarget }) as never;
 
 describe("fundo do modal: fecha no clique, não na seleção de texto", () => {
   it("clique que começa E termina no fundo: fecha", () => {
@@ -27,7 +28,7 @@ describe("fundo do modal: fecha no clique, não na seleção de texto", () => {
     const fundo = {}, campo = {};
     const h = fundoDeModal(() => { fechou = true; });
     h.onMouseDown(evt(campo, fundo));   // apertou dentro do campo
-    h.onClick(evt(fundo, fundo));       // soltou no fundo → click cai no fundo
+    h.onClick(evt(fundo, fundo));       // soltou fora → o click cai no fundo
     expect(fechou).toBe(false);
   });
 
@@ -40,7 +41,12 @@ describe("fundo do modal: fecha no clique, não na seleção de texto", () => {
     expect(fechou).toBe(false);
   });
 
-  it("nenhum modal volta a fechar direto no onClick do fundo", () => {
+  it("nenhum fundo de modal fecha por onClick próprio", () => {
+    // Duas escritas do mesmo fundo: a classe do Tailwind e o estilo inline. A primeira
+    // varredura pegou só a classe — e os modais do Ponto de venda, que usam estilo inline,
+    // continuaram quebrados justamente onde a Cintia relatou. Aqui as duas contam.
+    const ehFundo = (l: string) =>
+      l.includes("fixed inset-0") || /position: ['"]fixed['"], inset: 0/.test(l);
     const achados: string[] = [];
     const varrer = (dir: string) => {
       for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -48,7 +54,10 @@ describe("fundo do modal: fecha no clique, não na seleção de texto", () => {
         if (e.isDirectory()) { if (e.name !== "node_modules" && e.name !== ".next") varrer(p); }
         else if (e.name.endsWith(".tsx")) {
           for (const l of fs.readFileSync(p, "utf8").split("\n")) {
-            if (l.includes("fixed inset-0") && /onClick=\{\(\)\s*=>/.test(l)) { achados.push(p); break; }
+            if (ehFundo(l) && l.includes("onClick=") && !l.includes("fundoDeModal")) {
+              achados.push(p + " :: " + l.trim().slice(0, 90));
+              break;
+            }
           }
         }
       }

@@ -10,6 +10,7 @@ import { resumoDeVendas } from '@/lib/resumoDeVendas';
 import { imprimirComandasDoDia } from '@/lib/documentos/relatorio-vendas-print';
 import SeletorDePeriodo from '@/components/comum/SeletorDePeriodo';
 import { imprimirResumoDeVendas } from '@/lib/documentos/relatorio-resumo-vendas-print';
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 /* ---------------- paleta Base44 ---------------- */
 const BG = '#F6F2EA';
@@ -193,7 +194,7 @@ function DevolucaoModal({ vendaId, onClose }: { vendaId: string; onClose: () => 
   const segOn: React.CSSProperties = { ...seg, borderColor: TEAL, background: '#EAF7F8', boxShadow: `inset 0 0 0 1px ${TEAL}` };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(1,45,55,.45)', zIndex: 60, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '5vh 12px', overflowY: 'auto' }}>
+    <div {...fundoDeModal(onClose)} style={{ position: 'fixed', inset: 0, background: 'rgba(1,45,55,.45)', zIndex: 60, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '5vh 12px', overflowY: 'auto' }}>
       <div onClick={(e) => e.stopPropagation()} style={{ ...cardCss, width: '100%', maxWidth: 560, background: '#fff', overflow: 'hidden' }}>
         {/* cabeçalho */}
         <div style={{ background: NAVY, color: '#fff', padding: '16px 18px' }}>
