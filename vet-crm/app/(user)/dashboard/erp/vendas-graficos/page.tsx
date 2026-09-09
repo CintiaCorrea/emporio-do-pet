@@ -5,7 +5,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
-const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(Number.isFinite(v) ? v : 0);
+// Dinheiro sempre com centavos (Cintia, 08/09/2026).
+const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number.isFinite(v) ? v : 0);
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const MARCA: Record<string, { lbl: string; cls: string }> = {
   EMPORIO: { lbl: "🏥 Empório", cls: "e" }, MUNDO_A_PARTE: { lbl: "🌿 Mundo à Parte", cls: "m" }, DRA_VIVIAN: { lbl: "✨ Dra. Vivian", cls: "v" },

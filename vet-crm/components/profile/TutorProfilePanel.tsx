@@ -18,7 +18,8 @@ interface Stats {
   frequenciaMensal: { mes: string; total: number; valor: number }[];
 }
 
-const fmtR = (v?: number | null) => v == null ? "—" : `R$ ${Number(v).toFixed(0)}`;
+// Dinheiro sempre com centavos (Cintia, 08/09/2026): "R$ 1.438" escondia 6 centavos.
+const fmtR = (v?: number | null) => v == null ? "—" : Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export default function TutorProfilePanel({ tutorId }: { tutorId: string }) {
   const [stats, setStats] = useState<Stats | null>(null);

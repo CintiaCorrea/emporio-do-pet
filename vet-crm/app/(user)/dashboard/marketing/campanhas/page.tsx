@@ -10,7 +10,8 @@ const PLATAFORMAS = ["Meta Ads", "Google Ads", "Instagram", "Facebook", "TikTok"
 const TIPOS = ["Aquisição", "Remarketing", "Branding", "Conteúdo", "Outro"];
 const STATUS = ["Ativa", "Pausada", "Encerrada"];
 const stStyle = (s: string) => s === "Ativa" ? { bg: "#E1F5EE", fg: "#0F6E56" } : s === "Pausada" ? { bg: "#FAEEDA", fg: "#854F0B" } : { bg: "#EEF2F4", fg: "#5b6470" };
-const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0);
+// Dinheiro sempre com centavos (Cintia, 08/09/2026).
+const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
 const EMPTY = { nome: "", plataforma: "Meta Ads", tipo: "Aquisição", segmento: "", metaCampaignId: "", tagOrigem: "", investimento: "", receita: "", inicio: "", fim: "", status: "Ativa" };
 
 export default function CampanhasPage() {

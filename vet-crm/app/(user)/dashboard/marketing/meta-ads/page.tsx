@@ -24,7 +24,8 @@ const SEGMENTS = [
   { v: "Integrativa", label: "Medicina Integrativa" },
 ];
 
-const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(v || 0);
+// Dinheiro sempre com centavos (Cintia, 08/09/2026).
+const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
 const numfmt = (v: number) => new Intl.NumberFormat("pt-BR").format(Math.round(v || 0));
 
 export default function MetaAdsPage() {

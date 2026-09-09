@@ -16,7 +16,13 @@ function toNum(v: unknown): number {
  *   formatBRL(1234, { semCentavos })  => "R$ 1.234"
  *   formatBRL(null)                   => "R$ 0,00"
  */
-export function formatBRL(value: unknown, opts?: { semCentavos?: boolean }): string {
+// DINHEIRO SEMPRE COM DOIS DIGITOS DEPOIS DA VIRGULA.
+//
+// A Cintia, em 08/09/2026: "tudo o que for valor ter como padrao dois digitos depois da
+// virgula". Havia uma opcao `semCentavos` aqui — que ninguem usava — e SEIS telas que cortavam
+// os centavos por conta propria: um total de R$ 1.438,06 virava "R$ 1.438" na ficha do pet e no
+// perfil do cliente. Numa clinica, centavo escondido e diferenca de caixa que ninguem explica.
+export function formatBRL(value: unknown): string {
   // aceita "1.234,56" (formato pt) além de número/está string com ponto
   const num =
     typeof value === 'string' && value.includes(',')
@@ -25,7 +31,8 @@ export function formatBRL(value: unknown, opts?: { semCentavos?: boolean }): str
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
-    ...(opts?.semCentavos ? { maximumFractionDigits: 0 } : {}),
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(num);
 }
 

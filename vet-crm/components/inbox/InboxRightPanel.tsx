@@ -209,7 +209,8 @@ function initials(name?: string | null) {
 }
 function formatLtv(cents?: number | null) {
   if (!cents || cents <= 0) return null;
-  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  // Dinheiro sempre com centavos (Cintia, 08/09/2026).
+  return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 // Extrai serviço solicitado do texto do resumo IA (parsing simples por palavras-chave).
