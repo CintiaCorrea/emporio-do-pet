@@ -19,6 +19,8 @@ import {
   LuPackage, LuMessageSquare, LuShare2, LuTag, LuClock, LuCalendar, LuX, LuCheck,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
+import EditorDeItens from "@/components/vendas/EditorDeItens";
+import { LinhaEditavel, totalDasLinhas, linhasParaGravar } from "@/lib/linhasDeVenda";
 import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
 import { textoDoRelatorioVendas } from "@/lib/textoDoRelatorioVendas";
 import { enviarExtratoPdfNoWhats, baixarExtratoPdf } from "@/lib/documentos/enviarPdfWhats";
@@ -1481,16 +1483,26 @@ export default function PetDetailPage() {
       toast.success("Atendimento excluído"); setVerAtd(null); await loadAtendimentos();
     } catch { toast.error("Erro ao excluir"); }
   }
+  // OS ITENS DO ATENDIMENTO, EDITAVEIS (Cintia, 08/09/2026: "preciso poder editar a venda na
+  // ficha do pet tambem"). Ate aqui o modal deixava mudar tipo, status, data e observacao — mas
+  // os "Servicos e valores" eram so leitura, e corrigir um item lancado errado obrigava a
+  // apagar o atendimento inteiro e refazer.
+  const [editItens, setEditItens] = useState<LinhaEditavel[]>([]);
+
   async function salvarEditAtd() {
     if (!verAtd) return;
     try {
       const body: any = { type: editAtdForm.type, status: editAtdForm.status, notes: editAtdForm.notes ?? "" };
+      // OS ITENS E O TOTAL. O valor da venda vem da soma das linhas — nunca digitado a parte,
+      // senao a conta da tela e a do caixa passam a discordar.
+      body.items = linhasParaGravar(editItens);
+      body.value = Number(totalDasLinhas(editItens).toFixed(2));
       // Data/hora real da sessão (pra lançar as sessões que já aconteceram na data certa).
       if (editAtdForm.date && editAtdForm.time) body.date = new Date(`${editAtdForm.date}T${editAtdForm.time}`).toISOString();
       const r = await fetch(`/api/appointments/${verAtd.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();
       toast.success("Atendimento atualizado");
-      setVerAtd({ ...verAtd, ...body, date: body.date || verAtd.date });
+      setVerAtd({ ...verAtd, ...body, items: body.items, value: body.value, date: body.date || verAtd.date });
       setEditAtd(false); await loadAtendimentos();
     } catch { toast.error("Erro ao salvar"); }
   }
@@ -2912,22 +2924,35 @@ export default function PetDetailPage() {
               </div>
               {editAtd && <div><span className="text-gray-400 block mb-0.5">Observações:</span><textarea value={editAtdForm.notes || ""} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, notes: e.target.value }))} placeholder="Acrescente uma observação da sessão…" className="w-full px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8", minHeight: 44 }} /></div>}
               {([["Queixa principal", "chiefComplaint"], ["Anamnese", "anamnesis"], ["Exame físico", "physicalExam"], ["Diagnóstico", "diagnosis"], ["Conduta", "conduct"], ["Prescrição", "prescription"], ["Exames solicitados", "examsRequested"]] as [string, string][]).map(([l, k]) => (verAtd as any)[k] ? <div key={k}><span className="text-gray-400">{l}:</span> {k === "prescription" ? <DocConteudo text={(verAtd as any)[k]} style={{ color: "#0E2244", display: "inline-block" }} /> : <span style={{ color: "#0E2244" }}>{(verAtd as any)[k]}</span>}</div> : null)}
-              {Array.isArray(verAtd.items) && verAtd.items.length > 0 && (
+              {/* SERVIÇOS E VALORES — em leitura mostra; em edição, EDITA (components/vendas/
+                  EditorDeItens, o mesmo componente que as outras telas de lançamento vão usar).
+                  Antes, corrigir um item lançado errado obrigava a apagar o atendimento inteiro
+                  e refazer — e refazer perde a data, o profissional e a observação. */}
+              {(editAtd || (Array.isArray(verAtd.items) && verAtd.items.length > 0)) && (
                 <div className="pt-1">
                   <div className="text-[11px] font-semibold text-gray-400 uppercase mb-1">Serviços e valores</div>
-                  <div className="space-y-1">
-                    {verAtd.items.map((it: any) => (
-                      <div key={it.id} className="flex items-center justify-between bg-[#fbfaf6] rounded px-2 py-1">
-                        <span>{it.descricao || "Serviço"} <span className="text-gray-400">x{it.quantidade}</span></span>
-                        <span className="font-medium">{Number(it.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {editAtd ? (
+                    <EditorDeItens
+                      linhas={editItens}
+                      onMudar={setEditItens}
+                      pesoKg={verAtd.petWeight ?? (pet as any)?.pesoAtual ?? null}
+                      vazio="Nenhum item ainda — busque abaixo para lançar."
+                    />
+                  ) : (
+                    <div className="space-y-1">
+                      {(verAtd.items || []).map((it: any) => (
+                        <div key={it.id} className="flex items-center justify-between bg-[#fbfaf6] rounded px-2 py-1">
+                          <span>{it.descricao || "Serviço"} <span className="text-gray-400">x{it.quantidade}</span></span>
+                          <span className="font-medium">{Number(it.valorTotal || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex items-center justify-between border-t pt-2" style={{ borderColor: "#f0e8d4" }}>
                 <span className="text-gray-400">Total{verAtd.paymentMethod ? ` · ${verAtd.paymentMethod}` : ""}</span>
-                <span className="text-sm font-semibold" style={{ color: "#0F6E56" }}>{Number(verAtd.value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</span>
+                <span className="text-sm font-semibold" style={{ color: "#0F6E56" }}>{Number(editAtd ? totalDasLinhas(editItens) : (verAtd.value || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               {verAtd.nextReturnDate && <div><span className="text-gray-400">Próximo retorno:</span> {new Date(verAtd.nextReturnDate).toLocaleDateString("pt-BR")}</div>}
               {verAtd.followUpNotes && <div><span className="text-gray-400">Verificar:</span> {verAtd.followUpNotes}</div>}
@@ -2943,7 +2968,7 @@ export default function PetDetailPage() {
                   </>
                 ) : (
                   <>
-                    <button onClick={() => { const d = new Date(verAtd.date); const z = (n: number) => String(n).padStart(2, "0"); setEditAtdForm({ type: verAtd.type, status: verAtd.status, date: `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`, time: `${z(d.getHours())}:${z(d.getMinutes())}`, notes: verAtd.notes || "" }); setEditAtd(true); }} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#009AAC", color: "#00798A" }}>Editar</button>
+                    <button onClick={() => { const d = new Date(verAtd.date); const z = (n: number) => String(n).padStart(2, "0"); setEditAtdForm({ type: verAtd.type, status: verAtd.status, date: `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`, time: `${z(d.getHours())}:${z(d.getMinutes())}`, notes: verAtd.notes || "" }); setEditItens((verAtd.items || []).map((it: any) => ({ id: it.id, descricao: it.descricao || "Serviço", quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, desconto: Number(it.desconto) || 0, servicoId: it.servicoId ?? undefined, productId: it.productId ?? undefined, catalogoItemId: it.catalogoItemId ?? undefined, custoUnitario: it.custoUnitario != null ? Number(it.custoUnitario) : undefined, fornecedorId: it.fornecedorId ?? undefined }))); setEditAtd(true); }} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#009AAC", color: "#00798A" }}>Editar</button>
                     <button onClick={() => setVerAtd(null)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
                   </>
                 )}
