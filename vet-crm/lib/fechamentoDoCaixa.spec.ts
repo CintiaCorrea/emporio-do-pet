@@ -78,9 +78,44 @@ describe("a grade de caixas filtra de verdade", () => {
     expect(api).toContain("where.numero = Math.trunc(num)");
   });
 
-  it("a grade começa nos últimos 7 dias, não em 'hoje'", () => {
-    // "O padrão da tela é 'hoje', e hoje quase nunca tem resultado."
-    expect(ler(PAGE)).toContain("useState(diasAtras(7))");
+  it("a lista começa em HOJE, mas nunca num beco sem saída", () => {
+    // Historia desta trava, que vale mais que a regra:
+    //   08/09, de manha — a Cintia criticou o SimplesVet: "o padrao da tela e 'hoje', e hoje
+    //     quase nunca tem resultado... o usuario cai em 'Nenhum resultado foi encontrado' com
+    //     frequencia". A trava nasceu exigindo padrao = ultimos 7 dias.
+    //   08/09, a noite — ela pediu a tela no formato deles, que abre em HOJE. E hoje passou a
+    //     ter caixa quase sempre, porque agora todo caixa encerra a meia-noite e reabre.
+    // O que a trava guarda agora nao e o periodo: e que a lista vazia OFERECA a saida, que era
+    // o defeito real que ela apontou.
+    const src = ler(PAGE);
+    expect(src).toContain("faixaDoPreset('HOJE')");
+    expect(src).toContain("Ver os últimos 7 dias");
+    expect(src).toContain("Ver este mês");
+  });
+
+  it("o período tem os atalhos que ela listou", () => {
+    const src = ler(PAGE);
+    expect(src).toContain("PRESETS");
+    expect(src).toContain("Escolher período");
+  });
+
+  it("o navegador de dia some quando o filtro é um período", () => {
+    // "Some quando o filtro e um periodo" (Cintia, descrevendo a tela deles).
+    expect(ler(PAGE)).toContain("ehDiaUnico(faixa)");
+  });
+
+  it("a lista vem primeiro, e o detalhe abre ao clicar na linha", () => {
+    const src = ler(PAGE);
+    expect(src).toContain("useState<'lista' | 'detalhe'>('lista')");
+    expect(src).toContain("abrirDetalhe");
+    expect(src).toContain("Voltar para a lista");
+  });
+
+  it("dá para imprimir nos dois lugares: o resumo do período e o movimento do caixa", () => {
+    // "Não esqueça da parte de imprimir o relatório" (Cintia, 08/09/2026).
+    const src = ler(PAGE);
+    expect(src).toContain("imprimirResumoDeCaixas");
+    expect(src).toContain("imprimirCaixaDetalhado");
   });
 
   it("o selo de conferência aparece na grade e no caixa aberto", () => {

@@ -16,6 +16,7 @@ import { agruparRecebimentos, rotuloDaVenda } from '@/lib/recebimentosDoCaixa';
 import { seloDoFechamento, coresDoSelo } from '@/lib/fechamentoDoCaixa';
 import { imprimirCaixaDetalhado, imprimirResumoDeCaixas } from '@/lib/documentos/relatorio-caixa-print';
 import { trilhaDoCaixa } from '@/lib/trilhaDoCaixa';
+import { PRESETS, ChaveDePreset, Faixa, faixaDoPreset, rotuloDoPeriodo, presetDaFaixa, ehDiaUnico, somarDias, ordenar, hojeNaCasa } from '@/lib/periodoDeBusca';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
@@ -28,6 +29,11 @@ const TEAL_DARK = '#014D5E';
 const ORANGE = '#D85A30';
 const GREEN = '#0f6e56';
 const LINE = '#E8E2D6';
+// Os mesmos nomes usados no ponto de venda, para as duas telas nao divergirem de cor.
+const INK = '#1F2A2E';   // texto forte
+const INK2 = '#374151';  // texto normal
+const MUT = '#5C6B70';   // rotulo, apoio
+const SUAVE = '#FBF9F4'; // fundo de cabecalho de tabela
 
 type Forma = PagForma; // fonte única (lib/formasPagamento): forma+valor +modalidade/bandeira/parcelas/nsu
 interface Movimento { id: string; tipo: string; valor: number; forma?: string | null; conta?: string | null; descricao?: string | null; observacao?: string | null; data: string; }
@@ -73,24 +79,29 @@ export default function CaixaPage() {
     return { label: '⚪ Fechado', bg: '#EEF2F3', fg: '#5C6B70' };
   };
   const miniBtn: React.CSSProperties = { fontSize: 11.5, padding: '5px 9px', borderRadius: 8, border: '1px solid #E8E2D6', background: '#fff', color: '#5C6B70', cursor: 'pointer' };
-  const [gradeOpen, setGradeOpen] = useState(false);
-  // PADRAO = ULTIMOS 7 DIAS. A Cintia, sobre o SimplesVet: "o padrao da tela e 'hoje', e hoje
-  // quase nunca tem resultado... o usuario cai em 'Nenhum resultado foi encontrado' com
-  // frequencia. Um dev deveria considerar default = ultimos 7 dias." Aqui e o padrao.
-  const diasAtras = (n: number) => { const d = new Date(); d.setDate(d.getDate() - n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-  const [gradeFrom, setGradeFrom] = useState(diasAtras(7));
-  const [gradeTo, setGradeTo] = useState(hojeStr());
+  // ── A TELA COMECA PELA LISTA (Cintia, 08/09/2026, mostrando o Movimento de Caixas do
+  // SimplesVet: "da para deixar a visualizacao mais proxima dessa forma?"). Antes ela abria
+  // dentro de UM caixa e trocava por pastilhas pequenas na lateral; quem chega quer ver quais
+  // caixas existem no periodo e entrar clicando na linha.
+  const [modo, setModo] = useState<'lista' | 'detalhe'>('lista');
+
+  // O PERIODO, com os atalhos dela (lib/periodoDeBusca, com teste). Comeca em HOJE, como o
+  // outro; se hoje nao tiver caixa, a propria lista oferece os ultimos 7 dias em um clique —
+  // era essa a queixa dela la ("hoje quase nunca tem resultado").
+  const [faixa, setFaixa] = useState<Faixa>(() => faixaDoPreset('HOJE'));
+  const [periodoAberto, setPeriodoAberto] = useState(false);
+  const [rascunhoFaixa, setRascunhoFaixa] = useState<Faixa>(() => faixaDoPreset('HOJE'));
   const [gradeStatus, setGradeStatus] = useState('');
   const [gradeUser, setGradeUser] = useState('');
   const [gradeNumero, setGradeNumero] = useState('');
   const [operadores, setOperadores] = useState<{ id: string; name: string }[]>([]);
   const [gradeRows, setGradeRows] = useState<any[]>([]);
   const [gradeLoading, setGradeLoading] = useState(false);
-  const fetchGrade = async () => {
+  const fetchGrade = useCallback(async () => {
     setGradeLoading(true);
     try {
       const p = new URLSearchParams();
-      if (gradeFrom) p.set('from', gradeFrom); if (gradeTo) p.set('to', gradeTo); if (gradeStatus) p.set('status', gradeStatus);
+      if (faixa.de) p.set('from', faixa.de); if (faixa.ate) p.set('to', faixa.ate); if (gradeStatus) p.set('status', gradeStatus);
       if (gradeUser) p.set('userId', gradeUser);
       // O numero ignora o periodo de proposito (quem procura o caixa 12 sabe qual quer).
       // A tela diz isso em vez de mudar o filtro sozinha, que foi o que a incomodou no outro.
@@ -98,7 +109,11 @@ export default function CaixaPage() {
       const r = await fetch(`/api/caixa/grade?${p.toString()}`, { cache: 'no-store' });
       setGradeRows(r.ok ? await r.json() : []);
     } catch { setGradeRows([]); } finally { setGradeLoading(false); }
-  };
+  }, [faixa, gradeStatus, gradeUser, gradeNumero]);
+
+  // A lista se refaz sozinha quando o periodo, a situacao ou o operador mudam. O numero do
+  // caixa nao entra aqui de proposito: e busca, e busca se dispara no Enter ou na lupa.
+  useEffect(() => { if (modo === 'lista') fetchGrade(); }, [modo, faixa, gradeStatus, gradeUser]); // eslint-disable-line
   const mudarStatus = async (novo: string) => {
     if (!detail) return;
     try {
@@ -108,12 +123,12 @@ export default function CaixaPage() {
     } catch { toast.error('Erro ao mudar status'); }
   };
   useEffect(() => {
-    if (!gradeOpen || operadores.length) return;
+    if (operadores.length) return;
     fetch('/api/caixa/operadores', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => setOperadores(Array.isArray(d) ? d : []))
       .catch(() => setOperadores([]));
-  }, [gradeOpen, operadores.length]);
+  }, [operadores.length]);
 
   // A TRILHA DO CAIXA. O interceptor de auditoria ja gravava toda escrita (quem, quando, qual
   // rota) e nunca mostramos: o registro existia e nao servia a ninguem. A Cintia viu o Log do
@@ -182,13 +197,18 @@ export default function CaixaPage() {
       // Abre no caixa de QUEM ESTÁ LOGADA (são dois caixas abertos, um por funcionária).
       // Antes abria sempre no primeiro do dia — a pessoa via o caixa da colega e achava que
       // os lançamentos dela tinham sumido.
-      if (data && data.length) {
+      // So escolhe caixa sozinha DENTRO do detalhe. Na lista, quem escolhe e quem clica —
+      // senao a tela abriria um caixa por conta propria e a lista nunca apareceria.
+      if (modoRef.current === 'detalhe' && data && data.length) {
         const manteve = escolhaManual.current ? data.find((c) => c.id === selectedId) : null;
         setSelectedId(manteve ? manteve.id : idDoMeuCaixa(data as any, meId));
       }
-      else { setSelectedId(null); setDetail(null); }
     } catch (e: any) { toast.error(e.message || 'Erro ao carregar caixas'); } finally { setLoading(false); }
   }, [date, selectedId, meId]);
+
+  // `modo` dentro de um useCallback memoizado ficaria velho; a ref sempre tem o valor de agora.
+  const modoRef = useRef<'lista' | 'detalhe'>('lista');
+  useEffect(() => { modoRef.current = modo; }, [modo]);
 
   const fetchDetail = useCallback(async (id: string) => {
     try { const r = await fetch(`/api/caixa/${id}`, { cache: 'no-store' }); if (!r.ok) throw new Error('Erro ao carregar caixa'); setDetail(await r.json()); }
@@ -236,7 +256,6 @@ export default function CaixaPage() {
     })();
   }, []);
 
-  const mudarDia = (delta: number) => { const d = new Date(date + 'T00:00:00'); d.setDate(d.getDate() + delta); setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); };
   const tutorIdDe = (a?: Appointment | null) => a?.tutorId || a?.tutor?.id || null;
 
   // A CONTA DO RESUMO MORA NO NUCLEO (lib/resumoDoCaixa, com teste). Ela estava aqui e estava
@@ -283,6 +302,24 @@ export default function CaixaPage() {
   const erroDoServidor = async (r: Response, padrao: string) => {
     const e = await r.json().catch(() => ({} as any));
     return new Error(e?.message || padrao);
+  };
+
+  /** Entrar num caixa a partir da lista: leva junto o DIA dele, que e o contexto do detalhe. */
+  const abrirDetalhe = (c: any) => {
+    const dia = c?.abertura ? String(new Date(c.abertura).toLocaleDateString('en-CA')) : date;
+    escolhaManual.current = true;
+    setDate(dia);
+    setSelectedId(c.id);
+    setTab('resumo');
+    setModo('detalhe');
+  };
+
+  const voltarParaLista = () => {
+    escolhaManual.current = false;
+    setModo('lista');
+    setSelectedId(null);
+    setDetail(null);
+    fetchGrade();
   };
 
   const abrirCaixa = async () => {
@@ -376,12 +413,6 @@ export default function CaixaPage() {
   const contado = fecharForm.valorContado === '' ? null : Number(String(fecharForm.valorContado).replace(',', '.'));
   const difPrevia = contado === null ? null : Number((contado - saldoDinheiro).toFixed(2));
 
-  const cardStyle: React.CSSProperties = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, padding: '14px 15px' };
-  const cardH = (icon: React.ReactNode, txt: string) => (
-    <div style={{ fontSize: 13, fontWeight: 600, margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 7 }}>
-      <span style={{ color: TEAL, display: 'flex' }}>{icon}</span>{txt}
-    </div>
-  );
   const tabBtn = (id: typeof tab, label: string) => {
     const on = tab === id;
     return <button onClick={() => setTab(id)} style={{ fontSize: 13.5, color: on ? TEAL_DARK : '#5C6B70', fontWeight: on ? 600 : 400, padding: '10px 2px', cursor: 'pointer', background: 'none', border: 'none', borderBottom: `2px solid ${on ? TEAL : 'transparent'}`, whiteSpace: 'nowrap' }}>{label}</button>;
@@ -397,171 +428,220 @@ export default function CaixaPage() {
       <style>{`@media print { .no-print { display:none !important; } body { background:#fff; } }`}</style>
       <div style={{ width: '100%', padding: '20px 26px 60px', boxSizing: 'border-box' }}>
 
-        {/* barra de acoes (titulo vem do cabecalho global) */}
-        <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-          <button onClick={() => setOcultar((v) => !v)} title={ocultar ? 'Mostrar valores' : 'Esconder valores'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #E8E2D6', background: '#fff', color: TEAL_DARK }}>
-            {ocultar ? <LuEyeOff size={15} /> : <LuEye size={15} />}{ocultar ? 'Mostrar valores' : 'Esconder valores'}
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #E8E2D6', borderRadius: 9, overflow: 'hidden' }}>
-            <button onClick={() => mudarDia(-1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Dia anterior"><LuChevronLeft size={16} /></button>
-            <span style={{ fontSize: 13, fontWeight: 500, padding: '0 12px' }}>{date === hojeStr() ? 'Hoje · ' : ''}{fmtDataLabel(date)}</span>
-            <button onClick={() => mudarDia(1)} style={{ border: 'none', background: '#fff', padding: '8px 11px', color: TEAL_DARK, cursor: 'pointer' }} aria-label="Próximo dia"><LuChevronRight size={16} /></button>
+        {/* ── BARRA DE FILTROS, NA PROPRIA PAGINA ────────────────────────────────────────
+            Ate 08/09/2026 estes filtros viviam dentro do modal "Todos os caixas" — e nem
+            filtravam (a query se perdia no proxy). A Cintia mostrou a tela do SimplesVet e
+            pediu esta forma: filtro em cima, lista no meio, detalhe ao clicar na linha. */}
+        <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12, position: 'relative' }}>
+
+          {/* PERIODO com atalhos (lib/periodoDeBusca) */}
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => { setRascunhoFaixa(faixa); setPeriodoAberto((v) => !v); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 500, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', border: `1px solid ${LINE}`, background: '#fff', color: TEAL_DARK }}>
+              📅 {rotuloDoPeriodo(faixa)} ▾
+            </button>
+            {periodoAberto && (
+              <>
+                <div onClick={() => setPeriodoAberto(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 41, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: '0 10px 30px rgba(1,43,46,.13)', width: 268, overflow: 'hidden' }}>
+                  {PRESETS.filter((x) => x.chave !== 'PERSONALIZADO').map((x) => {
+                    const ativo = presetDaFaixa(faixa) === x.chave;
+                    return (
+                      <button key={x.chave} onClick={() => { setFaixa(faixaDoPreset(x.chave)); setPeriodoAberto(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', background: ativo ? '#e8f7f9' : '#fff', color: ativo ? '#014D5E' : INK2, fontSize: 13, fontWeight: ativo ? 600 : 400, padding: '9px 14px', cursor: 'pointer' }}>
+                        {x.rotulo}
+                      </button>
+                    );
+                  })}
+                  {/* ESCOLHER PERIODO: os dois campos ficam abertos, sem segundo clique. No
+                      outro sistema era preciso clicar em "Selecionar periodo" antes de os
+                      calendarios aparecerem, e os campos nem aceitavam digitacao. */}
+                  <div style={{ borderTop: `1px solid ${LINE}`, padding: '11px 14px', display: 'flex', flexDirection: 'column', gap: 8, background: SUAVE }}>
+                    <span style={{ fontSize: 10.5, color: MUT, textTransform: 'uppercase', letterSpacing: '.4px' }}>Escolher período</span>
+                    <div style={{ display: 'flex', gap: 7 }}>
+                      <label style={{ fontSize: 11, color: MUT, flex: 1 }}>De<br /><input type="date" max={hojeNaCasa()} value={rascunhoFaixa.de} onChange={(e) => setRascunhoFaixa({ ...rascunhoFaixa, de: e.target.value })} style={{ width: '100%', border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 8px', fontSize: 12.5 }} /></label>
+                      <label style={{ fontSize: 11, color: MUT, flex: 1 }}>Até<br /><input type="date" max={hojeNaCasa()} value={rascunhoFaixa.ate} onChange={(e) => setRascunhoFaixa({ ...rascunhoFaixa, ate: e.target.value })} style={{ width: '100%', border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 8px', fontSize: 12.5 }} /></label>
+                    </div>
+                    <button onClick={() => { setFaixa(ordenar(rascunhoFaixa)); setPeriodoAberto(false); }} style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '8px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Aplicar período</button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-          <button onClick={() => { setGradeOpen(true); fetchGrade(); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 500, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', border: '1px solid #E8E2D6', background: '#fff', color: TEAL_DARK }}>📋 Todos os caixas</button>
+
+          <select value={gradeUser} onChange={(e) => setGradeUser(e.target.value)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: '8px 10px', fontSize: 12.5, background: '#fff', color: INK2, minWidth: 165 }}>
+            <option value="">Todos os caixas</option>
+            {operadores.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+          </select>
+
+          <input value={gradeNumero} onChange={(e) => setGradeNumero(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') fetchGrade(); }} inputMode="numeric" placeholder="Nº do caixa" style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: '8px 10px', fontSize: 12.5, width: 110, background: '#fff', color: INK2 }} />
+
+          <select value={gradeStatus} onChange={(e) => setGradeStatus(e.target.value)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: '8px 10px', fontSize: 12.5, background: '#fff', color: INK2 }}>
+            <option value="">Situação</option><option value="ABERTO">Aberto</option><option value="FECHADO">Fechado</option><option value="ENCERRADO">Encerrado</option><option value="EM_REVISAO">Em revisão</option>
+          </select>
+
+          <button onClick={fetchGrade} title="Buscar" style={{ border: `1px solid ${LINE}`, background: '#fff', color: TEAL_DARK, borderRadius: 9, padding: '8px 12px', fontSize: 13, cursor: 'pointer' }}>🔍</button>
+          <button onClick={() => { setFaixa(faixaDoPreset('HOJE')); setGradeStatus(''); setGradeUser(''); setGradeNumero(''); }} title="Limpar filtros" style={{ border: `1px solid ${LINE}`, background: '#fff', color: MUT, borderRadius: 9, padding: '8px 12px', fontSize: 13, cursor: 'pointer' }}>↺</button>
+
           {podeEditar && <button onClick={() => setAbrirOpen(true)} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12.5, fontWeight: 500, padding: '9px 14px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuPlus size={15} /> Abrir caixa</button>}
+
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            <button onClick={() => setOcultar((v) => !v)} title={ocultar ? 'Mostrar valores' : 'Esconder valores'} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', border: `1px solid ${LINE}`, background: '#fff', color: TEAL_DARK }}>
+              {ocultar ? <LuEyeOff size={15} /> : <LuEye size={15} />}
+            </button>
+            {/* IMPRIMIR O RESUMO DO PERIODO — o papel da lista (lib/documentos/relatorio-caixa-print). */}
+            <button onClick={() => imprimirResumoDeCaixas(gradeRows as any, rotuloDoPeriodo(faixa))} disabled={!gradeRows.length} title="Imprimir o resumo deste período" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, padding: '8px 12px', borderRadius: 9, cursor: gradeRows.length ? 'pointer' : 'default', opacity: gradeRows.length ? 1 : .45, border: `1px solid ${LINE}`, background: '#fff', color: TEAL_DARK }}>
+              <LuPrinter size={15} />
+            </button>
+          </div>
         </div>
 
-        {gradeOpen && (
-          <div className="no-print" onClick={() => setGradeOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 16px', overflowY: 'auto' }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: 760, maxWidth: '100%', background: '#fff', border: '1px solid #E8E2D6', borderRadius: 16, overflow: 'hidden' }}>
-              <div style={{ padding: '13px 18px', borderBottom: '1px solid #E8E2D6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: '#014D5E', fontSize: 15, fontWeight: 600 }}>📋 Todos os caixas</span>
-                <button onClick={() => setGradeOpen(false)} style={{ border: 'none', background: 'none', color: '#5C6B70', cursor: 'pointer', fontSize: 16 }}>✕</button>
-              </div>
-              <div style={{ padding: 16 }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: 12 }}>
-                  <label style={{ fontSize: 11, color: '#5C6B70' }}>De<br /><input type="date" value={gradeFrom} onChange={(e) => setGradeFrom(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13 }} /></label>
-                  <label style={{ fontSize: 11, color: '#5C6B70' }}>Até<br /><input type="date" value={gradeTo} onChange={(e) => setGradeTo(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13 }} /></label>
-                  <label style={{ fontSize: 11, color: '#5C6B70' }}>Status<br />
-                    <select value={gradeStatus} onChange={(e) => setGradeStatus(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13, minWidth: 140 }}>
-                      <option value="">Todos</option><option value="ABERTO">Aberto</option><option value="FECHADO">Fechado</option><option value="ENCERRADO">Encerrado</option><option value="EM_REVISAO">Em revisão</option>
-                    </select>
-                  </label>
-                  <label style={{ fontSize: 11, color: '#5C6B70' }}>Operador<br />
-                    <select value={gradeUser} onChange={(e) => setGradeUser(e.target.value)} style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13, minWidth: 160 }}>
-                      <option value="">Todos</option>
-                      {operadores.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
-                    </select>
-                  </label>
-                  <label style={{ fontSize: 11, color: '#5C6B70' }}>Nº do caixa<br /><input value={gradeNumero} onChange={(e) => setGradeNumero(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') fetchGrade(); }} inputMode="numeric" placeholder="ex: 12" style={{ border: '1px solid #E8E2D6', borderRadius: 8, padding: '7px 9px', fontSize: 13, width: 92 }} /></label>
-                  <button onClick={fetchGrade} style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 9, padding: '8px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>🔍 Filtrar</button>
-                </div>
-                {gradeNumero.trim() && (
-                  <div style={{ fontSize: 11.5, color: '#8A5B00', background: '#FBF1E2', border: '1px solid #F0DCB8', borderRadius: 9, padding: '7px 11px', marginBottom: 10 }}>
-                    Buscando o caixa nº {gradeNumero.trim()} em <b>qualquer data</b> — o período acima fica de fora enquanto houver número.
-                  </div>
-                )}
-                <div style={{ border: '1px solid #E8E2D6', borderRadius: 10, overflow: 'hidden', maxHeight: '55vh', overflowY: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead><tr style={{ background: '#FBF9F4' }}>{['Nº', 'Usuário', 'Abertura', 'Fechamento', 'Status', 'Conferência', 'Diferença'].map((h, i) => <th key={h} style={{ padding: '9px 11px', fontSize: 10.5, color: '#5C6B70', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.4px', textAlign: i === 6 ? 'right' : 'left' }}>{h}</th>)}</tr></thead>
-                    <tbody>
-                      {gradeLoading ? <tr><td colSpan={7} style={{ padding: 20, textAlign: 'center', color: '#5C6B70' }}>Carregando…</td></tr>
-                        : gradeRows.length === 0 ? <tr><td colSpan={7} style={{ padding: 20, textAlign: 'center', color: '#5C6B70' }}>Nenhum caixa no filtro.</td></tr>
-                        : gradeRows.map((c) => { const u = STATUS_UI(c.status); return (
-                          <tr key={c.id} style={{ borderTop: '1px solid #F0EBE0', cursor: 'pointer' }} onClick={() => { const d = new Date(c.abertura); setDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`); setSelectedId(c.id); setGradeOpen(false); }}>
-                            <td style={{ padding: '9px 11px', color: '#014D5E', fontWeight: 500 }}>nº {c.numero}</td>
-                            <td style={{ padding: '9px 11px', color: '#374151' }}>{c.user?.name || '—'}</td>
-                            <td style={{ padding: '9px 11px', color: '#5C6B70' }}>{c.abertura ? new Date(c.abertura).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                            <td style={{ padding: '9px 11px', color: '#5C6B70' }}>{c.fechamento ? new Date(c.fechamento).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-                            <td style={{ padding: '9px 11px' }}><span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 9px', borderRadius: 20, background: u.bg, color: u.fg }}>{u.label}</span></td>
-                            {/* CONFERIDO x ENCERRADO SOZINHO (lib/fechamentoDoCaixa). Sem esta
-                                coluna, os dois aparecem como "Fechado" e a diferença some do
-                                histórico. */}
-                            <td style={{ padding: '9px 11px' }}>{(() => {
-                              const sel = seloDoFechamento(c); if (!sel) return <span style={{ color: '#8A9499', fontSize: 11.5 }}>—</span>;
-                              const cor = coresDoSelo(sel.chave);
-                              return <span title={sel.detalhe} style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 9px', borderRadius: 20, background: cor.bg, color: cor.fg, whiteSpace: 'nowrap' }}>{sel.texto}</span>;
-                            })()}</td>
-                            <td style={{ padding: '9px 11px', textAlign: 'right', color: c.diferenca != null && c.diferenca < 0 ? '#C0392B' : '#5C6B70' }}>{c.diferenca != null ? (ocultar ? '•••' : c.diferenca.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })) : '—'}</td>
-                          </tr>
-                        ); })}
-                    </tbody>
-                  </table>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
-                  <p style={{ fontSize: 11, color: '#8A938F', margin: 0 }}>Clique numa linha pra abrir aquele caixa.</p>
-                  <button onClick={() => imprimirResumoDeCaixas(gradeRows as any, gradeNumero.trim() ? `caixa nº ${gradeNumero.trim()}` : `${gradeFrom.split('-').reverse().join('/')} a ${gradeTo.split('-').reverse().join('/')}`)} disabled={!gradeRows.length} style={{ background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, borderRadius: 9, padding: '7px 14px', fontSize: 12.5, fontWeight: 500, cursor: gradeRows.length ? 'pointer' : 'default', opacity: gradeRows.length ? 1 : .5 }}>🖨 Imprimir este resumo</button>
-                </div>
-              </div>
+        {/* O NUMERO IGNORA O PERIODO — e a tela DIZ isso. A Cintia, sobre o SimplesVet:
+            "digitar em Cod. Caixa muda o filtro de data sozinho para Qualquer data". O
+            comportamento e bom; o silencio e que nao era. */}
+        {modo === 'lista' && gradeNumero.trim() && (
+          <div className="no-print" style={{ fontSize: 11.5, color: '#8A5B00', background: '#FBF1E2', border: '1px solid #F0DCB8', borderRadius: 9, padding: '8px 12px', marginBottom: 12 }}>
+            Buscando o caixa nº {gradeNumero.trim()} em <b>qualquer data</b> — o período acima fica de fora enquanto houver número.
+          </div>
+        )}
+
+        {/* NAVEGADOR DE DIA — so quando o periodo e UM dia. "Some quando o filtro e um
+            periodo" (Cintia, descrevendo a tela do SimplesVet). */}
+        {modo === 'lista' && ehDiaUnico(faixa) && (
+          <div className="no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+            <button onClick={() => { const d = somarDias(faixa.de, -1); setFaixa({ de: d, ate: d }); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: `1px solid ${LINE}`, background: '#fff', color: INK2, borderRadius: 9, padding: '8px 13px', fontSize: 12.5, cursor: 'pointer' }}><LuChevronLeft size={15} /> Dia anterior</button>
+            <span style={{ fontSize: 19, fontWeight: 600, color: TEAL_DARK }}>{faixa.de.split('-').reverse().join('/')}</span>
+            <button onClick={() => { const d = somarDias(faixa.de, 1); setFaixa({ de: d, ate: d }); }} disabled={faixa.de >= hojeNaCasa()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: `1px solid ${LINE}`, background: '#fff', color: INK2, borderRadius: 9, padding: '8px 13px', fontSize: 12.5, cursor: faixa.de >= hojeNaCasa() ? 'default' : 'pointer', opacity: faixa.de >= hojeNaCasa() ? .45 : 1 }}>Próximo dia <LuChevronRight size={15} /></button>
+          </div>
+        )}
+
+        {/* ── A LISTA DE CAIXAS ──────────────────────────────────────────────────────────── */}
+        {modo === 'lista' && (
+          <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 720 }}>
+                <thead><tr style={{ background: SUAVE }}>
+                  {['Nº', 'Abertura', 'Fechamento', 'Operador', 'Situação', 'Conferência', 'Recebido', 'Diferença'].map((h, i) => (
+                    <th key={h} style={{ padding: '10px 12px', fontSize: 10.5, color: MUT, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.4px', textAlign: i >= 6 ? 'right' : 'left', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr></thead>
+                <tbody>
+                  {gradeLoading && <tr><td colSpan={8} style={{ padding: 24, textAlign: 'center', color: MUT }}>Carregando…</td></tr>}
+                  {!gradeLoading && gradeRows.length === 0 && (
+                    <tr><td colSpan={8} style={{ padding: 30, textAlign: 'center' }}>
+                      <div style={{ color: MUT, fontSize: 13.5 }}>Nenhum caixa {gradeNumero.trim() ? `com o nº ${gradeNumero.trim()}` : `em ${rotuloDoPeriodo(faixa).toLowerCase()}`}.</div>
+                      {/* SEM BECO SEM SAIDA: a queixa dela sobre o outro sistema era cair em
+                          "nenhum resultado" e ter de remontar o filtro na mao. */}
+                      <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 11, flexWrap: 'wrap' }}>
+                        {presetDaFaixa(faixa) !== 'D7' && <button onClick={() => { setGradeNumero(''); setFaixa(faixaDoPreset('D7')); }} style={{ border: `1px solid ${LINE}`, background: '#fff', color: TEAL_DARK, borderRadius: 9, padding: '7px 13px', fontSize: 12.5, cursor: 'pointer' }}>Ver os últimos 7 dias</button>}
+                        {presetDaFaixa(faixa) !== 'MES' && <button onClick={() => { setGradeNumero(''); setFaixa(faixaDoPreset('MES')); }} style={{ border: `1px solid ${LINE}`, background: '#fff', color: TEAL_DARK, borderRadius: 9, padding: '7px 13px', fontSize: 12.5, cursor: 'pointer' }}>Ver este mês</button>}
+                        {podeEditar && <button onClick={() => setAbrirOpen(true)} style={{ border: 'none', background: TEAL, color: '#fff', borderRadius: 9, padding: '7px 13px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>＋ Abrir caixa</button>}
+                      </div>
+                    </td></tr>
+                  )}
+                  {gradeRows.map((c: any) => {
+                    const u = STATUS_UI(c.status);
+                    const sel = seloDoFechamento(c);
+                    const cor = sel ? coresDoSelo(sel.chave) : null;
+                    return (
+                      <tr key={c.id} onClick={() => abrirDetalhe(c)} style={{ borderTop: `1px solid ${LINE}`, cursor: 'pointer' }}>
+                        <td style={{ padding: '10px 12px', color: TEAL_DARK, fontWeight: 600, whiteSpace: 'nowrap' }}>nº {c.numero}</td>
+                        <td style={{ padding: '10px 12px', color: MUT, whiteSpace: 'nowrap' }}>{c.abertura ? new Date(c.abertura).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                        <td style={{ padding: '10px 12px', color: MUT, whiteSpace: 'nowrap' }}>{c.fechamento ? new Date(c.fechamento).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                        <td style={{ padding: '10px 12px', color: INK }}>{c.user?.name || '—'}</td>
+                        <td style={{ padding: '10px 12px' }}><span style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 9px', borderRadius: 20, background: u.bg, color: u.fg, whiteSpace: 'nowrap' }}>{u.label}</span></td>
+                        <td style={{ padding: '10px 12px' }}>{sel && cor ? <span title={sel.detalhe} style={{ fontSize: 10.5, fontWeight: 600, padding: '2px 9px', borderRadius: 20, background: cor.bg, color: cor.fg, whiteSpace: 'nowrap' }}>{sel.texto}</span> : <span style={{ color: '#8A9499', fontSize: 11.5 }}>—</span>}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap' }}>{money(Number(c.recebido || 0))}</td>
+                        <td style={{ padding: '10px 12px', textAlign: 'right', whiteSpace: 'nowrap', color: c.diferenca != null && Number(c.diferenca) < 0 ? '#C0392B' : MUT }}>{c.diferenca != null ? money(Number(c.diferenca)) : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
+            {gradeRows.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '10px 14px', borderTop: `1px solid ${LINE}`, background: SUAVE, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 11.5, color: MUT }}>{gradeRows.length} caixa(s) · clique na linha para abrir</span>
+                <b style={{ fontSize: 13.5, color: TEAL_DARK }}>Recebido no período: {money(gradeRows.reduce((t: number, c: any) => t + Number(c.recebido || 0), 0))}</b>
+              </div>
+            )}
           </div>
         )}
 
-        {loading && <p style={{ color: '#5C6B70' }}>Carregando…</p>}
-        {!loading && caixas.length === 0 && (
-          <div style={{ ...cardStyle, textAlign: 'center', padding: 40 }}>
-            <LuWallet size={28} style={{ color: TEAL }} />
-            <p style={{ color: '#5C6B70', margin: '10px 0 0' }}>Nenhum caixa neste dia.</p>
-            <p style={{ color: '#374151', fontSize: 13, margin: '4px 0 0' }}>Clique em “Abrir caixa” para começar.</p>
-          </div>
-        )}
+        {modo === 'detalhe' && detail && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
 
-        {detail && (
-          <div style={{ display: 'flex', gap: 18, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <button className="no-print" onClick={voltarParaLista} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, border: `1px solid ${LINE}`, background: '#fff', color: INK2, borderRadius: 9, padding: '7px 13px', fontSize: 12.5, cursor: 'pointer' }}>
+              <LuChevronLeft size={15} /> Voltar para a lista
+            </button>
 
-            {/* COLUNA ESQUERDA */}
-            <div style={{ width: 280, flex: '0 0 280px', display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={cardStyle}>
-                {cardH(<LuWallet size={15} />, `Caixa nº ${detail.numero}`)}
-                <div style={{ fontSize: 12.5, lineHeight: 1.95 }}>
-                  <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Usuário:</span> {detail.user?.name || '—'}</div>
-                  <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Abertura:</span> {dataHora(detail.abertura)}</div>
-                  {detail.fechamento && <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Fechamento:</span> {dataHora(detail.fechamento)}</div>}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}><span style={{ color: '#014D5E', fontWeight: 500 }}>Status:</span>
+            {/* ── A FICHA DO CAIXA, NA HORIZONTAL ────────────────────────────────────────
+                Era um cartao na coluna da esquerda; a Cintia pediu a forma do SimplesVet,
+                com os dados do caixa numa faixa em cima e a tela inteira para o conteudo. */}
+            <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 22, padding: '13px 16px' }}>
+                {[
+                  ['Caixa', `nº ${detail.numero}`],
+                  ['Operador', detail.user?.name || '—'],
+                  ['Abertura', dataHora(detail.abertura)],
+                  ['Fechamento', detail.fechamento ? dataHora(detail.fechamento) : '—'],
+                ].map(([rot, val]) => (
+                  <div key={rot as string}>
+                    <div style={{ fontSize: 10.5, color: MUT, textTransform: 'uppercase', letterSpacing: '.4px' }}>{rot}</div>
+                    <div style={{ fontSize: 13.5, fontWeight: 600, color: INK }}>{val}</div>
+                  </div>
+                ))}
+                <div>
+                  <div style={{ fontSize: 10.5, color: MUT, textTransform: 'uppercase', letterSpacing: '.4px' }}>Situação</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', marginTop: 2 }}>
                     {(() => { const u = STATUS_UI(detail.status); return <span style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, background: u.bg, color: u.fg }}>{u.label}</span>; })()}
                     {(() => {
                       const sel = seloDoFechamento(detail as any); if (!sel) return null;
                       const cor = coresDoSelo(sel.chave);
                       return <span title={sel.detalhe} style={{ fontSize: 11, fontWeight: 500, padding: '3px 10px', borderRadius: 20, background: cor.bg, color: cor.fg }}>{sel.texto}</span>;
                     })()}
-                    {podeEditar && detail.status !== 'ABERTO' && detail.status !== 'ENCERRADO' && <button onClick={() => mudarStatus('ENCERRADO')} style={miniBtn} title="Encerrar definitivamente">🔒 Encerrar</button>}
-                    {podeEditar && detail.status !== 'ABERTO' && detail.status !== 'EM_REVISAO' && <button onClick={() => mudarStatus('EM_REVISAO')} style={miniBtn} title="Marcar em revisão">🔎 Em revisão</button>}
+                    {podeEditar && detail.status !== 'ABERTO' && detail.status !== 'ENCERRADO' && <button className="no-print" onClick={() => mudarStatus('ENCERRADO')} style={miniBtn} title="Encerrar definitivamente">🔒 Encerrar</button>}
+                    {podeEditar && detail.status !== 'ABERTO' && detail.status !== 'EM_REVISAO' && <button className="no-print" onClick={() => mudarStatus('EM_REVISAO')} style={miniBtn} title="Marcar em revisão">🔎 Em revisão</button>}
                   </div>
                 </div>
-                {caixas.length > 1 && (
-                  <div className="no-print" style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                    {caixas.map((c) => (
-                      <button key={c.id} title={`${c.user?.name || 'sem operador'} · ${c.status === 'ABERTO' ? 'aberto' : 'fechado'}`} onClick={() => { escolhaManual.current = true; setSelectedId(c.id); }} style={{ flex: 1, fontSize: 11.5, padding: '6px 8px', borderRadius: 8, cursor: 'pointer', border: c.id === selectedId ? `1.5px solid ${TEAL}` : '1px solid #E8E2D6', background: c.id === selectedId ? '#e8f7f9' : '#fff', color: c.id === selectedId ? '#014D5E' : '#5C6B70' }}>nº {c.numero}{c.user?.name ? ` · ${c.user.name.split(' ')[0]}` : ''}</button>
-                    ))}
-                  </div>
-                )}
+
+                {/* O SALDO EM DINHEIRO AO VIVO — nosso, o SimplesVet nao tem. Continua a
+                    vista, so mudou de lugar: era um cartao na lateral. */}
+                <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+                  {aberto ? (
+                    <>
+                      <div style={{ fontSize: 10.5, color: MUT, textTransform: 'uppercase', letterSpacing: '.4px' }}>Na gaveta agora</div>
+                      <div style={{ fontSize: 20, fontWeight: 700, color: TEAL_DARK }}>{money(saldoDinheiro)}</div>
+                      <div style={{ fontSize: 10.5, color: MUT }}>suprimento + dinheiro − saídas</div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 10.5, color: MUT, textTransform: 'uppercase', letterSpacing: '.4px' }}>Conferência</div>
+                      <div style={{ fontSize: 12.5, color: INK2 }}>Esperado {money(Number(detail.valorEsperado ?? saldoDinheiro))} · Contado {detail.valorContado != null ? money(Number(detail.valorContado)) : '—'}</div>
+                      <div style={{ fontSize: 13.5, fontWeight: 700, color: detail.diferenca == null ? MUT : Math.abs(Number(detail.diferenca)) < 0.005 ? GREEN : Number(detail.diferenca) > 0 ? GREEN : ORANGE }}>
+                        {detail.diferenca == null ? 'Gaveta não contada' : (Number(detail.diferenca) > 0 ? 'Sobra ' : Number(detail.diferenca) < 0 ? 'Falta ' : 'Confere · ') + money(Math.abs(Number(detail.diferenca)))}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
 
-              {aberto ? (
-                <div style={cardStyle}>
-                  {cardH(<LuCircleDollarSign size={15} />, 'Saldo em dinheiro')}
-                  <div style={{ fontSize: 22, fontWeight: 600, color: TEAL_DARK }}>{money(saldoDinheiro)}</div>
-                  <div style={{ fontSize: 12, color: '#5C6B70', marginTop: 3 }}>Suprimento + dinheiro − saídas</div>
-                </div>
-              ) : (
-                <div style={cardStyle}>
-                  {cardH(<LuCircleDollarSign size={15} />, 'Conferência')}
-                  <div style={{ fontSize: 12.5, lineHeight: 1.95 }}>
-                    <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Esperado:</span> {money(Number(detail.valorEsperado ?? saldoDinheiro))}</div>
-                    <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Contado:</span> {detail.valorContado != null ? money(Number(detail.valorContado)) : '—'}</div>
-                    <div><span style={{ color: '#014D5E', fontWeight: 500 }}>Diferença:</span>{' '}
-                      <b style={{ color: detail.diferenca == null ? '#374151' : Math.abs(Number(detail.diferenca)) < 0.005 ? GREEN : Number(detail.diferenca) > 0 ? GREEN : ORANGE }}>
-                        {detail.diferenca == null ? '—' : (Number(detail.diferenca) > 0 ? 'Sobra ' : Number(detail.diferenca) < 0 ? 'Falta ' : '') + money(Math.abs(Number(detail.diferenca)))}
-                      </b>
-                    </div>
-                  </div>
+              {/* Os OUTROS caixas do mesmo dia, para trocar sem voltar a lista. */}
+              {caixas.length > 1 && (
+                <div className="no-print" style={{ display: 'flex', gap: 6, padding: '0 16px 13px', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, color: MUT, alignSelf: 'center' }}>Neste dia:</span>
+                  {caixas.map((c) => (
+                    <button key={c.id} onClick={() => { escolhaManual.current = true; setSelectedId(c.id); }} style={{ fontSize: 11.5, padding: '5px 10px', borderRadius: 8, cursor: 'pointer', border: c.id === selectedId ? `1.5px solid ${TEAL}` : `1px solid ${LINE}`, background: c.id === selectedId ? '#e8f7f9' : '#fff', color: c.id === selectedId ? '#014D5E' : MUT }}>
+                      nº {c.numero}{c.user?.name ? ` · ${c.user.name.split(' ')[0]}` : ''}
+                    </button>
+                  ))}
                 </div>
               )}
-
-              <div className="no-print" style={cardStyle}>
-                {cardH(<LuSettings size={15} />, 'Ações')}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7 }}>
-                  {podeEditar && <button onClick={() => abrirMov('SUPRIMENTO')} disabled={!aberto} style={{ background: TEAL, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Suprimento</button>}
-                  {podeEditar && <button onClick={() => abrirMov('SANGRIA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Sangria</button>}
-                  <button onClick={() => abrirMov('DESPESA')} disabled={!aberto} style={{ background: '#fff', color: ORANGE, border: `1px solid ${ORANGE}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Despesa</button>
-                  <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} style={{ background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Transferência</button>
-                  <button onClick={abrirCredito} disabled={!aberto} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL, border: `1px solid ${TEAL}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: aberto ? 1 : .4 }}><LuGift size={14} /> Crédito do pet</button>
-                  <button onClick={() => setLogOpen(true)} style={{ gridColumn: '1 / -1', background: '#fff', color: '#5C6B70', border: '1px solid #E8E2D6', fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>🔎 Quem mexeu neste caixa</button>
-                  <button onClick={() => imprimirCaixaDetalhado(detail as any)} style={{ gridColumn: '1 / -1', background: '#fff', color: TEAL_DARK, border: `1px solid ${TEAL_DARK}`, fontSize: 12, fontWeight: 500, padding: '8px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuPrinter size={14} /> Imprimir movimento do caixa</button>
-                  {aberto ? (
-                    <button onClick={abrirFechar} style={{ gridColumn: '1 / -1', background: TEAL_DARK, color: '#fff', border: 'none', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuLock size={14} /> Revisar e encerrar</button>
-                  ) : podeEditar ? (
-                    <button onClick={reabrirCaixa} style={{ gridColumn: '1 / -1', background: '#fff', color: '#5C6B70', border: '1px solid #E8E2D6', fontSize: 12, fontWeight: 500, padding: '9px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}><LuLockOpen size={14} /> Reabrir caixa</button>
-                  ) : null}
-                </div>
-                {!aberto && <p style={{ fontSize: 11, color: '#374151', margin: '8px 0 0' }}>Reabra o caixa para lançar ou excluir registros.</p>}
-              </div>
             </div>
 
-            {/* AREA PRINCIPAL */}
-            <div style={{ flex: '1 1 480px', minWidth: 0 }}>
+            {/* ── DUAS ABAS. Movimentacoes e Creditos deixaram de ser abas e viraram secoes
+                do Resumo: a conferencia se le de uma vez, sem cacar em aba. */}
+            <div>
               <div className="no-print" style={{ display: 'flex', gap: 26, borderBottom: `1px solid ${LINE}`, overflowX: 'auto' }}>
-                {tabBtn('resumo', 'Resumo')}{tabBtn('receb', 'Recebimentos')}{tabBtn('mov', 'Movimentações')}{tabBtn('cred', 'Créditos')}
+                {tabBtn('resumo', 'Resumo')}{tabBtn('receb', 'Lista de recebimentos')}
               </div>
               <div style={{ background: '#fff', border: `1px solid ${LINE}`, borderTop: 'none', borderRadius: '0 0 11px 11px', padding: 18 }}>
 
@@ -743,7 +823,10 @@ export default function CaixaPage() {
                   </>
                 )}
 
-                {tab === 'mov' && (
+                {tab === 'resumo' && (
+                  <div style={{ fontSize: 14, fontWeight: 600, margin: '22px 0 10px' }}>Movimentações</div>
+                )}
+                {tab === 'resumo' && (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Tipo</th><th style={thStyle}>Descrição</th><th style={thStyle}>Conta</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
                     <tbody>
@@ -762,7 +845,10 @@ export default function CaixaPage() {
                   </table>
                 )}
 
-                {tab === 'cred' && (
+                {tab === 'resumo' && (
+                  <div style={{ fontSize: 14, fontWeight: 600, margin: '22px 0 10px' }}>Créditos utilizados neste caixa</div>
+                )}
+                {tab === 'resumo' && (
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead><tr><th style={thStyle}>Data</th><th style={thStyle}>Cliente</th><th style={thStyle}>Descrição</th><th style={{ ...thStyle, textAlign: 'right' }}>Valor</th>{aberto && <th style={{ ...thStyle }} className="no-print"></th>}</tr></thead>
                     <tbody>
@@ -781,6 +867,28 @@ export default function CaixaPage() {
                 )}
 
               </div>
+            </div>
+
+            {/* ── AS ACOES, NUMA BARRA EMBAIXO — a forma que a Cintia mostrou. Coloridas por
+                tipo: dinheiro que entra e dinheiro que sai nao podem ter o mesmo botao. */}
+            <div className="no-print" style={{ display: 'flex', flexWrap: 'wrap', gap: 7, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, padding: 13 }}>
+              <button onClick={() => setLogOpen(true)} style={{ border: `1px solid ${LINE}`, background: '#fff', color: MUT, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer' }}>🔎 Quem mexeu</button>
+              {podeEditar && <button onClick={() => abrirMov('SUPRIMENTO')} disabled={!aberto} style={{ border: `1px solid ${GREEN}`, background: '#fff', color: GREEN, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Suprimento</button>}
+              {podeEditar && <button onClick={() => abrirMov('SANGRIA')} disabled={!aberto} style={{ border: `1px solid ${ORANGE}`, background: '#fff', color: ORANGE, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Sangria</button>}
+              <button onClick={() => abrirMov('DESPESA')} disabled={!aberto} style={{ border: '1px solid #B03A2E', background: '#fff', color: '#B03A2E', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Despesa</button>
+              <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} style={{ border: `1px solid ${TEAL}`, background: '#fff', color: TEAL, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Transferência</button>
+              <button onClick={abrirCredito} disabled={!aberto} style={{ border: `1px solid ${LINE}`, background: '#fff', color: INK2, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4, display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuGift size={14} /> Crédito do pet</button>
+
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+                {/* IMPRIMIR O MOVIMENTO DESTE CAIXA (lib/documentos/relatorio-caixa-print). */}
+                <button onClick={() => imprimirCaixaDetalhado(detail as any)} style={{ border: `1px solid ${TEAL_DARK}`, background: '#fff', color: TEAL_DARK, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuPrinter size={14} /> Imprimir</button>
+                {aberto ? (
+                  <button onClick={abrirFechar} style={{ border: 'none', background: TEAL_DARK, color: '#fff', fontSize: 12.5, fontWeight: 600, padding: '8px 15px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuLock size={14} /> Revisar e encerrar</button>
+                ) : podeEditar ? (
+                  <button onClick={reabrirCaixa} style={{ border: `1px solid ${LINE}`, background: '#fff', color: MUT, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuLockOpen size={14} /> Reabrir caixa</button>
+                ) : null}
+              </div>
+              {!aberto && <p style={{ fontSize: 11, color: MUT, margin: '4px 0 0', width: '100%' }}>Reabra o caixa para lançar ou excluir registros.</p>}
             </div>
           </div>
         )}
