@@ -22,6 +22,7 @@ import EncaminharBox from "@/components/inbox/EncaminharBox";
 import { assignFollowUpFor, loadFuRespFor } from "@/lib/followup";
 import ResolverFuModal, { type FuAlvo } from "@/components/followup/ResolverFuModal";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
+import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
 import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
   LuTrash, LuPhone, LuCalendar, LuUser, LuPlus, LuCheck, LuX} from "react-icons/lu";
@@ -535,6 +536,27 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   const comprasFiltradas = comprasPet && comprasPorPet[comprasPet] ? comprasPorPet[comprasPet] : compras;
   // Acumulado do cliente (respeita o filtro por pet). "Em aberto" = venda com valor que
   // ainda nao foi baixada no caixa — e o que a recepcao precisa cobrar.
+  // Relatorio do cliente: busca as vendas COM ITENS (a ficha so tem o cabecalho) e imprime
+  // pagas e em aberto juntas, agrupadas por dia. E' o papel que se entrega pro cliente.
+  const imprimirRelatorio = async () => {
+    try {
+      const r = await fetch(`/api/tutors/${id}/vendas`, { cache: "no-store" });
+      if (!r.ok) throw new Error();
+      const d = await r.json();
+      const vendas = Array.isArray(d?.vendas) ? d.vendas : [];
+      if (!vendas.length) { toast.error("Este cliente ainda nao tem vendas registradas."); return; }
+      await imprimirVendasDoCliente({
+        tutor: d?.tutor?.name || tutor?.name || "Cliente",
+        codigo: d?.tutor?.codigo ?? null,
+        comandas: vendas.map((v: any) => ({
+          id: v.id, numero: v.numero, data: v.data, pet: v.pet,
+          valor: v.valor, pago: v.pago, observacao: v.observacao,
+          formaPagamento: v.formaPagamento, itens: v.itens,
+        })),
+      });
+    } catch { toast.error("Nao foi possivel gerar o relatorio."); }
+  };
+
   const acumulado = comprasFiltradas.reduce(
     (acc: { total: number; aberto: number; qtdAberto: number }, a: any) => {
       const v = Number(a.value) || 0;
@@ -1087,6 +1109,14 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
           {pets.map((p) => (
             <button key={p.id} onClick={() => setComprasPet(p.name)} className="text-[12px] px-3 py-1 rounded-full border flex items-center gap-1" style={{ borderColor: comprasPet === p.name ? "#009AAC" : "#E8E2D6", color: comprasPet === p.name ? "#009AAC" : "#5C6B70", background: comprasPet === p.name ? "#E0F4F6" : "#fff" }}>{PET_EMOJI(p.species)} {p.name}</button>
           ))}
+        </div>
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={imprimirRelatorio}
+            title="Imprime TODAS as vendas deste cliente — pagas e em aberto — com o descritivo de cada uma"
+            className="text-[12px] font-medium px-3 py-1.5 rounded-lg border flex items-center gap-1.5"
+            style={{ background: "#fff", borderColor: "#E8E2D6", color: "#014D5E" }}
+          >🖨️ Relatório de vendas</button>
         </div>
         <div className="flex gap-2.5 mb-3 flex-wrap">
           <div className="bg-white border border-[#E8E2D6] rounded-[12px] flex-1 min-w-[130px]" style={{ padding: "11px 14px" }}>

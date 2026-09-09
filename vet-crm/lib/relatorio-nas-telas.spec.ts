@@ -178,3 +178,39 @@ describe("devolução: existe UMA só, e ela desfaz as três consequências", ()
     expect(src).not.toContain("/devolucao`");
   });
 });
+
+describe("relatório de vendas do cliente (pedido da Cintia, 09/09/2026)", () => {
+  it("a ficha do cliente tem o botão que imprime TODAS as vendas dele", () => {
+    // "Preciso poder imprimir relatório de todas as vendas do cliente juntas, como por
+    // exemplo da Vanessa, agora e dos outros no futuro." O lugar é a ficha: é onde se está
+    // quando o cliente pede o extrato dele.
+    const src = ler("app/(user)/dashboard/erp/tutores/[id]/page.tsx");
+    expect(src).toContain("imprimirVendasDoCliente");
+    expect(src).toContain("Relatório de vendas");
+    expect(src).toContain("/api/tutors/${id}/vendas");
+  });
+
+  it("o relatório traz pagas e em aberto, com a situação de cada venda", () => {
+    // Um extrato que não distingue pago de devendo não serve nem para cobrar nem para
+    // prestar contas.
+    const src = ler("lib/documentos/relatorio-vendas-print.ts");
+    expect(src).toContain("export async function imprimirVendasDoCliente");
+    expect(src).toContain("EM ABERTO");
+    expect(src).toContain("PARCIAL");
+    expect(src).toContain("PAGA");
+    expect(src).toContain("Saldo devedor");
+  });
+
+  it("o relatório mostra o DESCRITIVO de cada venda, não só o total", () => {
+    // Mesma exigência de 07/09 que valeu para o papel do dia: reaproveita blocoDaComanda.
+    const src = ler("lib/documentos/relatorio-vendas-print.ts");
+    expect(src).toContain("blocoDaComanda(c)");
+  });
+
+  it("agrupa pelo dia da CLÍNICA, não pelo dia em UTC", () => {
+    // Com toISOString() a venda das 22h caía na seção do dia seguinte.
+    const src = ler("lib/documentos/relatorio-vendas-print.ts");
+    expect(src).toContain("diaNaClinicaISO");
+    expect(src).not.toContain('toISOString().slice(0, 10)');
+  });
+});

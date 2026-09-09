@@ -1,10 +1,13 @@
 import { imprimirDocumento } from "@/lib/print";
+import { diaNaClinicaISO } from "@/lib/datas";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const esc = (t: any) => String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const dataBR = (d: any) => { if (!d) return ""; try { return new Date(d).toLocaleDateString("pt-BR"); } catch { return ""; } };
 const hora = (d: any) => { if (!d) return ""; try { return new Date(d).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
-const diaDe = (d: any) => { try { return new Date(d).toISOString().slice(0, 10); } catch { return ""; } };
+// Agrupa pelo dia DA CLINICA. Com toISOString() (UTC) a venda das 22h caia no dia
+// seguinte e aparecia na secao errada do relatorio.
+const diaDe = (d: any) => diaNaClinicaISO(d);
 
 const TD = "padding:5px 8px;border-bottom:1px solid #eee";
 const TH = "padding:5px 8px;text-align:left;border-bottom:2px solid #009AAC;font-size:11.5px;color:#014D5E";
@@ -180,4 +183,75 @@ export async function imprimirContasDoCliente(args: {
     ${emitido()}
   `;
   await imprimirDocumento(`Contas em aberto · ${args.tutor || "Cliente"}`, body, undefined, undefined, { preview: args.preview, compacto: true });
+}
+
+/** Situação de uma venda, pelo saldo — e não pela flag: venda parcialmente recebida
+ *  continua devendo, mesmo com paymentStatus dizendo outra coisa. */
+function situacaoDa(c: ComandaDoDia): { txt: string; bg: string; fg: string } {
+  const valor = Number(c.valor || 0);
+  const pago = Number(c.pago || 0);
+  if (pago >= valor - 0.009 && valor > 0) return { txt: "PAGA", bg: "#E7F6EF", fg: "#0F6E56" };
+  if (pago > 0.009) return { txt: "PARCIAL", bg: "#FBF3E3", fg: "#8a6400" };
+  return { txt: "EM ABERTO", bg: "#FDECEC", fg: "#b23b39" };
+}
+
+/**
+ * TODAS AS VENDAS DE UM CLIENTE, da mais antiga para a mais nova, agrupadas por dia e com o
+ * descritivo de cada uma — pagas e em aberto juntas.
+ *
+ * Diferente de imprimirContasDoCliente, que traz só o que ele deve. Este é o histórico
+ * completo: serve para o cliente que pede "me manda tudo o que já gastei aqui", e para
+ * conferir a ficha dele numa folha só. Cada venda diz se está paga, parcial ou em aberto,
+ * porque um extrato que não distingue isso não serve para cobrar nem para prestar contas.
+ */
+export async function imprimirVendasDoCliente(args: {
+  tutor: string;
+  codigo?: number | string | null;
+  comandas: ComandaDoDia[];
+  preview?: boolean;
+}): Promise<void> {
+  const comandas = (Array.isArray(args.comandas) ? args.comandas : [])
+    .slice()
+    .sort((a, b) => new Date(a.data || 0).getTime() - new Date(b.data || 0).getTime());
+  const { total, recebido } = somaDe(comandas);
+
+  const dias = new Map<string, ComandaDoDia[]>();
+  for (const c of comandas) dias.set(diaDe(c.data), [...(dias.get(diaDe(c.data)) || []), c]);
+
+  const secoes = [...dias.entries()].map(([d, cs]) => {
+    const soma = somaDe(cs);
+    const aberto = Math.max(0, soma.total - soma.recebido);
+    return `<div style="margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #009AAC;padding-bottom:3px;margin-bottom:8px">
+        <b style="color:#014D5E;font-size:13.5px">${esc(dataBR(d + "T12:00:00"))}</b>
+        <span style="font-size:11.5px;color:#6B7280">
+          ${cs.length} ${cs.length === 1 ? "venda" : "vendas"} · ${BRL(soma.total)}${aberto > 0.009 ? ` · a receber <b style="color:#b23b39">${BRL(aberto)}</b>` : ""}
+        </span>
+      </div>
+      ${cs.map((c) => {
+        const st = situacaoDa(c);
+        return `<div style="position:relative">
+          <div style="position:absolute;right:0;top:2px;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:9px;background:${st.bg};color:${st.fg}">${st.txt}</div>
+          ${blocoDaComanda(c)}
+        </div>`;
+      }).join("")}
+    </div>`;
+  }).join("");
+
+  const emAberto = Math.max(0, total - recebido);
+  const body = `
+    <div style="margin-bottom:14px;font-size:13px">
+      <b style="color:#014D5E;font-size:15px">${esc(args.tutor || "Cliente")}</b>${args.codigo ? `<span style="color:#6B7280;font-size:12px"> · cadastro ${esc(args.codigo)}</span>` : ""}
+      <div style="color:#6B7280;font-size:12px">
+        Histórico completo · ${comandas.length} ${comandas.length === 1 ? "venda" : "vendas"} em ${dias.size} ${dias.size === 1 ? "dia" : "dias"}
+      </div>
+    </div>
+    ${secoes || `<p style="text-align:center;color:#9aa0a8;font-size:13px;padding:24px 0">Este cliente ainda não tem vendas registradas.</p>`}
+    ${comandas.length ? rodape(total, recebido) : ""}
+    ${comandas.length && emAberto > 0.009
+      ? `<div style="margin-top:6px;text-align:right;font-size:12.5px;color:#b23b39"><b>Saldo devedor: ${BRL(emAberto)}</b></div>`
+      : ""}
+    ${emitido()}
+  `;
+  await imprimirDocumento(`Vendas · ${args.tutor || "Cliente"}`, body, undefined, undefined, { preview: args.preview, compacto: true });
 }

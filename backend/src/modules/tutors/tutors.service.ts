@@ -516,6 +516,77 @@ export class TutorsService {
   }
 
 
+  /**
+   * TODAS as vendas do cliente, com os itens de cada uma — a fonte do relatorio que se
+   * imprime e entrega pro cliente conferir.
+   *
+   * Filtra por `numeroVenda` e NAO por `type`: venda nasce de balcao, de consulta, de
+   * retorno, de exame e de internacao (os types no banco sao 'Venda', 'CONSULTA',
+   * 'Retorno', 'Exames', 'Internação'). Filtrar por type deixaria de fora tudo que nao
+   * nasceu no PDV — justamente a conta clinica, que e' a maior.
+   */
+  async vendasDoCliente(tutorId: string) {
+    const tutor = await this.prisma.tutor.findUnique({
+      where: { id: tutorId },
+      select: { id: true, name: true, codigo: true },
+    });
+    if (!tutor) throw new NotFoundException('Cliente nao encontrado');
+
+    const vendas = await this.prisma.appointment.findMany({
+      where: { tutorId, numeroVenda: { not: null } },
+      orderBy: { date: 'asc' }, // mais antiga primeiro: e' a ordem em que a conta e' conversada
+      include: {
+        pet: { select: { name: true } },
+        items: {
+          select: { descricao: true, quantidade: true, valorUnitario: true, desconto: true, valorTotal: true },
+        },
+        recebimentos: { select: { valorTotal: true, formas: true } },
+      },
+    });
+
+    const linhas = vendas.map((a) => {
+      const pago = (a.recebimentos || []).reduce((s, r) => s + Number(r.valorTotal || 0), 0);
+      const valor = Number(a.value || 0);
+      // Forma de pagamento so' aparece quando houve recebimento; a venda em aberto nao tem.
+      const formas = (a.recebimentos || [])
+        .flatMap((r) => (Array.isArray(r.formas) ? (r.formas as any[]) : []))
+        .map((f: any) => f?.forma)
+        .filter(Boolean);
+      return {
+        id: a.id,
+        numero: a.numeroVenda,
+        data: a.date,
+        pet: a.pet?.name ?? null,
+        valor,
+        pago,
+        aberto: Math.max(0, Number((valor - pago).toFixed(2))),
+        paymentStatus: a.paymentStatus,
+        observacao: a.description ?? null,
+        formaPagamento: formas.length ? [...new Set(formas)].join(' + ') : (a.paymentMethod ?? null),
+        itens: a.items.map((i) => ({
+          descricao: i.descricao,
+          quantidade: i.quantidade,
+          valorUnitario: i.valorUnitario,
+          desconto: i.desconto,
+          valorTotal: i.valorTotal,
+        })),
+      };
+    });
+
+    const total = linhas.reduce((s, l) => s + l.valor, 0);
+    const recebido = linhas.reduce((s, l) => s + l.pago, 0);
+    return {
+      tutor,
+      vendas: linhas,
+      totais: {
+        qtd: linhas.length,
+        total: +total.toFixed(2),
+        recebido: +recebido.toFixed(2),
+        aberto: +(total - recebido).toFixed(2),
+      },
+    };
+  }
+
   async profileStats(tutorId: string) {
     const tutor = await this.prisma.tutor.findUnique({ where: { id: tutorId } });
     if (!tutor) throw new NotFoundException('Tutor não encontrado');

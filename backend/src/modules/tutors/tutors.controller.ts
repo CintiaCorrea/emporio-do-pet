@@ -89,6 +89,12 @@ export class TutorsController {
   }
 
 
+  @Get(':id/vendas')
+  @ApiOperation({ summary: 'Todas as vendas do cliente, com itens — fonte do relatorio' })
+  vendasDoCliente(@Param('id') id: string) {
+    return this.tutorsService.vendasDoCliente(id);
+  }
+
   @Get(':id/profile-stats')
   @ApiOperation({ summary: 'Estatísticas individuais do tutor (LTV, frequência, etc)' })
   profileStats(@Param('id') id: string) { return this.tutorsService.profileStats(id); }
