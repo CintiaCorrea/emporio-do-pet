@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {  LuFileText, LuUser, LuDollarSign, LuCalendar, LuLoader } from "react-icons/lu";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 export type FinanceEntryType = "INCOME" | "EXPENSE";
 export type FinanceEntryStatus = "PAID" | "PENDING" | "OVERDUE" | "CANCELED";
@@ -42,7 +43,7 @@ const defaultValues: FinanceEntryFormValues = {
   service: "",
   description: "",
   amountBRL: "",
-  date: new Date().toISOString().slice(0, 10),
+  date: hojeNaClinicaISO(),
   dueDate: ""};
 
 const FinanceEntryModal = ({ isOpen, title, initialValues, onClose, onSubmit }: Props) => {

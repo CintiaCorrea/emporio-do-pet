@@ -4,6 +4,7 @@
    /api/internacao-alertas/proximos. Respeita os toggles (avisos.popup/som) de
    cada internação e não repete o mesmo alerta (dedup por dia no localStorage). */
 import { useEffect, useRef, useState } from "react";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 interface Alerta {
   apptId: string; petNome: string; tipo: "medicacao" | "afericao";
@@ -12,7 +13,7 @@ interface Alerta {
 }
 interface Pop { key: string; apptId: string; tipo: string; petNome: string; descricao: string; horario: string; atrasado?: boolean; atrasoMin?: number; }
 
-const hoje = () => new Date().toISOString().slice(0, 10);
+const hoje = () => hojeNaClinicaISO();
 const chaveDia = () => `alertas_int_fired_${hoje()}`;
 
 export default function AlertasInternacao() {

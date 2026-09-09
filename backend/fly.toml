@@ -13,6 +13,10 @@ primary_region = "gru"  # São Paulo, Brasil
   dockerfile = "Dockerfile"
 
 [env]
+  # O contêiner roda em UTC por padrão. Sem isto, tudo que usa hora LOCAL no servidor
+  # (setHours, parse de "AAAA-MM-DDT00:00:00", limites de dia) opera 3h adiantado:
+  # venda lançada às 21h caía no dia seguinte e sumia da lista do dia.
+  TZ = "America/Fortaleza"
   META_PAGE_ID = "264757673573802"
   META_AD_ACCOUNT_ID = "act_1540879966657176"
   NODE_ENV = "production"

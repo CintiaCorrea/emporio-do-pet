@@ -12,6 +12,7 @@ import { speciesLabel, ageFromBirth, genderLabel } from "@/lib/pets/labels";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { montarTextoBoletim, BoletimData, EquipVal } from "@/lib/pets/boletim";
 import EquipamentosFisioEditor from "@/components/pets/EquipamentosFisioEditor";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null; gender?: string | null; birthDate?: string | null;
@@ -36,7 +37,7 @@ export default function BoletimFisioPage() {
 
   const [b, setB] = useState<BoletimData>({
     animal: "", raca: "", sexo: "", idade: "", tutor: "", encaminhado: "", diagnostico: "", cirurgias: "Não", examesData: "",
-    sessaoData: new Date().toISOString().slice(0, 10), entrada: "", saida: "", sessaoNumero: "", mvResponsavel: "",
+    sessaoData: hojeNaClinicaISO(), entrada: "", saida: "", sessaoNumero: "", mvResponsavel: "",
     equipamentos: {}, obsTutor: "", obsMv: "", paraCasa: "", metas: "", enviadoAt: null,
   });
   const setF = (patch: Partial<BoletimData>) => setB((prev) => ({ ...prev, ...patch }));

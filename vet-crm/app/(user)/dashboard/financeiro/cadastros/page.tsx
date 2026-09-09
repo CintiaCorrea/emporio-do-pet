@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { FinTabs, FIN_CSS } from '../fin-ui';
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 /* ===================== tipos ===================== */
 type TipoConta =
@@ -665,7 +666,7 @@ function SecaoTaxas() {
     catch { /* ignore */ }
   }
   function abrirNovaTaxa() {
-    const vigDefault = vigSel ? vigSel.slice(0, 10) : new Date().toISOString().slice(0, 10);
+    const vigDefault = vigSel ? vigSel.slice(0, 10) : hojeNaClinicaISO();
     setForm({ ...taxaVazia, vigencia: vigDefault });
     setModal(true);
   }
@@ -687,7 +688,7 @@ function SecaoTaxas() {
     finally { setSalvando(false); }
   }
   async function novaVigencia() {
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = hojeNaClinicaISO();
     const data = prompt(`Nova vigência da ${adqSel} a partir de qual data? (AAAA-MM-DD)\nVou copiar as taxas da vigência atual para você ajustar.`, hoje);
     if (!data) return;
     try {
@@ -715,7 +716,7 @@ function SecaoTaxas() {
           adquirente: adqSel,
           forma: FORMA[(forma || '').trim()] || (forma || '').trim(), parcelas,
           aliquotaBps: Math.round(parseFloat(aliq) * 100),
-          vigenciaInicio: y ? `${y}-${m}-${d}` : new Date().toISOString().slice(0, 10),
+          vigenciaInicio: y ? `${y}-${m}-${d}` : hojeNaClinicaISO(),
         };
       }).filter(Boolean);
       if (!parsed.length) return toast.error('Não consegui ler o CSV.');

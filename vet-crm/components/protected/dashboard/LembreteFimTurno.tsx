@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { pollVisivel } from "@/lib/pollVisivel";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 const AVISO_ANTES_MIN = 15;    // aparece 15 min antes do fim do turno
 const JANELA_DEPOIS_MIN = 90;  // e só até 90 min depois (não pula do nada de madrugada)
@@ -40,7 +41,7 @@ export default function LembreteFimTurno() {
   const [fimTexto, setFimTexto] = useState("");
   const escalaRef = useRef<any>(null);
 
-  const chaveHoje = () => `fimTurnoVisto:${meId}:${new Date().toISOString().slice(0, 10)}`;
+  const chaveHoje = () => `fimTurnoVisto:${meId}:${hojeNaClinicaISO()}`;
 
   // Escala do profissional logado (busca uma vez).
   useEffect(() => {

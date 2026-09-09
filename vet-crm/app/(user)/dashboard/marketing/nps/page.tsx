@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuPlus, LuTrash, LuX } from "react-icons/lu";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 const CATEGORIAS = ["Consulta", "Retorno", "Fisioterapia", "Cirurgia", "Exame", "Vacinação", "Banho e Tosa", "Internação", "Geral"];
 const CANAIS = ["WhatsApp", "Presencial", "Telefone", "Email"];
@@ -20,7 +21,7 @@ export default function NpsPage() {
   const [filtro, setFiltro] = useState<"todas" | "Promotor" | "Neutro" | "Detrator">("todas");
   const [open, setOpen] = useState(false);
   const [pets, setPets] = useState<any[]>([]);
-  const [form, setForm] = useState<any>({ tutorId: "", tutorNome: "", petNome: "", categoria: "Consulta", profissional: "", score: "", canal: "WhatsApp", data: new Date().toISOString().slice(0, 10), comentario: "" });
+  const [form, setForm] = useState<any>({ tutorId: "", tutorNome: "", petNome: "", categoria: "Consulta", profissional: "", score: "", canal: "WhatsApp", data: hojeNaClinicaISO(), comentario: "" });
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -74,7 +75,7 @@ export default function NpsPage() {
         categoriaLivre: form.categoria || undefined,
       };
       await fetch("/api/avaliacoes/nps", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
-      setOpen(false); setForm({ tutorId: "", tutorNome: "", petNome: "", categoria: "Consulta", profissional: "", score: "", canal: "WhatsApp", data: new Date().toISOString().slice(0, 10), comentario: "" }); load();
+      setOpen(false); setForm({ tutorId: "", tutorNome: "", petNome: "", categoria: "Consulta", profissional: "", score: "", canal: "WhatsApp", data: hojeNaClinicaISO(), comentario: "" }); load();
     } catch { alert("Erro ao salvar."); } finally { setSaving(false); }
   };
   const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "avaliação", itemName: "esta avaliação" }))) return; try { await fetch(`/api/avaliacoes/nps/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };

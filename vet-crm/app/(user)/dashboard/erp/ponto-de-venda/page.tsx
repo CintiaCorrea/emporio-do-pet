@@ -24,6 +24,7 @@ import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from '@/lib/catalogo
 import { rotuloDaFaixa, ordenarFaixas, type FaixaPorte } from '@/lib/porte';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma } from '@/lib/formasPagamento';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 const TEAL = '#009AAC';
 const NAVY = '#014D5E';
@@ -55,7 +56,7 @@ const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Créd
 const TIPOS_VENDA = ['Presencial, para consumidor final', 'Online / delivery', 'Entrega a domicílio'];
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
 const num = (s: any) => Number(String(s ?? '').replace(',', '.')) || 0;
-const hoje = () => new Date().toISOString().slice(0, 10);
+const hoje = () => hojeNaClinicaISO();
 const iniciais = (n: string) => (n || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 const avatarOf = (n: string) => AV[(n || '').length % AV.length];
 const inp: React.CSSProperties = { padding: '9px 10px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', background: '#fff', color: INK };
@@ -140,7 +141,7 @@ export default function PDVPage() {
   const [buscando, setBuscando] = useState(false);
   // Baixar todas as comandas de um cliente de uma vez (portado do "Em atendimento")
   const buscaTimer = useRef<any>(null);
-  const [vendaDia, setVendaDia] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [vendaDia, setVendaDia] = useState<string>(() => hojeNaClinicaISO());
   const vendaDiaRef = useRef<HTMLInputElement>(null);       // date picker escondido do navegador de dia
   const [detVenda, setDetVenda] = useState<any>(null);      // venda aberta no modal de detalhe
   const [detLoad, setDetLoad] = useState(false);

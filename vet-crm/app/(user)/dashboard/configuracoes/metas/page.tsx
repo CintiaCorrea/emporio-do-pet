@@ -3,6 +3,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuPencil, LuX, LuPlus, LuTarget } from "react-icons/lu";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 type Periodicidade = "SEMANAL" | "MENSAL" | "TRIMESTRAL" | "SEMESTRAL" | "ANUAL";
 type Medida = "VALOR" | "QUANTIDADE";
@@ -26,7 +27,7 @@ const brl = (n: number) => (Number(n) || 0).toLocaleString("pt-BR", { style: "cu
 const qtd = (n: number) => `${(Number(n) || 0).toLocaleString("pt-BR")} un.`;
 async function safeJson<T>(res: Response, fb: T): Promise<T> { try { if (!res.ok) return fb; const d = await res.json(); return d == null ? fb : d; } catch { return fb; } }
 
-const EMPTY = { medida: "VALOR" as Medida, profissionalId: "", servicoId: "", periodicidade: "MENSAL" as Periodicidade, dataInicio: new Date().toISOString().slice(0, 10), valorMeta: 0 };
+const EMPTY = { medida: "VALOR" as Medida, profissionalId: "", servicoId: "", periodicidade: "MENSAL" as Periodicidade, dataInicio: hojeNaClinicaISO(), valorMeta: 0 };
 
 export default function MetasPage() {
   const [list, setList] = useState<Meta[]>([]);
@@ -65,7 +66,7 @@ export default function MetasPage() {
   }
   useEffect(() => { load(); }, []);
 
-  function openNew() { setEditId(null); setForm({ ...EMPTY, dataInicio: new Date().toISOString().slice(0, 10) }); setModalOpen(true); }
+  function openNew() { setEditId(null); setForm({ ...EMPTY, dataInicio: hojeNaClinicaISO() }); setModalOpen(true); }
   function openEdit(m: Meta) {
     setEditId(m.id);
     setForm({ medida: m.medida || "VALOR", profissionalId: m.profissionalId || "", servicoId: m.servicoId || "", periodicidade: m.periodicidade || "MENSAL", dataInicio: m.dataInicio ? new Date(m.dataInicio).toISOString().slice(0, 10) : "", valorMeta: m.valorMeta || 0 });

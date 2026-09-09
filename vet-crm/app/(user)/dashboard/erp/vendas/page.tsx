@@ -15,6 +15,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 const TEAL = '#009AAC';
 const NAVY = '#014D5E';
@@ -32,7 +33,7 @@ type Venda = {
 };
 
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
-const hoje = () => new Date().toISOString().slice(0, 10);
+const hoje = () => hojeNaClinicaISO();
 const diaBR = (s: string) => { const d = new Date(s); return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' }); };
 // Primeiro dia do mes corrente — o padrao da tela, porque "mandar valores pra cliente" quase
 // sempre e sobre o mes que esta correndo.

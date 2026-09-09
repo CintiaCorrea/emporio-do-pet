@@ -21,10 +21,40 @@ export function fmtDataBR(v?: string | null): string {
   return d ? d.toLocaleDateString("pt-BR") : "—";
 }
 
-/** HOJE em data LOCAL no formato AAAA-MM-DD. Não usar toISOString (UTC): à noite no Brasil gravaria
- *  o dia seguinte. Usado como valor padrão de campos de data (aplicação de dose, etc.). */
+/** Fuso da clínica. O dia do caixa, da venda e do relatório é o dia em FORTALEZA — não o
+ *  do relógio de quem abriu a tela, nem o do servidor (que roda em UTC). */
+export const FUSO_CLINICA = "America/Fortaleza";
+
+/** HOJE na clínica, em AAAA-MM-DD.
+ *
+ *  Dois erros que esta função existe para impedir:
+ *  1. `new Date().toISOString().slice(0,10)` devolve o dia em UTC. Depois das 21h em Fortaleza
+ *     já é o dia seguinte em UTC, então a venda das 22h caía no dia errado e sumia da lista
+ *     do dia (Cintia, 08/09/2026: "para você já é meia noite, mas ainda são dez horas").
+ *  2. Usar as partes locais do Date (getFullYear/getMonth/getDate) amarra o dia ao relógio do
+ *     COMPUTADOR. Um notebook com fuso errado, ou alguém acessando de fora, veria outro dia.
+ *
+ *  'en-CA' foi escolhido porque formata como AAAA-MM-DD, que é exatamente o formato aceito
+ *  por <input type="date"> e pelas nossas APIs. */
+export function hojeNaClinicaISO(): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: FUSO_CLINICA,
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date());
+}
+
+/** Mesma coisa para uma data qualquer: qual o dia dela NA CLÍNICA. */
+export function diaNaClinicaISO(v: Date | string | number): string {
+  const d = v instanceof Date ? v : new Date(v);
+  if (isNaN(d.getTime())) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: FUSO_CLINICA,
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(d);
+}
+
+/** @deprecated Use hojeNaClinicaISO(). Mantido porque já havia chamadas; o comportamento
+ *  agora é o do fuso da clínica, e não mais o do relógio da máquina. */
 export function hojeLocalISO(): string {
-  const n = new Date();
-  const p = (x: number) => String(x).padStart(2, "0");
-  return `${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`;
+  return hojeNaClinicaISO();
 }

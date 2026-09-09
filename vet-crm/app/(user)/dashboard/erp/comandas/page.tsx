@@ -10,6 +10,7 @@ import { useSession } from "next-auth/react";
 import { carregarMeuCaixa, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaParaReceber } from "@/lib/caixaAtual";
 import AbrirMeuCaixaModal from "@/components/caixa/AbrirMeuCaixaModal";
 import { imprimirVendasAbertas } from "@/lib/documentos/vendas-abertas-print";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 const FORMAS = ["Dinheiro", "Pix", "Cartão de crédito", "Cartão de débito", "Crédito do cliente"];
 const ORIGEM: Record<string, { lbl: string; bg: string; fg: string }> = {
@@ -19,7 +20,7 @@ const ORIGEM: Record<string, { lbl: string; bg: string; fg: string }> = {
 function especieEmoji(s?: string) { const k = (s || "").toUpperCase(); if (k.startsWith("CAN") || k.startsWith("DOG")) return "🐶"; if (k.startsWith("FEL") || k.startsWith("CAT") || k.startsWith("GAT")) return "🐱"; return "🐾"; }
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
 function tempoDe(s?: string) { if (!s) return ""; try { const min = Math.max(0, Math.round((Date.now() - new Date(s).getTime()) / 60000)); if (min < 60) return `há ${min} min`; const h = Math.floor(min / 60); if (h < 24) return `há ${h} h`; return `há ${Math.floor(h / 24)} d`; } catch { return ""; } }
-const hojeISO = () => new Date().toISOString().slice(0, 10);
+const hojeISO = () => hojeNaClinicaISO();
 
 export default function ComandasPage() {
   usePageTitle("Vendas em aberto", "Vendas que ainda não foram recebidas no caixa");

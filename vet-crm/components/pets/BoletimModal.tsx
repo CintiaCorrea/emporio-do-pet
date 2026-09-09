@@ -12,6 +12,7 @@ import { montarTextoBoletim, BoletimData, EquipVal } from "@/lib/pets/boletim";
 import EquipamentosFisioEditor from "@/components/pets/EquipamentosFisioEditor";
 import { imprimirDocumento } from "@/lib/print";
 import { useAutoSaveDraft } from "@/hooks/useAutoSaveDraft";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 interface PetLite {
   id: string; name: string; species?: string; breed?: string | null; gender?: string | null; birthDate?: string | null;
@@ -51,7 +52,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
     diagnostico: fisioRec?.diagnostico || "",
     cirurgias: "Não",
     examesData: fisioRec?.exames || fisioRec?.ultimosExames || "",
-    sessaoData: agenda?.data || new Date().toISOString().slice(0, 10),
+    sessaoData: agenda?.data || hojeNaClinicaISO(),
     entrada: agenda?.entrada || "", saida: agenda?.saida || "", sessaoNumero: "", mvResponsavel: "",
     equipamentos: {}, obsTutor: "", obsMv: "", paraCasa: "", metas: "", enviadoAt: null,
   }), [pet, fisioRec, agenda?.data, agenda?.entrada, agenda?.saida]);
@@ -106,7 +107,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
             animal: initialData.animal, raca: initialData.raca, sexo: initialData.sexo, idade: initialData.idade, tutor: initialData.tutor,
             // campos da NOVA sessão:
             sessaoNumero: novaSessao || "",
-            sessaoData: agenda?.data || new Date().toISOString().slice(0, 10),
+            sessaoData: agenda?.data || hojeNaClinicaISO(),
             entrada: agenda?.entrada || "",
             saida: agenda?.saida || "",
             enviadoAt: null,

@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { FinTabs, FIN_CSS, fmtBRL } from '../fin-ui';
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 const fmtD = (d?: string | null) => (d ? new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—');
 const fmtMes = (d?: string | null) => (d ? new Date(d).toLocaleDateString('pt-BR', { month: '2-digit', year: 'numeric' }) : '—');
@@ -40,7 +41,7 @@ export default function ConveniosPage() {
     if (!window.confirm(`Marcar como RECEBIDO o pagamento de ${f.convenioNome} (${fmtBRL(f.totalCentavos)})? Baixa a conta a receber.`)) return;
     setRecebendo(f.id);
     try {
-      const hoje = new Date().toISOString().slice(0, 10);
+      const hoje = hojeNaClinicaISO();
       const r = await fetch(`/api/financeiro/lancamentos/${f.lancamentoId}/baixar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dataPagamento: hoje }) });
       if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.message || 'Erro'); }
       toast.success('Recebimento do convênio registrado');

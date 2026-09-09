@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { FinTabs } from './fin-ui';
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 /* ===================== tipos ===================== */
 type Tipo = 'RECEITA' | 'DESPESA' | 'TRANSFERENCIA';
@@ -298,7 +299,7 @@ export default function FinanceiroPage() {
         if (repetir === 'PARCELADA') body.parcelas = Number(repForm.parcelas);
         if (form.tipo === 'TRANSFERENCIA') {
           // transferência: sai de uma conta e entra na outra na data informada (já confirmada)
-          const dia = form.vencimento || new Date().toISOString().slice(0, 10);
+          const dia = form.vencimento || hojeNaClinicaISO();
           body.contaDestinoId = form.contaDestinoId;
           body.data = dia;
           body.dataPagamento = dia;
@@ -324,7 +325,7 @@ export default function FinanceiroPage() {
   }
 
   async function baixar(l: Lancamento) {
-    const hoje = new Date().toISOString().slice(0, 10);
+    const hoje = hojeNaClinicaISO();
     try {
       await sendJSON(`/api/financeiro/lancamentos/${l.id}/baixar`, 'POST', { dataPagamento: hoje });
       toast.success('Baixa registrada');

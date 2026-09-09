@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { LuX, LuRepeat, LuPlus, LuTrash2, LuCheck, LuUserPlus, LuExternalLink } from "react-icons/lu";
 import BuscaClientePet, { SelecaoClientePet } from "@/components/common/BuscaClientePet";
 import toast from "react-hot-toast";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 type Defaults = { date?: string; time?: string; userId?: string; duration?: number; tutor?: any; petId?: string; agendaAvulsa?: string; avulsaNome?: string; novoCliente?: { nome?: string; tel?: string } } | null;
 // agendarAposCriar: ao criar um cliente novo aqui, EM VEZ de pular pra ficha, continua pro
@@ -494,7 +495,7 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
             <div><label className={lbl}>Observações</label><textarea value={obs} onChange={(e) => setObs(e.target.value)} placeholder="Anotações do agendamento…" className={inp} style={{ minHeight: "48px" }} /></div>
 
             <div className="border border-[#e8e3d4] rounded-lg p-3">
-              <label className="flex items-center gap-2 text-[13px] text-[#0E2244] cursor-pointer"><input type="checkbox" checked={recOn} onChange={(e) => { const on = e.target.checked; setRecOn(on); if (on && !ate) { const d = new Date(`${date || new Date().toISOString().slice(0, 10)}T12:00:00`); d.setMonth(d.getMonth() + 2); setAte(d.toISOString().slice(0, 10)); } }} /> <LuRepeat size={14} className="text-[#009AAC]" /> Repetir (recorrência)</label>
+              <label className="flex items-center gap-2 text-[13px] text-[#0E2244] cursor-pointer"><input type="checkbox" checked={recOn} onChange={(e) => { const on = e.target.checked; setRecOn(on); if (on && !ate) { const d = new Date(`${date || hojeNaClinicaISO()}T12:00:00`); d.setMonth(d.getMonth() + 2); setAte(d.toISOString().slice(0, 10)); } }} /> <LuRepeat size={14} className="text-[#009AAC]" /> Repetir (recorrência)</label>
               {recOn ? (
                 <div className="mt-3 space-y-2">
                   <div className="grid grid-cols-2 gap-3">

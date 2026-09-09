@@ -17,6 +17,7 @@ import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, ehServicoDoCatalo
 import { buscarItens } from "@/lib/buscaCatalogo";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { calcularHorarios as horariosDoDia, horariosDaPrescricao, horariosNoDia, prescricaoAtivaEm, rotuloDoPeriodo, minutosDaFrequencia, PERIODOS } from "@/lib/internacaoHorarios";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -1558,7 +1559,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                     <div className="fixed inset-0 z-40" onClick={() => setMaisAberto(false)} />
                     <div className="absolute right-0 mt-1 z-50 bg-white border rounded-xl shadow-lg overflow-hidden" style={{ borderColor: "#E8E2D6", minWidth: 210 }}>
                       {!alta && <button onClick={() => { setMaisAberto(false); setTrocaBoxOpen(true); }} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#374151] hover:bg-[#F0FBFC]">🛏️ Trocar box</button>}
-                      {!alta && h.status !== "DECEASED" && <button onClick={() => { setMaisAberto(false); setObitoForm({ data: new Date().toISOString().slice(0, 10), causa: "" }); setObitoOpen(true); }} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#374151] hover:bg-[#F0FBFC] border-t" style={{ borderColor: "#F0EBE0" }}>🕊️ Registrar óbito</button>}
+                      {!alta && h.status !== "DECEASED" && <button onClick={() => { setMaisAberto(false); setObitoForm({ data: hojeNaClinicaISO(), causa: "" }); setObitoOpen(true); }} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#374151] hover:bg-[#F0FBFC] border-t" style={{ borderColor: "#F0EBE0" }}>🕊️ Registrar óbito</button>}
                       <button onClick={() => { setMaisAberto(false); excluirInternacao(); }} disabled={boxBusy} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#CC3366] hover:bg-[#FDF2F5] border-t disabled:opacity-50" style={{ borderColor: "#F0EBE0" }}>🗑️ Excluir internação</button>
                     </div>
                   </>

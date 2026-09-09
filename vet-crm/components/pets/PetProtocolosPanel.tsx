@@ -4,7 +4,7 @@ import { LuPlus, LuPill, LuTrash, LuX, LuPencil } from "react-icons/lu";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
 import toast from "react-hot-toast";
 import { carregarCatalogoVendavel, nomeSemMarcador } from "@/lib/catalogoVendavel";
-import { diaCalendario, hojeLocalISO } from "@/lib/datas";
+import { diaCalendario, hojeLocalISO, hojeNaClinicaISO } from "@/lib/datas";
 
 type Tipo = "VACINA" | "VERMIFUGO" | "ECTOPARASITA" | "OUTRO";
 const TIPO_LABEL: Record<string, string> = { VACINA: "Vacinas", VERMIFUGO: "Vermífugo", ECTOPARASITA: "Antipulgas", OUTRO: "Outros" };
@@ -76,7 +76,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
   const [selId, setSelId] = useState<string>("");
   const [applyOpen, setApplyOpen] = useState(false);
   const [templates, setTemplates] = useState<Template[]>([]);
-  const [form, setForm] = useState<any>({ tipo: "VACINA", templateId: "", nomeCustom: "", intervaloDias: "30", dosesCustom: "0", dataInicial: new Date().toISOString().slice(0, 10) });
+  const [form, setForm] = useState<any>({ tipo: "VACINA", templateId: "", nomeCustom: "", intervaloDias: "30", dosesCustom: "0", dataInicial: hojeNaClinicaISO() });
   const [doseModal, setDoseModal] = useState<any>(null);
   const [cat, setCat] = useState<{ nome: string; valor: number }[]>([]);
 
@@ -117,7 +117,7 @@ export default function PetProtocolosPanel({ petId, petNome, autoOpen, onAutoOpe
     } catch { setTemplates([]); }
   }
   async function openApply(tipo: Tipo = "VACINA") {
-    setForm({ tipo, templateId: "", nomeCustom: "", intervaloDias: "30", dosesCustom: "0", dataInicial: new Date().toISOString().slice(0, 10) });
+    setForm({ tipo, templateId: "", nomeCustom: "", intervaloDias: "30", dosesCustom: "0", dataInicial: hojeNaClinicaISO() });
     await loadTemplates(tipo);
     setApplyOpen(true);
   }

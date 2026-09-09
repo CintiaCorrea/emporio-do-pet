@@ -4,6 +4,7 @@ import { confirmDelete } from "@/lib/ui/confirmDelete";
 import { useEffect, useMemo, useState , useRef} from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { LuSend, LuX, LuTrash, LuStar } from "react-icons/lu";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 const CANAIS = ["WhatsApp", "Email"];
 const fmtData = (s?: string) => { if (!s) return "—"; try { return new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); } catch { return "—"; } };
@@ -65,7 +66,7 @@ export default function AvaliacoesGooglePage() {
     try {
       const tutor = tutors.find((t) => t.id === form.tutorId);
       const tel = (tutor?.contacts?.find((c: any) => c.isPrimary)?.number || tutor?.contacts?.[0]?.number || "").replace(/\D/g, "");
-      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `googleava_${Date.now()}`, valor: JSON.stringify({ tutorId: form.tutorId, tutorNome: tutor?.name || "", telefone: tel, canal: form.canal, status: "enviado", nota: 0, data: new Date().toISOString().slice(0, 10) }) }) });
+      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `googleava_${Date.now()}`, valor: JSON.stringify({ tutorId: form.tutorId, tutorNome: tutor?.name || "", telefone: tel, canal: form.canal, status: "enviado", nota: 0, data: hojeNaClinicaISO() }) }) });
       const msg = encodeURIComponent(`Oi! Tudo bem? Se puder, deixa sua avaliação pra gente no Google 💚: ${link}`);
       if (form.canal === "WhatsApp" && tel) window.open(`https://wa.me/${tel.startsWith("55") ? tel : "55" + tel}?text=${msg}`, "_blank");
       else if (form.canal === "Email" && tutor?.email) window.open(`mailto:${tutor.email}?subject=${encodeURIComponent("Avaliação no Google")}&body=${msg}`, "_blank");

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LuSearch, LuPlus, LuUpload, LuDownload, LuTrash, LuPhone, LuStickyNote, LuFootprints, LuX } from "react-icons/lu";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 type Filter = "ativos" | "perdidos" | "outros" | "convertidos" | "todos";
 type Periodo = "7d" | "30d" | "tudo" | "custom";
@@ -154,7 +155,7 @@ export default function LeadsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `leads_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `leads_${hojeNaClinicaISO()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

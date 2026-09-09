@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { FinTabs, FIN_CSS, fmtBRL } from '../fin-ui';
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 /* ===================== tipos ===================== */
 type Tipo = 'RECEITA' | 'DESPESA';
@@ -30,7 +31,7 @@ interface Opt { id: string; nome: string; }
 /* ===================== helpers ===================== */
 const fmtDia = (iso: string | null) =>
   iso ? new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }) : '—';
-const hojeISO = () => new Date().toISOString().slice(0, 10);
+const hojeISO = () => hojeNaClinicaISO();
 function reaisToCentavos(s: string): number {
   if (!s) return 0;
   const clean = s.replace(/[^\d,.-]/g, '').replace(/\.(?=\d{3}(\D|$))/g, '').replace(',', '.');
