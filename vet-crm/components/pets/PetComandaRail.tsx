@@ -286,14 +286,36 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   function montarTextoOrcamento() {
     return textoDoOrcamento({ petNome, tutorNome, itens, total, observacao: obs });
   }
+  /**
+   * REGISTRA E ENVIA. A Cintia, 09/09/2026: "hoje você escreve, ele já envia, mas não fica
+   * registrado no sistema que já passamos".
+   *
+   * Era assim: o botao montava o texto e mandava, sem gravar nada. O cliente recebia um
+   * orcamento que nao existia em lugar nenhum — ninguem conseguia cobrar o retorno, nem saber
+   * quanto foi passado, nem que o orcamento existiu. O do inbox ja salvava antes de enviar; a
+   * comanda era a unica que nao.
+   *
+   * O registro vem PRIMEIRO. Se o WhatsApp falhar, o orcamento fica salvo e da pra reenviar —
+   * o contrario (enviar e nao gravar) e o que estava acontecendo.
+   */
   async function enviarOrcamentoWhats() {
     if (!itens.length) { toast.error("Venda sem itens."); return; }
     if (!tutorId) { toast.error("Pet sem tutor — não dá pra enviar."); return; }
     setEnviandoWhats(true);
     try {
-      const r = await fetch(`/api/whatsapp/enviar-documentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId, texto: montarTextoOrcamento(), petNome }) });
+      const texto = montarTextoOrcamento();
+      const salvou = await fetch(`/api/orcamentos`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ petId, tutorId, observacao: obs.trim() || undefined, itens: itens.map(linhaBody) }),
+      }).then((r) => r.ok).catch(() => false);
+
+      const r = await fetch(`/api/whatsapp/enviar-documentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tutorId, texto, petNome }) });
       if (!r.ok) throw new Error();
-      toast.success("Orçamento enviado no WhatsApp ✅");
+
+      // A tela DIZ o que aconteceu com o registro. Enviado e nao gravado precisa aparecer:
+      // e o caso em que a pessoa acha que ficou na pasta e nao ficou.
+      toast.success(salvou ? "Orçamento enviado e registrado ✅" : "Enviado no WhatsApp — mas NÃO consegui registrar o orçamento.");
+      if (salvou) { await loadOrcs(); }
     } catch { toast.error("Não consegui enviar pelo WhatsApp. Confira o número do tutor."); }
     finally { setEnviandoWhats(false); }
   }

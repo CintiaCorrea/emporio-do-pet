@@ -85,11 +85,21 @@ const NAV: Entry[] = [
     group: true, key: "vendas", label: "Vendas", emoji: "💰", roles: ALL, section: "GESTAO",
     children: [
       { href: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒", roles: ALL },
+      // A CONSULTA DE VENDAS MUDOU DE CASA (Cintia, 09/09/2026). Estava em Gestao > Inteligencia,
+      // junto de Ranking e RFM — coisas de estudo. Ela nao e estudo: e onde se procura uma venda,
+      // se imprime as comandas do dia e se tira o relatorio do periodo. E trabalho de balcao e de
+      // fechamento, e a Cintia foi procura-la em Vendas.
+      { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🔎", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/vendas", label: "Todas as vendas", emoji: "📋", roles: ALL },
       { href: "/dashboard/erp/comandas", label: "Vendas em aberto", emoji: "🧾", roles: ALL },
       { href: "/dashboard/erp/orcamentos", label: "Orçamentos", emoji: "📄", roles: ALL },
-      { href: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵", roles: ALL },
-      { href: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", emoji: "🔄", roles: ALL },
+      // UMA TELA SO DE CAIXA. Havia duas entradas com o mesmo assunto: "Caixa" (a tela
+      // completa — lista de caixas, detalhe, conferencia, papel) e "Movimentos de caixa" (120
+      // linhas que so listavam suprimento/sangria/despesa, ja dentro da outra). A Cintia, em
+      // 09/09/2026: "movimento de caixa = caixa, pode passar tudo do caixa para movimento de
+      // caixa". Ficou a tela boa, com o nome que ela usa. O endereco continua /erp/caixa para
+      // nao quebrar os atalhos "Abrir o meu caixa" espalhados pelo sistema.
+      { href: "/dashboard/erp/caixa", label: "Movimento de caixa", emoji: "💵", roles: ALL },
       { href: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾", roles: ALL },
       { href: "/dashboard/erp/pacotes", label: "Pacotes vendidos", emoji: "📦", roles: ALL },
       { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ALL },
@@ -113,7 +123,6 @@ const NAV: Entry[] = [
     group: true, key: "inteligencia", label: "Inteligência", emoji: "💡", roles: ALL, section: "GESTAO",
     children: [
       { href: "/dashboard/erp/minhas-vendas", label: "Produtividade", emoji: "📈", roles: ALL },
-      { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🔎", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/retencao", label: "Retenção e Churn", emoji: "🔄", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/relacionamento", label: "Relacionamento (RFM)", emoji: "💎", roles: ["ADMIN", "RECEPTIONIST"] },

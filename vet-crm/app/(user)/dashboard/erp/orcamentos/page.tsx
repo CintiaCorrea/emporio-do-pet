@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { assignFollowUpFor, loadFuRespFor, FuResp } from "@/lib/followup";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
+import { situacaoDoOrcamento, prazoDoOrcamento, SITUACOES, ChaveSituacao } from "@/lib/situacaoDoOrcamento";
 
 const TEAL = "#009AAC";
 const NAVY = "#014D5E";
@@ -19,33 +20,12 @@ const INK = "#374151";
 const brl = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dia = (d: any) => (d ? new Date(d).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—");
 
-type Situacao = "ABERTO" | "APROVADO" | "VENCIDO" | "VENDA";
-const SIT: Record<Situacao, { lbl: string; bg: string; fg: string }> = {
-  ABERTO: { lbl: "Em aberto", bg: "#FEF3C7", fg: "#92400E" },
-  APROVADO: { lbl: "Aprovado", bg: "#E7F6EF", fg: "#0F6E56" },
-  VENCIDO: { lbl: "Vencido", bg: "#FBE6E6", fg: "#A32D2D" },
-  VENDA: { lbl: "Virou venda", bg: "#E0F4F6", fg: "#00707E" },
-};
-
-/** Situação real do orçamento: convertido > vencido (validade passou) > aprovado > em aberto. */
-function situacaoDe(o: any): Situacao {
-  if (o.appointmentId) return "VENDA";
-  const venc = o.validade ? new Date(o.validade) : null;
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  if (venc && venc < hoje) return "VENCIDO";
-  if (o.status === "APROVADO") return "APROVADO";
-  return "ABERTO";
-}
-
-/** "vence em 3 dias" / "venceu há 5 dias" — o que a recepção precisa pra priorizar a cobrança. */
-function prazoDe(o: any): string {
-  if (!o.validade) return "sem validade";
-  const hoje = new Date(); hoje.setHours(0, 0, 0, 0);
-  const venc = new Date(o.validade); venc.setHours(0, 0, 0, 0);
-  const dias = Math.round((venc.getTime() - hoje.getTime()) / 86400000);
-  if (dias === 0) return "vence hoje";
-  return dias > 0 ? `vence em ${dias} dia${dias > 1 ? "s" : ""}` : `venceu há ${-dias} dia${-dias > 1 ? "s" : ""}`;
-}
+// A SITUACAO E O PRAZO MORAM EM lib/situacaoDoOrcamento — os mesmos da aba dentro da Consulta
+// de vendas. Ate 09/09/2026 cada tela tinha o seu, com nomes diferentes para a mesma coisa.
+type Situacao = ChaveSituacao;
+const SIT = SITUACOES;
+const situacaoDe = (o: any): Situacao => situacaoDoOrcamento(o);
+const prazoDe = (o: any): string => prazoDoOrcamento(o?.validade);
 
 export default function OrcamentosPage() {
   usePageTitle("Orçamentos", "Acompanhe o que foi orçado e ainda não virou venda");
@@ -196,7 +176,7 @@ export default function OrcamentosPage() {
                         <div className="text-[11.5px]" style={{ color: MUT }}>{o.pet?.name || "—"}</div>
                       </td>
                       <td className="px-3 py-2.5">
-                        <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: s.bg, color: s.fg }}>{s.lbl}</span>
+                        <span className="text-[10.5px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: s.bg, color: s.fg }}>{s.rotulo}</span>
                       </td>
                       <td className="px-3 py-2.5 tabular-nums" style={{ color: INK }}>{dia(o.createdAt)}</td>
                       <td className="px-3 py-2.5" style={{ color: INK }}>

@@ -55,12 +55,11 @@ export const PERM_SECTIONS: PermSection[] = [
         key: "vendas", label: "Vendas", emoji: "💰", children: [
           { key: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒" },
           { key: "/dashboard/erp/vendas", label: "Todas as vendas", emoji: "📋" },
-          { key: "/dashboard/erp/caixa", label: "Caixa", emoji: "💵" },
+          { key: "/dashboard/erp/caixa", label: "Movimento de caixa", emoji: "💵" },
           { key: "/dashboard/erp/comandas", label: "Vendas em aberto", emoji: "🧾" },
           { key: "/dashboard/erp/orcamentos", label: "Orçamentos", emoji: "📋" },
           { key: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦" },
           { key: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾" },
-          { key: "/dashboard/erp/movimentos-caixa", label: "Movimentos de caixa", emoji: "🔄" },
           { key: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛" },
           { key: "/dashboard/erp/formas-recebimento", label: "Formas de recebimento", emoji: "💳" },
           { key: "/dashboard/erp/configuracoes-vendas", label: "Configuração de vendas", emoji: "⚙️" },

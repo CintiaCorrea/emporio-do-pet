@@ -5,15 +5,14 @@ import toast from "react-hot-toast";
 import { LuPrinter, LuExternalLink, LuCheck, LuArrowRight, LuTrash2, LuSend } from "react-icons/lu";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { textoDoOrcamento } from "@/lib/textoDoOrcamento";
+import { situacaoDoOrcamento, permaneceOrcamento, SITUACOES, ChaveSituacao } from "@/lib/situacaoDoOrcamento";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataBR = (d: any) => { try { return new Date(d).toLocaleDateString("pt-BR"); } catch { return ""; } };
-const ST: any = {
-  RASCUNHO: { l: "Rascunho", c: "#64748b", b: "#eef2f4" },
-  APROVADO: { l: "Aprovado", c: "#0F6E56", b: "#E7F6EF" },
-  RECUSADO: { l: "Recusado", c: "#A32D2D", b: "#fbe6e6" },
-  EXPIRADO: { l: "Expirado", c: "#92400e", b: "#fef3c7" },
-};
+// O VOCABULARIO SAIU DAQUI. Esta tela dizia "Rascunho/Expirado/Vendido" e a tela de Orcamentos
+// dizia "Em aberto/Vencido/Virou venda" — duas linguas para a mesma coisa, na mesma casa. A
+// Cintia perguntou "qual a diferenca entre vendido e fechado?" e a resposta era: nenhuma.
+// Agora o nome vem de lib/situacaoDoOrcamento, para as duas telas.
 const TEAL = "#009AAC", NAVY = "#014D5E", GREY2 = "#6B7280", CARD_LINE = "#EDE7D6";
 const inp: any = { border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, background: "#fff", color: NAVY };
 const cardCss: any = { background: "#fff", border: `1px solid ${CARD_LINE}`, borderRadius: 12 };
@@ -26,9 +25,18 @@ const icone = (cor: string): any => ({
 });
 
 export default function OrcamentosBusca() {
+  // POR PADRAO, SO O QUE CONTINUA ORCAMENTO ("e para manter somente o que permaneceu
+  // orcamento" — Cintia, 09/09/2026). O que virou venda nao some do sistema: fica atras do
+  // filtro, porque e esse rastro que impede cobrar duas vezes.
+  const [soAbertos, setSoAbertos] = useState(true);
+  // O que a tabela mostra. O filtro do servidor e por `status` (o campo do banco); este e por
+  // SITUACAO (a escada da Cintia), que so da pra calcular com a venda ligada na mao.
   const [busca, setBusca] = useState("");
   const [status, setStatus] = useState("TODOS");
   const [rows, setRows] = useState<any[]>([]);
+  // O que a tabela mostra. O filtro do servidor e por `status` (o campo do banco); este e por
+  // SITUACAO (a escada da Cintia), que so da pra calcular com a venda ligada na mao.
+  const mostrados = soAbertos ? rows.filter((o) => permaneceOrcamento(o)) : rows;
   const [loading, setLoading] = useState(true);
   const jaCarregou = useRef(false);
 
@@ -110,6 +118,16 @@ export default function OrcamentosBusca() {
             </select>
           </label>
           <button onClick={load} className="font-medium text-white" style={{ background: TEAL, borderRadius: 9, padding: "9px 18px", fontSize: 13.5 }}>🔍 Buscar</button>
+          {/* SO O QUE CONTINUA ORCAMENTO, por padrao. O que virou venda nao some do sistema —
+              fica um clique atras, porque e esse rastro que impede cobrar duas vezes. */}
+          <button
+            onClick={() => setSoAbertos((v) => !v)}
+            title={soAbertos ? "Mostrar também os que viraram venda" : "Mostrar só o que continua orçamento"}
+            className="font-medium"
+            style={{ background: soAbertos ? "#E1F2F4" : "#fff", color: NAVY, border: `1px solid ${soAbertos ? TEAL : CARD_LINE}`, borderRadius: 9, padding: "9px 14px", fontSize: 13 }}
+          >
+            {soAbertos ? "📄 Só orçamentos" : "📄 Todos, com os vendidos"}
+          </button>
         </div>
       </div>
 
@@ -117,7 +135,7 @@ export default function OrcamentosBusca() {
       <div style={{ ...cardCss, overflow: "hidden" }}>
         {loading ? (
           <div className="flex items-center justify-center" style={{ padding: 48, color: GREY2, fontSize: 14 }}><span className="animate-pulse">⏳ Carregando orçamentos…</span></div>
-        ) : rows.length === 0 ? (
+        ) : mostrados.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2" style={{ padding: 56, color: GREY2 }}><span style={{ fontSize: 32 }}>📄</span><span style={{ fontSize: 14 }}>Nenhum orçamento encontrado.</span></div>
         ) : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -129,9 +147,10 @@ export default function OrcamentosBusca() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((o) => {
-                const st = ST[o.status] || ST.RASCUNHO;
-                const convertido = !!o.appointmentId;
+              {mostrados.map((o) => {
+                const sit: ChaveSituacao = situacaoDoOrcamento(o);
+                const st = SITUACOES[sit];
+                const convertido = sit === "VENDA" || sit === "RECEBIDO";
                 const nItens = Array.isArray(o.itens) ? o.itens.length : 0;
                 return (
                   <tr key={o.id} style={{ borderTop: `1px solid ${CARD_LINE}` }}>
@@ -140,7 +159,7 @@ export default function OrcamentosBusca() {
                     <td style={{ padding: "10px 12px", fontSize: 13, color: "#374151" }}>{o.tutor?.name || "—"}</td>
                     <td style={{ padding: "10px 12px", fontSize: 12.5, color: GREY2 }}>{nItens} {nItens === 1 ? "item" : "itens"}</td>
                     <td style={{ padding: "10px 12px", fontSize: 13, color: "#0F6E56", fontWeight: 600, textAlign: "right", whiteSpace: "nowrap" }}>{BRL(o.valorTotal)}</td>
-                    <td style={{ padding: "10px 12px" }}><span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: convertido ? "#E6F1FB" : st.b, color: convertido ? "#185FA5" : st.c }}>{convertido ? "Vendido" : st.l}</span></td>
+                    <td style={{ padding: "10px 12px" }}><span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: st.bg, color: st.fg }}>{st.rotulo}</span></td>
                     <td style={{ padding: "10px 12px" }}>
                       {/* SO OS ICONES (Cintia, 08/09/2026: "pode deixar somente os ícones, não
                           precisa estar escrito"). Cada um leva `title`: sem o texto, o nome da

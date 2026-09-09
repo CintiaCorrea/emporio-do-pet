@@ -38,6 +38,15 @@ export class OrcamentosService {
     createdBy: { select: { id: true, name: true } },
     pet: { select: { id: true, name: true, species: true, breed: true, birthDate: true, weight: true } },
     tutor: { select: { id: true, name: true, contacts: { where: { isPrimary: true }, take: 1 } } },
+    // A VENDA LIGADA, quando existe. E dela que sai o terceiro degrau da escada da Cintia
+    // (em aberto -> venda -> recebido): sem os recebimentos, um orcamento convertido e NAO
+    // pago apareceria como concluido, e a recepcao deixaria de cobrar.
+    appointment: {
+      select: {
+        id: true, value: true, numeroVenda: true,
+        recebimentos: { select: { valorTotal: true } },
+      },
+    },
   } as const;
 
   async findByPet(petId: string) {

@@ -209,7 +209,17 @@ export default function VendasListaPage() {
                       </td>
                       <td style={{ ...td, textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                          <Link href={`/dashboard/erp/ponto-de-venda?editar=${v.id}`} title="Abrir esta venda no formulário do Ponto de venda" style={{ ...acao, textDecoration: 'none', color: TEAL, borderColor: TEAL, display: 'inline-block' }}>✏️ Editar</Link>
+                          {/* EDITAR VENDA E SO DO ADMINISTRATIVO (Cintia, 09/09/2026: "todas as
+                              vendas nao e para ser editada por todos, somente pelo adm"). A lista
+                              continua de todos — ver o que foi vendido e trabalho de balcao;
+                              mudar o que ja foi cobrado, nao. */}
+                          {isAdmin ? (
+                            <Link href={`/dashboard/erp/ponto-de-venda?editar=${v.id}`} title="Abrir esta venda no formulário do Ponto de venda" style={{ ...acao, textDecoration: 'none', color: TEAL, borderColor: TEAL, display: 'inline-block' }}>✏️ Editar</Link>
+                          ) : (
+                            // O botao nao some calado: quem nao pode precisa saber que existe e
+                            // de quem pedir, senao vira "o sistema nao deixa" sem explicacao.
+                            <span title="Só o administrativo edita venda" style={{ ...acao, color: '#8A9499', borderColor: '#E8E2D6', display: 'inline-block', cursor: 'default' }}>🔒 Editar</span>
+                          )}
                           {emAberto && (
                             <Link href={`/dashboard/erp/ponto-de-venda?venda=${v.id}`} title="Abrir para receber no caixa" style={{ ...acao, textDecoration: 'none', display: 'inline-block' }}>💰 Receber</Link>
                           )}
