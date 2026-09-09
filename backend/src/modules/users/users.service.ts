@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -110,11 +110,43 @@ export class UsersService {
     });
   }
 
+  /**
+   * Excluir funcionario APAGA em cascata todo atendimento em que ele e' o responsavel
+   * (Appointment.user e' onDelete: Cascade) — e junto vao as vendas desses atendimentos,
+   * de TODOS os clientes. E' a mesma porta pela qual 22 vendas sumiram em 31/08/2026,
+   * e a mais destrutiva das tres: apagar uma veterinaria que saiu levaria o historico
+   * de vendas dela inteiro.
+   *
+   * Com qualquer historico, a exclusao e' recusada. O caminho passa a ser BLOQUEAR o
+   * acesso (isBlocked): o login para de funcionar, ele sai das listas de notificacao e
+   * de escala, e nada e' apagado. Vale ate para o ADMIN.
+   */
   async remove(id: string) {
     await this.findById(id);
 
-    return this.prisma.user.delete({
+    const [atendimentos, vendas] = await Promise.all([
+      this.prisma.appointment.count({ where: { userId: id } }),
+      this.prisma.appointment.count({ where: { userId: id, numeroVenda: { not: null } } }),
+    ]);
+    if (atendimentos > 0) {
+      const detalhe = vendas > 0
+        ? `${vendas} venda(s) e ${atendimentos} atendimento(s)`
+        : `${atendimentos} atendimento(s)`;
+      throw new BadRequestException(
+        `TEM_HISTORICO: Este profissional e o responsavel por ${detalhe}. Excluir apagaria tudo junto, sem volta — inclusive vendas de outros clientes. Bloqueie o acesso dele em vez de excluir: ele perde o login e sai das listas, mas o historico fica de pe.`,
+      );
+    }
+
+    return this.prisma.user.delete({ where: { id } });
+  }
+
+  /** Desliga o funcionario sem apagar nada: o login para de funcionar na hora. */
+  async bloquear(id: string, bloqueado: boolean) {
+    await this.findById(id);
+    return this.prisma.user.update({
       where: { id },
+      data: { isBlocked: bloqueado },
+      select: { id: true, name: true, isBlocked: true },
     });
   }
 }

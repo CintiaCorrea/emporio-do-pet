@@ -40,6 +40,13 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto);
   }
 
+  @Patch(':id/bloqueio')
+  @Roles('ADMIN')
+  @ApiOperation({ summary: 'Bloqueia/desbloqueia o acesso do funcionario (nao apaga nada)' })
+  bloqueio(@Param('id') id: string, @Body() body: { bloqueado: boolean }) {
+    return this.usersService.bloquear(id, !!body?.bloqueado);
+  }
+
   @Delete(':id')
   @Roles('ADMIN')
   @ApiOperation({ summary: 'Remover usuário (Admin)' })
