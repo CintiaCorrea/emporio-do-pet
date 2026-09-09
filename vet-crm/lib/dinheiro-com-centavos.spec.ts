@@ -36,8 +36,8 @@ const fontes = ["app", "components", "lib"]
 describe("nenhuma tela corta os centavos", () => {
   it("não existe formatador de moeda com maximumFractionDigits: 0", () => {
     const culpados = fontes
-      .filter(({ src }) => /currency[^}]{0,120}maximumFractionDigits:\s*0/s.test(src)
-        || /maximumFractionDigits:\s*0[^}]{0,120}currency/s.test(src))
+      .filter(({ src }) => /currency[\s\S]{0,120}maximumFractionDigits:\s*0/.test(src)
+        || /maximumFractionDigits:\s*0[\s\S]{0,120}currency/.test(src))
       .map(({ p }) => p);
     expect(culpados).toEqual([]);
   });
