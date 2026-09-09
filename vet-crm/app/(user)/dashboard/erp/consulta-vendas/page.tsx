@@ -403,6 +403,10 @@ function LinhaVenda({ v, saldoCliente }: { v: Venda; saldoCliente: number }) {
 export default function ConsultaVendasPage() {
   usePageTitle('Consulta de vendas', 'Vendas do período');
 
+  // O CAMPO FINO da barra de filtros: o rotulo mora dentro dele (primeira opcao do select,
+  // placeholder do input), entao a barra tem uma linha de altura em vez de duas.
+  const fino: React.CSSProperties = { border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '7px 9px', fontSize: 12.5, background: '#fff', color: NAVY, height: 33 };
+
   const [mesIni, mesFim] = useMemo(() => {
     const n = new Date();
     return [iso(new Date(n.getFullYear(), n.getMonth(), 1)), iso(new Date(n.getFullYear(), n.getMonth() + 1, 0))];
@@ -522,66 +526,61 @@ export default function ConsultaVendasPage() {
         <div style={{ fontSize: 12, color: GREY }}>Período {de} a {ate}{cod ? ` · cód. ${cod}` : ''}{marca ? ` · ${marca}` : ''}{status ? ` · ${status}` : ''}</div>
       </div>
 
-      {/* Filtros */}
-      <div style={{ ...cardCss, padding: 16 }} className="mb-4 no-print">
-        <div className="flex items-end gap-3 flex-wrap">
-          {/* O MESMO SELETOR DO CAIXA (components/comum/SeletorDePeriodo). Eram dois campos
-              de data soltos: para ver "este mes" era preciso saber de cor que dia o mes acaba,
-              e digitar as duas pontas. Agora os atalhos vem juntos. */}
-          <SeletorDePeriodo rotulo="Período" faixa={{ de, ate }} onMudar={(f) => { setDe(f.de); setAte(f.ate); }} />
-          <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Status</span>
-            <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...inp, minWidth: 140 }}>
-              <option value="">Todos</option>
-              <option value="COMPLETED">Baixado</option>
-              <option value="SCHEDULED">Orçamento</option>
-            </select>
-          </label>
-          <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Marca</span>
-            <select value={marca} onChange={(e) => setMarca(e.target.value)} style={{ ...inp, minWidth: 150 }}>
-              <option value="">Todas</option>
-              <option value="EMPORIO">🏥 Empório</option>
-              <option value="MUNDO_A_PARTE">🌿 Mundo à Parte</option>
-              <option value="DRA_VIVIAN">✨ Dra. Vivian</option>
-            </select>
-          </label>
+      {/* ── A LINHA DE FILTROS, FINA E INTEIRA ──────────────────────────────────────────
+          A Cintia, 08/09/2026: "essa linha nao pode ser um pouco mais delicada e que caiba
+          tudo em uma linha so".
+
+          Duas coisas engordavam a barra: cada campo tinha um ROTULO EMPILHADO em cima (o que
+          dobra a altura de todos, para dizer "Status" acima de um campo cujo primeiro item ja
+          e "Todos") e os botoes caiam numa segunda linha. Agora o rotulo mora dentro do proprio
+          campo e a barra e uma so. */}
+      <div style={{ ...cardCss, padding: '9px 11px' }} className="mb-4 no-print">
+        <div className="flex items-center gap-2 flex-wrap">
+          <SeletorDePeriodo faixa={{ de, ate }} onMudar={(f) => { setDe(f.de); setAte(f.ate); }} />
+
+          <select value={status} onChange={(e) => setStatus(e.target.value)} style={fino}>
+            <option value="">Situação: todas</option>
+            <option value="COMPLETED">Baixado</option>
+            <option value="SCHEDULED">Orçamento</option>
+          </select>
+
+          <select value={marca} onChange={(e) => setMarca(e.target.value)} style={fino}>
+            <option value="">Todas as marcas</option>
+            <option value="EMPORIO">🏥 Empório</option>
+            <option value="MUNDO_A_PARTE">🌿 Mundo à Parte</option>
+            <option value="DRA_VIVIAN">✨ Dra. Vivian</option>
+          </select>
+
           {funcs.length > 0 && (
-            <label className="flex flex-col gap-1">
-              <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Profissional</span>
-              <select value={func} onChange={(e) => setFunc(e.target.value)} style={{ ...inp, minWidth: 150 }}>
-                <option value="">Todos</option>
-                {funcs.map((f) => <option key={f} value={f}>{f}</option>)}
-              </select>
-            </label>
+            <select value={func} onChange={(e) => setFunc(e.target.value)} style={fino}>
+              <option value="">Todos os profissionais</option>
+              {funcs.map((f) => <option key={f} value={f}>{f}</option>)}
+            </select>
           )}
-          <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Cód. venda</span>
-            <input
-              value={cod}
-              onChange={(e) => setCod(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') load(); }}
-              placeholder="Nº ou SimplesVet"
-              style={{ ...inp, width: 140 }}
-            />
-          </label>
-          <label className="flex flex-col gap-1 flex-1 min-w-[180px]">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Busca</span>
-            <input
-              value={busca}
-              onChange={(e) => setBusca(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') load(); }}
-              placeholder="Cliente, pet ou serviço"
-              style={inp}
-            />
-          </label>
+
+          <input
+            value={cod}
+            onChange={(e) => setCod(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') load(); }}
+            placeholder="Nº da venda"
+            style={{ ...fino, width: 112 }}
+          />
+
+          <input
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') load(); }}
+            placeholder="Cliente, pet ou serviço"
+            style={{ ...fino, flex: 1, minWidth: 150 }}
+          />
+
           <button
             onClick={load}
-            className="font-medium text-white transition"
-            style={{ background: TEAL, borderRadius: 9, padding: '9px 18px', fontSize: 13.5 }}
+            style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             🔍 Consultar
           </button>
+
           {/* O RELATORIO DO PERIODO. Era window.print(), que imprimia a TELA — abas, filtros
               e botoes, cortada onde a pagina acabasse. Agora sai documento, no mesmo motor das
               comandas e do movimento de caixa. */}
@@ -593,10 +592,10 @@ export default function ConsultaVendasPage() {
               filtros: [cod && `cód. ${cod}`, marca, status === 'COMPLETED' ? 'baixadas' : status === 'SCHEDULED' ? 'orçamentos' : '', func && `funcionário ${func}`].filter(Boolean).join(' · '),
             })}
             disabled={!vendasF.length}
-            className="font-medium transition"
-            style={{ background: '#fff', color: NAVY, border: `1px solid ${CARD_LINE}`, borderRadius: 9, padding: '9px 16px', fontSize: 13.5, cursor: vendasF.length ? 'pointer' : 'not-allowed', opacity: vendasF.length ? 1 : .5 }}
+            title="Imprime o relatório do período: cartões e todos os quadros do Resumo"
+            style={{ background: '#fff', color: NAVY, border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '7px 13px', fontSize: 12.5, fontWeight: 600, cursor: vendasF.length ? 'pointer' : 'not-allowed', opacity: vendasF.length ? 1 : .5, whiteSpace: 'nowrap' }}
           >
-            🖨️ Relatório do período
+            🖨️ Relatório
           </button>
         </div>
       </div>
@@ -627,9 +626,13 @@ export default function ConsultaVendasPage() {
             <span className="animate-pulse">⏳ Carregando vendas…</span>
           </div>
         ) : !data || vendasF.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2" style={{ padding: 56, color: GREY2 }}>
+          <div className="flex flex-col items-center justify-center gap-2" style={{ padding: 48, color: GREY2 }}>
             <span style={{ fontSize: 32 }}>📭</span>
-            <span style={{ fontSize: 14 }}>Nenhuma venda encontrada no período.</span>
+            {/* O VAZIO DIZ DE QUE PERIODO ESTA FALANDO. Sem isso, as quatro abas mostram a
+                mesma frase e parece que a tela nao responde ao clique — foi o que a Cintia
+                viu em 08/09/2026, quando as vendas do mes estavam sumindo por outro motivo. */}
+            <span style={{ fontSize: 14 }}>Nenhuma venda entre {de.split('-').reverse().join('/')} e {ate.split('-').reverse().join('/')}.</span>
+            <span style={{ fontSize: 12.5 }}>As abas Totais, Resumo e Orçamentos se preenchem quando houver venda no período.</span>
           </div>
         ) : modo === 'RESUMO' ? (
           <div style={{ padding: 14, display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))' }}>

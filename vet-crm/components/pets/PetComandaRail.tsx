@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { LuShoppingCart, LuPlus, LuTrash, LuX, LuPrinter, LuArrowRight } from "react-icons/lu";
 import toast from "react-hot-toast";
+import { textoDoOrcamento } from "@/lib/textoDoOrcamento";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem } from "@/lib/catalogoVendavel";
@@ -277,30 +278,12 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     } catch { toast.error("Erro ao gerar orçamento"); } finally { setSaving(false); }
   }
   // 💬 Envia o orçamento pro cliente no WhatsApp (mesmo princípio do inbox: cai na conversa do tutor).
+  // O TEXTO MORA NO NÚCLEO (lib/textoDoOrcamento, com teste). Em 08/09/2026 a Cintia pediu o
+  // envio também na aba de Orçamentos da Consulta de vendas — dois textos parecidos seriam dois
+  // orçamentos diferentes saindo da mesma clínica, para o mesmo cliente, dependendo de qual tela
+  // a pessoa abriu. O cliente não sabe que são duas telas; ele vê a casa se contradizendo.
   function montarTextoOrcamento() {
-    const linhas = itens.map((it) => {
-      const q = Number(it.quantidade) || 1;
-      const v = q * (Number(it.valorUnitario) || 0);
-      const nome = (it.descricao || "Item").trim();
-      return q > 1 ? `• ${q}× ${nome} — *${BRL(v)}*` : `• ${nome} — *${BRL(v)}*`;
-    });
-    const dia = new Date().toLocaleDateString("pt-BR");
-    return [
-      `💰 *Orçamento — ${petNome || "seu pet"}*`,
-      `🏥 Empório do Pet · 🗓️ ${dia}`,
-      tutorNome ? `👤 Tutor(a): ${tutorNome}` : null,
-      ``,
-      `*Itens do orçamento:*`,
-      ...linhas,
-      ``,
-      `━━━━━━━━━━━━━━━`,
-      `💵 *Total: ${BRL(total)}*`,
-      obs.trim() ? `` : null,
-      obs.trim() ? `📝 *Observação:* ${obs.trim()}` : null,
-      ``,
-      `Qualquer dúvida, é só chamar por aqui! 🐾`,
-      `— Equipe Empório do Pet`,
-    ].filter((l) => l !== null).join("\n");
+    return textoDoOrcamento({ petNome, tutorNome, itens, total, observacao: obs });
   }
   async function enviarOrcamentoWhats() {
     if (!itens.length) { toast.error("Venda sem itens."); return; }

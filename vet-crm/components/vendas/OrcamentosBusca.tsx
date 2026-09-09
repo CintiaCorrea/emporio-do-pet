@@ -2,8 +2,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { LuPrinter, LuExternalLink, LuCheck, LuArrowRight } from "react-icons/lu";
+import { LuPrinter, LuExternalLink, LuCheck, LuArrowRight, LuTrash2, LuSend } from "react-icons/lu";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
+import { textoDoOrcamento } from "@/lib/textoDoOrcamento";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dataBR = (d: any) => { try { return new Date(d).toLocaleDateString("pt-BR"); } catch { return ""; } };
@@ -16,6 +17,13 @@ const ST: any = {
 const TEAL = "#009AAC", NAVY = "#014D5E", GREY2 = "#6B7280", CARD_LINE = "#EDE7D6";
 const inp: any = { border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, background: "#fff", color: NAVY };
 const cardCss: any = { background: "#fff", border: `1px solid ${CARD_LINE}`, borderRadius: 12 };
+// O BOTAO-ICONE da lista de orcamentos. Quadrado, mesma altura para todos, para a coluna de
+// acoes ficar alinhada de linha em linha em vez de cada uma com uma largura.
+const icone = (cor: string): any => ({
+  display: "inline-flex", alignItems: "center", justifyContent: "center",
+  width: 28, height: 28, borderRadius: 8, border: `1px solid ${CARD_LINE}`,
+  background: "#fff", color: cor, cursor: "pointer", flex: "0 0 auto",
+});
 
 export default function OrcamentosBusca() {
   const [busca, setBusca] = useState("");
@@ -39,6 +47,47 @@ export default function OrcamentosBusca() {
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
   async function aprovar(id: string) { try { const r = await fetch(`/api/orcamentos/${id}/aprovar`, { method: "POST" }); if (!r.ok) throw 0; toast.success("Aprovado"); await load(); } catch { toast.error("Erro ao aprovar"); } }
+  /**
+   * EXCLUIR o orcamento. Pergunta antes, e diz de quem e: numa lista de dez linhas parecidas,
+   * "tem certeza?" sem nome e um convite a apagar a errada.
+   */
+  async function excluir(o: any) {
+    const quem = [o.pet?.name, o.tutor?.name].filter(Boolean).join(" · ") || "este orçamento";
+    if (!confirm(`Excluir o orçamento de ${quem} (${BRL(o.valorTotal)})? Não dá para desfazer.`)) return;
+    try {
+      const r = await fetch(`/api/orcamentos/${o.id}`, { method: "DELETE" });
+      if (!r.ok) { const e = await r.json().catch(() => ({} as any)); throw new Error(e?.message || "Erro ao excluir"); }
+      toast.success("Orçamento excluído");
+      await load();
+    } catch (e: any) { toast.error(e?.message || "Erro ao excluir o orçamento"); }
+  }
+
+  /**
+   * ENVIAR pelo WhatsApp. O texto vem do nucleo (lib/textoDoOrcamento), o mesmo que a ficha do
+   * pet usa — dois textos parecidos seriam dois orcamentos diferentes saindo da mesma clinica.
+   */
+  const [enviando, setEnviando] = useState<string | null>(null);
+  async function enviarWhats(o: any) {
+    const tutorId = o.tutor?.id || o.tutorId;
+    if (!tutorId) { toast.error("Orçamento sem cliente — não dá para enviar."); return; }
+    setEnviando(o.id);
+    try {
+      const r = await fetch(`/api/whatsapp/enviar-documentos`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tutorId, petNome: o.pet?.name || "",
+          texto: textoDoOrcamento({
+            petNome: o.pet?.name, tutorNome: o.tutor?.name, data: o.createdAt,
+            itens: o.itens || o.items || [], total: o.valorTotal, observacao: o.observacao,
+          }),
+        }),
+      });
+      if (!r.ok) throw new Error();
+      toast.success("Orçamento enviado no WhatsApp");
+    } catch { toast.error("Não consegui enviar. Confira o número do tutor."); }
+    finally { setEnviando(null); }
+  }
+
   async function converter(id: string) { try { const r = await fetch(`/api/orcamentos/${id}/converter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); if (!r.ok) throw 0; toast.success("Convertido em venda"); await load(); } catch { toast.error("Erro ao converter"); } }
 
   return (
@@ -93,11 +142,16 @@ export default function OrcamentosBusca() {
                     <td style={{ padding: "10px 12px", fontSize: 13, color: "#0F6E56", fontWeight: 600, textAlign: "right", whiteSpace: "nowrap" }}>{BRL(o.valorTotal)}</td>
                     <td style={{ padding: "10px 12px" }}><span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: convertido ? "#E6F1FB" : st.b, color: convertido ? "#185FA5" : st.c }}>{convertido ? "Vendido" : st.l}</span></td>
                     <td style={{ padding: "10px 12px" }}>
-                      <div className="flex flex-wrap gap-1.5 justify-end">
-                        <button onClick={() => imprimirOrcamento(o)} className="flex items-center gap-1 px-2 py-1 rounded border text-[11px]" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={11} /> Imprimir</button>
-                        {o.pet?.id && <Link href={`/dashboard/erp/pets/${o.pet.id}`} className="flex items-center gap-1 px-2 py-1 rounded border text-[11px]" style={{ borderColor: CARD_LINE, color: GREY2 }}><LuExternalLink size={11} /> Ficha</Link>}
-                        {!convertido && o.status === "RASCUNHO" && <button onClick={() => aprovar(o.id)} className="flex items-center gap-1 px-2 py-1 rounded border text-[11px]" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}><LuCheck size={11} /> Aprovar</button>}
-                        {!convertido && <button onClick={() => converter(o.id)} className="flex items-center gap-1 px-2 py-1 rounded text-white text-[11px]" style={{ background: TEAL }}><LuArrowRight size={11} /> Transformar em venda</button>}
+                      {/* SO OS ICONES (Cintia, 08/09/2026: "pode deixar somente os ícones, não
+                          precisa estar escrito"). Cada um leva `title`: sem o texto, o nome da
+                          acao passa a viver ali — e um botao que apaga precisa se anunciar. */}
+                      <div className="flex flex-wrap gap-1 justify-end">
+                        <button onClick={() => imprimirOrcamento(o)} title="Imprimir o orçamento" aria-label="Imprimir o orçamento" style={icone("#0C447C")}><LuPrinter size={14} /></button>
+                        <button onClick={() => enviarWhats(o)} disabled={enviando === o.id} title="Enviar o orçamento pelo WhatsApp do cliente" aria-label="Enviar pelo WhatsApp" style={{ ...icone("#0F6E56"), opacity: enviando === o.id ? .45 : 1 }}><LuSend size={14} /></button>
+                        {o.pet?.id && <Link href={`/dashboard/erp/pets/${o.pet.id}`} title="Abrir a ficha do pet" aria-label="Abrir a ficha do pet" style={icone(GREY2)}><LuExternalLink size={14} /></Link>}
+                        {!convertido && o.status === "RASCUNHO" && <button onClick={() => aprovar(o.id)} title="Aprovar o orçamento" aria-label="Aprovar o orçamento" style={icone("#0F6E56")}><LuCheck size={14} /></button>}
+                        {!convertido && <button onClick={() => converter(o.id)} title="Transformar em venda" aria-label="Transformar em venda" style={{ ...icone("#fff"), background: TEAL, borderColor: TEAL }}><LuArrowRight size={14} /></button>}
+                        <button onClick={() => excluir(o)} title="Excluir o orçamento" aria-label="Excluir o orçamento" style={icone("#A32D2D")}><LuTrash2 size={14} /></button>
                       </div>
                     </td>
                   </tr>
