@@ -94,9 +94,13 @@ describe("a grade de caixas filtra de verdade", () => {
   });
 
   it("o período tem os atalhos que ela listou", () => {
-    const src = ler(PAGE);
-    expect(src).toContain("PRESETS");
-    expect(src).toContain("Escolher período");
+    // Os atalhos saíram da página e viraram componente único quando a Consulta de vendas
+    // precisou do mesmo controle ("lembre-se de seguir o mesmo padrão de estética", 08/09).
+    // A trava seguiu junto: o que ela guarda é que os atalhos existam e que a tela os use.
+    const sel = ler("components/comum/SeletorDePeriodo.tsx");
+    expect(sel).toContain("PRESETS");
+    expect(sel).toContain("Escolher período");
+    expect(ler(PAGE)).toContain("<SeletorDePeriodo");
   });
 
   it("o navegador de dia some quando o filtro é um período", () => {

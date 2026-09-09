@@ -16,7 +16,8 @@ import { agruparRecebimentos, rotuloDaVenda } from '@/lib/recebimentosDoCaixa';
 import { seloDoFechamento, coresDoSelo } from '@/lib/fechamentoDoCaixa';
 import { imprimirCaixaDetalhado, imprimirResumoDeCaixas } from '@/lib/documentos/relatorio-caixa-print';
 import { trilhaDoCaixa } from '@/lib/trilhaDoCaixa';
-import { PRESETS, ChaveDePreset, Faixa, faixaDoPreset, rotuloDoPeriodo, presetDaFaixa, ehDiaUnico, somarDias, ordenar, hojeNaCasa } from '@/lib/periodoDeBusca';
+import { Faixa, faixaDoPreset, rotuloDoPeriodo, presetDaFaixa, ehDiaUnico, somarDias, hojeNaCasa } from '@/lib/periodoDeBusca';
+import SeletorDePeriodo from '@/components/comum/SeletorDePeriodo';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
@@ -89,8 +90,6 @@ export default function CaixaPage() {
   // outro; se hoje nao tiver caixa, a propria lista oferece os ultimos 7 dias em um clique —
   // era essa a queixa dela la ("hoje quase nunca tem resultado").
   const [faixa, setFaixa] = useState<Faixa>(() => faixaDoPreset('HOJE'));
-  const [periodoAberto, setPeriodoAberto] = useState(false);
-  const [rascunhoFaixa, setRascunhoFaixa] = useState<Faixa>(() => faixaDoPreset('HOJE'));
   const [gradeStatus, setGradeStatus] = useState('');
   const [gradeUser, setGradeUser] = useState('');
   const [gradeNumero, setGradeNumero] = useState('');
@@ -434,38 +433,10 @@ export default function CaixaPage() {
             pediu esta forma: filtro em cima, lista no meio, detalhe ao clicar na linha. */}
         <div className="no-print" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12, position: 'relative' }}>
 
-          {/* PERIODO com atalhos (lib/periodoDeBusca) */}
-          <div style={{ position: 'relative' }}>
-            <button onClick={() => { setRascunhoFaixa(faixa); setPeriodoAberto((v) => !v); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontWeight: 500, padding: '8px 12px', borderRadius: 9, cursor: 'pointer', border: `1px solid ${LINE}`, background: '#fff', color: TEAL_DARK }}>
-              📅 {rotuloDoPeriodo(faixa)} ▾
-            </button>
-            {periodoAberto && (
-              <>
-                <div onClick={() => setPeriodoAberto(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 41, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12, boxShadow: '0 10px 30px rgba(1,43,46,.13)', width: 268, overflow: 'hidden' }}>
-                  {PRESETS.filter((x) => x.chave !== 'PERSONALIZADO').map((x) => {
-                    const ativo = presetDaFaixa(faixa) === x.chave;
-                    return (
-                      <button key={x.chave} onClick={() => { setFaixa(faixaDoPreset(x.chave)); setPeriodoAberto(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', border: 'none', background: ativo ? '#e8f7f9' : '#fff', color: ativo ? '#014D5E' : INK2, fontSize: 13, fontWeight: ativo ? 600 : 400, padding: '9px 14px', cursor: 'pointer' }}>
-                        {x.rotulo}
-                      </button>
-                    );
-                  })}
-                  {/* ESCOLHER PERIODO: os dois campos ficam abertos, sem segundo clique. No
-                      outro sistema era preciso clicar em "Selecionar periodo" antes de os
-                      calendarios aparecerem, e os campos nem aceitavam digitacao. */}
-                  <div style={{ borderTop: `1px solid ${LINE}`, padding: '11px 14px', display: 'flex', flexDirection: 'column', gap: 8, background: SUAVE }}>
-                    <span style={{ fontSize: 10.5, color: MUT, textTransform: 'uppercase', letterSpacing: '.4px' }}>Escolher período</span>
-                    <div style={{ display: 'flex', gap: 7 }}>
-                      <label style={{ fontSize: 11, color: MUT, flex: 1 }}>De<br /><input type="date" max={hojeNaCasa()} value={rascunhoFaixa.de} onChange={(e) => setRascunhoFaixa({ ...rascunhoFaixa, de: e.target.value })} style={{ width: '100%', border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 8px', fontSize: 12.5 }} /></label>
-                      <label style={{ fontSize: 11, color: MUT, flex: 1 }}>Até<br /><input type="date" max={hojeNaCasa()} value={rascunhoFaixa.ate} onChange={(e) => setRascunhoFaixa({ ...rascunhoFaixa, ate: e.target.value })} style={{ width: '100%', border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 8px', fontSize: 12.5 }} /></label>
-                    </div>
-                    <button onClick={() => { setFaixa(ordenar(rascunhoFaixa)); setPeriodoAberto(false); }} style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '8px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer' }}>Aplicar período</button>
-                  </div>
-                </div>
-              </>
-            )}
-          </div>
+          {/* PERIODO — componente unico (components/comum/SeletorDePeriodo), o mesmo da
+              Consulta de vendas. Dois seletores parecidos viram duas respostas para a mesma
+              pergunta na mesma casa. */}
+          <SeletorDePeriodo faixa={faixa} onMudar={setFaixa} />
 
           <select value={gradeUser} onChange={(e) => setGradeUser(e.target.value)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, padding: '8px 10px', fontSize: 12.5, background: '#fff', color: INK2, minWidth: 165 }}>
             <option value="">Todos os caixas</option>

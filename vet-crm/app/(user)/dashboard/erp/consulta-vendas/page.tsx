@@ -8,6 +8,8 @@ import OrcamentosBusca from '@/components/vendas/OrcamentosBusca';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { resumoDeVendas } from '@/lib/resumoDeVendas';
 import { imprimirComandasDoDia } from '@/lib/documentos/relatorio-vendas-print';
+import SeletorDePeriodo from '@/components/comum/SeletorDePeriodo';
+import { imprimirResumoDeVendas } from '@/lib/documentos/relatorio-resumo-vendas-print';
 
 /* ---------------- paleta Base44 ---------------- */
 const BG = '#F6F2EA';
@@ -523,14 +525,10 @@ export default function ConsultaVendasPage() {
       {/* Filtros */}
       <div style={{ ...cardCss, padding: 16 }} className="mb-4 no-print">
         <div className="flex items-end gap-3 flex-wrap">
-          <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>De</span>
-            <input type="date" value={de} onChange={(e) => setDe(e.target.value)} style={inp} />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Até</span>
-            <input type="date" value={ate} onChange={(e) => setAte(e.target.value)} style={inp} />
-          </label>
+          {/* O MESMO SELETOR DO CAIXA (components/comum/SeletorDePeriodo). Eram dois campos
+              de data soltos: para ver "este mes" era preciso saber de cor que dia o mes acaba,
+              e digitar as duas pontas. Agora os atalhos vem juntos. */}
+          <SeletorDePeriodo rotulo="Período" faixa={{ de, ate }} onMudar={(f) => { setDe(f.de); setAte(f.ate); }} />
           <label className="flex flex-col gap-1">
             <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500 }}>Status</span>
             <select value={status} onChange={(e) => setStatus(e.target.value)} style={{ ...inp, minWidth: 140 }}>
@@ -584,12 +582,21 @@ export default function ConsultaVendasPage() {
           >
             🔍 Consultar
           </button>
+          {/* O RELATORIO DO PERIODO. Era window.print(), que imprimia a TELA — abas, filtros
+              e botoes, cortada onde a pagina acabasse. Agora sai documento, no mesmo motor das
+              comandas e do movimento de caixa. */}
           <button
-            onClick={() => window.print()}
+            onClick={() => imprimirResumoDeVendas({
+              resumo,
+              pacotes: data?.pacotes || [],
+              periodo: `${de.split('-').reverse().join('/')} a ${ate.split('-').reverse().join('/')}`,
+              filtros: [cod && `cód. ${cod}`, marca, status === 'COMPLETED' ? 'baixadas' : status === 'SCHEDULED' ? 'orçamentos' : '', func && `funcionário ${func}`].filter(Boolean).join(' · '),
+            })}
+            disabled={!vendasF.length}
             className="font-medium transition"
-            style={{ background: '#fff', color: NAVY, border: `1px solid ${CARD_LINE}`, borderRadius: 9, padding: '9px 16px', fontSize: 13.5 }}
+            style={{ background: '#fff', color: NAVY, border: `1px solid ${CARD_LINE}`, borderRadius: 9, padding: '9px 16px', fontSize: 13.5, cursor: vendasF.length ? 'pointer' : 'not-allowed', opacity: vendasF.length ? 1 : .5 }}
           >
-            🖨️ Imprimir
+            🖨️ Relatório do período
           </button>
         </div>
       </div>
