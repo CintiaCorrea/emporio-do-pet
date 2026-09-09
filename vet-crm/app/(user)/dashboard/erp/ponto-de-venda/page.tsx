@@ -1646,24 +1646,31 @@ export default function PDVPage() {
                         <button onClick={salvarEdicaoItens} disabled={savingEdit} style={{ flex: 1.4, background: TEAL, color: '#fff', border: 'none', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{savingEdit ? 'Salvando…' : '💾 Salvar alterações'}</button>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      // AS ACOES DA VENDA, FINAS E NUMA LINHA SO (Cintia, 09/09/2026: "os botoes
+                      // nas vendas podem ser melhores, mais delicados, menores e todos na mesma
+                      // linha. Nao precisamos do botao fechar, ja que ao clicar no X a venda
+                      // fecha"). O "Fechar" repetia o X do cabecalho e empurrava os outros tres
+                      // para uma segunda fileira: botao que so repete outro gasta a linha e nao
+                      // ganha nada.
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
                         {/* Devolver é diferente de excluir: excluir apaga o registro, devolver
                             desfaz as consequências e deixa rastro. A devolução mora na Consulta
                             de vendas, que é onde ela já existia inteira (taxa do cartão,
                             parcelas, dedução no DRE, crédito ou dinheiro) — daqui é só o atalho,
                             para não existirem duas devoluções com contas diferentes. */}
                         {podeEditar && (detVenda.itens || []).length > 0 && (
-                          <a href={`/dashboard/erp/consulta-vendas?venda=${detVenda.id}`} title="Abre a devolução na Consulta de vendas" style={{ flex: 1, minWidth: 120, textAlign: 'center', textDecoration: 'none', background: '#fff', color: '#8a6400', border: '1px solid #E8D9AE', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500 }}>↩️ Devolver</a>
+                          <a href={`/dashboard/erp/consulta-vendas?venda=${detVenda.id}`} title="Abre a devolução na Consulta de vendas" style={{ textDecoration: 'none', background: '#fff', color: '#8a6400', border: '1px solid #E8D9AE', borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>↩️ Devolver</a>
                         )}
                         {exclusaoDaVenda.pode ? (
-                          <button onClick={excluirVenda} disabled={detExcluindo} style={{ flex: 1, minWidth: 120, background: '#fff', color: '#A32D2D', border: '1px solid #F0C9C9', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>{detExcluindo ? 'Excluindo…' : '🗑 Excluir'}</button>
+                          <button onClick={excluirVenda} disabled={detExcluindo} style={{ background: '#fff', color: '#A32D2D', border: '1px solid #F0C9C9', borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{detExcluindo ? 'Excluindo…' : '🗑 Excluir'}</button>
                         ) : (
-                          <div style={{ flex: 1, minWidth: 200, background: '#FBF7EF', border: `1px solid ${LINE}`, borderRadius: 9, padding: '8px 10px', fontSize: 11.5, color: MUT, lineHeight: 1.35 }}>🔒 {exclusaoDaVenda.motivo}</div>
+                          // O motivo de nao poder excluir continua escrito — some-lo faria o
+                          // botao simplesmente nao existir, sem ninguem entender por que.
+                          <span title={exclusaoDaVenda.motivo} style={{ background: '#FBF7EF', border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 11.5, color: MUT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>🔒 {exclusaoDaVenda.motivo}</span>
                         )}
                         {aReceber > 0.001 && (
-                          <button onClick={abrirRecVenda} style={{ flex: 1.6, minWidth: 150, background: TEAL, color: '#fff', border: 'none', borderRadius: 9, padding: 10, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>💰 Registrar recebimento</button>
+                          <button onClick={abrirRecVenda} style={{ marginLeft: 'auto', background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>💰 Registrar recebimento</button>
                         )}
-                        <button onClick={() => { setDetVenda(null); setEditItens(null); setRecOpen(false); }} style={{ flex: 1, minWidth: 90, background: '#fff', color: INK2, border: `1px solid ${LINE}`, borderRadius: 9, padding: 10, fontSize: 13, cursor: 'pointer' }}>Fechar</button>
                       </div>
                     )}
                   </>

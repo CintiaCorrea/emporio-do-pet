@@ -584,6 +584,11 @@ export class AppointmentsService {
               column: { select: { name: true, color: true } },
             },
           },
+          // OS ITENS DA VENDA — so descricao e quantidade, que e o que a lista mostra.
+          // Sem isto, o "Historico de compras" da ficha escrevia so "Venda" em cada linha: a
+          // tela caia no nome do TIPO por nao ter o que comprar para mostrar (Cintia,
+          // 09/09/2026). Dois campos por item pesam pouco e resolvem a lista inteira.
+          items: { select: { id: true, descricao: true, quantidade: true, valorTotal: true }, orderBy: { createdAt: 'asc' } },
           _count: { select: { treatments: true } },
         },
         orderBy: { date: 'desc' },

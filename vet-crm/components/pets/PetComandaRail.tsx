@@ -4,6 +4,7 @@ import { useSession } from "next-auth/react";
 import { LuShoppingCart, LuPlus, LuTrash, LuX, LuPrinter, LuArrowRight } from "react-icons/lu";
 import toast from "react-hot-toast";
 import { textoDoOrcamento } from "@/lib/textoDoOrcamento";
+import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem } from "@/lib/catalogoVendavel";
@@ -447,7 +448,12 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
               <span className="text-[13px] font-semibold text-[#014D5E]">{totalConvenio > 0 ? "👤 Tutor paga" : "Total"}</span>
               <span className="text-[22px] font-bold text-[#014D5E] tabular-nums">{BRL(totalTutor)}</span>
             </div>
-            <div className="text-[10.5px] mb-2 mt-0.5" style={{ color: statusCor }}>{statusTxt}</div>
+            <div className="flex items-center justify-between gap-2 mb-2 mt-0.5 flex-wrap">
+              <span className="text-[10.5px]" style={{ color: statusCor }}>{statusTxt}</span>
+              {/* A comanda JA E uma venda em aberto no caixa. Daqui se vai ao ponto de venda,
+                  que e onde se recebe — a comanda lanca, o PDV cobra. */}
+              <BotaoAbrirNoPDV vendaId={apptId} rotulo="Receber no PDV" />
+            </div>
             <div className="flex gap-2">
               <button onClick={imprimirComanda} disabled={!itens.length} className="flex-1 border-2 rounded-lg py-2 text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={13} /> Imprimir</button>
               <button onClick={salvarVenda} disabled={!itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salva a venda (vai pra ‘A receber’ no Caixa) e limpa a tela pra iniciar outra.">💰 Salvar a venda</button>

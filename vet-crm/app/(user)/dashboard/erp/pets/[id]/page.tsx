@@ -20,6 +20,8 @@ import {
 } from "react-icons/lu";
 import toast from "react-hot-toast";
 import EditorDeItens from "@/components/vendas/EditorDeItens";
+import { ehCompra } from "@/lib/tipoDeVenda";
+import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
 import { LinhaEditavel, totalDasLinhas, linhasParaGravar } from "@/lib/linhasDeVenda";
 import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
 import { textoDoRelatorioVendas } from "@/lib/textoDoRelatorioVendas";
@@ -2729,7 +2731,11 @@ export default function PetDetailPage() {
         // "Por marca" saiu: o atendimento não guarda marca no banco (dava sempre 100% Empório — número falso).
         // No lugar, métricas REAIS: total gasto + ticket médio.
         const totalGasto = atendimentos.reduce((s: number, a: any) => s + Number(a.value || 0), 0);
-        const compras = atendimentos.filter((a: any) => Number(a.value || 0) > 0);
+        // SO' COMPRA. O filtro era por VALOR, e a INTERNACAO tem valor (a diaria) — entao ela
+        // aparecia aqui com o texto do diagnostico no lugar do produto ("Anemia +
+        // trombocitopenia"). Valor maior que zero nao e o mesmo que "e uma venda". Agora quem
+        // decide e o TIPO (lib/tipoDeVenda, gemeo da regra do servidor).
+        const compras = atendimentos.filter(ehCompra);
         const ticket = compras.length ? totalGasto / compras.length : 0;
         const resumoItens = (a: any) => {
           if (Array.isArray(a.items) && a.items.length) return a.items.map((it: any) => `${it.descricao || "Serviço"}${it.quantidade > 1 ? ` x${it.quantidade}` : ""}`).join(", ");
@@ -2958,7 +2964,10 @@ export default function PetDetailPage() {
               {verAtd.followUpNotes && <div><span className="text-gray-400">Verificar:</span> {verAtd.followUpNotes}</div>}
               {verAtd.notes && <div><span className="text-gray-400">Obs.:</span> {verAtd.notes}</div>}
             </div>
-            <div className="flex items-center justify-between mt-4">
+            <div className="flex items-center justify-between mt-4 gap-2 flex-wrap">
+              {/* Venda: a ponte para o ponto de venda, onde se recebe. Atendimento clinico sem
+                  valor nao tem o que receber — o botao nem aparece. */}
+              {ehCompra(verAtd) && <BotaoAbrirNoPDV vendaId={verAtd.id} />}
               <button onClick={() => excluirAtendimento(verAtd.id)} className="px-3 py-2 border rounded-lg text-sm" style={{ borderColor: "#f4baba", color: "#A32D2D", background: "#fbe6e6" }}>Excluir</button>
               <div className="flex gap-2">
                 {editAtd ? (

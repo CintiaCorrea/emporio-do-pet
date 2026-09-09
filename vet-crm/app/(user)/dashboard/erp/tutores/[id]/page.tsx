@@ -24,6 +24,8 @@ import ResolverFuModal, { type FuAlvo } from "@/components/followup/ResolverFuMo
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
+import { ehCompra } from "@/lib/tipoDeVenda";
+import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
 import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
   LuTrash, LuPhone, LuCalendar, LuUser, LuPlus, LuCheck, LuX} from "react-icons/lu";
@@ -522,7 +524,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   // retorno, receita, termo de internacao. Sem este filtro, o diagnostico aparecia na aba
   // Compras como se fosse item vendido (Cintia, 09/09/2026).
   const compras: any[] = ((stats?.compras?.length ? stats.compras : (tutor.appointments || [])) as any[])
-    .filter((a: any) => Number(a?.value || 0) > 0);
+    // Mesma correcao da ficha do pet: o filtro era por VALOR e deixava a internacao entrar
+    // como se fosse compra. Quem decide e o TIPO (lib/tipoDeVenda).
+    .filter(ehCompra);
   const porMarca: { marca: string; valor: number; pct: number }[] = stats?.porMarca || [];
   const money = (v?: number | null) =>
     v == null ? "—" : !showValues ? "R$ ••••" : "R$ " + Number(v).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -543,6 +547,31 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   // ainda nao foi baixada no caixa — e o que a recepcao precisa cobrar.
   // Relatorio do cliente: busca as vendas COM ITENS (a ficha so tem o cabecalho) e imprime
   // pagas e em aberto juntas, agrupadas por dia. E' o papel que se entrega pro cliente.
+  // ── AS VENDAS ABERTAS EM ACORDEAO (Cintia, 09/09/2026: "podemos deixar as vendas na aba do
+  // cliente organizadas como no simplesvet?"). La cada venda e uma linha — data, codigo,
+  // situacao e valor — e abrir mostra o que foi comprado, por pet, com o total do dia.
+  //
+  // A ficha so traz o CABECALHO das vendas; os itens vem de /api/tutors/:id/vendas, o mesmo
+  // caminho que o relatorio ja usa. Buscamos uma vez, na primeira vez que alguem abre uma
+  // linha — quem so passa os olhos na lista nao paga por isso.
+  const [compraAberta, setCompraAberta] = useState<string>("");
+  const [itensPorVenda, setItensPorVenda] = useState<Record<string, any> | null>(null);
+  const [carregandoItens, setCarregandoItens] = useState(false);
+
+  const abrirCompra = async (idVenda: string) => {
+    setCompraAberta((atual) => (atual === idVenda ? "" : idVenda));
+    if (itensPorVenda || carregandoItens) return;
+    setCarregandoItens(true);
+    try {
+      const r = await fetch(`/api/tutors/${id}/vendas`, { cache: "no-store" });
+      const d = r.ok ? await r.json() : null;
+      const mapa: Record<string, any> = {};
+      for (const v of (d?.vendas || [])) mapa[v.id] = v;
+      setItensPorVenda(mapa);
+    } catch { setItensPorVenda({}); }
+    finally { setCarregandoItens(false); }
+  };
+
   const imprimirRelatorio = async () => {
     try {
       const r = await fetch(`/api/tutors/${id}/vendas`, { cache: "no-store" });
@@ -1148,23 +1177,81 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
         </div>
         <div className="bg-white border border-[#E8E2D6] rounded-[13px]" style={{ padding: "6px 15px" }}>
           {comprasFiltradas.length === 0 && orcamentosFiltrados.length === 0 && <p className="text-[12.5px] text-[#374151] py-3 text-center">Nenhuma compra registrada{comprasPet ? ` para ${comprasPet}` : ""} ainda.</p>}
-          {comprasFiltradas.map((a, i) => (
-            <Link key={a.id} href={`/dashboard/erp/atendimentos/${a.id}`} className="flex items-center gap-2.5 py-2.5 hover:opacity-70 transition-opacity" style={{ borderBottom: i < comprasFiltradas.length - 1 ? "1px solid #F0EBE0" : "none" }}>
-              <span className="text-[11.5px] text-[#374151] w-[46px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
-              <span className="flex-1 text-[12.5px] text-[#1F2A2E] truncate">{a.description || a.type || "Atendimento"}</span>
-              {a.pet?.name && <span className="text-[11px] text-[#374151] shrink-0">🐾 {a.pet.name}</span>}
-              {Number(a.value) > 0 && a.paymentStatus && (
-                <span
-                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
-                  style={a.paymentStatus === "PAID"
-                    ? { background: "#E7F6EF", color: "#0F6E56" }
-                    : { background: "#FDECEC", color: "#b23b39" }}
-                >{a.paymentStatus === "PAID" ? "paga" : "em aberto"}</span>
-              )}
-              <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0">{money(a.value)}</span>
-              <span className="text-[#374151] text-[12px] shrink-0">›</span>
-            </Link>
-          ))}
+          {comprasFiltradas.map((a, i) => {
+            const aberta = compraAberta === a.id;
+            const cheia = itensPorVenda?.[a.id] || null;
+            const itens = cheia?.itens || a.items || [];
+            const pago = Number(cheia?.pago ?? a.pago ?? 0);
+            const valor = Number(a.value) || 0;
+            const situacao = pago >= valor - 0.005 && valor > 0
+              ? { l: "Baixado", bg: "#E7F6EF", c: "#0F6E56" }
+              : pago > 0
+                ? { l: "Baixa parcial", bg: "#FDF6E3", c: "#854F0B" }
+                : { l: "Em aberto", bg: "#FDECEC", c: "#b23b39" };
+            const codigo = cheia?.numero ?? a.numeroVenda ?? a.codigoExterno ?? null;
+            return (
+              <div key={a.id} style={{ borderBottom: i < comprasFiltradas.length - 1 ? "1px solid #F0EBE0" : "none" }}>
+                {/* A LINHA FECHADA: data, código, situação e valor — o que se lê de relance. */}
+                <button onClick={() => abrirCompra(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left hover:opacity-70 transition-opacity">
+                  <span className="text-[11.5px] text-[#374151] w-[74px] shrink-0">{fmtDataBR(a.date)}</span>
+                  <span className="flex-1 text-[12.5px] text-[#5C6B70] truncate">{codigo ? `Cód. ${codigo}` : "sem número"}</span>
+                  {a.pet?.name && <span className="text-[11px] text-[#374151] shrink-0">🐾 {a.pet.name}</span>}
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: situacao.bg, color: situacao.c }}>{situacao.l}</span>
+                  <span className="text-[12.5px] text-[#014D5E] font-medium shrink-0 w-[92px] text-right">{money(valor)}</span>
+                  <span className="text-[#374151] text-[12px] shrink-0">{aberta ? "⌄" : "›"}</span>
+                </button>
+
+                {aberta && (
+                  <div style={{ background: "#FBF9F4", borderRadius: 10, padding: "10px 12px", margin: "0 0 10px" }}>
+                    {carregandoItens && !cheia && <div className="text-[12px] text-[#5C6B70]">Carregando os itens…</div>}
+                    {!carregandoItens && itens.length === 0 && (
+                      <div className="text-[12px] text-[#5C6B70]">Esta venda não tem itens detalhados — veio do atendimento com o valor fechado.</div>
+                    )}
+                    {itens.length > 0 && (
+                      <>
+                        {/* O PET NO TOPO do bloco, como lá: a conta é do cliente, mas o que se
+                            lê é "o que foi feito em quem". */}
+                        <div className="flex items-baseline gap-2 mb-1.5">
+                          <span className="text-[13px] font-medium text-[#1F2A2E]">{a.pet?.name || "Sem pet"}</span>
+                          {a.user?.name && <span className="text-[11px] text-[#5C6B70]">· {a.user.name}</span>}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wide text-[#8A9499]" style={{ borderBottom: "1px solid #EDE7D6", paddingBottom: 3 }}>
+                            <span className="flex-1">Produto / Serviço</span>
+                            <span className="w-[92px] text-right">Valor</span>
+                          </div>
+                          {itens.map((it: any, k: number) => (
+                            <div key={it.id || k} className="flex items-center gap-2 text-[12.5px] text-[#374151]" style={{ padding: "2px 0" }}>
+                              <span className="flex-1 truncate">
+                                {it.descricao || "Item"}
+                                {Number(it.quantidade) > 1 && <span className="text-[#8A9499]"> x{it.quantidade}</span>}
+                              </span>
+                              <span className="w-[92px] text-right text-[#1F2A2E]">{money(Number(it.valorTotal ?? (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0)))}</span>
+                            </div>
+                          ))}
+                          <div className="flex items-center gap-2 text-[12.5px] font-semibold text-[#014D5E]" style={{ borderTop: "1px solid #EDE7D6", paddingTop: 4, marginTop: 2 }}>
+                            <span className="flex-1 text-right">Total em {fmtDataBR(a.date).slice(0, 5)}</span>
+                            <span className="w-[92px] text-right">{money(valor)}</span>
+                          </div>
+                          {pago > 0 && pago < valor - 0.005 && (
+                            <div className="flex items-center gap-2 text-[11.5px] text-[#854F0B]">
+                              <span className="flex-1 text-right">Já recebido</span>
+                              <span className="w-[92px] text-right">{money(pago)}</span>
+                            </div>
+                          )}
+                        </div>
+                        {/* A PONTE PARA O PONTO DE VENDA: e la que se recebe, da desconto e
+                            devolve. Daqui a venda vai aberta. */}
+                        <div className="flex justify-end mt-2">
+                          <BotaoAbrirNoPDV vendaId={a.id} />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {/* ORÇAMENTOS — na mesma lista, em CINZA: é proposta, não dinheiro. Ficam fora do
               total gasto de propósito. Clicar abre os itens, que é o que o cliente recebeu. */}
