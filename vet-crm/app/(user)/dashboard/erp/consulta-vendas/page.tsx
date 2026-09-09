@@ -405,6 +405,8 @@ export default function ConsultaVendasPage() {
 
   // O CAMPO FINO da barra de filtros: o rotulo mora dentro dele (primeira opcao do select,
   // placeholder do input), entao a barra tem uma linha de altura em vez de duas.
+  // O BOTAO-ICONE: quadrado, mesma altura dos campos, para a linha ficar reta.
+  const botaoIcone: React.CSSProperties = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 33, height: 33, borderRadius: 8, border: `1px solid ${CARD_LINE}`, background: '#fff', color: NAVY, fontSize: 14, cursor: 'pointer', flex: '0 0 auto' };
   const fino: React.CSSProperties = { border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '7px 9px', fontSize: 12.5, background: '#fff', color: NAVY, height: 33 };
 
   const [mesIni, mesFim] = useMemo(() => {
@@ -503,21 +505,6 @@ export default function ConsultaVendasPage() {
     <div className="p-6 min-h-screen" style={{ background: BG }}>
       <style>{`@media print{ .no-print{display:none!important;} body{background:#fff;} .cv-print-h{display:block!important;} }`}</style>
 
-      {/* Abas: Vendas | Orçamentos (busca global de orçamentos) */}
-      <div className="flex gap-1 mb-4 no-print items-center">
-        {(([['VENDAS', '🧾 Vendas'], ['TOTAIS', '📊 Totais por produto'], ['RESUMO', '📈 Resumo'], ['ORCAMENTOS', '📄 Orçamentos']]) as [('VENDAS' | 'ORCAMENTOS' | 'TOTAIS' | 'RESUMO'), string][]).map(([k, lbl]) => (
-          <button key={k} onClick={() => setModo(k)} style={{ fontSize: 13, fontWeight: 600, padding: '8px 16px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: modo === k ? TEAL : '#fff', color: modo === k ? '#fff' : NAVY }}>{lbl}</button>
-        ))}
-        {/* O papel das comandas mora AQUI, não no ponto de venda: é nesta tela que os itens de
-            cada venda já vêm carregados, e é aqui que se escolhe o período. */}
-        <button onClick={() => imprimirComandasDoDia({ dia: de, ate, comandas: vendasF.map((v) => ({
-          id: v.id, numero: v.numeroVenda ?? v.codigoExterno ?? null, data: v.date,
-          tutor: v.cliente || 'Cliente', pet: v.pet || '', valor: Number(v.valor) || 0, pago: Number(v.pago) || 0,
-          itens: (v.itens || []).map((it) => ({ descricao: it.descricao || 'Item', quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, desconto: Number(it.desconto) || 0 })),
-        })) })} disabled={vendasF.length === 0} title="Imprime as comandas do período, dia a dia, com os itens de cada uma" style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: '#fff', color: NAVY, cursor: vendasF.length ? 'pointer' : 'not-allowed', opacity: vendasF.length ? 1 : .5 }}>🖨️ Comandas</button>
-        <a href="/dashboard/erp/recebimentos" style={{ fontSize: 13, fontWeight: 600, padding: '8px 14px', borderRadius: 9, border: `1px solid ${CARD_LINE}`, background: '#fff', color: NAVY, textDecoration: 'none' }}>💰 Recebimentos →</a>
-      </div>
-
       {modo === 'ORCAMENTOS' ? <OrcamentosBusca /> : (<>
 
       {/* cabeçalho só de impressão */}
@@ -536,6 +523,21 @@ export default function ConsultaVendasPage() {
           campo e a barra e uma so. */}
       <div style={{ ...cardCss, padding: '9px 11px' }} className="mb-4 no-print">
         <div className="flex items-center gap-2 flex-wrap">
+          {/* A VISAO — era uma fileira de quatro abas ocupando uma linha inteira em cima.
+              A Cintia, 08/09/2026: "podem ficar em um botão seletor, lembrando de manter tudo
+              em uma linha só se possível". As quatro continuam existindo; mudou o gesto. */}
+          <select
+            value={modo}
+            onChange={(e) => setModo(e.target.value as any)}
+            title="O que mostrar: a lista de vendas, os totais por produto, o resumo do período ou os orçamentos"
+            style={{ ...fino, fontWeight: 600, color: NAVY, borderColor: TEAL, minWidth: 168 }}
+          >
+            <option value="VENDAS">🧾 Vendas</option>
+            <option value="TOTAIS">📊 Totais por produto</option>
+            <option value="RESUMO">📈 Resumo</option>
+            <option value="ORCAMENTOS">📄 Orçamentos</option>
+          </select>
+
           <SeletorDePeriodo faixa={{ de, ate }} onMudar={(f) => { setDe(f.de); setAte(f.ate); }} />
 
           <select value={status} onChange={(e) => setStatus(e.target.value)} style={fino}>
@@ -574,12 +576,9 @@ export default function ConsultaVendasPage() {
             style={{ ...fino, flex: 1, minWidth: 150 }}
           />
 
-          <button
-            onClick={load}
-            style={{ background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            🔍 Consultar
-          </button>
+          {/* SO OS ICONES (Cintia, 08/09/2026). Cada um leva `title` e `aria-label`: sem o
+              texto, e ali que o nome da acao passa a viver. */}
+          <button onClick={load} title="Consultar com estes filtros" aria-label="Consultar" style={{ ...botaoIcone, background: TEAL, borderColor: TEAL, color: '#fff' }}>🔍</button>
 
           {/* O RELATORIO DO PERIODO. Era window.print(), que imprimia a TELA — abas, filtros
               e botoes, cortada onde a pagina acabasse. Agora sai documento, no mesmo motor das
@@ -592,11 +591,31 @@ export default function ConsultaVendasPage() {
               filtros: [cod && `cód. ${cod}`, marca, status === 'COMPLETED' ? 'baixadas' : status === 'SCHEDULED' ? 'orçamentos' : '', func && `funcionário ${func}`].filter(Boolean).join(' · '),
             })}
             disabled={!vendasF.length}
-            title="Imprime o relatório do período: cartões e todos os quadros do Resumo"
-            style={{ background: '#fff', color: NAVY, border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '7px 13px', fontSize: 12.5, fontWeight: 600, cursor: vendasF.length ? 'pointer' : 'not-allowed', opacity: vendasF.length ? 1 : .5, whiteSpace: 'nowrap' }}
+            title="Relatório do período: os cartões e todos os quadros do Resumo, em papel"
+            aria-label="Relatório do período"
+            style={{ ...botaoIcone, opacity: vendasF.length ? 1 : .45, cursor: vendasF.length ? 'pointer' : 'not-allowed' }}
           >
-            🖨️ Relatório
+            🖨️
           </button>
+
+          {/* COMANDAS — o papel do fechamento: uma comanda por venda, dia a dia, com os itens
+              de cada uma. Mora AQUI, e nao no ponto de venda, porque e nesta tela que os itens
+              ja vem carregados e que se escolhe o periodo. */}
+          <button
+            onClick={() => imprimirComandasDoDia({ dia: de, ate, comandas: vendasF.map((v) => ({
+              id: v.id, numero: v.numeroVenda ?? v.codigoExterno ?? null, data: v.date,
+              tutor: v.cliente || 'Cliente', pet: v.pet || '', valor: Number(v.valor) || 0, pago: Number(v.pago) || 0,
+              itens: (v.itens || []).map((it) => ({ descricao: it.descricao || 'Item', quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, desconto: Number(it.desconto) || 0 })),
+            })) })}
+            disabled={vendasF.length === 0}
+            title="Comandas do período: uma por venda, dia a dia, com os itens de cada uma"
+            aria-label="Imprimir as comandas do período"
+            style={{ ...botaoIcone, opacity: vendasF.length ? 1 : .45, cursor: vendasF.length ? 'pointer' : 'not-allowed' }}
+          >
+            🧾
+          </button>
+
+          <a href="/dashboard/erp/recebimentos" title="Ir para Recebimentos" aria-label="Ir para Recebimentos" style={{ ...botaoIcone, textDecoration: 'none' }}>💰</a>
         </div>
       </div>
 

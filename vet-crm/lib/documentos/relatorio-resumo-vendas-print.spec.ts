@@ -133,3 +133,24 @@ describe("as telas usam o seletor de período único e o relatório de verdade",
     expect(ler("app/(user)/dashboard/erp/consulta-vendas/page.tsx")).toContain("imprimirComandasDoDia");
   });
 });
+
+describe("a barra da consulta de vendas cabe em uma linha", () => {
+  const ler = () => require("fs").readFileSync(
+    require("path").resolve(__dirname, "../..", "app/(user)/dashboard/erp/consulta-vendas/page.tsx"), "utf8");
+
+  it("as quatro visões viram um seletor, não uma fileira de abas", () => {
+    // "Podem ficar em um botão seletor, lembrando de manter tudo em uma linha só se possível"
+    // (Cintia, 08/09/2026). As quatro continuam existindo; mudou o gesto.
+    const src = ler();
+    expect(src).toContain('onChange={(e) => setModo(e.target.value as any)}');
+    expect(src).not.toContain("📊 Totais por produto</button>");
+  });
+
+  it("consultar, relatório e comandas são ícones com o nome no title", () => {
+    // Sem o texto, é no `title` que o nome da ação passa a viver.
+    const src = ler();
+    expect(src).toContain('aria-label="Consultar"');
+    expect(src).toContain('aria-label="Relatório do período"');
+    expect(src).toContain('aria-label="Imprimir as comandas do período"');
+  });
+});
