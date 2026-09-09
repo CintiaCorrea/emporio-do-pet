@@ -37,3 +37,39 @@ export function situacaoDaVenda(valor?: number | null, recebimentos?: Recebiment
   if (total > 0 && pago >= total - 0.009) return 'PAGA';
   return pago > 0 ? 'PARCIAL' : 'ABERTA';
 }
+
+// ── O QUE E UMA VENDA, NO CAMPO `type` ────────────────────────────────────────────────────────
+//
+// A Cintia, em 08/09/2026, abrindo a Consulta de vendas: "e cade as vendas de setembro?"
+//
+// Nao eram so as de setembro: era TUDO o que foi vendido dentro do nosso sistema, desde sempre.
+// A mesma coisa foi escrita com duas grafias e ninguem percebeu porque agosto (importado)
+// aparecia normalmente:
+//
+//   · o importador do SimplesVet grava  type: 'VENDA'
+//   · o nosso ponto de venda grava      type: 'Venda'
+//   · a internacao grava                type: 'Venda'
+//   · e a consulta procurava so por     type: 'VENDA'
+//
+// Comparacao de texto no Postgres distingue maiuscula de minuscula. Entao a tela mostrava o
+// passado importado e escondia o presente — que e o pior tipo de erro, porque parece funcionar.
+//
+// A lista mora aqui, com teste, para a proxima grafia nao nascer solta no meio de uma query.
+
+/** As grafias que significam VENDA no campo `type` do agendamento. */
+export const TIPOS_DE_VENDA = ['VENDA', 'Venda', 'venda'] as const;
+
+/** As grafias que significam ORCAMENTO — proposta nao e venda, e nao entra no total. */
+export const TIPOS_DE_ORCAMENTO = ['ORCAMENTO', 'ORÇAMENTO', 'Orcamento', 'Orçamento', 'orcamento', 'orçamento'] as const;
+
+const semAcento = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+/** `true` para qualquer grafia de venda. Ignora caixa alta/baixa e acento. */
+export function ehTipoDeVenda(tipo?: string | null): boolean {
+  return semAcento(String(tipo || '').trim()).toLowerCase() === 'venda';
+}
+
+/** `true` para qualquer grafia de orcamento. */
+export function ehTipoDeOrcamento(tipo?: string | null): boolean {
+  return semAcento(String(tipo || '').trim()).toLowerCase() === 'orcamento';
+}

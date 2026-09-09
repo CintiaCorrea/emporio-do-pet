@@ -1,4 +1,6 @@
-import { pagoDaVenda, abertoDaVenda, situacaoDaVenda } from './consulta-vendas.regras';
+import { pagoDaVenda, abertoDaVenda, situacaoDaVenda, TIPOS_DE_VENDA, ehTipoDeVenda, ehTipoDeOrcamento } from './consulta-vendas.regras';
+import * as fs from 'fs';
+import * as path from 'path';
 
 describe('Consulta de vendas — as contas de dinheiro fecham', () => {
   it('soma os recebimentos da venda', () => {
@@ -40,4 +42,51 @@ describe('Consulta de vendas — as contas de dinheiro fecham', () => {
     expect(pagoDaVenda('abc' as any, [{ valorTotal: null }, {} as any])).toBe(0);
     expect(abertoDaVenda(null, undefined)).toBe(0);
   });
+});
+
+// ── "E CADE AS VENDAS DE SETEMBRO?" (Cintia, 08/09/2026) ─────────────────────────────────────
+//
+// Nao eram so as de setembro. A mesma coisa estava escrita com duas grafias: o importador do
+// SimplesVet grava type 'VENDA', o nosso ponto de venda grava 'Venda', e a consulta procurava
+// so pela primeira. Agosto (importado) aparecia; tudo o que a clinica vendeu no nosso sistema,
+// nao. Erro que parece funcionar e o pior tipo de erro.
+describe('o que conta como VENDA no campo type', () => {
+  it('aceita as duas grafias que existem no banco de verdade', () => {
+    expect(ehTipoDeVenda('VENDA')).toBe(true);   // importador
+    expect(ehTipoDeVenda('Venda')).toBe(true);   // ponto de venda e internacao
+    expect(ehTipoDeVenda('venda')).toBe(true);
+    expect(ehTipoDeVenda(' Venda ')).toBe(true);
+  });
+
+  it('orcamento nao e venda, em nenhuma grafia', () => {
+    for (const t of ['Orçamento', 'ORCAMENTO', 'orcamento', 'Orcamento']) {
+      expect(ehTipoDeVenda(t)).toBe(false);
+      expect(ehTipoDeOrcamento(t)).toBe(true);
+    }
+  });
+
+  it('agendamento comum tambem nao e venda', () => {
+    for (const t of ['Consulta', 'Retorno', 'Banho', '', null, undefined]) {
+      expect(ehTipoDeVenda(t as any)).toBe(false);
+    }
+  });
+
+  it('a lista usada na query cobre as grafias que a regra aceita', () => {
+    // Se alguem acrescentar uma grafia so na funcao e esquecer da lista, a query volta a
+    // esconder venda — que foi exatamente o que aconteceu.
+    for (const t of TIPOS_DE_VENDA) expect(ehTipoDeVenda(t)).toBe(true);
+  });
+
+  it('nenhuma consulta procura a grafia solta de novo', () => {
+    // A trava: `type: 'VENDA'` pode aparecer ao ESCREVER (o importador grava assim), mas nunca
+    // mais dentro de um `where` — foi assim que a tela escondeu as vendas da casa.
+    const linhas = fs.readFileSync(path.resolve(__dirname, 'crm-integration.service.ts'), 'utf8')
+      .split(/\r?\n/)
+      .filter((l) => !l.trim().startsWith('//'))
+      .filter((l) => l.includes("type: 'VENDA'"));
+    // A unica linha que pode ter a grafia solta e a do importador, que CRIA o registro.
+    expect(linhas.every((l) => !l.includes('where') && !l.includes('tutorId'))).toBe(true);
+    expect(linhas.length).toBeLessThanOrEqual(1);
+  });
+
 });

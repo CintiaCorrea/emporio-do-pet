@@ -5,7 +5,7 @@ import { LeadStatus, LeadSource } from '@prisma/client';
 import { findExistingTutor, findTutorByPhoneUnique } from '../../common/tutor-match';
 import { last8, onlyDigits, normalizePhone } from '../../common/phone';
 import { proximoCodigo } from '../../common/codigo';
-import { pagoDaVenda, abertoDaVenda, situacaoDaVenda } from './consulta-vendas.regras';
+import { pagoDaVenda, abertoDaVenda, situacaoDaVenda, TIPOS_DE_VENDA } from './consulta-vendas.regras';
 
 export interface WhatsAppLeadData {
   conversationId: string;
@@ -453,7 +453,8 @@ export class CrmIntegrationService {
         try {
           await this.comRetry(async () => {
             const vendasTutor = await this.prisma.appointment.findMany({
-              where: { tutorId, type: 'VENDA' },
+              // Mesma correcao: o snapshot do tutor contava so as vendas importadas.
+              where: { tutorId, type: { in: [...TIPOS_DE_VENDA] } },
               select: { date: true, value: true },
             });
             if (!vendasTutor.length) return;
@@ -982,7 +983,10 @@ export class CrmIntegrationService {
   }) {
     const limit = Math.max(1, Math.min(Number(q.limit) || 200, 1000));
 
-    const where: any = { type: 'VENDA' };
+    // TODAS as grafias de venda (consulta-vendas.regras). Ate 08/09/2026 esta linha dizia
+    // apenas `type: 'VENDA'` — a grafia do IMPORTADOR — e o nosso ponto de venda grava 'Venda'.
+    // A tela mostrava agosto (importado) e escondia tudo que a clinica vendeu desde entao.
+    const where: any = { type: { in: [...TIPOS_DE_VENDA] } };
 
     // Periodo (de/ate em date) — ate inclui o dia inteiro
     if (q.de || q.ate) {
