@@ -77,11 +77,13 @@ describe("a ponte para o ponto de venda existe em toda tela de venda", () => {
     expect(fonte("components/vendas/BotaoAbrirNoPDV.tsx")).toContain("ponto-de-venda?venda=");
   });
 
-  it("ficha do cliente, ficha do pet e comanda levam para o PDV", () => {
+  it("ficha do cliente, ficha do pet, comanda e internação levam para o PDV", () => {
+    // AS QUATRO telas de lançamento levam para o mesmo lugar de receber.
     for (const rel of [
       "app/(user)/dashboard/erp/tutores/[id]/page.tsx",
       "app/(user)/dashboard/erp/pets/[id]/page.tsx",
       "components/pets/PetComandaRail.tsx",
+      "app/(user)/dashboard/erp/internacoes/[id]/page.tsx",
     ]) {
       expect(fonte(rel)).toContain("BotaoAbrirNoPDV");
     }

@@ -8,6 +8,8 @@
 // (que aponta para fevereiro, de 28 ou 29 dias), e o fuso — o dia da casa é o de Fortaleza
 // (UTC−3), não o do servidor. Por isso mora aqui, com teste, e não espalhado pela tela.
 
+import { hojeNaClinicaISO } from '@/lib/datas';
+
 export type ChaveDePreset = 'HOJE' | 'ONTEM' | 'D7' | 'MES' | 'MES_ANTERIOR' | 'PERSONALIZADO';
 
 export type Faixa = { de: string; ate: string };
@@ -21,12 +23,16 @@ export const PRESETS: { chave: ChaveDePreset; rotulo: string }[] = [
   { chave: 'PERSONALIZADO', rotulo: 'Escolher período' },
 ];
 
-const FUSO_CASA = 'America/Fortaleza';
-
-/** O dia de hoje NA CASA (AAAA-MM-DD). Às 22h em Fortaleza o servidor em UTC já virou o dia. */
-export function hojeNaCasa(agora: Date = new Date()): string {
-  return agora.toLocaleDateString('en-CA', { timeZone: FUSO_CASA });
-}
+// O DIA DA CASA MORA EM lib/datas — UM SÓ.
+//
+// Em 09/09/2026 as duas frentes de trabalho criaram, no mesmo dia, dois núcleos para a mesma
+// ideia: `lib/datas.ts` ("o dia da clínica") e este arquivo, com um `hojeNaCasa` próprio. Não
+// chegaram a discordar, mas é exatamente o padrão que a Cintia vinha apontando o dia inteiro —
+// a mesma pergunta com duas respostas na mesma casa. Ela decidiu: "pode deixar um só".
+//
+// Ficou o de lá, que tinha 23 telas usando contra 3 daqui. Aqui fica só o que é próprio deste
+// arquivo: os atalhos de período.
+export { hojeNaClinicaISO as hojeNaCasa } from '@/lib/datas';
 
 const partes = (dia: string) => dia.split('-').map(Number) as [number, number, number];
 const monta = (a: number, m: number, d: number) =>
@@ -48,7 +54,7 @@ export function ultimoDiaDoMes(ano: number, mes: number): number {
 /**
  * A faixa de um atalho. `PERSONALIZADO` devolve a faixa que já estava — quem escolhe é a pessoa.
  */
-export function faixaDoPreset(chave: ChaveDePreset, hoje: string = hojeNaCasa(), atual?: Faixa): Faixa {
+export function faixaDoPreset(chave: ChaveDePreset, hoje: string = hojeNaClinicaISO(), atual?: Faixa): Faixa {
   const [a, m] = partes(hoje);
   switch (chave) {
     case 'HOJE': return { de: hoje, ate: hoje };
@@ -65,7 +71,7 @@ export function faixaDoPreset(chave: ChaveDePreset, hoje: string = hojeNaCasa(),
 }
 
 /** O atalho que corresponde a uma faixa, se houver — para o botão mostrar "Hoje" em vez da data. */
-export function presetDaFaixa(f: Faixa, hoje: string = hojeNaCasa()): ChaveDePreset {
+export function presetDaFaixa(f: Faixa, hoje: string = hojeNaClinicaISO()): ChaveDePreset {
   for (const p of PRESETS) {
     if (p.chave === 'PERSONALIZADO') continue;
     const r = faixaDoPreset(p.chave, hoje);
@@ -80,7 +86,7 @@ const br = (dia: string) => (dia ? dia.split('-').reverse().join('/') : '');
  * O rótulo do botão de período. Um dia só mostra a data; o resto mostra "de … até …" — e o
  * atalho vence quando bate, porque "Hoje" se lê mais rápido que "08/09/2026".
  */
-export function rotuloDoPeriodo(f: Faixa, hoje: string = hojeNaCasa()): string {
+export function rotuloDoPeriodo(f: Faixa, hoje: string = hojeNaClinicaISO()): string {
   const p = presetDaFaixa(f, hoje);
   if (p !== 'PERSONALIZADO') return PRESETS.find((x) => x.chave === p)!.rotulo;
   if (f.de === f.ate) return br(f.de);

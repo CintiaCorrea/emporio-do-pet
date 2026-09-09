@@ -19,6 +19,7 @@ import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { calcularHorarios as horariosDoDia, horariosDaPrescricao, horariosNoDia, prescricaoAtivaEm, rotuloDoPeriodo, minutosDaFrequencia, PERIODOS } from "@/lib/internacaoHorarios";
 import { hojeNaClinicaISO } from "@/lib/datas";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
+import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -2347,6 +2348,15 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                       {fechandoDia === "whats-" + g.dia ? "Enviando…" : "📲 WhatsApp"}
                     </button>
                     <button onClick={() => window.print()} className="text-[12px] font-medium px-3 py-1.5 rounded-lg border" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#fff" }}>🖨️ Imprimir</button>
+                    {/* A PONTE PARA O PONTO DE VENDA. A conta do dia da internação JÁ vira venda
+                        em aberto sozinha; o que faltava era o caminho de ida para receber.
+                        A Cintia, 09/09/2026: "ao fechar a comanda do dia ela já deve subir para o
+                        ponto de vendas (...) e em todas elas eu devo poder executar as mesmas
+                        funções que executo no ponto de venda". Lançar é aqui; receber é lá. */}
+                    {(() => {
+                      const idVenda = (g.itens.find((i: any) => i.comandaId) || {}).comandaId;
+                      return idVenda ? <BotaoAbrirNoPDV vendaId={idVenda} rotulo="Receber no PDV" /> : null;
+                    })()}
                     {fechado && <span className="text-[11.5px] text-[#5C6B70]">Editar o dia atualiza a venda no caixa — não cancela.</span>}
                   </div>}
                 </div>

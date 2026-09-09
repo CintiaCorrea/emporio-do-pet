@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { faixaDoPreset, presetDaFaixa, rotuloDoPeriodo, ehDiaUnico, somarDias, ultimoDiaDoMes, ordenar, hojeNaCasa } from "@/lib/periodoDeBusca";
+import { hojeNaClinicaISO } from "@/lib/datas";
 
 const HOJE = "2026-09-08";
 
@@ -83,9 +84,16 @@ describe("datas trocadas não devolvem lista vazia", () => {
   });
 });
 
-describe("o dia é o da casa", () => {
-  it("às 22h de Fortaleza ainda é hoje, embora em UTC já seja amanhã", () => {
-    // 09/09 01:00 UTC = 08/09 22:00 em Fortaleza. O caixa aberto a essa hora é de 08/09.
-    expect(hojeNaCasa(new Date("2026-09-09T01:00:00Z"))).toBe("2026-09-08");
+describe("o dia da casa é UM só", () => {
+  it("este arquivo não tem mais o seu próprio 'hoje' — ele usa o de lib/datas", () => {
+    // Em 09/09/2026 as duas frentes criaram, no mesmo dia, dois núcleos para a mesma ideia.
+    // Não chegaram a discordar, mas é o padrão que a Cintia vinha apontando: a mesma pergunta
+    // com duas respostas na mesma casa. Ela decidiu: "pode deixar um só". Ficou o de lá, que
+    // tinha 23 telas usando contra 3 daqui.
+    expect(hojeNaCasa).toBe(hojeNaClinicaISO);
+  });
+
+  it("e continua devolvendo o dia no formato que os campos de data aceitam", () => {
+    expect(hojeNaCasa()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
