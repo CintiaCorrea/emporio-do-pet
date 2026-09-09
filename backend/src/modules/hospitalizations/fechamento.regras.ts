@@ -38,6 +38,20 @@ export type ItemDaConta = {
   baixado?: boolean;
 };
 
+/**
+ * ESTE ITEM E A DIARIA DO DIA?
+ *
+ * A diaria virou ITEM da conta (garantirDiariasComoItens roda sozinho ao abrir a ficha). Saber
+ * reconhece-la entre os itens e o que impede soma-la de novo por fora — ver montarFechamento.
+ * Compara sem acento e sem caixa porque "Diária", "Diaria" e "DIARIA" existem todos no banco.
+ */
+export const ehDiariaDeItem = (i: ItemDaConta) =>
+  String(i?.categoria || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim()
+    .toLowerCase() === 'diaria';
+
 /** Insumo nao e cobrado: so baixa estoque. E a unica categoria que fica de fora. */
 export const ehCobravel = (i: ItemDaConta) => (i?.categoria || '') !== 'Insumo';
 
@@ -115,9 +129,13 @@ export type Fechamento = {
 /**
  * Monta o fechamento de um dia.
  *
- * `diariasGeradas` = as diarias ja viraram ITENS da conta (o botao "Gerar diarias por
- * dia"). Nesse caso a diaria NAO entra de novo por fora: ela ja esta entre os itens, e
- * some-la duas vezes e exatamente o erro que este nucleo existe pra impedir.
+ * A DIARIA ENTRA UMA VEZ SO. Ela pode chegar de dois jeitos: como ITEM da conta (o normal
+ * hoje — `garantirDiariasComoItens` cria sozinho ao abrir a ficha) ou como linha propria
+ * somada aqui. A segunda so acontece quando a primeira nao aconteceu, e quem decide isso e
+ * o proprio dado: se o dia ja tem a linha da diaria, ela nao entra de novo.
+ *
+ * `diariasGeradas` continua aceito para quem ja passava o sinal, mas nao e mais a unica
+ * defesa — era, e ninguem escrevia essa bandeira em lugar nenhum.
  */
 export function montarFechamento(params: {
   itens: ItemDaConta[];
@@ -129,8 +147,23 @@ export function montarFechamento(params: {
 }): Fechamento {
   const { itens, dia, entrada, diariaValor = 0, diariasFaturadas = 0, diariasGeradas = false } = params;
   const doDia = itensDoDia(itens, dia);
+
+  // A DIARIA JA ESTA ENTRE OS ITENS DESTE DIA? Entao nao entra de novo por fora.
+  //
+  // A COBRANCA EM DOBRO DE 09/09/2026 (Cintia: "a diaria da internacao esta sendo cobrada 2
+  // vezes. Por que?"). A protecao existia — a bandeira `diariasGeradas` — e a regra ate
+  // dizia, no comentario, que somar duas vezes era o erro a impedir. So que a bandeira era
+  // LIDA em tres lugares e ESCRITA em nenhum: valia sempre `false`. Enquanto isso,
+  // `garantirDiariasComoItens` passou a criar a diaria como item sozinho, ao abrir a ficha.
+  // Item pelo primeiro caminho, valor pelo segundo, cliente pagando dois.
+  //
+  // Agora quem responde e o DADO, nao uma bandeira que alguem precisa lembrar de acender:
+  // se o dia ja tem a linha da diaria, ela nao entra por fora. Isso tambem conserta sozinho
+  // as internacoes antigas, sem migracao.
+  const jaTemDiariaNoDia = doDia.some(ehDiariaDeItem);
+
   let diaria: Fechamento['diaria'] = null;
-  if (!diariasGeradas && entrada && Number(diariaValor) > 0) {
+  if (!diariasGeradas && !jaTemDiariaNoDia && entrada && Number(diariaValor) > 0) {
     const d = diariaDoDia(entrada, dia, diariasFaturadas);
     if (d.devida && d.indice >= 0) diaria = { valor: Number(diariaValor), indice: d.indice };
   }

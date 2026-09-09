@@ -256,3 +256,72 @@ describe('O dia fechado nunca perde a venda (defeito de 07/09, corrigido em 08/0
     expect(acaoDaVendaDoDia({ temAlgoACobrar: false, vendaId: 'v1', diaFechado: false })).toBe('APAGAR');
   });
 });
+
+// ── A DIÁRIA COBRADA DUAS VEZES (Cintia, 09/09/2026) ─────────────────────────────────────
+//
+// "A diária da internação está sendo cobrada 2 vezes. Por quê?"
+//
+// Porque havia dois caminhos: `garantirDiariasComoItens` criava a diária como ITEM da conta
+// (sozinho, ao abrir a ficha) e `montarFechamento` somava a diária POR FORA. A defesa era a
+// bandeira `diariasGeradas` — lida em três lugares, escrita em nenhum, sempre falsa.
+//
+// Agora quem responde é o dado: se o dia já tem a linha da diária, ela não entra de novo.
+describe('a diária entra uma vez só', () => {
+  const ENTRADA_ = new Date('2026-09-05T08:00:00-03:00');
+  const diariaItem = (dia: string, valor = 150) => ({
+    id: `d-${dia}`, descricao: `Diária de internação — ${dia.slice(8)}/${dia.slice(5, 7)}`,
+    categoria: 'Diária', quantidade: 1, valorUnitario: valor, at: `${dia}T08:00:00-03:00`, baixado: false,
+  });
+  const medicacao = (dia: string) => ({
+    id: `m-${dia}`, descricao: 'Ondansetrona', categoria: 'Medicação',
+    quantidade: 1, valorUnitario: 40, at: `${dia}T10:00:00-03:00`, baixado: false,
+  });
+
+  it('com a diária JÁ entre os itens, não soma de novo por fora', () => {
+    const f = montarFechamento({
+      itens: [diariaItem('2026-09-05'), medicacao('2026-09-05')],
+      dia: '2026-09-05', entrada: ENTRADA_, diariaValor: 150,
+    });
+    expect(f.diaria).toBeNull();
+    expect(f.total).toBe(190); // 150 da diária (item) + 40 da medicação — não 340
+  });
+
+  it('sem a diária entre os itens, ela entra por fora — quem não tem, cobra', () => {
+    const f = montarFechamento({
+      itens: [medicacao('2026-09-05')],
+      dia: '2026-09-05', entrada: ENTRADA_, diariaValor: 150,
+    });
+    expect(f.diaria?.valor).toBe(150);
+    expect(f.total).toBe(190);
+  });
+
+  it('reconhece a diária escrita de qualquer jeito no banco', () => {
+    // "Diária", "Diaria", "DIARIA" — as três existem, e todas significam a mesma coisa.
+    for (const cat of ['Diária', 'Diaria', 'DIARIA', 'diaria ']) {
+      const f = montarFechamento({
+        itens: [{ ...diariaItem('2026-09-05'), categoria: cat }],
+        dia: '2026-09-05', entrada: ENTRADA_, diariaValor: 150,
+      });
+      expect(f.diaria).toBeNull();
+      expect(f.total).toBe(150);
+    }
+  });
+
+  it('a diária de OUTRO dia não impede a deste dia', () => {
+    // O item do dia 5 não pode calar a cobrança do dia 6 — seria deixar de cobrar.
+    const f = montarFechamento({
+      itens: [diariaItem('2026-09-05'), medicacao('2026-09-06')],
+      dia: '2026-09-06', entrada: ENTRADA_, diariaValor: 150,
+    });
+    expect(f.diaria?.valor).toBe(150);
+    expect(f.total).toBe(190);
+  });
+
+  it('a bandeira antiga continua valendo para quem já a passava', () => {
+    const f = montarFechamento({
+      itens: [medicacao('2026-09-05')],
+      dia: '2026-09-05', entrada: ENTRADA_, diariaValor: 150, diariasGeradas: true,
+    });
+    expect(f.diaria).toBeNull();
+  });
+});
