@@ -802,8 +802,21 @@ export class CaixaService {
     // Devolve o caixa que ela ja tem, em vez de erro: ela pediu um caixa, ela tem um caixa.
     // (Abertura retroativa e backfill de dia passado — nao entra nessa conta.)
     if (!abertura) {
+      // ...MAS SO O CAIXA DE HOJE CONTA.
+      //
+      // O BUG QUE ISTO CONSERTA (Cintia, 09/09/2026: "as recepcionistas continuam tendo
+      // problema para abrir dois caixas simultaneamente (...) e nao estao conseguindo dar
+      // baixa"). Esta trava olhava os abertos de QUALQUER dia. A Maria Gabriela tinha um caixa
+      // aberto desde 04/09; ao clicar em "Abrir caixa" hoje, ela recebia aquele de volta em vez
+      // de um novo — e a tela, que lista o caixa do DIA, nao mostrava nenhum. Resultado: ela
+      // ficava sem caixa para sempre, via "o caixa aberto e de Victoria Sharon" e nao conseguia
+      // receber nada.
+      //
+      // O caixa e por dia (encerra a meia-noite, regra da casa). Caixa aberto de outro dia e
+      // sobra, nao "o meu caixa de hoje".
+      const { ini, fim } = faixaDoDia();
       const abertos = await this.prisma.caixaSessao.findMany({
-        where: { status: 'ABERTO' },
+        where: { status: 'ABERTO', abertura: { gte: ini, lte: fim } },
         select: { id: true, userId: true, abertura: true },
       });
       const ja = meuCaixaJaAberto(abertos, dono);

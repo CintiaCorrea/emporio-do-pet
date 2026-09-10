@@ -44,3 +44,29 @@ describe('o encerramento da meia-noite é regra, não opção', () => {
     expect(arq('caixa.module.ts')).toContain('CaixaFechamentoScheduler');
   });
 });
+
+// 🛡️ A TRAVA "UM CAIXA POR PESSOA" É DO DIA — não da vida inteira.
+//
+// A Cintia, 09/09/2026: "as recepcionistas continuam tendo problema para abrir dois caixas
+// simultaneamente (...) e não estão conseguindo dar baixa."
+//
+// A causa era esta trava, que eu escrevi em 08/09 olhando os caixas abertos de QUALQUER dia. A
+// Maria Gabriela tinha um caixa aberto desde 04/09; ao clicar em "Abrir caixa" hoje, ela
+// recebia aquele de volta em vez de um novo — e a tela, que lista o caixa do DIA, não mostrava
+// nenhum. Ela ficava sem caixa para sempre e não conseguia receber.
+describe('abrir caixa: a trava do duplicado olha só o dia de hoje', () => {
+  const src = codigo('caixa.service.ts');
+
+  it('a consulta dos abertos é limitada ao dia da casa', () => {
+    expect(src).toContain('const { ini, fim } = faixaDoDia();');
+    expect(src).toMatch(/status: 'ABERTO', abertura: \{ gte: ini, lte: fim \}/);
+  });
+
+  it('não existe mais consulta de abertos sem recorte de dia dentro do abrir()', () => {
+    // A linha antiga (`where: { status: 'ABERTO' }` solta) continua valendo no RECEBIMENTO,
+    // onde faz sentido: lá a pergunta é "qual caixa é o meu", e um caixa de ontem ainda é meu.
+    // Aqui, em abrir(), ela criava o beco sem saída.
+    const trecho = src.slice(src.indexOf('async abrir('), src.indexOf('async fechar('));
+    expect(trecho).toContain('abertura: { gte: ini, lte: fim }');
+  });
+});
