@@ -6,7 +6,7 @@ import { RecebimentosService } from '../financeiro/recebimentos.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
-import { resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa } from './caixa.regras';
+import { resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
@@ -948,6 +948,38 @@ export class CaixaService {
     if (S === 'ABERTO') data.fechamento = null;
     else if (S === 'FECHADO' || S === 'ENCERRADO') data.fechamento = new Date();
     return this.prisma.caixaSessao.update({ where: { id }, data });
+  }
+
+  /**
+   * APAGAR UM CAIXA — so o administrativo, e so caixa sem movimento (caixa.regras).
+   *
+   * Nasceu da limpeza de 09/09/2026: nove caixas abertos e nunca usados desde o dia 1o,
+   * atrapalhando quem precisava achar o caixa certo na lista.
+   */
+  async apagar(id: string, papel?: string) {
+    const c = await this.prisma.caixaSessao.findUnique({
+      where: { id },
+      select: {
+        id: true, numero: true, suprimento: true,
+        _count: { select: { recebimentos: true, movimentos: true } },
+      },
+    });
+    if (!c) throw new NotFoundException('Caixa nao encontrado');
+
+    // Credito ligado ao caixa nao vem por relacao — e preciso perguntar.
+    const creditos = await this.prisma.creditoMovimento.count({ where: { caixaSessaoId: id } }).catch(() => 0);
+
+    const r = podeApagarCaixa({
+      papel,
+      recebimentos: c._count.recebimentos,
+      movimentos: c._count.movimentos,
+      creditos,
+      suprimento: Number(c.suprimento) || 0,
+    });
+    if (!r.pode) throw new BadRequestException(r.motivo);
+
+    await this.prisma.caixaSessao.delete({ where: { id } });
+    return { ok: true, numero: c.numero };
   }
 
   async reabrir(id: string) {

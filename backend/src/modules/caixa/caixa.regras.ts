@@ -169,3 +169,49 @@ export function podeFecharCaixa(donoId?: string | null, quemId?: string | null, 
   if (podeLancarNoCaixa(donoId, quemId)) return true;
   return String(papel || '').toUpperCase() === 'ADMIN';
 }
+
+// ── APAGAR UM CAIXA ───────────────────────────────────────────────────────────────────────
+//
+// A Cintia, em 09/09/2026: "pode ter um botao para deletar o caixa somente para o adm".
+//
+// O pedido nasceu de uma limpeza real: em 09/09 havia NOVE caixas abertos e nunca usados desde
+// o dia 1o — gente que abriu, nao lancou nada, e o caixa ficou ali. Lista cheia de caixa vazio
+// atrapalha quem precisa achar o caixa certo.
+//
+// DUAS CONDICOES, e a segunda e minha, nao dela:
+//
+//   1. So o ADMINISTRATIVO. Foi o que ela pediu.
+//   2. So caixa SEM MOVIMENTO. Caixa com recebimento, movimentacao ou credito nao e sobra: e
+//      registro de dinheiro. Apagar isso nao e limpeza, e apagar historia — e ninguem consegue
+//      explicar depois por que a conferencia de um dia nao fecha. Para esse caso existem
+//      reabrir, corrigir e fechar de novo, que deixam rastro.
+
+export type ResultadoApagar = { pode: boolean; motivo?: string };
+
+export function podeApagarCaixa(params: {
+  papel?: string | null;
+  recebimentos?: number;
+  movimentos?: number;
+  creditos?: number;
+  suprimento?: number;
+}): ResultadoApagar {
+  const { papel, recebimentos = 0, movimentos = 0, creditos = 0, suprimento = 0 } = params;
+
+  if (String(papel || '').toUpperCase() !== 'ADMIN') {
+    return { pode: false, motivo: 'So o administrativo apaga caixa.' };
+  }
+
+  const partes: string[] = [];
+  if (recebimentos > 0) partes.push(`${recebimentos} recebimento(s)`);
+  if (movimentos > 0) partes.push(`${movimentos} movimentação(oes)`);
+  if (creditos > 0) partes.push(`${creditos} crédito(s)`);
+  if (Number(suprimento) > 0) partes.push('suprimento de abertura');
+
+  if (partes.length) {
+    return {
+      pode: false,
+      motivo: `Este caixa tem ${partes.join(', ')}. Caixa com movimento nao se apaga — reabra, corrija e feche de novo, que deixa rastro.`,
+    };
+  }
+  return { pode: true };
+}

@@ -144,6 +144,12 @@ export class CaixaController {
     return this.service.registrarMovimento(id, dto, userId);
   }
 
+  // Apagar o caixa inteiro: so o administrativo, e so caixa sem movimento (caixa.regras).
+  @Delete(':id')
+  apagar(@Param('id') id: string, @CurrentUser('role') papel: string) {
+    return this.service.apagar(id, papel);
+  }
+
   @Delete(':id/movimento')
   deleteMovimento(@Param('id') id: string, @Query('itemId') itemId: string) {
     return this.service.deleteMovimento(id, itemId);

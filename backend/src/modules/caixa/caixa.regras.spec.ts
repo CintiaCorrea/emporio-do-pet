@@ -1,4 +1,4 @@
-import { escolherMeuCaixa, avisoSemMeuCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, meuCaixaJaAberto } from './caixa.regras';
+import { escolherMeuCaixa, avisoSemMeuCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, meuCaixaJaAberto, podeApagarCaixa } from './caixa.regras';
 
 // BLINDAGEM do caixa por operadora: com duas funcionárias e dois caixas abertos, a venda
 // de uma não pode cair na gaveta da outra (era o que acontecia até 03/09/2026).
@@ -182,5 +182,45 @@ describe('O caixa e individual', () => {
 
   it('fechar: outra recepcionista nao pode', () => {
     expect(podeFecharCaixa('u1', 'u2', 'RECEPTIONIST')).toBe(false);
+  });
+});
+
+// ── APAGAR CAIXA (Cintia, 09/09/2026: "pode ter um botão para deletar o caixa somente para o
+// adm") ────────────────────────────────────────────────────────────────────────────────────
+describe('podeApagarCaixa', () => {
+  it('so o administrativo', () => {
+    expect(podeApagarCaixa({ papel: 'ADMIN' }).pode).toBe(true);
+    for (const p of ['RECEPTIONIST', 'VET', '', null, undefined]) {
+      const r = podeApagarCaixa({ papel: p as any });
+      expect(r.pode).toBe(false);
+      expect(r.motivo).toMatch(/administrativo/i);
+    }
+  });
+
+  it('caixa COM movimento nao se apaga, nem pelo adm', () => {
+    // Isto nao e limpeza, e apagar registro de dinheiro — e ninguem consegue explicar depois
+    // por que a conferencia de um dia nao fecha.
+    for (const campo of ['recebimentos', 'movimentos', 'creditos'] as const) {
+      const r = podeApagarCaixa({ papel: 'ADMIN', [campo]: 2 } as any);
+      expect(r.pode).toBe(false);
+      expect(r.motivo).toMatch(/nao se apaga/i);
+    }
+  });
+
+  it('suprimento de abertura tambem conta como movimento', () => {
+    // Dinheiro que alguem pos na gaveta. Foi o caso do caixa 16, com R$ 0,01.
+    const r = podeApagarCaixa({ papel: 'ADMIN', suprimento: 0.01 });
+    expect(r.pode).toBe(false);
+    expect(r.motivo).toMatch(/suprimento/i);
+  });
+
+  it('o motivo DIZ o que tem dentro — nao um "nao pode" seco', () => {
+    const r = podeApagarCaixa({ papel: 'ADMIN', recebimentos: 3, movimentos: 1 });
+    expect(r.motivo).toContain('3 recebimento(s)');
+    expect(r.motivo).toContain('1 movimenta');
+  });
+
+  it('caixa vazio, pelo adm, pode', () => {
+    expect(podeApagarCaixa({ papel: 'ADMIN', recebimentos: 0, movimentos: 0, creditos: 0, suprimento: 0 }).pode).toBe(true);
   });
 });

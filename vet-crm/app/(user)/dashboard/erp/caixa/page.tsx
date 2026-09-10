@@ -68,6 +68,9 @@ export default function CaixaPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const escolhaManual = useRef(false); // true = a pessoa clicou no seletor de caixa
   const { data: session } = useSession();
+  // APAGAR CAIXA é só do administrativo (Cintia, 09/09/2026). O servidor também exige — tela
+  // não é proteção; aqui é só para não oferecer o que a pessoa não pode fazer.
+  const ehAdmin = String((session?.user as any)?.role || '').toUpperCase() === 'ADMIN';
   const meId = (session?.user as any)?.id || '';
   const [detail, setDetail] = useState<Caixa | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -343,6 +346,19 @@ export default function CaixaPage() {
       toast.success('Caixa encerrado!'); setFecharOpen(false); await fetchCaixas(); await fetchDetail(detail.id);
     } catch (e: any) { toast.error(e.message || 'Erro ao encerrar caixa'); }
   };
+  const apagarCaixa = async () => {
+    if (!detail) return;
+    if (!confirm(`Apagar o caixa nº ${detail.numero} de ${detail.user?.name || 'sem operador'}?
+
+Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
+    try {
+      const r = await fetch(`/api/caixa/${detail.id}/apagar`, { method: 'DELETE' });
+      if (!r.ok) throw await erroDoServidor(r, 'Erro ao apagar o caixa');
+      toast.success(`Caixa nº ${detail.numero} apagado.`);
+      voltarParaLista();
+    } catch (e: any) { toast.error(e.message || 'Erro ao apagar o caixa'); }
+  };
+
   const reabrirCaixa = async () => {
     if (!detail) return; if (!confirm(`Reabrir o Caixa nº ${detail.numero}?`)) return;
     try { const r = await fetch(`/api/caixa/${detail.id}/reabrir`, { method: 'PATCH' }); if (!r.ok) throw await erroDoServidor(r, 'Erro ao reabrir caixa'); toast.success('Caixa reaberto!'); await fetchCaixas(); await fetchDetail(detail.id); }
@@ -859,6 +875,11 @@ export default function CaixaPage() {
                 ) : podeEditar ? (
                   <button onClick={reabrirCaixa} style={{ border: `1px solid ${LINE}`, background: '#fff', color: MUT, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuLockOpen size={14} /> Reabrir caixa</button>
                 ) : null}
+                {/* APAGAR — só o adm, e o servidor recusa caixa com movimento, dizendo o que
+                    tem dentro. Fica por último e discreto: não é ação de rotina. */}
+                {ehAdmin && (
+                  <button onClick={apagarCaixa} title="Apagar este caixa (só sem movimento)" style={{ border: '1px solid #F0C9C9', background: '#fff', color: '#A32D2D', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer' }}>🗑 Apagar caixa</button>
+                )}
               </div>
               {!aberto && <p style={{ fontSize: 11, color: MUT, margin: '4px 0 0', width: '100%' }}>Reabra o caixa para lançar ou excluir registros.</p>}
             </div>
