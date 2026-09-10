@@ -34,10 +34,22 @@ describe("datas — hojeLocalISO", () => {
   it("tem o formato AAAA-MM-DD", () => {
     expect(hojeLocalISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
-  it("bate com a data LOCAL de hoje (não a UTC)", () => {
-    const n = new Date();
-    const p = (x: number) => String(x).padStart(2, "0");
-    expect(hojeLocalISO()).toBe(`${n.getFullYear()}-${p(n.getMonth() + 1)}-${p(n.getDate())}`);
+  it("bate com a data de hoje NA CLÍNICA (não a do UTC nem a do computador)", () => {
+    // ESTE TESTE QUEBROU O DEPLOY DO FRONT EM 09/09/2026, e do jeito mais traiçoeiro: só entre
+    // 21h e meia-noite de Fortaleza.
+    //
+    // Ele comparava com o relógio DA MÁQUINA (`new Date().getFullYear()` etc.). Na máquina da
+    // clínica isso é Fortaleza e batia sempre; o CI do GitHub roda em UTC, onde depois das 21h
+    // daqui já é o dia seguinte. Resultado: esperava 2026-09-10, recebia 2026-09-09, e todo
+    // deploy publicado à noite falhava — enquanto os do mesmo dia, mais cedo, passavam.
+    //
+    // É a mesma armadilha que a função existe para impedir: usar o relógio de quem executa em
+    // vez do fuso da casa. O teste caiu nela.
+    const naClinica = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Fortaleza",
+      year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date());
+    expect(hojeLocalISO()).toBe(naClinica);
   });
 });
 
