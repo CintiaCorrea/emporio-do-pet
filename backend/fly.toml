@@ -83,10 +83,16 @@ primary_region = "gru"  # São Paulo, Brasil
 # O "worker" é mais modesto de propósito: rotina não tem gente esperando do outro lado,
 # então segundos a mais não incomodam ninguém. Se o monitor de automações
 # (GET /api/health/automations) começar a acusar atraso, é aqui que se aumenta.
+# CPU DEDICADA ("performance") CUSTA ~10x A COMPARTILHADA. Esta maquina ficou em
+# performance/2gb de 05/08 a 09/09/2026 e sozinha respondeu pela maior parte da fatura:
+# a linha "Machines Performance CPU 1x" foi de US$ 116,97 num mes so'.
+# Medido em 09/09 antes de reduzir: 196 MB usados de 2048. Uso de 10%.
+# Se algum dia a maquina apertar de verdade, subir de novo e' um comando — mas com
+# NUMERO na mao, nao por precaucao.
 [[vm]]
   processes = ["app"]
-  memory = "2gb"
-  cpu_kind = "performance"
+  memory = "1gb"
+  cpu_kind = "shared"
   cpus = 1
 
 [[vm]]
