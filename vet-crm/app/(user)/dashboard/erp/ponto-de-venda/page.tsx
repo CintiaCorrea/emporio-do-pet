@@ -882,14 +882,17 @@ export default function PDVPage() {
   // dia). A lista do caixa mostra uma venda por linha; sem isto, a recepcao ve R$ 382 e nao
   // sabe que o mesmo cliente deve R$ 3.288 no acumulado (Cintia, 09/09/2026).
   const deveNoTotal = useMemo(() => {
-    const m = new Map<string, { total: number; qtd: number }>();
+    const m = new Map<string, { total: number; qtd: number; maisAntiga: string | null }>();
     for (const o of vendasEmAberto as any[]) {
       const chave = o.tutorId || o.tutor;
       if (!chave || o.pagoTotal) continue;
       const aberto = Math.max(0, Number(o.valor || 0) - Number(o.pago || 0));
       if (aberto <= 0.009) continue;
-      const at = m.get(chave) || { total: 0, qtd: 0 };
+      const at = m.get(chave) || { total: 0, qtd: 0, maisAntiga: null };
       at.total += aberto; at.qtd++;
+      // A MAIS ANTIGA e o que diz ha quanto tempo isso se arrasta — e o que a recepcao usa
+      // para decidir se cobra agora ou deixa passar mais um dia.
+      if (o.date && (!at.maisAntiga || String(o.date) < String(at.maisAntiga))) at.maisAntiga = String(o.date);
       m.set(chave, at);
     }
     return m;
@@ -1233,14 +1236,29 @@ export default function PDVPage() {
                           linha esperando itens e nao encontra nenhum. */}
                       {(v as any).origem === 'ATENDIMENTO' && <span title="Veio do atendimento clínico — pode não ter itens lançados" style={{ marginLeft: 5, fontSize: 9.5, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: '#EEF2F6', color: '#4D6A8A' }}>ATENDIMENTO</span>}
                       {(v as any).origem === 'INTERNACAO' && <span title="Conta da internação" style={{ marginLeft: 5, fontSize: 9.5, fontWeight: 700, padding: '1px 5px', borderRadius: 999, background: '#E1F5EE', color: '#0F6E56' }}>INTERNAÇÃO</span>}
-                      {atrasada ? ` · atrasada desde ${new Date(v.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}
+                      {/* "EM ABERTO" no lugar de "ATRASADA". A Cintia, 10/09/2026, escolhendo
+                          como a frase do saldo deveria ficar: o mesmo vocabulario da venda e do
+                          orcamento, sem a palavra que soa como cobranca de inadimplente — e
+                          quem le isso esta com o cliente na frente. */}
+                      {atrasada ? ` · em aberto desde ${new Date(v.date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}` : ''}
                     </div>
                     {(() => {
                       const acc = deveNoTotal.get((v as any).tutorId || v.tutor);
                       if (!acc || acc.qtd < 2) return null;   // uma conta so': o valor da linha ja diz tudo
+                      // O DINHEIRO PRIMEIRO, e so ele em vermelho.
+                      //
+                      // Era "deve R$ 3.599,77 no total · 5 contas", tudo em vermelho e em negrito.
+                      // A Cintia (10/09/2026) pediu para rever: "deve" acusa, e com tudo vermelho
+                      // nada se destaca. O valor e o que decide a conversa, entao vem na frente e
+                      // fica sozinho em vermelho; o resto e contexto, em cinza.
+                      const desde = acc.maisAntiga
+                        ? new Date(acc.maisAntiga).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+                        : null;
                       return (
-                        <div style={{ fontSize: 10.5, color: ERR, fontWeight: 600, marginTop: 1 }}>
-                          deve {brl(acc.total)} no total · {acc.qtd} contas
+                        <div style={{ fontSize: 10.5, color: MUT, marginTop: 1 }}>
+                          <b style={{ color: ERR }}>{brl(acc.total)} em aberto</b>
+                          {` · ${acc.qtd} contas`}
+                          {desde ? ` · a mais antiga de ${desde}` : ''}
                         </div>
                       );
                     })()}

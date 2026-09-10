@@ -88,6 +88,19 @@ describe("a lista do ponto de venda é do DIA, e é uma só", () => {
 });
 
 describe("o acumulado aparece na hora de receber", () => {
+  it("a frase do saldo põe o dinheiro na frente, e só ele em vermelho", () => {
+    // Era "deve R$ 3.599,77 no total · 5 contas", tudo vermelho e em negrito. A Cintia, em
+    // 10/09/2026: "deve" acusa, e com tudo vermelho nada se destaca — e quem lê está com o
+    // cliente na frente. O valor decide a conversa, então vem primeiro e sozinho em vermelho.
+    const src = ler(PDV);
+    expect(src).toContain("em aberto</b>");
+    expect(src).toContain("a mais antiga de");
+    expect(src).not.toContain("deve {brl(acc.total)} no total");
+    // E a marca da linha usa o mesmo vocabulário da venda e do orçamento.
+    expect(src).toContain("em aberto desde");
+    expect(src).not.toContain("atrasada desde");
+  });
+
   it("o recebimento mostra o saldo devedor do cliente", () => {
     const src = ler(PDV);
     expect(src).toContain("outrasEmAberto");
