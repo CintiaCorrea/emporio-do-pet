@@ -141,9 +141,18 @@ export class CaixaService {
         _count: { select: { items: true } },
       },
       orderBy: { date: 'desc' },
-      // Com busca o recorte ja foi feito no banco: a conta do cliente vem INTEIRA, senao
-      // o relatorio de cobranca dele sairia faltando venda.
-      take: busca ? 2000 : abertas ? 300 : 60,
+      // QUANTAS LINHAS VOLTAM.
+      //
+      // Com busca, o recorte ja foi feito no banco: a conta do cliente vem INTEIRA, senao o
+      // relatorio de cobranca dele sairia faltando venda.
+      //
+      // COM PERIODO, o periodo JA e o limite — quem pede 01/09 a 30/09 quer setembro, nao "as
+      // 60 mais recentes de setembro". O corte em 60 escondia o COMECO DO MES em silencio, e a
+      // lista, ordenada da mais nova para a mais velha, comecava no dia 6 (Cintia, 09/09/2026:
+      // "tela de vendas so mostra a partir do dia 6, cade o inicio do mes?").
+      //
+      // Os 60 ficam so para a consulta SEM periodo e SEM busca, que e a visao de "as ultimas".
+      take: busca ? 2000 : abertas ? 300 : (query?.from || query?.to) ? 2000 : 60,
     });
     let rows = appts.map((a: any) => {
       const pago = (a.recebimentos || []).reduce((s: number, r: any) => s + Number(r.valorTotal), 0);

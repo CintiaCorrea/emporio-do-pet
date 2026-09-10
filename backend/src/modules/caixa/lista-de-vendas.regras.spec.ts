@@ -42,3 +42,27 @@ describe('Lista de vendas do caixa — o que aparece', () => {
     expect(ehVendaDeVerdade({ origem: 'INTERNACAO', itens: 'x' as any, pago: null })).toBe(false);
   });
 });
+
+// 🛡️ O PERÍODO É O LIMITE — a lista não corta o começo do mês em silêncio.
+//
+// A Cintia, 09/09/2026: "tela de vendas só mostra a partir do dia 6, cadê o início do mês?"
+//
+// A tela abre pedindo 01/09 até hoje, e o servidor devolvia as 60 mais recentes, ordenadas da
+// mais nova para a mais velha. Num mês movimentado, o começo do mês caía fora — sem aviso
+// nenhum, o que é o pior jeito de uma lista mentir: ela parece completa.
+describe('quantas vendas a lista devolve', () => {
+  const fs = require('fs');
+  const path = require('path');
+  const src = fs.readFileSync(path.resolve(__dirname, 'caixa.service.ts'), 'utf8');
+
+  it('com período pedido, o período manda — não um corte fixo em 60', () => {
+    expect(src).toContain("take: busca ? 2000 : abertas ? 300 : (query?.from || query?.to) ? 2000 : 60,");
+  });
+
+  it('os 60 continuam valendo só para a consulta sem período e sem busca', () => {
+    // É a visão de "as últimas vendas", onde o corte é o próprio sentido da tela.
+    const trecho = src.slice(src.indexOf('async listVendas('), src.indexOf('let rows = appts.map'));
+    expect(trecho).toContain(': 60,');
+    expect(trecho).toContain('(query?.from || query?.to)');
+  });
+});
