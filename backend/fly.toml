@@ -83,16 +83,27 @@ primary_region = "gru"  # São Paulo, Brasil
 # O "worker" é mais modesto de propósito: rotina não tem gente esperando do outro lado,
 # então segundos a mais não incomodam ninguém. Se o monitor de automações
 # (GET /api/health/automations) começar a acusar atraso, é aqui que se aumenta.
-# CPU DEDICADA ("performance") CUSTA ~10x A COMPARTILHADA. Esta maquina ficou em
-# performance/2gb de 05/08 a 09/09/2026 e sozinha respondeu pela maior parte da fatura:
-# a linha "Machines Performance CPU 1x" foi de US$ 116,97 num mes so'.
-# Medido em 09/09 antes de reduzir: 196 MB usados de 2048. Uso de 10%.
-# Se algum dia a maquina apertar de verdade, subir de novo e' um comando — mas com
-# NUMERO na mao, nao por precaucao.
+# ESTA MAQUINA PRECISA DE CPU DEDICADA. NAO REDUZIR PARA "shared" SEM MEDIR CPU.
+#
+# Em 10/09/2026 ela foi baixada para shared/1gb para cortar custo — a linha "Machines
+# Performance CPU 1x" era US$ 116,97 numa fatura de ~US$ 200. Aguentou algumas horas e
+# derrubou o sistema no meio do expediente: as conexoes com o banco comecaram a estourar
+# ("Timed out fetching a new connection", depois "Can't reach database server"), a
+# checagem de saude virou critica e o WhatsApp caiu junto com o resto da API. Voltar para
+# performance-1x resolveu na hora.
+#
+# O ERRO DE METODO foi medir so' MEMORIA: 196 MB usados de 2048, o que parecia folga
+# enorme. Mas quem trabalha aqui e' a CPU — esta maquina atende as telas, o socket do
+# inbox em tempo real, os webhooks do WhatsApp e as consultas ao banco. Memoria sobrando
+# nao e' CPU sobrando.
+#
+# Se for tentar de novo: medir CPU sob carga real (load average, throttling), fazer fora
+# do expediente e acompanhar por horas — nao por minutos. O banco, esse sim, foi reduzido
+# com sucesso no mesmo dia (performance-1x/4gb -> shared-2x/2gb, load average 0.05).
 [[vm]]
   processes = ["app"]
-  memory = "1gb"
-  cpu_kind = "shared"
+  memory = "2gb"
+  cpu_kind = "performance"
   cpus = 1
 
 [[vm]]
