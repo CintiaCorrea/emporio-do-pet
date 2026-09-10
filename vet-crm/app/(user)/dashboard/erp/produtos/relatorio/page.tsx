@@ -153,7 +153,7 @@ export default function ProductsReportPage() {
       const productsData: ApiResponse = await productsResponse.json();
       
       // Filtrar apenas produtos (excluir serviços)
-      const productsList = productsData.products.filter(p => p.type !== 'SERVICE');
+      const productsList = productsData.products.filter(p => String(p.type) !== 'SERVICE');
       
       // Aplicar filtro de estoque
       let filteredProducts = productsList;
@@ -473,28 +473,28 @@ export default function ProductsReportPage() {
                   label: "Total de Produtos", 
                   value: stats.totalProducts, 
                   color: "gray", 
-                  icon: () => <span style={{fontSize:"14px"}}>📦</span>,
+                  icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>📦</span>,
                   trend: null
                 },
                 { 
                   label: "Medicamentos", 
                   value: stats.medicines, 
                   color: "blue", 
-                  icon: () => <span style={{fontSize:"14px"}}>💊</span>,
+                  icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>💊</span>,
                   trend: stats.totalProducts > 0 ? ((stats.medicines / stats.totalProducts) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 
                   label: "Vacinas", 
                   value: stats.vaccines, 
                   color: "green", 
-                  icon: () => <span style={{fontSize:"14px"}}>💉</span>,
+                  icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>💉</span>,
                   trend: stats.totalProducts > 0 ? ((stats.vaccines / stats.totalProducts) * 100).toFixed(1) + '%' : '0%'
                 },
                 { 
                   label: "Total em Estoque", 
                   value: stats.totalStock, 
                   color: "teal", 
-                  icon: () => <span style={{fontSize:"14px"}}>📦</span>,
+                  icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>📦</span>,
                   trend: null
                 },
                 { 
@@ -523,7 +523,7 @@ export default function ProductsReportPage() {
                   label: "Receita Total", 
                   value: formatCurrency(stats.totalRevenue), 
                   color: "green", 
-                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
+                  icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>📈</span>,
                   trend: null,
                   isFormatted: true
                 },
@@ -539,21 +539,21 @@ export default function ProductsReportPage() {
                   label: "Estoque Médio", 
                   value: `${Math.round(stats.averageStock)} unidades`, 
                   color: "indigo", 
-                  icon: () => <span style={{fontSize:"14px"}}>📦</span>,
+                  icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>📦</span>,
                   trend: null
                 },
                 { 
                   label: "Total de Usos", 
                   value: stats.totalTreatments, 
                   color: "cyan", 
-                  icon: () => <span style={{fontSize:"14px"}}>⚡</span>,
+                  icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>⚡</span>,
                   trend: null
                 },
                 { 
                   label: "Produto Mais Usado", 
                   value: stats.mostUsedProduct.name || 'N/A', 
                   color: "blue", 
-                  icon: () => <span style={{fontSize:"14px"}}>✓</span>,
+                  icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>✓</span>,
                   trend: stats.mostUsedProduct.count > 0 ? `${stats.mostUsedProduct.count} usos` : null,
                   isText: true
                 },
@@ -561,7 +561,7 @@ export default function ProductsReportPage() {
                   label: "Maior Receita", 
                   value: stats.highestRevenueProduct.name || 'N/A', 
                   color: "green", 
-                  icon: () => <span style={{fontSize:"14px"}}>📈</span>,
+                  icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>📈</span>,
                   trend: stats.highestRevenueProduct.revenue > 0 ? formatCurrency(stats.highestRevenueProduct.revenue) : null,
                   isText: true
                 }

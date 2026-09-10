@@ -391,11 +391,11 @@ export default function FinanceiroPage() {
                     </div>
                     <div
                       className={`flex items-center gap-1 text-sm font-medium ${
-                        stat.trend === 'up' ? 'text-green-600' : stat.trend === 'down' ? 'text-red-600' : 'text-yellow-600'
+                        stat.trend === 'up' ? 'text-green-600' : String(stat.trend) === 'down' ? 'text-red-600' : 'text-yellow-600'
                       }`}
                     >
                       {stat.trend === 'up' && <span style={{fontSize:"14px"}}>↗</span>}
-                      {stat.trend === 'down' && <span style={{fontSize:"14px"}}>↘</span>}
+                      {String(stat.trend) === 'down' && <span style={{fontSize:"14px"}}>↘</span>}
                       <span>{stat.change}</span>
                     </div>
                   </div>

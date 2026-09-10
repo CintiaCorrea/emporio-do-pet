@@ -106,7 +106,10 @@ export default function ProductsPage() {
       
       const data: ApiResponse = await response.json();
       // Filtrar para remover produtos do tipo SERVICE
-      const filteredProducts = data.products.filter(p => p.type !== 'SERVICE');
+      // Comparado como texto: o tipo nao preve 'SERVICE', mas o BANCO tem — sao produtos
+      // antigos, de antes de servico virar catalogo proprio. Trocar por uma comparacao que o
+      // tipo aceita mudaria o que a tela mostra.
+      const filteredProducts = data.products.filter(p => String(p.type) !== 'SERVICE');
       setProducts(filteredProducts);
       setStats(data.stats);
     } catch (err) {

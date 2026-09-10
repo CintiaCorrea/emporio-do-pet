@@ -326,9 +326,9 @@ export default function ContactsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             {[
-              { label: 'Contatos (página)', value: stats.totalLocal, color: 'blue', icon: () => <span style={{fontSize:"14px"}}>👥</span> },
-              { label: 'Com WhatsApp', value: stats.whats, color: 'green', icon: () => <span style={{fontSize:"14px"}}>✉</span> },
-              { label: 'Principais', value: stats.primary, color: 'yellow', icon: () => <span style={{fontSize:"14px"}}>⭐</span> },
+              { label: 'Contatos (página)', value: stats.totalLocal, color: 'blue', icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>👥</span> },
+              { label: 'Com WhatsApp', value: stats.whats, color: 'green', icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>✉</span> },
+              { label: 'Principais', value: stats.primary, color: 'yellow', icon: (_p: { className?: string }) => <span style={{fontSize:"14px"}}>⭐</span> },
             ].map((stat, idx) => (
               <div
                 key={idx}
