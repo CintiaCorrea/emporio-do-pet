@@ -7,7 +7,8 @@ import { useEffect, useMemo, useState , useRef, Fragment } from "react";
 import Link from "next/link";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { useSession } from "next-auth/react";
-import { carregarMeuCaixa, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaParaReceber } from "@/lib/caixaAtual";
+import { carregarMeuCaixa, carregarMeusCaixasAbertos, rotuloCaixa, caixaParaReceber, CaixaAberto, CaixaParaReceber } from "@/lib/caixaAtual";
+import EscolhaDoCaixa from "@/components/caixa/EscolhaDoCaixa";
 import AbrirMeuCaixaModal from "@/components/caixa/AbrirMeuCaixaModal";
 import { imprimirVendasAbertas } from "@/lib/documentos/vendas-abertas-print";
 import { hojeNaClinicaISO } from "@/lib/datas";
@@ -113,7 +114,12 @@ export default function ComandasPage() {
       const r = caixaParaReceber(m);
       setCaixaUsado(r); setCaixaAberto(r.caixa?.id || null);
     });
+    carregarMeusCaixasAbertos(meId).then(setMeusAbertos);
   }, [meId]);
+
+  // TODOS os meus caixas abertos, de qualquer dia — a lista da escolha. Diferente de
+  // `meuCaixa`, que so enxerga os de HOJE e por isso nao via os dias reabertos.
+  const [meusAbertos, setMeusAbertos] = useState<CaixaAberto[]>([]);
 
   const emAberto = useMemo(() => comandas.filter((c: any) => !c.futura).reduce((s, c) => s + Number(c.aberto || c.valor || 0), 0), [comandas]);
   const money = (v: number) => (olho ? fmtBRL(v) : "R$ •••");
@@ -407,6 +413,13 @@ export default function ComandasPage() {
               <span className="text-[18px] font-medium text-[#014D5E] tabular-nums">{money(Number(det.aberto || det.valor || 0))}</span>
             </div>
 
+            {/* EM QUAL CAIXA ESTA BAIXA ENTRA. Fica FORA do `caixaAberto ?` de proposito: quando
+                a pessoa nao tem caixa de hoje mas tem um de outro dia reaberto, e esta faixa
+                que descobre isso e destrava o recebimento. Some sozinha quando so ha um caixa. */}
+            <div className="px-5 pt-3">
+              <EscolhaDoCaixa meusAbertos={meusAbertos} dataDaVenda={det.date} valor={caixaAberto} onEscolher={setCaixaAberto} />
+            </div>
+
             {caixaAberto ? (
               <>
                 <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
@@ -454,6 +467,13 @@ export default function ComandasPage() {
               <span className="text-[13px] text-[#5C6B70]">Total a receber</span>
               <span className="text-[18px] font-medium text-[#014D5E] tabular-nums">{money(detGrupo.total)}</span>
             </div>
+            {/* EM QUAL CAIXA ESTA BAIXA ENTRA. Fica FORA do `caixaAberto ?` de proposito: quando
+                a pessoa nao tem caixa de hoje mas tem um de outro dia reaberto, e esta faixa
+                que descobre isso e destrava o recebimento. Some sozinha quando so ha um caixa. */}
+            <div className="px-5 pt-3">
+              <EscolhaDoCaixa meusAbertos={meusAbertos} dataDaVenda={detGrupo.comandas.map((c: any) => c.date).sort()[0] || null} valor={caixaAberto} onEscolher={setCaixaAberto} />
+            </div>
+
             {caixaAberto ? (
               <>
                 <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>

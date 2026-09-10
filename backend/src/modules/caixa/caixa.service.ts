@@ -6,7 +6,7 @@ import { RecebimentosService } from '../financeiro/recebimentos.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
-import { resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa } from './caixa.regras';
+import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
@@ -838,10 +838,14 @@ export class CaixaService {
       }
     }
 
-    const count = await this.prisma.caixaSessao.count();
+    // O NUMERO E O MAIOR JA USADO + 1 (caixa.regras.numeroDoProximoCaixa). Era `count + 1`, e
+    // isso reaproveitava numeros depois de qualquer exclusao: em 10/09/2026 havia dois caixas
+    // nº 11 no banco. Numero de caixa e identidade — e por ele que se procura na grade e e ele
+    // que sai no relatorio em papel.
+    const usados = await this.prisma.caixaSessao.findMany({ select: { numero: true } });
     return this.prisma.caixaSessao.create({
       data: {
-        numero: count + 1,
+        numero: numeroDoProximoCaixa(usados.map((u) => u.numero)),
         userId: dono,
         suprimento: Number(dto.suprimento || 0),
         observacao: dto.observacao || null,
@@ -991,8 +995,22 @@ export class CaixaService {
     return { ok: true, numero: c.numero };
   }
 
+  // REABRIR DESFAZ O FECHAMENTO INTEIRO — inclusive o que ele escreveu.
+  //
+  // Ate 10/09/2026 o reabrir zerava a data mas deixava a observacao. O resultado eram caixas
+  // ABERTOS carregando por dentro a frase "Encerrado automaticamente a meia-noite": a grade
+  // mostrava um selo de fechamento num caixa que estava aberto, e foi essa contradicao que
+  // me fez perder tempo achando que o encerramento da meia-noite tinha parado de rodar (ele
+  // nao tinha — os caixas de 01 a 04/09 haviam sido reabertos para lancar baixas atrasadas).
+  //
+  // A conferencia de gaveta tambem se desfaz: valor esperado, contado e diferenca eram o
+  // retrato de um fechamento que deixou de existir. Mantê-los seria guardar uma conferencia
+  // de um caixa que voltou a receber dinheiro depois dela.
   async reabrir(id: string) {
-    return this.prisma.caixaSessao.update({ where: { id }, data: { status: 'ABERTO', fechamento: null } });
+    return this.prisma.caixaSessao.update({
+      where: { id },
+      data: { status: 'ABERTO', fechamento: null, obsFechamento: null, valorEsperado: null, valorContado: null, diferenca: null },
+    });
   }
 
   // Lê as regras do módulo de vendas (lista `configvendas`, 1 item JSON).

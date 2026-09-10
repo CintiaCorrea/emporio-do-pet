@@ -215,3 +215,23 @@ export function podeApagarCaixa(params: {
   }
   return { pode: true };
 }
+
+/**
+ * O NÚMERO DO PRÓXIMO CAIXA É O MAIOR JÁ USADO + 1 — nunca a contagem de linhas.
+ *
+ * O BUG (10/09/2026): existiam DOIS caixas nº 11 no banco, um de 04/09 e um de 10/09. O número
+ * era `count + 1`, e em 09/09 nove caixas zerados foram apagados a pedido da Cintia. A contagem
+ * voltou atrás e passou de novo por números já entregues. Número de caixa é identidade — é por
+ * ele que se procura o caixa na grade e é ele que sai no relatório em papel; dois caixas com o
+ * mesmo número tornam a busca ambígua e a conferência impossível.
+ *
+ * Sempre para frente: apagar caixa não devolve o número ao estoque.
+ */
+export function numeroDoProximoCaixa(numerosJaUsados: (number | null | undefined)[]): number {
+  let maior = 0;
+  for (const n of numerosJaUsados || []) {
+    const v = Number(n);
+    if (Number.isFinite(v) && v > maior) maior = Math.trunc(v);
+  }
+  return maior + 1;
+}

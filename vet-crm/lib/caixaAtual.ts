@@ -120,3 +120,34 @@ export function caixaParaReceber(m: MeuCaixa): CaixaParaReceber {
       : `Os caixas abertos são de ${nomes}, e nenhum é o seu. Abra o seu em Vendas › Caixa.`,
   };
 }
+
+/**
+ * MEUS CAIXAS ABERTOS DE QUALQUER DIA — não só os de hoje.
+ *
+ * `carregarMeuCaixa` acima lê `/api/caixa`, que devolve os caixas DO DIA. Isso está certo para
+ * a pergunta que ela responde ("tenho caixa aberto agora?"), e foi por isso que o problema de
+ * 10/09/2026 ficou invisível: a tela nem sabia que existiam caixas abertos dos dias 01 a 04, e
+ * mandava toda baixa para o de hoje. Para PERGUNTAR em qual caixa a baixa entra é preciso
+ * enxergar todos — daí esta segunda leitura, pela grade, que filtra por status e por pessoa.
+ */
+export async function carregarMeusCaixasAbertos(meuUserId?: string | null): Promise<CaixaAberto[]> {
+  if (!meuUserId) return [];
+  try {
+    const r = await fetch(`/api/caixa/grade?status=ABERTO&userId=${encodeURIComponent(meuUserId)}`, { cache: 'no-store' });
+    if (!r.ok) return [];
+    const d = await r.json();
+    const arr: any[] = Array.isArray(d) ? d : (d.data || []);
+    return arr
+      .filter((c) => (c?.user?.id ?? c?.userId) === meuUserId)
+      .map((c) => ({
+        id: c.id,
+        numero: Number(c.numero) || 0,
+        abertura: c.abertura,
+        operadorId: c.user?.id ?? c.userId ?? null,
+        operadorNome: c.user?.name || 'sem nome',
+      }))
+      .sort((a, b) => new Date(b.abertura || 0).getTime() - new Date(a.abertura || 0).getTime());
+  } catch {
+    return [];
+  }
+}
