@@ -1668,8 +1668,13 @@ export default function PDVPage() {
                           // botao simplesmente nao existir, sem ninguem entender por que.
                           <span title={exclusaoDaVenda.motivo} style={{ background: '#FBF7EF', border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 11.5, color: MUT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>🔒 {exclusaoDaVenda.motivo}</span>
                         )}
+                        {/* RECEBER ACONTECE NO CAIXA (Cintia, 10/09/2026: "levar para a tela do
+                            caixa, pois lá pode dar o desconto e a baixa corretamente"). A gaveta
+                            daqui era mais simples — sem desconto e sem o saldo devedor do
+                            cliente. Duas telas recebendo de jeitos diferentes é como a casa
+                            passa a ter dois valores para a mesma venda. */}
                         {aReceber > 0.001 && (
-                          <button onClick={abrirRecVenda} style={{ marginLeft: 'auto', background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>💰 Registrar recebimento</button>
+                          <a href={`/dashboard/erp/caixa?venda=${detVenda.id}`} title="Abre esta venda no caixa, com desconto, formas de pagamento e o saldo do cliente" style={{ marginLeft: 'auto', textDecoration: 'none', background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>💵 Levar para o caixa</a>
                         )}
                       </div>
                     )}

@@ -1257,7 +1257,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch(`/api/appointments?petId=${selectedPet.id}&startDate=${new Date().toISOString()}&limit=20`, { cache: "no-store" });
+        // `ordem=asc`: sem isso o servidor devolve as 20 MAIS DISTANTES, e um pet com muitas
+        // futuras (pacote de fisio) mostraria como "próximo" o vigésimo mais distante.
+        const r = await fetch(`/api/appointments?petId=${selectedPet.id}&startDate=${new Date().toISOString()}&limit=20&ordem=asc`, { cache: "no-store" });
         const d = await safeJson<any>(r, {});
         const arr = Array.isArray(d) ? d : (d.appointments || d.data || []);
         const futuras = (arr as any[])

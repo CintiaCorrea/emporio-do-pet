@@ -143,3 +143,37 @@ describe("o orçamento enviado no WhatsApp fica registrado", () => {
     expect(fonte("components/pets/PetComandaRail.tsx")).toContain("NÃO consegui registrar");
   });
 });
+
+describe("receber dinheiro acontece numa tela só: o caixa", () => {
+  const fonte = (rel: string) => codigoDoProjeto().find((a) => a.caminho === rel)?.src || "";
+
+  it("o ponto de venda leva a venda para o caixa, em vez de receber ali", () => {
+    // "'Registrar recebimento' — levar para a tela do caixa, sim, pois lá pode dar o desconto e
+    // a baixa corretamente" (Cintia, 10/09/2026). A gaveta do PDV era mais simples: sem
+    // desconto e sem o saldo devedor do cliente.
+    const pdv = fonte("app/(user)/dashboard/erp/ponto-de-venda/page.tsx");
+    expect(pdv).toContain("/dashboard/erp/caixa?venda=");
+    expect(pdv).toContain("Levar para o caixa");
+  });
+
+  it("e o caixa sabe abrir a venda que chega pelo link", () => {
+    // Sem isto o botão levaria para a tela do caixa e a pessoa teria de procurar a venda na mão.
+    const caixa = fonte("app/(user)/dashboard/erp/caixa/page.tsx");
+    expect(caixa).toContain("vendaDoLink");
+    expect(caixa).toContain("abrirReceber(achada)");
+  });
+
+  it("o link é limpo da barra depois de abrir — recarregar não reabre sozinho", () => {
+    expect(fonte("app/(user)/dashboard/erp/caixa/page.tsx")).toContain("u.searchParams.delete('venda')");
+  });
+});
+
+describe("o próximo agendamento é o PRÓXIMO", () => {
+  const fonte = (rel: string) => codigoDoProjeto().find((a) => a.caminho === rel)?.src || "";
+
+  it("o inbox pede a ordem crescente", () => {
+    // Com a ordem decrescente e limite 20, um pet com muitas futuras (pacote de fisio) mostraria
+    // como "próximo" o vigésimo mais distante.
+    expect(fonte("components/inbox/InboxRightPanel.tsx")).toContain("&ordem=asc");
+  });
+});

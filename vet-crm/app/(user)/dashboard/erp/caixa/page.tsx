@@ -213,6 +213,21 @@ export default function CaixaPage() {
   const modoRef = useRef<'lista' | 'detalhe'>('lista');
   useEffect(() => { modoRef.current = modo; }, [modo]);
 
+  // ── RECEBER UMA VENDA QUE CHEGOU POR LINK (?venda=<id>) ───────────────────────────────
+  //
+  // A Cintia, 10/09/2026: "'Registrar recebimento' — levar para a tela do caixa, sim, pois lá
+  // pode dar o desconto e a baixa corretamente."
+  //
+  // O ponto de venda abria uma gaveta de recebimento própria, mais simples. A do caixa é a
+  // completa: desconto, formas, troco, crédito do cliente e o saldo devedor dele. Duas telas
+  // recebendo dinheiro de jeitos diferentes é como a casa passa a ter dois valores para a
+  // mesma venda — agora o ponto de venda MANDA para cá, e quem recebe é uma tela só.
+  const vendaDoLink = useRef<string | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get('venda');
+    if (id) vendaDoLink.current = id;
+  }, []);
+
   const fetchDetail = useCallback(async (id: string) => {
     try { const r = await fetch(`/api/caixa/${id}`, { cache: 'no-store' }); if (!r.ok) throw new Error('Erro ao carregar caixa'); setDetail(await r.json()); }
     catch (e: any) { toast.error(e.message || 'Erro ao carregar caixa'); }
@@ -227,6 +242,18 @@ export default function CaixaPage() {
         .filter((a: any) => Number(a.value) > 0)
         .filter((a: any) => (a.start ? a.start.slice(0, 10) === date : true));
       setAppointments(list);
+      // A venda pedida pelo link abre o recebimento assim que ela aparece na lista do dia.
+      const pedida = vendaDoLink.current;
+      if (pedida) {
+        const achada = list.find((a: any) => a.id === pedida);
+        if (achada) {
+          vendaDoLink.current = null;
+          const u = new URL(window.location.href);
+          u.searchParams.delete('venda');
+          window.history.replaceState({}, '', u.toString());
+          setTimeout(() => abrirReceber(achada), 0);
+        }
+      }
     } catch { /* silencioso */ }
   }, [date]);
 

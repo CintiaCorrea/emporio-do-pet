@@ -511,6 +511,8 @@ export class AppointmentsService {
     take?: number;
     page?: number;
     limit?: number;
+    /** 'asc' para quem quer o PROXIMO; padrao 'desc' (os mais recentes), como sempre foi. */
+    ordem?: 'asc' | 'desc';
   }) {
     const {
       userId,
@@ -525,6 +527,7 @@ export class AppointmentsService {
       take,
       page = 1,
       limit = 10,
+      ordem = 'desc',
     } = params || {};
 
     const resolvedTake = Number.isFinite(take as any) ? (take as number) : limit;
@@ -591,7 +594,11 @@ export class AppointmentsService {
           items: { select: { id: true, descricao: true, quantidade: true, valorTotal: true }, orderBy: { createdAt: 'asc' } },
           _count: { select: { treatments: true } },
         },
-        orderBy: { date: 'desc' },
+        // A ORDEM IMPORTA JUNTO COM O LIMITE. Quem pergunta "qual o proximo agendamento
+        // deste pet" pede `startDate=agora&limit=20` — e com a ordem decrescente vinham os 20
+        // MAIS DISTANTES. Um pet com mais de 20 futuras (pacote de fisio) mostraria como
+        // "proximo" o vigesimo mais distante. Pedindo 'asc', vem o proximo de verdade.
+        orderBy: { date: ordem },
       }),
       this.prisma.appointment.count({ where }),
       this.prisma.appointment.aggregate({ where, _sum: { value: true } }),
