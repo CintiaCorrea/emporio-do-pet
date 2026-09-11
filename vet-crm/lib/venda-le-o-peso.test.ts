@@ -20,6 +20,7 @@ import { codigoDoProjeto } from "@/lib/testes/varreduraDoProjeto";
 // As duas voltas atrás são de uma linha e nenhuma quebra o build. Por isso a trava lê o fonte.
 
 const TELAS_QUE_LANCAM = [
+  "app/(user)/dashboard/erp/ponto-de-venda/page.tsx",
   "components/pets/PetComandaRail.tsx",
   "components/vendas/OrcamentoRapidoModal.tsx",
   "components/vendas/EditorDeItens.tsx",
@@ -53,9 +54,22 @@ describe("as telas de lançamento consultam o peso", () => {
   });
 
   it("a troca de faixa é do núcleo, não copiada em cada tela", () => {
-    for (const caminho of ["components/pets/PetComandaRail.tsx", "components/vendas/OrcamentoRapidoModal.tsx"]) {
+    for (const caminho of TELAS_QUE_LANCAM.filter((x) => !x.includes("EditorDeItens"))) {
       expect(fonte(caminho), caminho).toContain("aplicarFaixa");
     }
+  });
+
+  // O DEFEITO DO ARTROSAN (Cintia, 11/09/2026): "no caso do artrosan não conseguimos que entre
+  // pela faixa de peso". O núcleo escolhia a faixa certa e o ponto de venda JOGAVA FORA ao
+  // montar a linha do carrinho — copiava só o preço. Como o seletor da linha só aparece quando
+  // há `_faixas`, ele nunca aparecia: com pet sem peso, sobrava um aviso de 7 segundos e
+  // nenhum jeito de escolher. O Artrosan vai de R$ 80 a R$ 280.
+  it("o ponto de venda guarda as faixas na linha do carrinho", () => {
+    const src = fonte("app/(user)/dashboard/erp/ponto-de-venda/page.tsx");
+    const base = src.slice(src.indexOf("const base = {"), src.indexOf("const base = {") + 400);
+    expect(base, "a linha do carrinho voltou a descartar as faixas").toContain("_faixas: l._faixas");
+    expect(base).toContain("_faixaRotulo: l._faixaRotulo");
+    expect(base).toContain("_avisoPorte: l._avisoPorte");
   });
 
   it("o seletor de faixa é um componente só", () => {

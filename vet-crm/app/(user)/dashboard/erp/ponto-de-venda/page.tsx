@@ -21,7 +21,7 @@ import { casarNoCatalogo, juntarObservacao, ModeloVenda } from '@/lib/modelosVen
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
 import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from '@/lib/catalogoVendavel';
-import { rotuloDaFaixa, ordenarFaixas, type FaixaPorte } from '@/lib/porte';
+import { rotuloDaFaixa, ordenarFaixas, aplicarFaixa, type FaixaPorte } from '@/lib/porte';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma } from '@/lib/formasPagamento';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import { hojeNaClinicaISO } from "@/lib/datas";
@@ -234,14 +234,10 @@ export default function PDVPage() {
   }, [petId, cliente]);
 
   // Troca a faixa de UMA linha na mao — pet sem peso, ou peso que caiu numa faixa sem preco.
+  // A regra e do nucleo (lib/porte.aplicarFaixa) — a mesma da comanda e do orcamento rapido.
+  // Tres copias da regra de preco e como tres telas passam a discordar sobre o mesmo item.
   const trocarFaixa = (i: number, rotulo: string) => {
-    setCarrinho((c) => c.map((x, j) => {
-      if (j !== i) return x;
-      const f = (x._faixas || []).find((y) => y.rotulo === rotulo);
-      if (!f) return x;
-      return { ...x, _faixaRotulo: f.rotulo, _avisoPorte: f.preco == null ? `A faixa ${f.rotulo} não tem preço cadastrado.` : null,
-        valorUnitario: f.preco ?? x.valorUnitario, custoUnitario: f.custo ?? x.custoUnitario };
-    }));
+    setCarrinho((c) => c.map((x, j) => (j === i ? aplicarFaixa(x, rotulo) : x)));
   };
 
   // ----- Editar itens da venda existente -----
@@ -535,7 +531,14 @@ export default function PDVPage() {
     setCarrinho((c) => {
       const i = l._novo ? c.findIndex((x) => x.catalogoItemId === l.catalogoItemId) : l._exame ? c.findIndex((x) => x.catalogoExameId === l.catalogoExameId) : c.findIndex((x) => x.servicoId === l.servicoId);
       if (i >= 0) { const cp = [...c]; cp[i] = { ...cp[i], quantidade: cp[i].quantidade + q }; return cp; }
-      const base = { descricao: l.descricao, quantidade: q, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined };
+      // AS FAIXAS PRECISAM ENTRAR NA LINHA. O nucleo ja tinha escolhido a faixa certa, mas
+      // `base` copiava so o preco — e o seletor da linha so aparece quando ha `_faixas`. Com
+      // pet sem peso no cadastro (63 de 6.068 tem), sobrava um aviso que some em 7 segundos e
+      // nenhum jeito de escolher: o item ficava no preco da faixa MAIS BARATA.
+      //
+      // A Cintia, 11/09/2026: "no caso do artrosan nao conseguimos que entre pela faixa de
+      // peso". O Artrosan vai de R$ 80 (ate 10 kg) a R$ 280 (acima de 50) — era isso.
+      const base = { descricao: l.descricao, quantidade: q, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined, _faixas: l._faixas, _faixaRotulo: l._faixaRotulo, _avisoPorte: l._avisoPorte };
       return [...c, l._novo
         ? { ...base, _novo: true, ...(l._exame ? { _exame: true } : {}), catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, descontoModo: l.descontoModo, descontoLimite: l.descontoLimite }
         : l._exame
