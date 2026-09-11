@@ -665,10 +665,18 @@ export default function PetDetailPage() {
       // Salvar o peso VIRA UM PONTO NO HISTORICO, nao so um numero substituido. Antes, o de
       // ontem sumia — e era por isso que o grafico dizia "sem historico suficiente" pra sempre.
       const r = await fetch(`/api/pets/${petId}/peso`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ peso: w, origem: "FICHA" }) });
-      if (!r.ok) throw new Error();
+      // O ERRO DO SERVIDOR TEM QUE APARECER. Este catch mostrava "Erro ao salvar peso" e
+      // engolia a causa. Entre 05 e 11/09/2026 a ponte /api/pets/:id/peso nao repassava o
+      // corpo, o servidor respondia "Peso invalido." em toda tentativa, e a veterinaria passou
+      // seis dias sem saber por que. Mensagem generica transforma um defeito de dez minutos
+      // numa semana de trabalho perdido.
+      if (!r.ok) {
+        const d = await r.json().catch(() => null);
+        throw new Error(d?.message || d?.error || `O servidor recusou (${r.status}).`);
+      }
       toast.success("Peso registrado — entrou no histórico e no gráfico");
       setArtefato(null); await load(); await loadAtendimentos(); await carregarPesos();
-    } catch { toast.error("Erro ao salvar peso"); } finally { setSavingArt(false); }
+    } catch (e: any) { toast.error(String(e?.message || "Erro ao salvar peso")); } finally { setSavingArt(false); }
   }
   async function salvarObsArt() {
     if (!pet) return;
