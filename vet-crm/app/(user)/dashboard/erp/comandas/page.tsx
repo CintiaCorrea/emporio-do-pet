@@ -11,6 +11,8 @@ import { carregarMeuCaixa, carregarMeusCaixasAbertos, rotuloCaixa, caixaParaRece
 import EscolhaDoCaixa from "@/components/caixa/EscolhaDoCaixa";
 import AbrirMeuCaixaModal from "@/components/caixa/AbrirMeuCaixaModal";
 import { imprimirVendasAbertas } from "@/lib/documentos/vendas-abertas-print";
+import PagamentoFormas from "@/components/financeiro/PagamentoFormas";
+import { carregarFormasRecebimento, validarPagamentosCartao, type PagForma, type FormaCfg, type TaxaRow } from "@/lib/formasPagamento";
 import { hojeNaClinicaISO } from "@/lib/datas";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
@@ -54,6 +56,10 @@ export default function ComandasPage() {
   const [detItens, setDetItens] = useState<any[]>([]);
   const [detLoading, setDetLoading] = useState(false);
   const [forma, setForma] = useState("Dinheiro");
+  // Pagamento UNICO do grupo: varias formas (Pix + cartao + dinheiro), como no ponto de venda.
+  const [formasLote, setFormasLote] = useState<PagForma[]>([]);
+  const [formasConfig, setFormasConfig] = useState<FormaCfg[]>([]);
+  const [taxas, setTaxas] = useState<TaxaRow[]>([]);
   const [baixando, setBaixando] = useState(false);
   const [detGrupo, setDetGrupo] = useState<any | null>(null); // baixar todas as comandas de um cliente (1B)
 
@@ -84,6 +90,13 @@ export default function ComandasPage() {
     jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  // Config de formas e taxas: o mesmo carregador do ponto de venda, para o pagamento unico
+  // aceitar cartao com operadora/NSU e calcular taxa igual la'.
+  useEffect(() => {
+    carregarFormasRecebimento()
+      .then(({ formasConfig: fc, taxas: tx }) => { setFormasConfig(fc); setTaxas(tx); })
+      .catch(() => undefined);
+  }, []);
   // Digitar refaz SO a lista; caixa e "baixado hoje" nao mudam com a busca.
   const primeiraBusca = useRef(true);
   const buscaSeq = useRef(0); // resposta atrasada de busca antiga nao pode sobrescrever a atual
@@ -179,15 +192,28 @@ export default function ComandasPage() {
     if (!confirm(`Receber TODAS as ${detGrupo.comandas.length} vendas de ${detGrupo.tutor} em ${forma}? (${fmtBRL(detGrupo.total)})`)) return;
     setBaixando(true);
     try {
-      for (const c of detGrupo.comandas) {
-        const valor = Number(c.aberto || c.valor || 0);
-        const res = await fetch(`/api/caixa/${caixaAberto}/recebimento`, {
-          method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-          body: JSON.stringify({ appointmentId: c.id, valorTotal: valor, desconto: 0, troco: 0, formas: [{ forma, valor }] }),
-        });
-        if (!res.ok) { const dd = await res.json().catch(() => ({})); throw new Error(dd?.message || "Erro ao baixar"); }
+      // Cartao exige operadora + NSU + AUT: e' o que casa a venda com a linha do extrato.
+      const falta = validarPagamentosCartao(formasLote.filter((f) => Number(f.valor) > 0), formasConfig);
+      if (falta) { alert(falta); setBaixando(false); return; }
+      const res = await fetch(`/api/caixa/${caixaAberto}/recebimento-lote`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({
+          appointmentIds: detGrupo.comandas.map((c: any) => c.id),
+          formas: formasLote.filter((f) => Number(f.valor) > 0),
+        }),
+      });
+      const dd = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(dd?.message || "Erro ao receber");
+      // O servidor valida tudo ANTES de gravar; se ainda assim algo falhar, ele diz o que.
+      if (Array.isArray(dd?.falhou) && dd.falhou.length) {
+        alert(`Recebi ${dd.quitadas} de ${dd.comandas} comanda(s). Nao consegui: ${dd.falhou.length}. Confira a lista antes de tentar de novo.`);
+      } else {
+        const resto = Number(dd?.restanteEmAberto || 0);
+        alert(resto > 0.009
+          ? `Recebido ${fmtBRL(dd.valorRecebido)}. Ainda em aberto: ${fmtBRL(resto)}.`
+          : `Recebido ${fmtBRL(dd.valorRecebido)} — tudo quitado.${Number(dd?.troco) > 0.009 ? ` Troco: ${fmtBRL(dd.troco)}.` : ""}`);
       }
-      setDetGrupo(null); load();
+      setDetGrupo(null); setFormasLote([]); load();
     } catch (e: any) { alert(e?.message || "Erro ao receber as vendas."); }
     finally { setBaixando(false); }
   };
@@ -334,7 +360,7 @@ export default function ComandasPage() {
                         <td className="px-3 py-2 text-right text-[13.5px] font-medium text-[#014D5E] tabular-nums whitespace-nowrap">{money(g.total)}</td>
                         <td className="px-3 py-2"></td>
                         <td className="px-3 py-2 text-right">
-                          <button onClick={(e) => { e.stopPropagation(); setForma("Dinheiro"); setDetGrupo(g); }} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">💰 Baixar tudo</button>
+                          <button onClick={(e) => { e.stopPropagation(); setFormasLote([{ forma: "Dinheiro", valor: Number(g.total.toFixed(2)) }]); setDetGrupo(g); }} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">💰 Baixar tudo</button>
                         </td>
                       </tr>
                       {aberto && g.comandas.map((c: any) => linhaComanda(c, true))}
@@ -477,16 +503,26 @@ export default function ComandasPage() {
             {caixaAberto ? (
               <>
                 <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-                  <div className="text-[10.5px] text-[#374151] uppercase tracking-wide mb-2">Forma de recebimento</div>
-                  <div className="flex gap-2 flex-wrap">
-                    {formasList.map((f) => (
-                      <button key={f} onClick={() => setForma(f)} className="text-[12px] px-3 py-1.5 rounded-full border" style={forma === f ? { background: "#E0F4F6", borderColor: "#009AAC", color: "#014D5E" } : { background: "#fff", borderColor: "#E8E2D6", color: "#5C6B70" }}>{f}</button>
-                    ))}
+                  <div className="text-[10.5px] text-[#374151] uppercase tracking-wide mb-2">
+                    Como o cliente pagou — pode dividir entre formas
                   </div>
+                  <PagamentoFormas formas={formasLote} onChange={setFormasLote} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
+                  {(() => {
+                    const pago = formasLote.reduce((sm, f) => sm + Number(f.valor || 0), 0);
+                    const falta = detGrupo.total - pago;
+                    if (Math.abs(falta) < 0.01) return <div className="mt-2 text-[12px] font-medium text-[#0F6E56]">✓ Fecha certo com o total.</div>;
+                    return falta > 0
+                      ? <div className="mt-2 text-[12px] text-[#b23b39]">Falta lançar {money(falta)} — o que sobrar em aberto continua na lista, da comanda mais nova.</div>
+                      : <div className="mt-2 text-[12px] text-[#8a6400]">Passou {money(-falta)} do total — sai como troco.</div>;
+                  })()}
                 </div>
                 <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
                   <button onClick={() => setDetGrupo(null)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Fechar</button>
-                  <button onClick={baixarGrupo} disabled={baixando} className="px-5 py-2 text-[13px] font-medium text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{baixando ? "Baixando..." : "💰 Baixar tudo"}</button>
+                  <button
+                    onClick={baixarGrupo}
+                    disabled={baixando || formasLote.reduce((sm, f) => sm + Number(f.valor || 0), 0) <= 0.009}
+                    className="px-5 py-2 text-[13px] font-medium text-white bg-[#009AAC] rounded-lg disabled:opacity-60"
+                  >{baixando ? "Recebendo..." : "💰 Receber num pagamento só"}</button>
                 </div>
               </>
             ) : (

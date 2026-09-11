@@ -10,6 +10,7 @@ import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, po
 import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
+import { distribuirPagamento, repartirFormas, totalEmAberto } from './recebimento-lote.regras';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
 // Ver caixa.regras.faixaDoDia: caixa aberto as 21h30 nascia no dia seguinte e sumia da
@@ -1037,6 +1038,107 @@ export class CaixaService {
         `O caixa ${caixa.numero} e de ${caixa.user?.name || 'outra pessoa'}. Cada um lanca no proprio caixa — abra o seu em Vendas › Caixa.`,
       );
     }
+  }
+
+  /**
+   * UM PAGAMENTO SO QUITANDO VARIAS COMANDAS (Cintia, 11/09/2026).
+   *
+   * O "Baixar tudo" que existia era um laco na TELA: um recebimento por venda, todos na mesma
+   * forma, sem validacao previa. Falhando na terceira de cinco, duas ficavam pagas e tres nao —
+   * e a recepcao nao tinha como saber quais.
+   *
+   * Aqui a ordem se inverte: VALIDA TUDO PRIMEIRO (caixa, vendas, mesmo cliente, NSU do cartao,
+   * saldo de credito do total) e so' entao grava. As causas reais de falha no meio do caminho
+   * deixam de existir. Se ainda assim algo falhar, a resposta diz exatamente quais vendas foram
+   * quitadas — estado conhecido vale mais que estado limpo impossivel.
+   *
+   * Quita da MAIS ANTIGA para a mais nova (decisao dela) e reparte as formas entre as vendas,
+   * para cada uma saber COMO foi paga — e' isso que liga a taxa da operadora a venda certa.
+   */
+  async registrarRecebimentoLote(caixaId: string, dto: any, userId: string) {
+    await this.exigirDonoDoCaixa(caixaId, userId);
+
+    const ids: string[] = [...new Set(((Array.isArray(dto?.appointmentIds) ? dto.appointmentIds : []) as string[]).filter(Boolean))];
+    if (!ids.length) throw new BadRequestException('Escolha ao menos uma comanda.');
+
+    const formas = (Array.isArray(dto?.formas) ? (dto.formas as any[]).flat() : [])
+      .filter((f: any) => f && typeof f === 'object' && !Array.isArray(f) && Number(f.valor || 0) > 0);
+    if (!formas.length) throw new BadRequestException('Informe como o cliente pagou.');
+
+    // Exigencia do cartao vale para o lote inteiro — conferir antes de gravar a primeira.
+    const cfg = await this.getConfigVendas();
+    if (cfg.obrigarNsu && formas.some((f: any) => /cart|maquin/i.test(f.forma || '') && !String(f.nsu || '').trim())) {
+      throw new BadRequestException('Informe o NSU do cartao (a configuracao de vendas exige).');
+    }
+
+    const aps = await this.prisma.appointment.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, value: true, date: true, tutorId: true, paymentStatus: true, recebimentos: { select: { valorTotal: true } } },
+    });
+    if (aps.length !== ids.length) throw new BadRequestException('Alguma comanda nao foi encontrada. Atualize a tela e tente de novo.');
+
+    // Mesmo cliente: um pagamento so' nao pode quitar conta de gente diferente.
+    const tutores = [...new Set(aps.map((a) => a.tutorId).filter(Boolean))];
+    if (tutores.length > 1) throw new BadRequestException('As comandas escolhidas sao de clientes diferentes.');
+    const tutorId = tutores[0] || null;
+
+    const comandas = aps.map((a) => {
+      const pago = (a.recebimentos || []).reduce((sm: number, r: any) => sm + Number(r.valorTotal || 0), 0);
+      return { id: a.id, aberto: Math.max(0, Number((Number(a.value || 0) - pago).toFixed(2))), data: a.date };
+    });
+    const devido = totalEmAberto(comandas);
+    if (devido <= 0.009) throw new BadRequestException('Essas comandas ja estao quitadas.');
+
+    const valorPago = Number(formas.reduce((sm: number, f: any) => sm + Number(f.valor || 0), 0).toFixed(2));
+
+    // Credito do cliente: conferir o saldo contra o TOTAL, antes de debitar em partes.
+    const creditoUsado = formas
+      .filter((f: any) => /cr[eeé]dito d[oe] (pet|client)/i.test(f.forma || ''))
+      .reduce((sm: number, f: any) => sm + Number(f.valor || 0), 0);
+    if (creditoUsado > 0.001) {
+      if (!tutorId) throw new BadRequestException('Comanda sem cliente para debitar credito.');
+      const saldo = await this.saldoTutor(tutorId);
+      if (saldo < creditoUsado - 0.001) throw new BadRequestException('Credito insuficiente do cliente.');
+    }
+
+    const { partes, sobra } = distribuirPagamento(comandas, Math.min(valorPago, devido));
+    const comFormas = repartirFormas(formas, partes);
+    const troco = Number(Math.max(0, valorPago - devido).toFixed(2)) + sobra;
+
+    // Marca compartilhada: e' o que faz o caixa e o extrato mostrarem como UM pagamento.
+    const referencia = `LOTE-${Date.now().toString(36).toUpperCase()}`;
+    const obs = [dto?.observacao, `Pagamento unico (${referencia}) — ${partes.length} comanda(s)`]
+      .filter(Boolean).join(' · ');
+
+    const quitadas: string[] = [];
+    const falhou: { appointmentId: string; erro: string }[] = [];
+    for (let i = 0; i < comFormas.length; i++) {
+      const p = comFormas[i];
+      try {
+        await this.registrarRecebimento(caixaId, {
+          appointmentId: p.appointmentId,
+          valorTotal: p.valor,
+          desconto: 0,
+          // O troco sai uma vez so', na ultima parte — senao apareceria repetido no caixa.
+          troco: i === comFormas.length - 1 ? troco : 0,
+          formas: p.formas,
+          observacao: obs,
+        }, userId);
+        quitadas.push(p.appointmentId);
+      } catch (e: any) {
+        falhou.push({ appointmentId: p.appointmentId, erro: String(e?.message || e) });
+      }
+    }
+
+    return {
+      referencia,
+      comandas: partes.length,
+      quitadas: quitadas.length,
+      valorRecebido: Number(partes.reduce((sm, p) => sm + p.valor, 0).toFixed(2)),
+      troco,
+      restanteEmAberto: Number(Math.max(0, devido - valorPago).toFixed(2)),
+      falhou,
+    };
   }
 
   async registrarRecebimento(caixaId: string, dto: any, userId: string) {

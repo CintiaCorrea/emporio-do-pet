@@ -139,6 +139,12 @@ export class CaixaController {
     return this.service.registrarRecebimento(id, dto, userId);
   }
 
+  // Um pagamento so' quitando varias comandas do MESMO cliente. Valida tudo antes de gravar.
+  @Post(':id/recebimento-lote')
+  receberLote(@Param('id') id: string, @Body() dto: any, @CurrentUser('id') userId: string) {
+    return this.service.registrarRecebimentoLote(id, dto, userId);
+  }
+
   @Post(':id/movimento')
   movimento(@Param('id') id: string, @Body() dto: MovimentoDto, @CurrentUser('id') userId: string) {
     return this.service.registrarMovimento(id, dto, userId);
