@@ -8,13 +8,15 @@ import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem } from "@/lib/catalogoVendavel";
+import FaixaDePesoDaLinha from "@/components/vendas/FaixaDePesoDaLinha";
+import { aplicarFaixa, type FaixaPorte } from "@/lib/porte";
 import { carregarEstoqueComprometido, avisoDeEstoque, MapaEstoque } from "@/lib/estoqueComprometido";
 import { buscarItens, avisoDeCorte } from "@/lib/buscaCatalogo";
 import SeletorModeloVenda from "@/components/vendas/SeletorModeloVenda";
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from "@/lib/modelosVenda";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-type Item = { descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
+type Item = { _faixas?: FaixaPorte[]; _faixaRotulo?: string | null; _avisoPorte?: string | null; descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
 
 const ST: any = {
   RASCUNHO: { l: "Rascunho", c: "#64748b", b: "#eef2f4" },
@@ -37,19 +39,39 @@ const somaConvenio = (arr: Item[]) => arr.reduce((s, it) => s + (it._convenio ? 
 export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: { petId: string; tutorId?: string; petNome?: string; tutorNome?: string }) {
   const { data: session } = useSession();
   const meId = (session?.user as any)?.id || "";
+  // PESO DO PET — e ele que escolhe a faixa de preco dos itens cobrados por porte.
+  // Mesmo caminho do ponto de venda: vem do cadastro e, quando falta, a linha pede a faixa
+  // na mao. Peso ausente NUNCA trava o lancamento; so deixa de decidir sozinho.
+  const [pesoPet, setPesoPet] = useState<number | null>(null);
+  useEffect(() => {
+    if (!petId) { setPesoPet(null); return; }
+    let cancelado = false;
+    (async () => {
+      try {
+        const d = await fetch(`/api/pets/${petId}`, { cache: "no-store" }).then((r) => r.json()).catch(() => null);
+        const kg = Number(d?.weight ?? d?.pesoAtual);
+        if (!cancelado) setPesoPet(Number.isFinite(kg) && kg > 0 ? kg : null);
+      } catch { if (!cancelado) setPesoPet(null); }
+    })();
+    return () => { cancelado = true; };
+  }, [petId]);
+
   const [aberto, setAberto] = useState(false);
   const [sub, setSub] = useState<"VENDA" | "ORC">("VENDA");
   const [itens, setItens] = useState<Item[]>([]);
   const [estoque, setEstoque] = useState<MapaEstoque>(new Map()); // núcleo lib/estoqueComprometido
-  const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
+  const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _precosPorte?: string | null; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
   const addDoCatalogo = (c: any, quantidade = 1) => {
     const q = Math.max(1, Number(quantidade) || 1);   // o modelo traz a quantidade dele; a mão lança 1
-    const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? c.valorPadrao, custoPadrao: c.custoPadrao, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome });
+    const l = linhaDoItem({ id: c.id, nome: c.nome, valorPadrao: c.valor ?? c.valorPadrao, custoPadrao: c.custoPadrao, _precosPorte: c._precosPorte ?? null, _exame: c._exame, _fornecedorId: c._fornecedorId, _fornecedorNome: c._fornecedorNome }, pesoPet);
     // Aviso (não trava) quando o saldo já está prometido em outra venda aberta — lib/estoqueComprometido.
     const jaNaVenda = itens.filter((x) => x.catalogoItemId === l.catalogoItemId).reduce((n, x) => n + (Number(x.quantidade) || 0), 0);
     const aviso = avisoDeEstoque(estoque, l.catalogoItemId, q, jaNaVenda);
     if (aviso) toast(`⚠️ ${aviso}`, { duration: 6000 });
-    addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: q });
+    // O aviso do porte aparece na hora: sem peso no cadastro, a pessoa escolhe a faixa na
+    // linha. Antes, o item entrava calado pelo preco da faixa mais barata.
+    if (l._avisoPorte) toast(`⚖️ ${l._avisoPorte}`, { duration: 7000 });
+    addItem({ descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: q, _faixas: l._faixas, _faixaRotulo: l._faixaRotulo, _avisoPorte: l._avisoPorte });
   };
 
   // 📄 Modelo de venda: lança os itens do modelo na comanda e escreve a observação. Mesmo núcleo
@@ -136,7 +158,11 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     (async () => {
       try {
         const its = await carregarCatalogoVendavel();
-        setCat(its.map((i) => ({ id: i.id, nome: i.nome, valor: i.valorPadrao, custoPadrao: i.custoPadrao, _exame: i._exame, _fornecedorId: i._fornecedorId, _fornecedorNome: i._fornecedorNome, codigo: i.codigo ?? null, codigoBarras: i.codigoBarras ?? null })));
+        // `_precosPorte` PRECISA VIR JUNTO. Esta copia reduzida do catalogo descartava as faixas
+        // de peso, e o item chegava ao nucleo de preco como se fosse de preco unico — o peso
+        // nunca era consultado e ninguem era avisado. Era o defeito que a Cintia via em
+        // 11/09/2026 ("o sistema continua nao lendo o peso").
+        setCat(its.map((i) => ({ id: i.id, nome: i.nome, valor: i.valorPadrao, custoPadrao: i.custoPadrao, _precosPorte: i._precosPorte ?? null, _exame: i._exame, _fornecedorId: i._fornecedorId, _fornecedorNome: i._fornecedorNome, codigo: i.codigo ?? null, codigoBarras: i.codigoBarras ?? null })));
       } catch {}
     })();
   }, []);
@@ -237,6 +263,11 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
   function addItem(it: Item) { setItens((arr) => [...arr, it]); }
   function setQtd(i: number, q: number) { setItens((arr) => arr.map((x, idx) => idx === i ? { ...x, quantidade: Math.max(1, q) } : x)); }
   function del(i: number) { setItens((arr) => arr.filter((_, idx) => idx !== i)); }
+  // Troca a faixa de UMA linha — pet sem peso no cadastro, ou peso que caiu numa faixa sem
+  // preco. A regra e do nucleo (lib/porte.aplicarFaixa), a mesma do ponto de venda.
+  function trocarFaixa(i: number, rotulo: string) {
+    setItens((arr) => arr.map((x, idx) => (idx === i ? aplicarFaixa(x, rotulo) : x)));
+  }
   async function limpar() {
     if (apptId && !confirm("Limpar a venda? Ela também sai do Caixa.")) return;
     setItens([]); setObs("");
@@ -446,6 +477,15 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                       : (() => { const lab = labDoItem({ _exame: !!it.fornecedorNome, _fornecedorNome: it.fornecedorNome }); return lab ? <span className="shrink-0 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null; })()}
                   </div>
                   <div className="text-[11px] text-gray-400">{BRL(it.valorUnitario)} cada</div>
+                  {/* ⚖️ so aparece em item cobrado por faixa de peso */}
+                  <FaixaDePesoDaLinha
+                    faixas={it._faixas}
+                    faixaRotulo={it._faixaRotulo}
+                    aviso={it._avisoPorte}
+                    pesoKg={pesoPet}
+                    petNome={petNome}
+                    onTrocar={(r) => trocarFaixa(i, r)}
+                  />
                 </div>
                 <input type="number" min={1} value={it.quantidade} onChange={(e) => setQtd(i, Number(e.target.value))} className="w-full border rounded-lg text-center text-[12.5px] py-1" style={{ borderColor: "#E8DFC8" }} />
                 <span className="text-[13.5px] font-semibold text-[#0F6E56] text-right tabular-nums">{BRL((Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0))}</span>

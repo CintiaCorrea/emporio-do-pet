@@ -7,6 +7,8 @@ import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import SeletorModeloVenda from "@/components/vendas/SeletorModeloVenda";
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from "@/lib/modelosVenda";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
+import FaixaDePesoDaLinha from "@/components/vendas/FaixaDePesoDaLinha";
+import { aplicarFaixa, type FaixaPorte } from "@/lib/porte";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ddmm = (iso: string) => { const [, m, d] = String(iso).split("-"); return d && m ? `${d}/${m}` : iso; };
@@ -15,17 +17,26 @@ const parseVal = (s: any): number => { const str = String(s ?? "").trim(); if (!
 // Formata p/ "0,00" (2 casas) ao sair do campo. Vazio continua vazio.
 const fmtVal = (s: any): string => { const str = String(s ?? "").trim(); if (!str) return ""; return parseVal(str).toFixed(2).replace(".", ","); };
 
-type Item = { descricao: string; qtd: string; valor: string };
+type Item = { descricao: string; qtd: string; valor: string; _faixas?: FaixaPorte[]; _faixaRotulo?: string | null; _avisoPorte?: string | null };
 type Props = {
   open: boolean;
   onClose: () => void;
   pet?: { id: string; name: string } | null;
+  /**
+   * PESO DO PET — escolhe a faixa dos itens cobrados por porte.
+   *
+   * Cintia, 11/09/2026: "o sistema continua nao lendo o peso quando vamos lancar na
+   * venda/orcamento". Esta tela pegava `valorPadrao` direto do catalogo, que e o preco da
+   * faixa MAIS BARATA. Orcamento de Cerenia para um cao grande saia a R$ 77,92 em vez de
+   * ate R$ 385,99 — e o cliente recebia esse numero por WhatsApp.
+   */
+  pesoKg?: number | null;
   tutor?: { id: string; name: string } | null;
   onEnviarTexto?: (texto: string) => void; // envia na conversa aberta (fallback: /api/whatsapp/send)
   phone?: string | null;
 };
 
-export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnviarTexto, phone }: Props) {
+export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, pesoKg, onEnviarTexto, phone }: Props) {
   const [itens, setItens] = useState<Item[]>([{ descricao: "", qtd: "1", valor: "" }]);
   const [validade, setValidade] = useState("");
   const [obs, setObs] = useState("");
@@ -190,11 +201,36 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, onEnvi
                 placeholder="Buscar no catálogo…"
                 rotuloDe={(c: any) => { const lab = labDoItem(c); return lab ? `${lab.veter ? "⭐ " : "🏥 "}${lab.nome}` : null; }}
                 onType={(val) => setItem(i, { descricao: val })}
-                onPick={(c: any) => setItem(i, { descricao: c.nome, valor: c.valorPadrao ? fmtVal(c.valorPadrao) : "" })}
+                onPick={(c: any) => {
+                  // PELO NUCLEO, COM O PESO. Antes: `c.valorPadrao` direto — o preco da faixa
+                  // mais barata, para qualquer animal. `linhaDoItem` consulta as faixas e o
+                  // peso do pet; sem peso, devolve o aviso e a linha pede a faixa na mao.
+                  const l = linhaDoItem(c, pesoKg);
+                  setItem(i, {
+                    descricao: c.nome,
+                    valor: l.valorUnitario ? fmtVal(l.valorUnitario) : "",
+                    _faixas: l._faixas, _faixaRotulo: l._faixaRotulo, _avisoPorte: l._avisoPorte,
+                  });
+                  if (l._avisoPorte) toast(`⚖️ ${l._avisoPorte}`, { duration: 7000 });
+                }}
               />
               <input value={it.qtd} onChange={(e) => setItem(i, { qtd: e.target.value })} inputMode="numeric" style={{ ...inp, textAlign: "center" }} />
               <input value={it.valor} onChange={(e) => setItem(i, { valor: e.target.value })} onBlur={(e) => setItem(i, { valor: fmtVal(e.target.value) })} inputMode="decimal" placeholder="0,00" style={{ ...inp, textAlign: "right" }} />
               <button onClick={() => delItem(i)} title="Remover" className="text-[#b23b39] flex items-center justify-center"><LuTrash size={13} /></button>
+              {/* ⚖️ so aparece em item cobrado por faixa de peso */}
+              <div style={{ gridColumn: "1 / -1" }}>
+                <FaixaDePesoDaLinha
+                  faixas={it._faixas}
+                  faixaRotulo={it._faixaRotulo}
+                  aviso={it._avisoPorte}
+                  pesoKg={pesoKg}
+                  petNome={pet?.name}
+                  onTrocar={(r) => {
+                    const l = aplicarFaixa({ _faixas: it._faixas, _faixaRotulo: it._faixaRotulo, _avisoPorte: it._avisoPorte, valorUnitario: parseVal(it.valor) }, r);
+                    setItem(i, { valor: l.valorUnitario ? fmtVal(l.valorUnitario) : "", _faixaRotulo: l._faixaRotulo, _avisoPorte: l._avisoPorte });
+                  }}
+                />
+              </div>
             </div>
           ))}
           <button onClick={addItem} className="self-start flex items-center gap-1 text-[11.5px] text-[#009AAC] mt-0.5"><LuPlus size={12} /> adicionar item</button>

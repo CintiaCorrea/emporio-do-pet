@@ -2674,7 +2674,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                   <button type="button" onClick={abrirExames} title="Acompanhar exames do pet" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuFlaskConical size={18} style={{ color: "#009AAC" }} /></button>
                 </div>
                 <NovoAgendamentoModal inline open={agendaOpen} onClose={() => setAgendaOpen(false)} defaults={agendaDefaults} onCreated={(info) => { setAcaoFeita(true); setProximasTick((t) => t + 1); avisarAgendado(info); }} />
-                <OrcamentoRapidoModal open={orcRapidoOpen} onClose={() => setOrcRapidoOpen(false)} pet={selectedPet ? { id: selectedPet.id, name: selectedPet.name } : null} tutor={tutor ? { id: tutor.id, name: tutor.name } : null} onEnviarTexto={onEnviarTexto} phone={initialPhone} />
+                <OrcamentoRapidoModal open={orcRapidoOpen} onClose={() => setOrcRapidoOpen(false)} pet={selectedPet ? { id: selectedPet.id, name: selectedPet.name } : null} pesoKg={selectedPet?.weight ?? null} tutor={tutor ? { id: tutor.id, name: tutor.name } : null} onEnviarTexto={onEnviarTexto} phone={initialPhone} />
                 {petActForward && (
                   <div className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
                     {staff.length === 0 ? (

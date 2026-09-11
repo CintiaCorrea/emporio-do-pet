@@ -200,3 +200,36 @@ export function erroDasFaixas(faixas: FaixaPorte[]): string | null {
   if (f.every((x) => x.preco == null)) return 'Preencha ao menos um preço.';
   return null;
 }
+
+/** Uma linha de venda que pode ser cobrada por faixa de peso. */
+export type LinhaComPorte = {
+  _faixas?: FaixaPorte[] | null;
+  _faixaRotulo?: string | null;
+  _avisoPorte?: string | null;
+  valorUnitario?: number;
+  custoUnitario?: number | null;
+};
+
+/**
+ * TROCAR A FAIXA DE UMA LINHA NA MAO — pet sem peso no cadastro, ou peso que caiu numa faixa
+ * sem preco.
+ *
+ * Isto vivia solto dentro do ponto de venda. Em 11/09/2026 a Cintia: "o sistema continua nao
+ * lendo o peso quando vamos lancar na venda/orcamento". A comanda do cliente e o orcamento
+ * rapido precisavam da mesma troca, e copiar a funcao pela terceira vez e como as tres telas
+ * passam a discordar sobre o preco do mesmo item. Regra de dinheiro mora no nucleo.
+ *
+ * Faixa sem preco NAO vira zero e nao herda o preco da vizinha: mantem o valor que estava e
+ * avisa. Preco inventado vira prejuizo silencioso.
+ */
+export function aplicarFaixa<T extends LinhaComPorte>(linha: T, rotulo: string): T {
+  const f = (linha?._faixas || []).find((x) => x.rotulo === rotulo);
+  if (!f) return linha;
+  return {
+    ...linha,
+    _faixaRotulo: f.rotulo,
+    _avisoPorte: f.preco == null ? `A faixa ${f.rotulo} não tem preço cadastrado.` : null,
+    valorUnitario: f.preco ?? linha.valorUnitario,
+    custoUnitario: f.custo ?? linha.custoUnitario,
+  };
+}
