@@ -811,7 +811,20 @@ export class CaixaService {
     // ficou obrigatoria agora que da pra abrir o caixa com um clique de dentro da venda.
     // Devolve o caixa que ela ja tem, em vez de erro: ela pediu um caixa, ela tem um caixa.
     // (Abertura retroativa e backfill de dia passado — nao entra nessa conta.)
-    if (!abertura) {
+    // A TRAVA VALE PELO DIA DO CAIXA, NAO POR TER DIGITADO A DATA.
+    //
+    // Ela so' rodava quando `abertura` era indefinida — ou seja, quando a pessoa deixava o
+    // campo de data VAZIO. Escolhendo a data no campo, mesmo escolhendo HOJE, a trava era
+    // pulada e um caixa novo nascia. Foi assim que em 11/09/2026 apareceram tres caixas no
+    // mesmo dia, dois deles da Victoria: os tres tem abertura as 12:00 (a marca de data
+    // escolhida a mao), o que prova que passaram por esse desvio.
+    //
+    // Agora o que decide e' o DIA: caixa de hoje, uma pessoa, um caixa — tenha a data sido
+    // digitada ou nao. So' dia PASSADO (backfill de verdade) escapa, porque ai a pessoa esta
+    // reabrindo o dia 3 de proposito e pode precisar disso.
+    const diaDoCaixa = (abertura || new Date()).toLocaleDateString('en-CA', { timeZone: 'America/Fortaleza' });
+    const hojeNaCasa = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Fortaleza' });
+    if (diaDoCaixa === hojeNaCasa) {
       // ...MAS SO O CAIXA DE HOJE CONTA.
       //
       // O BUG QUE ISTO CONSERTA (Cintia, 09/09/2026: "as recepcionistas continuam tendo

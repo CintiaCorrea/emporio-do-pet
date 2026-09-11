@@ -447,7 +447,7 @@ export default function AgendaPage() {
             </button>
             {filasOpen && (
               <>
-                <div className="fixed inset-0 z-40" {...fundoDeModal(() => setFilasOpen(false))} />
+                <div className="fixed inset-0 z-40" onClick={() => setFilasOpen(false)} />
                 <div className="absolute right-0 mt-1 z-50 bg-white border rounded-xl shadow-lg p-2 flex flex-wrap gap-1.5 w-[320px]" style={{ borderColor: "#E8E2D6" }}>
                   {profsAtende.map((p: any) => { const on = !hidden.has(p.id); return (
                     <span key={p.id} className="inline-flex items-center rounded-full border text-[11px]" style={on ? { background: "#E1F3F5", color: "#014D5E", borderColor: "#9ED8DE" } : { background: "#fff", color: "#374151", borderColor: "#E8E2D6" }}>
@@ -476,7 +476,7 @@ export default function AgendaPage() {
             <button onClick={() => setIncluirOpen((v) => !v)} className="text-[13px] px-3 py-1.5 rounded-lg border flex items-center gap-1.5" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#fff" }}>➕ Incluir profissional</button>
             {incluirOpen && (
               <>
-                <div className="fixed inset-0 z-40" {...fundoDeModal(() => setIncluirOpen(false))} />
+                <div className="fixed inset-0 z-40" onClick={() => setIncluirOpen(false)} />
                 <div className="absolute right-0 mt-1 z-50 bg-white border rounded-xl shadow-lg py-1 min-w-[220px]" style={{ borderColor: "#E8E2D6" }}>
                   <div className="px-3 py-1.5 text-[11px] text-gray-400">Não estão na agenda hoje</div>
                   {foraHoje.map((p: any) => { const ext = escDe(p)?.sobDemanda; return (
@@ -761,7 +761,7 @@ export default function AgendaPage() {
 
       {menuAppt && (
         <>
-          <div className="fixed inset-0 z-40" {...fundoDeModal(() => setMenuAppt(null))} />
+          <div className="fixed inset-0 z-40" onClick={() => setMenuAppt(null)} />
           <div className="fixed z-50 bg-white border rounded-lg shadow-lg py-1 text-[13px]" style={{ left: Math.min(menuAppt.x, (typeof window !== "undefined" ? window.innerWidth : 1200) - 230), top: Math.min(menuAppt.y, (typeof window !== "undefined" ? window.innerHeight : 800) - 330), minWidth: 216, borderColor: "#E8E2D6" }}>
             <div className="px-3 py-1.5 text-[11px] text-[#374151] border-b truncate" style={{ borderColor: "#F0EBE0" }}>{menuAppt.a.pet?.name || menuAppt.a.tutor?.name || "Agendamento"}</div>
             <button onClick={() => { const a = menuAppt.a; setMenuAppt(null); setConfirmData(a); }} className="w-full text-left px-3 py-2 flex items-center gap-2 font-medium" style={{ color: "#0B7A47", background: "#EAFBF0" }}>📲 Confirmar no WhatsApp</button>

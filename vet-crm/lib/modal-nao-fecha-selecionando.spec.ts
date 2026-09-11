@@ -3,13 +3,19 @@ import * as fs from "fs";
 import * as path from "path";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
-// 🛡️ Cintia, 09/09/2026: "quando clico para alterar algum item da comanda, marco a palavra
-// toda e ela simplesmente fecha".
+// 🛡️ DUAS COISAS DIFERENTES QUE PARECEM IGUAIS NO CÓDIGO.
 //
-// Ao arrastar para selecionar texto, o mouse desce DENTRO do campo e sobe FORA. O navegador
-// dispara o `click` no ancestral comum — o fundo do modal — e o fundo fechava. Nem o
-// stopPropagation() do miolo nem o `if (e.target === e.currentTarget)` protegem: nos dois
-// casos o alvo do clique já É o fundo. Só resolve exigindo que o clique tenha COMEÇADO nele.
+// 1. FUNDO QUE ENVOLVE O MODAL — o conteúdo fica DENTRO dele.
+//    Cintia, 09/09/2026: "marco a palavra toda e ela simplesmente fecha". Ao arrastar para
+//    selecionar, o mouse desce dentro do campo e sobe fora; o clique cai no ancestral comum,
+//    que é o fundo. Precisa de fundoDeModal, que exige o clique ter COMEÇADO no fundo.
+//
+// 2. CAMADA DE DROPDOWN — um `<div ... />` que se fecha sozinho, invisível, só para captar o
+//    clique fora e fechar uma listinha. O conteúdo é IRMÃO dela, então o clique nunca cai nela
+//    e o bug acima nem existe.
+//    Cintia, 11/09/2026: "está travando o boletim nessa tela". Eu tinha aplicado fundoDeModal
+//    aqui também — e como a camada cobre a TELA INTEIRA, quando ela não fechava nada mais
+//    respondia. Aqui o certo é o onClick simples: qualquer clique fecha.
 
 const evt = (target: unknown, currentTarget: unknown) => ({ target, currentTarget }) as never;
 
@@ -27,8 +33,8 @@ describe("fundo do modal: fecha no clique, não na seleção de texto", () => {
     let fechou = false;
     const fundo = {}, campo = {};
     const h = fundoDeModal(() => { fechou = true; });
-    h.onMouseDown(evt(campo, fundo));   // apertou dentro do campo
-    h.onClick(evt(fundo, fundo));       // soltou fora → o click cai no fundo
+    h.onMouseDown(evt(campo, fundo));
+    h.onClick(evt(fundo, fundo));
     expect(fechou).toBe(false);
   });
 
@@ -41,28 +47,29 @@ describe("fundo do modal: fecha no clique, não na seleção de texto", () => {
     expect(fechou).toBe(false);
   });
 
-  it("nenhum fundo de modal fecha por onClick próprio", () => {
-    // Duas escritas do mesmo fundo: a classe do Tailwind e o estilo inline. A primeira
-    // varredura pegou só a classe — e os modais do Ponto de venda, que usam estilo inline,
-    // continuaram quebrados justamente onde a Cintia relatou. Aqui as duas contam.
+  it("cada tipo de fundo usa o tratamento certo", () => {
     const ehFundo = (l: string) =>
       l.includes("fixed inset-0") || /position: ['"]fixed['"], inset: 0/.test(l);
-    const achados: string[] = [];
+    const erros: string[] = [];
     const varrer = (dir: string) => {
       for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
         const p = path.join(dir, e.name);
         if (e.isDirectory()) { if (e.name !== "node_modules" && e.name !== ".next") varrer(p); }
         else if (e.name.endsWith(".tsx")) {
           for (const l of fs.readFileSync(p, "utf8").split("\n")) {
-            if (ehFundo(l) && l.includes("onClick=") && !l.includes("fundoDeModal")) {
-              achados.push(p + " :: " + l.trim().slice(0, 90));
-              break;
+            if (!ehFundo(l) || !l.includes("onClick")) continue;
+            const camadaSolta = l.trimEnd().endsWith("/>");
+            if (camadaSolta && l.includes("fundoDeModal")) {
+              erros.push(`${p} :: camada de dropdown não pode usar fundoDeModal — trava a tela`);
+            }
+            if (!camadaSolta && !l.includes("fundoDeModal")) {
+              erros.push(`${p} :: fundo que envolve o modal precisa de fundoDeModal`);
             }
           }
         }
       }
     };
     for (const d of ["app", "components"]) if (fs.existsSync(d)) varrer(d);
-    expect(achados).toEqual([]);
+    expect(erros).toEqual([]);
   });
 });

@@ -1558,7 +1558,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                 <button onClick={() => setMaisAberto((v) => !v)} title="Mais ações" className="text-[12px] font-medium text-[#5C6B70] bg-white border px-2.5 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>⋯</button>
                 {maisAberto && (
                   <>
-                    <div className="fixed inset-0 z-40" {...fundoDeModal(() => setMaisAberto(false))} />
+                    <div className="fixed inset-0 z-40" onClick={() => setMaisAberto(false)} />
                     <div className="absolute right-0 mt-1 z-50 bg-white border rounded-xl shadow-lg overflow-hidden" style={{ borderColor: "#E8E2D6", minWidth: 210 }}>
                       {!alta && <button onClick={() => { setMaisAberto(false); setTrocaBoxOpen(true); }} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#374151] hover:bg-[#F0FBFC]">🛏️ Trocar box</button>}
                       {!alta && h.status !== "DECEASED" && <button onClick={() => { setMaisAberto(false); setObitoForm({ data: hojeNaClinicaISO(), causa: "" }); setObitoOpen(true); }} className="block w-full text-left px-4 py-2.5 text-[12.5px] text-[#374151] hover:bg-[#F0FBFC] border-t" style={{ borderColor: "#F0EBE0" }}>🕊️ Registrar óbito</button>}

@@ -1589,7 +1589,7 @@ export default function InboxUnificadoPage() {
               })()}
               {filtrosOpen && (
                 <>
-                <div className="fixed inset-0 z-20" {...fundoDeModal(() => setFiltrosOpen(false))} />
+                <div className="fixed inset-0 z-20" onClick={() => setFiltrosOpen(false)} />
                 <div className="absolute left-2.5 right-2.5 top-full mt-1 z-30 bg-white border border-[#e8e1d2] rounded-lg shadow-lg p-2.5 space-y-2.5">
                   <div>
                     <div className="text-[9.5px] text-[#888780] font-medium mb-1">TIPO</div>

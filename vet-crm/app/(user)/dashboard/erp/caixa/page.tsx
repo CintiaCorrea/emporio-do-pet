@@ -426,17 +426,46 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
   const valorAplicado = Math.max(0, somaFormas + desconto - troco);
   const saldoRestante = Math.max(0, valorDevido - valorAplicado);
 
+  /**
+   * Em qual caixa a baixa entra.
+   *
+   * `detail` so' existe quando a pessoa ABRIU um caixa na tela. Recebendo direto da lista de
+   * vendas — que e' o caminho normal desde que o receber veio pra ca' — ele fica nulo, e a
+   * funcao desistia em silencio: o modal abria, a pessoa preenchia, clicava em Confirmar e
+   * NADA acontecia. Nenhum recebimento foi registrado no sistema inteiro entre 10/09 15:00 e
+   * 11/09 (Cintia: "o caixa nao esta conseguindo registrar a baixa de nenhuma venda").
+   *
+   * Agora, sem `detail`, procura o caixa ABERTO da pessoa logada — o de hoje na frente. E se
+   * nao houver, DIZ. Botao que nao faz nada e' pior que botao que recusa.
+   */
+  const caixaParaBaixa = (): { id: string } | { erro: string } => {
+    if (detail) return { id: detail.id };
+    const abertos = (caixas || []).filter((c) => c.status === 'ABERTO');
+    const meus = meId ? abertos.filter((c) => c.user?.id === meId) : [];
+    const candidatos = meus.length ? meus : abertos;
+    if (!candidatos.length) return { erro: 'Nao ha caixa aberto. Abra o seu caixa para receber.' };
+    if (!meus.length && abertos.length) {
+      return { erro: `O caixa aberto e' de ${abertos[0].user?.name || 'outra pessoa'}. Cada pessoa lanca no proprio caixa — abra o seu.` };
+    }
+    // O mais recente primeiro: o dinheiro que entra agora e' dinheiro de hoje.
+    const escolhido = [...candidatos].sort((a, b) => (a.abertura < b.abertura ? 1 : -1))[0];
+    return { id: escolhido.id };
+  };
+
   const registrarRecebimento = async () => {
-    if (!detail || !vendaSel) return;
+    if (!vendaSel) { toast.error('Escolha a venda que esta sendo recebida.'); return; }
+    const alvo = caixaParaBaixa();
+    if ('erro' in alvo) { toast.error(alvo.erro); return; }
+    const caixaId = alvo.id;
     if (somaFormas <= 0) { toast.error('Informe ao menos uma forma com valor'); return; }
     // Cartão exige operadora + NSU + AUT: é o que casa a venda com a linha do extrato.
     const faltaCartao = validarPagamentosCartao(formas.filter((f) => Number(f.valor) > 0), formasConfig);
     if (faltaCartao) { toast.error(faltaCartao); return; }
     if (creditoExcede) { toast.error('Crédito do cliente insuficiente'); return; }
     try {
-      const r = await fetch(`/api/caixa/${detail.id}/recebimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: vendaSel.id, valorTotal: valorAplicado, desconto, troco, formas, observacao: obsReceb || null }) });
+      const r = await fetch(`/api/caixa/${caixaId}/recebimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appointmentId: vendaSel.id, valorTotal: valorAplicado, desconto, troco, formas, observacao: obsReceb || null }) });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao registrar recebimento'); }
-      toast.success('Recebimento registrado!'); setReceberOpen(false); await fetchDetail(detail.id); await fetchAppointments();
+      toast.success('Recebimento registrado!'); setReceberOpen(false); await fetchDetail(caixaId); await fetchAppointments(); await fetchCaixas();
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar recebimento'); }
   };
   const abrirMov = (tipo: TipoMovimento) => { setMovTipo(tipo); setMovOpen(true); };
