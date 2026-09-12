@@ -218,23 +218,37 @@ export async function imprimirVendasDoCliente(args: {
   const dias = new Map<string, ComandaDoDia[]>();
   for (const c of comandas) dias.set(diaDe(c.data), [...(dias.get(diaDe(c.data)) || []), c]);
 
+  /* O DIA NAO QUEBRA NA FOLHA (Cintia, 12/09/2026: "para os blocos de dia nao quebrarem na
+     folha"). No relatorio da Kate, o titulo "06/09/2026" ficou sozinho no pe da pagina 3 e a
+     comanda dele abriu a pagina 4 — quem le procura a conta na folha errada.
+
+     `break-after:avoid` no titulo nao basta: o navegador o ignora quando o que vem depois e
+     alto. Por isso o titulo viaja GRUDADO na primeira comanda dentro de um bloco que nao
+     pode ser cortado; da segunda em diante cada comanda quebra sozinha, como ja fazia — se
+     o dia inteiro fosse indivisivel, um dia com dez comandas deixaria meia folha em branco. */
   const secoes = [...dias.entries()].map(([d, cs]) => {
     const soma = somaDe(cs);
     const aberto = Math.max(0, soma.total - soma.recebido);
-    return `<div style="margin-bottom:6px">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #009AAC;padding-bottom:3px;margin-bottom:8px">
+    const comanda = (c: ComandaDoDia) => {
+      const st = situacaoDa(c);
+      return `<div style="position:relative">
+        <div style="position:absolute;right:0;top:2px;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:9px;background:${st.bg};color:${st.fg}">${st.txt}</div>
+        ${blocoDaComanda(c)}
+      </div>`;
+    };
+    const titulo = `<div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #009AAC;padding-bottom:3px;margin-bottom:8px;break-after:avoid;page-break-after:avoid">
         <b style="color:#014D5E;font-size:13.5px">${esc(dataBR(d + "T12:00:00"))}</b>
         <span style="font-size:11.5px;color:#6B7280">
           ${cs.length} ${cs.length === 1 ? "venda" : "vendas"} · ${BRL(soma.total)}${aberto > 0.009 ? ` · a receber <b style="color:#b23b39">${BRL(aberto)}</b>` : ""}
         </span>
+      </div>`;
+    const [primeira, ...resto] = cs;
+    return `<div style="margin-bottom:6px">
+      <div style="break-inside:avoid;page-break-inside:avoid">
+        ${titulo}
+        ${primeira ? comanda(primeira) : ""}
       </div>
-      ${cs.map((c) => {
-        const st = situacaoDa(c);
-        return `<div style="position:relative">
-          <div style="position:absolute;right:0;top:2px;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:9px;background:${st.bg};color:${st.fg}">${st.txt}</div>
-          ${blocoDaComanda(c)}
-        </div>`;
-      }).join("")}
+      ${resto.map(comanda).join("")}
     </div>`;
   }).join("");
 
