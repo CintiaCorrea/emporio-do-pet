@@ -69,6 +69,12 @@ describe("hook não fica depois de return antecipado", () => {
 
     for (const arq of codigoDoProjeto()) {
       if (!arq.caminho.endsWith(".tsx")) continue;
+      // PENEIRA BARATA ANTES DA CARA. Contar chaves função a função no projeto inteiro custa
+      // segundos de CPU, e isso estourava o tempo das varreduras vizinhas que rodam em paralelo
+      // — três testes ficavam vermelhos sem nada de errado no código. Dois regex descartam a
+      // grande maioria dos arquivos antes de qualquer trabalho pesado.
+      if (!/\b(useState|useEffect|useMemo|useCallback|useReducer|useLayoutEffect)\s*[<(]/.test(arq.src)) continue;
+      if (!/^\s{2}(?:if\s*\(.*\)\s*return\b|return\b)/m.test(arq.src)) continue;
       const linhas = arq.src.split("\n");
 
       for (let i = 0; i < linhas.length; i++) {
@@ -94,7 +100,11 @@ describe("hook não fica depois de return antecipado", () => {
 
     expect(problemas).toEqual([]);
   });
-});
+  // Varredura pesada: le o projeto inteiro e conta chaves funcao a funcao. Com o limite padrao
+  // de 5s ela estourava sob carga e derrubava a vizinha junto (lib/tipoDeVenda), que nao tinha
+  // nada de errado. Teste que fica vermelho sem motivo deixa de ser confiavel e alguem desliga.
+  // Mesma convencao de lib/baixa-pergunta-o-caixa.test.ts.
+}, 30000);
 
 describe("uma tela que quebra tem o que dizer", () => {
   it("existe error boundary de rota E de raiz", () => {
