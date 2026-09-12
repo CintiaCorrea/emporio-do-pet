@@ -15,6 +15,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { useRolePreview } from '@/lib/ui/RolePreview';
+import { excluirVenda } from '@/lib/vendas/excluirVenda';
 import { hojeNaClinicaISO } from "@/lib/datas";
 
 const TEAL = '#009AAC';
@@ -87,31 +88,15 @@ export default function VendasListaPage() {
   const somaPago = useMemo(() => lista.reduce((s, v) => s + Number(v.pago || 0), 0), [lista]);
   const somaAberto = Math.max(0, somaTotal - somaPago);
 
-  // Excluir: quem nao e ADM so consegue apagar venda sem nenhum recebimento. O backend decide de
-  // verdade (appointments.service.remove) — aqui a gente so evita oferecer o que vai dar erro.
+  // A REGRA mora em lib/vendas/excluirVenda desde 12/09/2026, porque a Consulta de vendas
+  // passou a excluir tambem. Duas copias da exclusao de venda divergiriam com o tempo — e e
+  // por esse caminho que a clinica ja perdeu R$ 40 mil de historico.
   async function excluir(v: Venda) {
-    if (Number(v.pago || 0) > 0 && !isAdmin) {
-      toast.error('Essa venda já tem recebimento. Apague o recebimento no Caixa ou peça a um administrador.');
-      return;
-    }
-    if (!window.confirm(`Excluir a venda ${v.numeroVenda ? '#' + v.numeroVenda + ' ' : ''}de ${v.tutor}${v.pet ? ' · ' + v.pet : ''} (${brl(v.valor)})?\nNão dá pra desfazer.`)) return;
     setExcluindo(v.id);
-    try {
-      let r = await fetch(`/api/appointments/${v.id}`, { method: 'DELETE' });
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({} as any));
-        const msg = String(e?.message || '');
-        if (msg.startsWith('TEM_GRAVACAO') && isAdmin) {
-          if (!window.confirm('Esse atendimento tem uma gravação de áudio salva. Excluir apaga a gravação junto. Apagar mesmo assim?')) { setExcluindo(null); return; }
-          r = await fetch(`/api/appointments/${v.id}?force=true`, { method: 'DELETE' });
-          if (!r.ok) { const e2 = await r.json().catch(() => ({} as any)); throw new Error(String(e2?.message || '').replace(/^[A-Z_]+:\s*/, '') || 'Não consegui excluir.'); }
-        } else {
-          throw new Error(msg.replace(/^[A-Z_]+:\s*/, '') || 'Não consegui excluir.');
-        }
-      }
-      toast.success('Venda excluída.');
-      carregar();
-    } catch (e: any) { toast.error(e?.message || 'Não consegui excluir.'); } finally { setExcluindo(null); }
+    const r = await excluirVenda(v, { isAdmin, confirmar: (m) => window.confirm(m) });
+    setExcluindo(null);
+    if (r.ok) { toast.success('Venda excluída.'); carregar(); return; }
+    if (r.erro) toast.error(r.erro);
   }
 
   return (
