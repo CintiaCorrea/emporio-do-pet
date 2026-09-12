@@ -23,6 +23,9 @@ import { assignFollowUpFor, loadFuRespFor } from "@/lib/followup";
 import ResolverFuModal, { type FuAlvo } from "@/components/followup/ResolverFuModal";
 import ConfirmDeleteModal from "@/components/common/ConfirmDeleteModal";
 import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
+import EnviarPorWhatsApp from "@/components/comum/EnviarPorWhatsApp";
+import { textoDoRelatorioVendas } from "@/lib/textoDoRelatorioVendas";
+import { gerarPdfDoExtrato } from "@/lib/documentos/relatorio-vendas-pdf";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import { ehCompra } from "@/lib/tipoDeVenda";
 import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
@@ -572,6 +575,18 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     finally { setCarregandoItens(false); }
   };
 
+  // Vendas carregadas para o envio por WhatsApp (texto ou PDF). A ficha so' tem o cabecalho;
+  // o extrato precisa dos ITENS, que vem do endpoint proprio.
+  const [vendasParaEnvio, setVendasParaEnvio] = useState<any[]>([]);
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/tutors/${id}/vendas`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (vivo && Array.isArray(d?.vendas)) setVendasParaEnvio(d.vendas); })
+      .catch(() => undefined);
+    return () => { vivo = false; };
+  }, [id]);
+
   const imprimirRelatorio = async () => {
     try {
       const r = await fetch(`/api/tutors/${id}/vendas`, { cache: "no-store" });
@@ -693,6 +708,15 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                 className="rounded-[9px] px-3 py-2 text-[12.5px] font-medium text-white"
                 style={{ background: "#009AAC" }}
               >🖨️ Relatório de vendas</button>
+            )}
+            {!naoCliente && vendasParaEnvio.length > 0 && (
+              <EnviarPorWhatsApp
+                tutorId={id}
+                texto={textoDoRelatorioVendas({ cliente: tutor?.name || "Cliente", vendas: vendasParaEnvio })}
+                rotulo="💬 Enviar extrato"
+                titulo={`Extrato — ${tutor?.name || "cliente"}`}
+                gerarPdf={async () => gerarPdfDoExtrato({ cliente: tutor?.name || "Cliente", vendas: vendasParaEnvio })}
+              />
             )}
             <div className="relative">
               <button onClick={() => setMoreOpen((v) => !v)} className="border border-[#E8E2D6] bg-white rounded-[9px] px-3 py-2 text-[12.5px] text-[#5C6B70] hover:border-[#009AAC] hover:text-[#009AAC]">⋯ Mais</button>

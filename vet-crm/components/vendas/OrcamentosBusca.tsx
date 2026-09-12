@@ -2,7 +2,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
-import { LuPrinter, LuExternalLink, LuCheck, LuArrowRight, LuTrash2, LuSend } from "react-icons/lu";
+import { LuPrinter, LuExternalLink, LuCheck, LuArrowRight, LuTrash2, LuSend, LuPencil } from "react-icons/lu";
+import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { textoDoOrcamento } from "@/lib/textoDoOrcamento";
 import { situacaoDoOrcamento, permaneceOrcamento, SITUACOES, ChaveSituacao } from "@/lib/situacaoDoOrcamento";
@@ -25,6 +26,9 @@ const icone = (cor: string): any => ({
 });
 
 export default function OrcamentosBusca() {
+  // Orcamento aberto para EDITAR. Ate 12/09/2026 nao havia caminho nenhum de edicao:
+  // criava-se e pronto. Reaproveita o mesmo modal que cria.
+  const [editando, setEditando] = useState<any | null>(null);
   // POR PADRAO, SO O QUE CONTINUA ORCAMENTO ("e para manter somente o que permaneceu
   // orcamento" — Cintia, 09/09/2026). O que virou venda nao some do sistema: fica atras do
   // filtro, porque e esse rastro que impede cobrar duas vezes.
@@ -165,6 +169,7 @@ export default function OrcamentosBusca() {
                           precisa estar escrito"). Cada um leva `title`: sem o texto, o nome da
                           acao passa a viver ali — e um botao que apaga precisa se anunciar. */}
                       <div className="flex flex-wrap gap-1 justify-end">
+                        {!convertido && <button onClick={() => setEditando(o)} title="Editar o orçamento" aria-label="Editar o orçamento" style={icone("#8A5A0B")}><LuPencil size={14} /></button>}
                         <button onClick={() => imprimirOrcamento(o)} title="Imprimir o orçamento" aria-label="Imprimir o orçamento" style={icone("#0C447C")}><LuPrinter size={14} /></button>
                         <button onClick={() => enviarWhats(o)} disabled={enviando === o.id} title="Enviar o orçamento pelo WhatsApp do cliente" aria-label="Enviar pelo WhatsApp" style={{ ...icone("#0F6E56"), opacity: enviando === o.id ? .45 : 1 }}><LuSend size={14} /></button>
                         {o.pet?.id && <Link href={`/dashboard/erp/pets/${o.pet.id}`} title="Abrir a ficha do pet" aria-label="Abrir a ficha do pet" style={icone(GREY2)}><LuExternalLink size={14} /></Link>}
@@ -180,6 +185,17 @@ export default function OrcamentosBusca() {
           </table>
         )}
       </div>
+
+      {/* EDITAR o orcamento: mesmo modal que cria, agora carregando o que ja esta gravado. */}
+      <OrcamentoRapidoModal
+        open={!!editando}
+        onClose={() => setEditando(null)}
+        pet={editando?.pet ? { id: editando.pet.id, name: editando.pet.name } : null}
+        tutor={editando?.tutor ? { id: editando.tutor.id, name: editando.tutor.name } : null}
+        pesoKg={Number(editando?.pet?.weight) || null}
+        orcamento={editando ? { id: editando.id, itens: editando.itens, validade: editando.validade, observacao: editando.observacao } : null}
+        onSalvo={() => { setEditando(null); load(); }}
+      />
     </div>
   );
 }

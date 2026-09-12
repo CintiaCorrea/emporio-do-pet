@@ -25,6 +25,7 @@ import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
 import { LinhaEditavel, totalDasLinhas, linhasParaGravar } from "@/lib/linhasDeVenda";
 import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
 import { textoDoRelatorioVendas } from "@/lib/textoDoRelatorioVendas";
+import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
 import { enviarExtratoPdfNoWhats, baixarExtratoPdf } from "@/lib/documentos/enviarPdfWhats";
 import FeedTimeline from "@/components/pets/FeedTimeline";
 import ResolverFuModal from "@/components/followup/ResolverFuModal";
@@ -245,6 +246,10 @@ export default function PetDetailPage() {
   const [intResp, setIntResp] = useState(""); // quem acompanha o follow-up (encaminhar)
   const [fuResp, setFuResp] = useState<{ userId: string; nome: string; entryId?: string } | null>(null); // responsável salvo (KV fu_responsavel)
   const [atendimentos, setAtendimentos] = useState<any[]>([]);
+  // ORCAMENTOS DO PET na aba Compras (Cintia, 12/09/2026): "os orcamentos precisam estar na
+  // aba de compras dos pets e poderem ser editados". Antes so' existiam na aba de Orcamentos.
+  const [orcamentos, setOrcamentos] = useState<any[]>([]);
+  const [orcEditando, setOrcEditando] = useState<any | null>(null);
   const [clinDocs, setClinDocs] = useState<any[]>([]);
   const [historico, setHistorico] = useState<any[]>([]);
   // Enviar exame/receita do prontuário pelo WhatsApp (mensagem + anexos; fica no aguardo se fechada)
@@ -492,6 +497,20 @@ export default function PetDetailPage() {
     });
     setSelVendasOpen(false);
   };
+
+  // Orcamentos DESTE pet — a aba Compras mostra proposta e compra lado a lado.
+  const carregarOrcamentos = useCallback(async () => {
+    if (!petId) return;
+    try {
+      const r = await fetch(`/api/orcamentos?petId=${petId}`, { cache: "no-store" });
+      if (!r.ok) { setOrcamentos([]); return; }
+      const d = await r.json();
+      const arr = Array.isArray(d) ? d : (d.data || d.orcamentos || []);
+      // A API pode nao filtrar por pet; garante aqui para nao mostrar orcamento de outro bicho.
+      setOrcamentos(arr.filter((o: any) => !o?.pet?.id || o.pet.id === petId));
+    } catch { setOrcamentos([]); }
+  }, [petId]);
+  useEffect(() => { carregarOrcamentos(); }, [carregarOrcamentos]);
 
   // 💳 Crédito do tutor (Fig 3a) — saldo mostrado na Visão geral
   useEffect(() => {
@@ -2793,7 +2812,38 @@ export default function PetDetailPage() {
                     diagnostico no lugar do produto (Cintia, 09/09/2026: "por que outros itens
                     estao entrando em vendas, coisas que nao tem nada a ver com a venda"). O
                     ticket medio logo acima ja usava `compras`; so' a lista nao usava. */}
-                {compras.length === 0 && <p className="text-[12.5px] text-[#374151] py-4 text-center">Nenhuma compra registrada ainda.</p>}
+                {compras.length === 0 && orcamentos.length === 0 && <p className="text-[12.5px] text-[#374151] py-4 text-center">Nenhuma compra registrada ainda.</p>}
+                {/* ORCAMENTOS em cinza: e' proposta, nao dinheiro. Ficam FORA do total gasto e do
+                    ticket medio — a regra de 07/09 vale aqui tambem. Editaveis pelo lapis. */}
+                {orcamentos.map((o: any) => {
+                  const convertido = !!o.appointmentId;
+                  const totalOrc = Array.isArray(o.itens)
+                    ? o.itens.reduce((sm: number, i: any) => sm + (Number(i?.quantidade) || 1) * (Number(i?.valorUnitario) || 0), 0)
+                    : Number(o.valorTotal || 0);
+                  return (
+                    <div key={o.id} className="w-full flex items-center gap-2.5 py-2.5" style={{ borderBottom: "1px solid #F0EBE0" }}>
+                      <span className="text-[11.5px] text-[#374151] w-[42px] shrink-0">{fmtDataBR(o.createdAt).slice(0, 5)}</span>
+                      <span className="flex-1 text-[12.5px] text-[#5C6B70] truncate">
+                        Orçamento
+                        <span className="ml-1.5 text-[9.5px] font-bold px-1.5 py-[1px] rounded-full" style={convertido ? { background: "#E6F1FB", color: "#185FA5" } : { background: "#F1F0EE", color: "#6B7280" }}>
+                          {convertido ? "VIROU VENDA" : "PROPOSTA"}
+                        </span>
+                        {Array.isArray(o.itens) && o.itens.length > 0 && (
+                          <span className="ml-1.5 text-[11px] text-[#9aa0a8]">{o.itens.length} item(ns)</span>
+                        )}
+                      </span>
+                      {!convertido && (
+                        <button
+                          onClick={() => setOrcEditando(o)}
+                          title="Editar este orçamento"
+                          className="text-[11px] font-medium px-2 py-1 rounded-lg shrink-0"
+                          style={{ background: "#FBF6EC", color: "#8A5A0B" }}
+                        >✏️ Editar</button>
+                      )}
+                      <span className="text-[12.5px] text-[#9aa0a8] shrink-0">{money(totalOrc)}</span>
+                    </div>
+                  );
+                })}
                 {compras.map((a: any, i: number) => (
                   <button key={a.id} onClick={() => abrirAtd(a.id)} className="w-full flex items-center gap-2.5 py-2.5 text-left" style={{ borderBottom: i < compras.length - 1 ? "1px solid #F0EBE0" : "none" }}>
                     <span className="text-[11.5px] text-[#374151] w-[42px] shrink-0">{fmtDataBR(a.date).slice(0, 5)}</span>
@@ -3018,6 +3068,17 @@ export default function PetDetailPage() {
       {/* ===== ENVIAR EXAME/RECEITA PELO WHATSAPP (mensagem + anexos; aguardo se fechada) ===== */}
       {/* ESCOLHER O QUE MANDAR — lista INTEIRA das vendas do tutor, com rolagem. Cortar aqui
           esconderia justamente a conta que se quer cobrar. */}
+      {/* Editar orcamento pela ficha do pet — o mesmo modal que cria. */}
+      <OrcamentoRapidoModal
+        open={!!orcEditando}
+        onClose={() => setOrcEditando(null)}
+        pet={pet ? { id: pet.id, name: pet.name } : null}
+        tutor={pet?.tutor ? { id: (pet as any).tutorId || pet.tutor.id, name: pet.tutor.name } : null}
+        pesoKg={Number((pet as any)?.weight) || null}
+        orcamento={orcEditando ? { id: orcEditando.id, itens: orcEditando.itens, validade: orcEditando.validade, observacao: orcEditando.observacao } : null}
+        onSalvo={() => { setOrcEditando(null); carregarOrcamentos(); }}
+      />
+
       {selVendasOpen && (
         <div {...fundoDeModal(() => setSelVendasOpen(false))} className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50">
           <div onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">

@@ -20,6 +20,10 @@ import { calcularHorarios as horariosDoDia, horariosDaPrescricao, horariosNoDia,
 import { hojeNaClinicaISO } from "@/lib/datas";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
+import { textoDoBoletimFinanceiro } from "@/lib/textoDoBoletimFinanceiro";
+import EnviarPorWhatsApp from "@/components/comum/EnviarPorWhatsApp";
+import { agruparItens } from "@/lib/textoDoBoletimFinanceiro";
+import { gerarPdfDaConta } from "@/lib/documentos/relatorio-vendas-pdf";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -913,19 +917,18 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
   };
 
   const boletimFinanceiro = async () => {
-    const { dias, diariaTotal, itensFat, totalFaturavel } = contaCalc();
-    const linhas = [
-      `*Boletim financeiro — ${h.pet?.name}*`,
-      boxCodigo ? `Box ${boxCodigo} · ${dias}º dia de internação` : `${dias}º dia de internação`,
-      ``,
-      `Diárias (${dias}×): ${fmtBRL(diariaTotal)}`,
-      ...itensFat.map((i) => `${i.descricao}: ${fmtBRL((Number(i.quantidade) || 0) * (Number(i.valorUnitario) || 0))}`),
-      ``,
-      `*Total: ${fmtBRL(totalFaturavel)}*`,
-      caucaoSaldo > 0 ? `Caução em conta: ${fmtBRL(caucaoSaldo)}` : null,
-      `Saldo estimado: ${fmtBRL(Math.max(0, totalFaturavel - caucaoSaldo))}`,
-    ].filter((x) => x != null);
-    const texto = linhas.join("\n");
+    const { dias, itensFat } = contaCalc();
+    // O texto sai do nucleo com teste (lib/textoDoBoletimFinanceiro): agrupa as aplicacoes
+    // repetidas, nao imprime a linha zerada das diarias — ela virou ITEM da conta — e segue o
+    // mesmo desenho do orcamento. Cintia, 12/09/2026: "preciso que o boletim va estruturado".
+    const texto = textoDoBoletimFinanceiro({
+      petNome: h.pet?.name,
+      tutorNome: h.tutor?.name,
+      dias,
+      box: boxCodigo || null,
+      itens: itensFat,
+      caucao: caucaoSaldo,
+    });
     setFinBusy("boletim");
     try {
       const res = await fetch("/api/survey-avaliacao/mensagem-tutor", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, texto }) });
@@ -2427,7 +2430,34 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                 <div className="flex gap-2 flex-wrap">
                   {!alta && <button onClick={gerarComandaDia} disabled={!!finBusy} className="text-[13px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg disabled:opacity-60">{finBusy === "comanda" ? "Gerando..." : "📅 Gerar comanda do dia"}</button>}
                   {!alta && <button onClick={baixarInsumos} disabled={!!finBusy} className="text-[13px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg disabled:opacity-60" style={{ borderColor: "#E8E2D6" }}>{finBusy === "estoque" ? "Baixando..." : "📦 Baixar insumos"}</button>}
-                  <button onClick={boletimFinanceiro} disabled={!!finBusy} className="text-[13px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg disabled:opacity-60" style={{ borderColor: "#E8E2D6" }}>{finBusy === "boletim" ? "Enviando..." : "🧾 Boletim financeiro"}</button>
+                  {(() => {
+                    // O MESMO boletim em texto ou em PDF — a opcao de anexo passa a existir aqui
+                    // tambem (Cintia, 12/09/2026: "a opcao de pdf tem que existir em todos os locais").
+                    const { dias, itensFat } = contaCalc();
+                    const texto = textoDoBoletimFinanceiro({
+                      petNome: h.pet?.name, tutorNome: h.tutor?.name, dias,
+                      box: boxCodigo || null, itens: itensFat, caucao: caucaoSaldo,
+                    });
+                    return (
+                      <EnviarPorWhatsApp
+                        tutorId={h.tutor?.id}
+                        texto={texto}
+                        petNome={h.pet?.name}
+                        rotulo="🧾 Boletim financeiro"
+                        titulo={`Boletim financeiro — ${h.pet?.name || "pet"}`}
+                        gerarPdf={async () => gerarPdfDaConta({
+                          titulo: `Boletim financeiro — ${h.pet?.name || "pet"}`,
+                          subtitulos: [
+                            h.tutor?.name ? `Tutor(a): ${h.tutor.name}` : null,
+                            dias ? `${dias}º dia de internação${boxCodigo ? ` · Box ${boxCodigo}` : ""}` : null,
+                          ],
+                          itens: agruparItens(itensFat),
+                          credito: caucaoSaldo,
+                          nomeArquivo: `boletim-${h.pet?.name || "pet"}`,
+                        })}
+                      />
+                    );
+                  })()}
                   <button onClick={() => window.print()} className="text-[13px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg" style={{ borderColor: "#E8E2D6" }}>🖨️ Imprimir</button>
                 </div>
                 {fechamentos.length > 0 && (

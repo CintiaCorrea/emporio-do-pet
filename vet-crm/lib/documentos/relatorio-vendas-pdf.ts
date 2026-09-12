@@ -118,3 +118,74 @@ export async function gerarPdfDoExtrato(opts: {
   const nome = `${opts.apenasEmAberto ? "contas-em-aberto" : "extrato"}-${limpo}.pdf`;
   return { blob: doc.output("blob"), nome };
 }
+
+/**
+ * PDF DE UMA CONTA SIMPLES — uma lista de itens com total. Serve o boletim financeiro da
+ * internação e qualquer outro papel que seja "isto foi cobrado, este é o total".
+ *
+ * Cintia, 12/09/2026: "a opção de pdf tem que existir em todos os locais". Em vez de um
+ * gerador por tela, este recebe já os itens prontos — quem chama decide o que entra.
+ */
+export async function gerarPdfDaConta(opts: {
+  titulo: string;
+  /** Linhas do topo: tutor, pet, dia da internação, box… */
+  subtitulos?: (string | null | undefined)[];
+  itens: { descricao?: string | null; quantidade?: number | null; valorUnitario?: number | null }[];
+  /** Abatimento já em conta (caução, adiantamento). */
+  credito?: number | null;
+  nomeArquivo?: string;
+}): Promise<{ blob: Blob; nome: string }> {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+
+  const NAVY: [number, number, number] = [1, 77, 94];
+  const TEAL: [number, number, number] = [0, 154, 172];
+  const VERM: [number, number, number] = [178, 59, 57];
+
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(...NAVY);
+  doc.text(opts.titulo, 14, 18);
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(90, 90, 90);
+  doc.text("Empório do Pet", 14, 24);
+  doc.text(`Emitido em ${new Date().toLocaleString("pt-BR")}`, 196, 18, { align: "right" });
+
+  let y = 32;
+  doc.setFontSize(10.5); doc.setTextColor(...NAVY);
+  for (const sub of (opts.subtitulos || []).filter(Boolean) as string[]) {
+    doc.text(sub, 14, y); y += 5;
+  }
+  y += 3;
+
+  const linhas = (opts.itens || []).map((it) => {
+    const q = Number(it.quantidade) || 1;
+    return [it.descricao || "Item", String(q), BRL(q * (Number(it.valorUnitario) || 0))];
+  });
+  autoTable(doc, {
+    startY: y,
+    head: [["Item", "Qtd", "Valor"]],
+    body: linhas.length ? linhas : [["Nenhum item lançado", "", ""]],
+    theme: "grid",
+    styles: { fontSize: 9.5, cellPadding: 2 },
+    headStyles: { fillColor: TEAL, textColor: 255 },
+    columnStyles: { 1: { halign: "center", cellWidth: 16 }, 2: { halign: "right", cellWidth: 32 } },
+    margin: { left: 14, right: 14 },
+  });
+  y = (doc as any).lastAutoTable.finalY + 8;
+
+  const total = (opts.itens || []).reduce(
+    (s, it) => s + (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0), 0,
+  );
+  const credito = Number(opts.credito) || 0;
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(...NAVY);
+  doc.text(`Total: ${BRL(total)}`, 196, y, { align: "right" });
+  if (credito > 0.009) {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(15, 110, 86);
+    doc.text(`Caução / crédito em conta: ${BRL(credito)}`, 196, y + 6, { align: "right" });
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.setTextColor(...VERM);
+    doc.text(`Saldo estimado: ${BRL(Math.max(0, total - credito))}`, 196, y + 12, { align: "right" });
+  }
+
+  const limpo = (opts.nomeArquivo || opts.titulo).normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").toLowerCase();
+  return { blob: doc.output("blob"), nome: `${limpo || "conta"}.pdf` };
+}

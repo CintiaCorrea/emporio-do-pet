@@ -34,18 +34,44 @@ type Props = {
   tutor?: { id: string; name: string } | null;
   onEnviarTexto?: (texto: string) => void; // envia na conversa aberta (fallback: /api/whatsapp/send)
   phone?: string | null;
+  /**
+   * ORCAMENTO EXISTENTE — quando vem preenchido, a tela EDITA em vez de criar.
+   *
+   * Cintia, 12/09/2026: "os orcamentos (...) poderem ser editados. Hoje eles so' aparecem na
+   * aba de orcamentos e nao conseguimos entrar para editar". Nao havia nenhum caminho de
+   * edicao no sistema: este modal zerava tudo ao abrir e so' sabia fazer POST. O backend ja
+   * tinha PATCH /orcamentos/:id esperando.
+   */
+  orcamento?: { id: string; itens?: any[]; validade?: string | null; observacao?: string | null } | null;
+  onSalvo?: () => void;
 };
 
-export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, pesoKg, onEnviarTexto, phone }: Props) {
+export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, pesoKg, onEnviarTexto, phone, orcamento, onSalvo }: Props) {
   const [itens, setItens] = useState<Item[]>([{ descricao: "", qtd: "1", valor: "" }]);
   const [validade, setValidade] = useState("");
   const [obs, setObs] = useState("");
   const [cat, setCat] = useState<ItemVendavel[]>([]); // catálogo COMPLETO (guarda identidade do exame)
   const [saving, setSaving] = useState(false);
 
+  const editando = !!orcamento?.id;
+
   useEffect(() => {
     if (!open) return;
-    setItens([{ descricao: "", qtd: "1", valor: "" }]); setValidade(""); setObs("");
+    if (orcamento?.id) {
+      // Edicao: traz o que ja esta gravado. Sem isto a pessoa reescreveria tudo do zero.
+      const its = Array.isArray(orcamento.itens) ? orcamento.itens : [];
+      setItens(its.length
+        ? its.map((i: any) => ({
+            descricao: String(i?.descricao || ""),
+            qtd: String(Number(i?.quantidade) || 1),
+            valor: fmtVal(i?.valorUnitario ?? i?.valor ?? 0),
+          }))
+        : [{ descricao: "", qtd: "1", valor: "" }]);
+      setValidade(orcamento.validade ? String(orcamento.validade).slice(0, 10) : "");
+      setObs(String(orcamento.observacao || ""));
+    } else {
+      setItens([{ descricao: "", qtd: "1", valor: "" }]); setValidade(""); setObs("");
+    }
     // Catálogo COMPLETO (fonte única lib/catalogoVendavel): serviços + produtos + medicamentos/vacinas + exames.
     (async () => {
       try {
@@ -92,8 +118,11 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, pesoKg
         // casa o nome escolhido de volta com o catálogo → leva identidade do exame (custo+fornecedor) pro orcexa_
         itens: vs.map((it) => { const s = cat.find((c) => c.nome === it.descricao); const extra = s ? itemParaVenda(linhaDoItem(s)) : {}; return { ...extra, descricao: (extra.descricao ?? it.descricao.trim()), quantidade: Number(it.qtd) || 1, valorUnitario: parseVal(it.valor) }; }),
       };
-      const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = editando
+        ? await fetch(`/api/orcamentos/${orcamento!.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+        : await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();
+      onSalvo?.();
       return true;
     } catch { toast.error("Erro ao salvar orçamento"); return false; }
   }

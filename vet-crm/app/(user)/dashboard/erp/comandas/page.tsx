@@ -11,6 +11,9 @@ import { carregarMeuCaixa, carregarMeusCaixasAbertos, rotuloCaixa, caixaParaRece
 import EscolhaDoCaixa from "@/components/caixa/EscolhaDoCaixa";
 import AbrirMeuCaixaModal from "@/components/caixa/AbrirMeuCaixaModal";
 import { imprimirVendasAbertas } from "@/lib/documentos/vendas-abertas-print";
+import { textoDoRelatorioVendas } from "@/lib/textoDoRelatorioVendas";
+import EnviarPorWhatsApp from "@/components/comum/EnviarPorWhatsApp";
+import { gerarPdfDoExtrato } from "@/lib/documentos/relatorio-vendas-pdf";
 import PagamentoFormas from "@/components/financeiro/PagamentoFormas";
 import { carregarFormasRecebimento, validarPagamentosCartao, type PagForma, type FormaCfg, type TaxaRow } from "@/lib/formasPagamento";
 import { hojeNaClinicaISO } from "@/lib/datas";
@@ -256,6 +259,43 @@ export default function ComandasPage() {
     );
   };
 
+  /**
+   * COBRAR PELO WHATSAPP, da tela de cobranca.
+   *
+   * Cintia, 12/09/2026: "preciso poder enviar via whatsapp o valor das vendas em aberto (...)
+   * o servico nao esta disponivel". Ele existia — mas so' na ficha do pet e na aba de
+   * Orcamentos. Faltava justamente AQUI, que e' onde se olha quem deve.
+   *
+   * Usa o mesmo caminho dos documentos do prontuario: conversa aberta entrega na hora;
+   * fechada, dispara o modelo que ABRE a conversa e enfileira.
+   */
+  const [enviandoWhats, setEnviandoWhats] = useState<string | null>(null);
+  const cobrarNoWhats = async (g: any) => {
+    const tutorId = g?.comandas?.[0]?.tutorId;
+    if (!tutorId) { alert("Esta venda nao tem cliente vinculado."); return; }
+    const lista = g.comandas.map((c: any) => ({
+      numero: c.numeroVenda, data: c.date, pet: c.pet,
+      valor: Number(c.valor || 0), pago: Number(c.pago || 0),
+      itens: [],   // a lista aqui nao carrega itens; o texto sai por venda, com a situacao
+    }));
+    const texto = textoDoRelatorioVendas({ cliente: g.tutor || "Cliente", vendas: lista, apenasEmAberto: true });
+    const previa = texto.length > 400 ? texto.slice(0, 400) + [String.fromCharCode(10), "..."].join("") : texto;
+    if (!confirm(["Enviar a cobranca para " + (g.tutor || "este cliente") + "?", "", previa].join(String.fromCharCode(10)))) return;
+    setEnviandoWhats(g.key);
+    try {
+      const r = await fetch("/api/whatsapp/enviar-documentos", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ tutorId, texto }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d?.status === "erro") { alert(d?.message || d?.error || "Nao foi possivel enviar."); return; }
+      alert(d?.status === "na_fila"
+        ? "Na fila — sai assim que o cliente responder."
+        : "Cobranca enviada no WhatsApp.");
+    } catch { alert("Nao foi possivel enviar."); }
+    finally { setEnviandoWhats(null); }
+  };
+
   // Relatorio de cobranca: leva as futuras junto — elas tambem estao em aberto, e quem
   // cobra precisa ver a conta inteira do cliente, nao so o que ja venceu.
   const relatorio = () => {
@@ -360,6 +400,25 @@ export default function ComandasPage() {
                         <td className="px-3 py-2 text-right text-[13.5px] font-medium text-[#014D5E] tabular-nums whitespace-nowrap">{money(g.total)}</td>
                         <td className="px-3 py-2"></td>
                         <td className="px-3 py-2 text-right">
+                          <span onClick={(e) => e.stopPropagation()}>
+                            {(() => {
+                              const lista = g.comandas.map((c: any) => ({
+                                numero: c.numeroVenda, data: c.date, pet: c.pet,
+                                valor: Number(c.valor || 0), pago: Number(c.pago || 0), itens: [],
+                              }));
+                              return (
+                                <EnviarPorWhatsApp
+                                  tutorId={g.comandas?.[0]?.tutorId}
+                                  texto={textoDoRelatorioVendas({ cliente: g.tutor || "Cliente", vendas: lista, apenasEmAberto: true })}
+                                  rotulo="💬 Cobrar"
+                                  titulo={`Cobrar — ${g.tutor || "cliente"}`}
+                                  gerarPdf={async () => gerarPdfDoExtrato({
+                                    cliente: g.tutor || "Cliente", vendas: lista, apenasEmAberto: true,
+                                  })}
+                                />
+                              );
+                            })()}
+                          </span>
                           <button onClick={(e) => { e.stopPropagation(); setFormasLote([{ forma: "Dinheiro", valor: Number(g.total.toFixed(2)) }]); setDetGrupo(g); }} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">💰 Baixar tudo</button>
                         </td>
                       </tr>
