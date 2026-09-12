@@ -41,33 +41,46 @@ function blocoDaComanda(c: ComandaDoDia): string {
   const situacao = falta <= 0.009 ? "Paga" : pago > 0 ? `Parcial · falta ${BRL(falta)}` : "Em aberto";
   const corSit = falta <= 0.009 ? "#0F6E56" : pago > 0 ? "#8a6400" : "#b23b39";
 
-  const linhas = itens.map((it) => {
+  /* COLUNA QUE NAO TEM NADA A DIZER NAO APARECE (Cintia, 12/09/2026: "quero que voce melhore o
+     lay-out do relatorio"). No relatorio da Kate, "Desc." era um travessao em 60 linhas
+     seguidas, "Qtd" dizia 1 quase sempre, e quando a quantidade e 1 o valor unitario repete o
+     total — duas colunas com o mesmo numero. Tres colunas de enfeite empurravam a conta pra
+     quarta folha. Agora Qtd e Valor so entram quando alguma quantidade passa de 1, e Desc. so
+     quando ha desconto de verdade nesta comanda. */
+  const temQtd = itens.some((it) => (Number(it.quantidade) || 1) > 1);
+  const temDesc = itens.some((it) => Number(it.desconto) > 0.009);
+
+  const cols = ["Item", ...(temQtd ? ["Qtd", "Valor"] : []), ...(temDesc ? ["Desc."] : []), "Total"];
+  const cabecalho = cols
+    .map((t, i) => `<th style="${TH}${i > 0 ? ";text-align:right" : ""}">${t}</th>`)
+    .join("");
+
+  const linhas = itens.map((it, i) => {
     const q = Number(it.quantidade) || 1;
     const vu = Number(it.valorUnitario) || 0;
     const desc = Number(it.desconto) || 0;
+    // Zebra em vez de risco em toda linha: a conta longa fica mais facil de seguir com o dedo
+    // e o papel deixa de parecer uma grade.
+    const zebra = i % 2 ? ";background:#FBFAF6" : "";
     return `<tr>
-      <td style="${TD}">${esc(it.descricao || "Item")}</td>
-      <td style="${TD};text-align:center;white-space:nowrap">${q}</td>
-      <td style="${TD};text-align:right;white-space:nowrap">${BRL(vu)}</td>
-      ${desc ? `<td style="${TD};text-align:right;white-space:nowrap;color:#8a6400">-${BRL(desc)}</td>` : `<td style="${TD};text-align:right;color:#c9c4b8">—</td>`}
-      <td style="${TD};text-align:right;white-space:nowrap;font-weight:600">${BRL(Math.max(0, q * vu - desc))}</td>
+      <td style="${TD}${zebra}">${esc(it.descricao || "Item")}</td>
+      ${temQtd ? `<td style="${TD}${zebra};text-align:right;white-space:nowrap">${q}</td>
+      <td style="${TD}${zebra};text-align:right;white-space:nowrap;color:#6B7280">${BRL(vu)}</td>` : ""}
+      ${temDesc ? `<td style="${TD}${zebra};text-align:right;white-space:nowrap;color:#8a6400">${desc ? `-${BRL(desc)}` : ""}</td>` : ""}
+      <td style="${TD}${zebra};text-align:right;white-space:nowrap;font-weight:600">${BRL(Math.max(0, q * vu - desc))}</td>
     </tr>`;
   }).join("");
 
   // Comanda sem item aparece assim mesmo: sumir da conferência é pior do que aparecer vazia.
-  const corpo = linhas || `<tr><td colspan="5" style="${TD};text-align:center;color:#9aa0a8">Sem itens lançados</td></tr>`;
+  const corpo = linhas || `<tr><td colspan="${cols.length}" style="${TD};text-align:center;color:#9aa0a8">Sem itens lançados</td></tr>`;
 
-  return `<div style="margin-bottom:13px;break-inside:avoid;page-break-inside:avoid;border:1px solid #E4DCCC;border-radius:6px;overflow:hidden">
+  return `<div style="margin-bottom:11px;break-inside:avoid;page-break-inside:avoid;border:1px solid #E4DCCC;border-radius:6px;overflow:hidden">
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;background:#F3F0E8;padding:5px 9px">
       <b style="color:#014D5E;font-size:12.5px">${c.numero != null && c.numero !== "" ? `#${esc(c.numero)}` : "Comanda"} · ${esc(hora(c.data))} · ${esc(c.tutor || "Cliente")}${c.pet ? ` · ${esc(c.pet)}` : ""}</b>
       <span style="font-size:11.5px;color:${corSit};font-weight:700;white-space:nowrap">${esc(situacao)}${c.formaPagamento ? ` · ${esc(c.formaPagamento)}` : ""}</span>
     </div>
     <table style="width:100%;border-collapse:collapse;font-size:12px">
-      <thead><tr>
-        <th style="${TH}">Item</th><th style="${TH};text-align:center">Qtd</th>
-        <th style="${TH};text-align:right">Valor</th><th style="${TH};text-align:right">Desc.</th>
-        <th style="${TH};text-align:right">Total</th>
-      </tr></thead>
+      <thead><tr>${cabecalho}</tr></thead>
       <tbody>${corpo}</tbody>
     </table>
     ${c.observacao ? `<div style="font-size:11.5px;color:#374151;padding:5px 9px;border-top:1px solid #F0EBE0"><b>Obs:</b> ${esc(c.observacao)}</div>` : ""}
@@ -190,7 +203,12 @@ export async function imprimirContasDoCliente(args: {
 function situacaoDa(c: ComandaDoDia): { txt: string; bg: string; fg: string } {
   const valor = Number(c.valor || 0);
   const pago = Number(c.pago || 0);
-  if (pago >= valor - 0.009 && valor > 0) return { txt: "PAGA", bg: "#E7F6EF", fg: "#0F6E56" };
+  // SEM O `valor > 0`: comanda de R$ 0,00 nao deve nada, e o descritivo (blocoDaComanda) ja a
+  // chamava de "Paga". Com a condicao, o resumo da primeira folha dizia "EM ABERTO" pra mesma
+  // venda — o documento se contradizendo em duas folhas, e nenhum numero volta a ser confiavel
+  // depois disso. Achado ao OLHAR o relatorio da Kate renderizado, 12/09/2026: a #1016 e de
+  // R$ 0,00 (um RX que nao foi cobrado).
+  if (pago >= valor - 0.009) return { txt: "PAGA", bg: "#E7F6EF", fg: "#0F6E56" };
   if (pago > 0.009) return { txt: "PARCIAL", bg: "#FBF3E3", fg: "#8a6400" };
   return { txt: "EM ABERTO", bg: "#FDECEC", fg: "#b23b39" };
 }
@@ -229,13 +247,11 @@ export async function imprimirVendasDoCliente(args: {
   const secoes = [...dias.entries()].map(([d, cs]) => {
     const soma = somaDe(cs);
     const aberto = Math.max(0, soma.total - soma.recebido);
-    const comanda = (c: ComandaDoDia) => {
-      const st = situacaoDa(c);
-      return `<div style="position:relative">
-        <div style="position:absolute;right:0;top:2px;font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:9px;background:${st.bg};color:${st.fg}">${st.txt}</div>
-        ${blocoDaComanda(c)}
-      </div>`;
-    };
+    /* O selo flutuante de situacao saiu daqui em 12/09/2026: ele era desenhado EM CIMA do
+       cabecalho do bloco, que ja diz "Paga / Parcial / Em aberto" no mesmo canto. Dois
+       rotulos sobrepostos dizendo a mesma coisa. A situacao de cada venda agora aparece
+       tambem no resumo da primeira folha, onde ela de fato ajuda a escolher o que cobrar. */
+    const comanda = (c: ComandaDoDia) => blocoDaComanda(c);
     const titulo = `<div style="display:flex;justify-content:space-between;align-items:baseline;border-bottom:2px solid #009AAC;padding-bottom:3px;margin-bottom:8px;break-after:avoid;page-break-after:avoid">
         <b style="color:#014D5E;font-size:13.5px">${esc(dataBR(d + "T12:00:00"))}</b>
         <span style="font-size:11.5px;color:#6B7280">
@@ -253,6 +269,56 @@ export async function imprimirVendasDoCliente(args: {
   }).join("");
 
   const emAberto = Math.max(0, total - recebido);
+
+  /* O RESUMO VEM PRIMEIRO (Cintia, 12/09/2026: "quero que voce melhore o lay-out do
+     relatorio"). No relatorio da Kate, o total de R$ 6.187,64 so aparecia no pe da QUARTA
+     folha: para saber quanto a cliente devia era preciso virar o documento todo. Agora a
+     primeira folha e a conta inteira — uma linha por venda, com situacao — e ela sozinha ja
+     serve para conversar a cobranca no balcao. O descritivo de cada venda vem depois, que e
+     a regra da casa desde 07/09/2026 ("precisa vir o descritivo de cada dia"). */
+  const linhasResumo = comandas.map((c, i) => {
+    const v = Number(c.valor) || 0;
+    const pg = Math.min(Number(c.pago) || 0, v);
+    const st = situacaoDa(c);
+    const zebra = i % 2 ? ";background:#FBFAF6" : "";
+    return `<tr>
+      <td style="${TD}${zebra};white-space:nowrap">${esc(dataBR(c.data))}</td>
+      <td style="${TD}${zebra};white-space:nowrap;color:#014D5E;font-weight:600">${c.numero != null && c.numero !== "" ? `#${esc(c.numero)}` : "—"}</td>
+      <td style="${TD}${zebra}">${esc(c.pet || "—")}</td>
+      <td style="${TD}${zebra};text-align:right;white-space:nowrap">${BRL(v)}</td>
+      <td style="${TD}${zebra};text-align:right;white-space:nowrap;color:#0F6E56">${pg > 0.009 ? BRL(pg) : ""}</td>
+      <td style="${TD}${zebra};text-align:right;white-space:nowrap">
+        <span style="font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:9px;background:${st.bg};color:${st.fg}">${st.txt}</span>
+      </td>
+    </tr>`;
+  }).join("");
+
+  const resumo = comandas.length < 2 ? "" : `
+    <div style="break-inside:avoid;page-break-inside:avoid;margin-bottom:16px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:9px">
+        <div style="flex:1;min-width:132px;border:1px solid #E4DCCC;border-radius:8px;padding:8px 11px;background:#fff">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#6B7280">Total das vendas</div>
+          <div style="font-size:17px;font-weight:700;color:#014D5E">${BRL(total)}</div>
+        </div>
+        <div style="flex:1;min-width:132px;border:1px solid #E4DCCC;border-radius:8px;padding:8px 11px;background:#fff">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#6B7280">Já recebido</div>
+          <div style="font-size:17px;font-weight:700;color:#0F6E56">${BRL(recebido)}</div>
+        </div>
+        <div style="flex:1;min-width:132px;border:2px solid #b23b39;border-radius:8px;padding:7px 10px;background:#fff">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:#6B7280">Em aberto</div>
+          <div style="font-size:17px;font-weight:700;color:#b23b39">${BRL(emAberto)}</div>
+        </div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead><tr>
+          <th style="${TH}">Data</th><th style="${TH}">Venda</th><th style="${TH}">Pet</th>
+          <th style="${TH};text-align:right">Valor</th><th style="${TH};text-align:right">Pago</th>
+          <th style="${TH};text-align:right">Situação</th>
+        </tr></thead>
+        <tbody>${linhasResumo}</tbody>
+      </table>
+    </div>`;
+
   const body = `
     <div style="margin-bottom:14px;font-size:13px">
       <b style="color:#014D5E;font-size:15px">${esc(args.tutor || "Cliente")}</b>${args.codigo ? `<span style="color:#6B7280;font-size:12px"> · cadastro ${esc(args.codigo)}</span>` : ""}
@@ -260,6 +326,8 @@ export async function imprimirVendasDoCliente(args: {
         Histórico completo · ${comandas.length} ${comandas.length === 1 ? "venda" : "vendas"} em ${dias.size} ${dias.size === 1 ? "dia" : "dias"}
       </div>
     </div>
+    ${resumo}
+    ${comandas.length < 2 ? "" : `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#6B7280;border-bottom:1px solid #E4DCCC;padding-bottom:4px;margin-bottom:11px;break-after:avoid;page-break-after:avoid">Descritivo de cada venda</div>`}
     ${secoes || `<p style="text-align:center;color:#9aa0a8;font-size:13px;padding:24px 0">Este cliente ainda não tem vendas registradas.</p>`}
     ${comandas.length ? rodape(total, recebido) : ""}
     ${comandas.length && emAberto > 0.009
