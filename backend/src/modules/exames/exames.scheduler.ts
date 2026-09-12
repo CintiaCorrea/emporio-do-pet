@@ -26,8 +26,15 @@ export class ExamesScheduler {
     try { await this.exames.avisarLaboratorios(); } catch (e) { this.logger.error(`Aviso de coleta (tarde) falhou: ${String((e as any)?.message || e)}`); }
   }
 
-  // Lembrete da recepção: 11:00, 15:00 e 17:00 (Fortaleza), como a Cintia pediu.
-  @Cron('0 11,15,17 * * *', { timeZone: 'America/Fortaleza' })
+  // LEMBRETE DA RECEPÇÃO: UMA VEZ, às 10h (Fortaleza).
+  //
+  // Eram três (11h, 15h e 17h) e cobriam tudo de "Retirado" em diante — com um exame pendente
+  // isso virava três mensagens por dia pela mesma citologia. A Cintia, 12/09/2026: "NÃO É PARA
+  // REPETIR SE O EXAME ESTIVER EM OUTRA COLUNA".
+  //
+  // 10h porque o aviso ao laboratório sai 11h30: se faltou preparar alguma coisa, ainda dá
+  // tempo no mesmo dia.
+  @Cron('0 10 * * *', { timeZone: 'America/Fortaleza' })
   async lembrarRecepcao(): Promise<void> {
     this.cronHealth.registrar('exames').catch(() => undefined);
     try {

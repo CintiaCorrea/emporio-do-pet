@@ -3,12 +3,68 @@
 // Qualquer mudança que quebre essas regras faz o teste (exames.regras.spec.ts) falhar. NÃO acoplar a
 // nomes mágicos de fase: a elegibilidade é "tem laboratório + não avisado + fase de solicitação".
 
+// ── AS TRÊS COLUNAS (Cintia, 12/09/2026) ──────────────────────────────────────────────────
+//
+// Ela descreveu o ciclo inteiro e ele tem três paradas, não cinco:
+//
+//   Solicitar → o exame foi vendido, o box nasce e o laboratório é avisado (11h30 e 17h).
+//   Retirado  → o laboratório veio buscar. Nasce a conta a pagar dele. Agora é só esperar.
+//   Resultado → o vet anexa o laudo, o cliente é avisado; quando ele responde, o card sai.
+//
+// "Aguardando" saiu por ser redundante com Retirado ("vamos eliminar"), e "Entregue" deixou de
+// ser coluna: entregar é o fim da linha, e o fim da linha some do quadro em vez de virar uma
+// pilha que ninguém arrasta.
+// A ULTIMA da lista NAO e coluna: e o fim da linha, e o quadro a usa para tirar o card de vista
+// (exames-kanban monta `fases.slice(0, -1)`). Por isso "Entregue" continua aqui sem ser coluna —
+// e o mesmo desenho que a Cintia descreveu: "depois que o cliente responder e considerado
+// entregue e sai do quadro". Visiveis: Solicitar, Retirado, Resultado.
+export const FASES_PADRAO = ['Solicitar', 'Retirado', 'Resultado', 'Entregue'];
+
+/**
+ * Nomes de coluna que não existem mais, e para onde o exame que ficou neles deve ser lido.
+ *
+ * "Aguardando" significava "o laboratório está com o material e o resultado não chegou" — que é
+ * exatamente Retirado. Ler assim é honesto; jogar para Resultado diria que o laudo chegou.
+ *
+ * Isto vive no CÓDIGO e não numa migração de banco de propósito: o card guarda o texto da fase,
+ * e reescrever 46 registros para mudar uma palavra é arriscar o histórico deles por nada. Aqui
+ * o card antigo é LIDO na coluna certa, sem ser tocado.
+ */
+export const FASES_ANTIGAS: Record<string, string> = {
+  aguardando: 'Retirado',
+  solicitado: 'Solicitar',
+  retirar: 'Retirado',
+};
+
+/** A fase como ela deve ser lida hoje — traduzindo o vocabulário que saiu. */
+export function faseNormalizada(status: string | null | undefined, fases: string[]): string {
+  const bruto = String(status || '').trim();
+  const lista = Array.isArray(fases) ? fases : [];
+  if (lista.some((f) => String(f || '').toLowerCase().trim() === bruto.toLowerCase())) return bruto;
+  return FASES_ANTIGAS[bruto.toLowerCase()] || bruto;
+}
+
 // Fases finais (exame concluído) — espelha o front (lib/exameFases.ts). Inclui vocabulário antigo.
 export const FASES_CONCLUIDAS = ['Entregue', 'Resultado entregue ao tutor', 'Pago ao laboratório'];
 
-/** Exame já concluído (fase final)? Comparação exata, sem caixa. */
-export const ehFaseConcluida = (status?: string | null): boolean =>
-  FASES_CONCLUIDAS.some((f) => f.toLowerCase() === String(status || '').toLowerCase());
+/**
+ * Exame já concluído?
+ *
+ * A MARCA vale mais que o nome. Até 12/09/2026 isto era só uma lista fixa de três palavras, e
+ * bastava um exame parar numa fase fora dela para ser lembrado 3× por dia para sempre — sem
+ * ninguém conseguir tirá-lo de lá a não ser renomeando a coluna.
+ *
+ * Agora, com "Entregue" deixando de ser coluna, quem diz que acabou é `entregueAt`: uma data,
+ * gravada quando o cliente confirma. A lista de nomes fica só para os 45 cards que já estavam
+ * em "Entregue" antes desta mudança — eles não são reescritos, são lidos.
+ */
+export const ehFaseConcluida = (
+  status?: string | null,
+  entregueAt?: string | Date | null,
+): boolean => {
+  if (entregueAt) return true;
+  return FASES_CONCLUIDAS.some((f) => f.toLowerCase() === String(status || '').toLowerCase());
+};
 
 /** Fase de "solicitação" (exame recém-vendido, ainda não retirado). Aceita a 1ª fase configurada
  *  (default "Solicitar") e o vocabulário antigo "Solicitado" — posicional, NÃO depende de "coleta". */
@@ -75,17 +131,35 @@ export type ExameParaLembrete = {
 };
 
 /**
- * Precisa de lembrete? Só o que JÁ CHEGOU na coluna de retirada e ainda não terminou.
+ * Precisa de lembrete? SÓ o que está parado na PRIMEIRA coluna, esperando o laboratório buscar.
  *
- * Era a primeira fase até 07/09/2026 — a Cintia corrigiu: o que interessa lembrar é o exame que
- * está pronto para ser retirado, não o que acabou de ser vendido.
+ * ATENÇÃO A QUEM LER ISTO DEPOIS: esta regra já foi o contrário, e a inversão é deliberada.
+ *
+ *   07/09/2026 — a Cintia: "o que interessa lembrar é o exame que está pronto para ser
+ *   retirado, não o que acabou de ser vendido". Passou a lembrar de Retirado em diante.
+ *
+ *   12/09/2026 — a Cintia, depois de descrever o ciclo inteiro: "somente para e se tiver
+ *   exames na coluna solicitado. NÃO É PARA REPETIR SE O EXAME ESTIVER EM OUTRA COLUNA. Quando
+ *   ele vai para a coluna retirado, já sabemos que é só aguardar o resultado."
+ *
+ * Não é ela mudando de ideia: "Retirado" parecia significar *o tutor retirar o resultado* e
+ * passou a significar, explicitamente, *o laboratório levar o material*. Sob esse nome, a única
+ * coluna em que a ação é NOSSA é a primeira — o material está aqui esperando alguém buscar. Em
+ * Retirado a bola está com o laboratório; em Resultado, com o cliente.
+ *
+ * Quem cuida do que fica parado DEPOIS é o aviso de atraso, que é outra coisa: aparece uma vez,
+ * quando passa do prazo, e não fica repetindo.
  */
-export function precisaLembrarRetirada(e: ExameParaLembrete, fases: string[]): boolean {
+export function precisaLembrarSolicitacao(e: ExameParaLembrete, fases: string[]): boolean {
   if (!e) return false;
-  const retirar = faseDeRetirada(fases);
-  if (!retirar) return false;
-  if (ehFaseConcluida(e.status)) return false;
-  return atingiuFase(e.status, retirar, fases);
+  // O MESMO filtro do quadro: exame sem nome não aparece na tela, então não pode ser lembrado.
+  // Eram duas definições diferentes de "existe", e é assim que nasce o lembrete fantasma —
+  // toca, a pessoa abre o quadro e não acha nada.
+  if (!String(e.nome || '').trim()) return false;
+  if (ehFaseConcluida(e.status, (e as any).entregueAt)) return false;
+  const primeira = (Array.isArray(fases) ? fases : [])[0];
+  if (!primeira) return false;
+  return faseNormalizada(e.status, fases).toLowerCase().trim() === String(primeira).toLowerCase().trim();
 }
 
 /**
@@ -104,7 +178,7 @@ export function textoDoLembrete(exames: ExameParaLembrete[]): { titulo: string; 
   const resto = lista.length - nomes.length;
 
   return {
-    titulo: lista.length === 1 ? '1 exame para retirar' : `${lista.length} exames para retirar`,
-    mensagem: `Na coluna de retirada: ${nomes.join('; ')}${resto > 0 ? ` e mais ${resto}` : ''}.`,
+    titulo: lista.length === 1 ? '1 exame esperando o laboratório' : `${lista.length} exames esperando o laboratório`,
+    mensagem: `Ainda em Solicitar: ${nomes.join('; ')}${resto > 0 ? ` e mais ${resto}` : ''}.`,
   };
 }

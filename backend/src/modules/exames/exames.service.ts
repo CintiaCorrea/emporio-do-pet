@@ -4,7 +4,7 @@ import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { exameElegivelLote, precisaLembrarRetirada, textoDoLembrete, atingiuFase, faseDeRetirada } from './exames.regras';
+import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO } from './exames.regras';
 
 /**
  * Aviso de COLETA ao laboratório (Fatia 3 dos exames).
@@ -186,7 +186,9 @@ export class ExamesService {
       const nomes = arr.map((i) => { try { const o = JSON.parse(i.valor); return o?.nome || i.valor; } catch { return i.valor; } }).filter(Boolean);
       if (nomes.length) return nomes;
     } catch { /* usa o padrao */ }
-    return ['Solicitar', 'Retirado', 'Aguardando', 'Resultado', 'Entregue'];
+    // O padrao acompanha as tres colunas de 12/09/2026 (exames.regras.FASES_PADRAO). Se a casa
+    // configurou as dela em Config > Exames, valem as dela — isto aqui e so a rede.
+    return [...FASES_PADRAO];
   }
 
   private async faseInicialExame(): Promise<string> {
@@ -321,7 +323,7 @@ export class ExamesService {
     const pendentes: any[] = [];
     for (const it of itens) {
       let d: any; try { d = JSON.parse(it.valor); } catch { continue; }
-      if (!precisaLembrarRetirada(d, fases)) continue;
+      if (!precisaLembrarSolicitacao(d, fases)) continue;
       pendentes.push(d);
     }
 
@@ -335,7 +337,7 @@ export class ExamesService {
       : [];
     const nomePorPet = new Map(pets.map((p: any) => [p.id, p.name]));
     const comPet = itens
-      .map((it) => { let d: any; try { d = JSON.parse(it.valor); } catch { return null; } return precisaLembrarRetirada(d, fases) ? { ...d, petNome: d.petNome || nomePorPet.get(it.lista.replace('petexa_', '')) } : null; })
+      .map((it) => { let d: any; try { d = JSON.parse(it.valor); } catch { return null; } return precisaLembrarSolicitacao(d, fases) ? { ...d, petNome: d.petNome || nomePorPet.get(it.lista.replace('petexa_', '')) } : null; })
       .filter(Boolean) as any[];
     const textoFinal = textoDoLembrete(comPet) || texto;
 
