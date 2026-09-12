@@ -17,8 +17,35 @@ export class ListasService {
     });
   }
 
+  /**
+   * CRIAR O QUE JA EXISTE IDENTICO DEVOLVE O QUE EXISTE — nao explode.
+   *
+   * lista_itens tem indice UNICO em (lista, valor). Quem guarda JSON aqui (boletim de fisio,
+   * exame do pet, config de tela) frequentemente salva duas vezes o mesmo conteudo: a pessoa
+   * clica em salvar, nao mudou nada, clica de novo. Antes a segunda vez estourava
+   * "duplicate key value violates unique constraint" e a tela dizia apenas "erro ao salvar".
+   *
+   * Foi assim que o boletim da fisio parou de salvar (Cintia, 12/09/2026): a tela nao guardava
+   * o id do que acabava de criar, entao TODA gravacao seguinte tentava criar de novo o mesmo
+   * registro. Consertei a tela, mas o defeito era de todo mundo que chama esta rota — sao 12
+   * telas. Aqui a semantica passa a ser a certa: pedir um item com este valor nesta lista e'
+   * pedir que ele EXISTA. Se ja existe, o pedido esta atendido.
+   *
+   * Reativa o item se estava desativado: pedir para criar e' pedir que ele valha.
+   */
   async create(dto: CreateListaItemDto) {
-    return this.prisma.listaItem.create({ data: dto });
+    try {
+      return await this.prisma.listaItem.create({ data: dto });
+    } catch (e: any) {
+      if (e?.code !== 'P2002') throw e;   // so' trata duplicidade; o resto sobe
+      const existente = await this.prisma.listaItem.findFirst({
+        where: { lista: dto.lista, valor: dto.valor },
+      });
+      if (!existente) throw e;
+      return existente.ativo
+        ? existente
+        : this.prisma.listaItem.update({ where: { id: existente.id }, data: { ativo: true } });
+    }
   }
 
   async update(id: string, dto: UpdateListaItemDto) {

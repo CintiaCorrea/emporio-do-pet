@@ -134,19 +134,48 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
     onRestore: (s) => setB((prev) => ({ ...prev, ...s, equipamentos: s.equipamentos || prev.equipamentos })),
   });
 
+  /**
+   * SALVAR DUAS VEZES NAO PODE FALHAR.
+   *
+   * Cintia, 12/09/2026: "o boletim da fisio nao esta salvando". A tabela lista_itens tem
+   * indice UNICO em (lista, valor) — e esta funcao nunca guardava o id do que acabava de
+   * criar. Resultado: a primeira gravacao entrava, e a segunda tentava CRIAR de novo com o
+   * conteudo identico. O banco recusava:
+   *
+   *   duplicate key value violates unique constraint "lista_itens_lista_valor_key"
+   *
+   * Salvava na primeira e falhava em todas as seguintes, com a mensagem generica de sempre.
+   * Agora o id criado fica guardado, e dali em diante e' PATCH. E se ainda assim vier
+   * duplicidade, a mensagem DIZ o que aconteceu em vez de "erro ao salvar".
+   */
+  const [idSalvo, setIdSalvo] = useState<string | null>(boletimId);
+  useEffect(() => { setIdSalvo(boletimId); }, [boletimId]);
+
   async function persistir(enviado: boolean): Promise<boolean> {
     const payload: BoletimData = { ...b, texto: textoPreview, enviadoAt: enviado ? new Date().toISOString() : (b.enviadoAt || null), createdAt: b.createdAt || new Date().toISOString() };
     // desconto da sessão: via agenda (quando o tutor chega/entra na sala de espera) — não descontamos aqui.
     try {
-      if (boletimId) {
-        const r = await fetch(`/api/listas/${boletimId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify(payload) }) });
-        if (!r.ok) throw new Error();
+      const alvo = idSalvo || boletimId;
+      if (alvo) {
+        const r = await fetch(`/api/listas/${alvo}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ valor: JSON.stringify(payload) }) });
+        if (!r.ok) throw new Error(await r.text().catch(() => ""));
       } else {
         const r = await fetch(`/api/listas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lista: `petboletim_${petId}`, valor: JSON.stringify(payload) }) });
-        if (!r.ok) throw new Error();
+        if (!r.ok) throw new Error(await r.text().catch(() => ""));
+        // GUARDA O ID: sem isto, o proximo salvar tentaria criar outro igual e o banco recusaria.
+        const criado = await r.json().catch(() => null);
+        if (criado?.id) setIdSalvo(criado.id);
       }
       return true;
-    } catch { toast.error("Erro ao salvar boletim"); return false; }
+    } catch (e: any) {
+      const msg = String(e?.message || "");
+      if (/unique|duplicate|lista_valor/i.test(msg)) {
+        toast.error("Este boletim ja esta salvo exatamente assim. Mude alguma coisa antes de salvar de novo.");
+      } else {
+        toast.error("Erro ao salvar boletim");
+      }
+      return false;
+    }
   }
 
   async function handleSalvar() {
