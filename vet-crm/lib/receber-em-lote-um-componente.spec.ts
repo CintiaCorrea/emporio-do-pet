@@ -67,6 +67,17 @@ describe("consulta de vendas: as acoes que vieram das outras abas", () => {
     expect(consulta).toContain("excluirVenda");
   });
 
+  it("editar a comanda existe, e e so do administrativo", () => {
+    // Cintia, 12/09/2026: "pode criar um botao para editar as comandas na tela de vendas?".
+    // Era a ultima acao que faltava trazer da aba "Todas as vendas".
+    expect(consulta).toMatch(/ponto-de-venda\?editar=/);
+    // Cintia, 09/09/2026: "todas as vendas nao e para ser editada por todos, somente pelo adm".
+    const bloco = consulta.slice(consulta.indexOf("EDITAR A COMANDA"), consulta.indexOf("Devolver</button>"));
+    expect(bloco).toMatch(/\{isAdmin \? \(/);
+    // e nao some calado pra quem nao pode: precisa saber que existe e de quem pedir
+    expect(bloco).toMatch(/So o administrativo edita venda/);
+  });
+
   it("cobrar manda so o que esta em aberto", () => {
     expect(consulta).toMatch(/apenasEmAberto: true/);
   });

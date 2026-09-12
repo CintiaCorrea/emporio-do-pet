@@ -343,7 +343,7 @@ function Td({ children, dir, forte, sub, cor }: { children: React.ReactNode; dir
 }
 
 /* ---------------- linha expansível ---------------- */
-function LinhaVenda({ v, saldoCliente, onExcluir, excluindo }: { v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null }) {
+function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin }: { v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null; isAdmin: boolean }) {
   const [open, setOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   return (
@@ -396,6 +396,33 @@ function LinhaVenda({ v, saldoCliente, onExcluir, excluindo }: { v: Venda; saldo
                 {v.paymentMethod && <span>💳 {v.paymentMethod}</span>}
                 {v.funcionario && <span>🧑 {v.funcionario}</span>}
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                  {/* EDITAR A COMANDA (Cintia, 12/09/2026: "pode criar um botao para editar as
+                      comandas na tela de vendas?"). Era a ultima acao que faltava trazer da aba
+                      "Todas as vendas" — eu tinha migrado o excluir e deixado o editar la.
+
+                      Abre no Ponto de venda, que e onde se mexe em item, quantidade e desconto:
+                      duplicar esse formulario aqui seria duas telas de dinheiro pra divergir.
+
+                      SO O ADMINISTRATIVO (Cintia, 09/09/2026: "todas as vendas nao e para ser
+                      editada por todos, somente pelo adm"). Ver o que foi vendido e trabalho de
+                      balcao; mudar o que ja foi cobrado, nao. E o botao NAO some calado pra quem
+                      nao pode: quem nao tem a permissao precisa saber que ela existe e de quem
+                      pedir, senao vira "o sistema nao deixa" sem explicacao. */}
+                  {isAdmin ? (
+                    <Link
+                      href={`/dashboard/erp/ponto-de-venda?editar=${v.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      title="Abrir esta venda no formulario do Ponto de venda"
+                      className="inline-flex items-center gap-1.5"
+                      style={{ border: `1px solid ${TEAL}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: TEAL, background: '#fff', textDecoration: 'none' }}
+                    >✏️ Editar</Link>
+                  ) : (
+                    <span
+                      title="So o administrativo edita venda"
+                      className="inline-flex items-center gap-1.5"
+                      style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: '#8A9499', background: '#fff', cursor: 'default' }}
+                    >🔒 Editar</span>
+                  )}
                   <button onClick={(e) => { e.stopPropagation(); setDevOpen(true); }} className="inline-flex items-center gap-1.5" style={{ border: `1px solid ${CORAL}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: CORAL, background: '#fff', cursor: 'pointer' }}>↩️ Devolver</button>
                   <button onClick={(e) => { e.stopPropagation(); imprimirVenda(v); }} className="inline-flex items-center gap-1.5" style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: NAVY, background: '#fff', cursor: 'pointer' }}>🖨️ Imprimir comprovante</button>
                   {/* EXCLUIR VENDA veio da aba "Todas as vendas" (bloco B, 12/09/2026), para
@@ -1103,7 +1130,7 @@ export default function ConsultaVendasPage() {
               </tr>
             </thead>
             <tbody>
-              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} />)}
+              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} isAdmin={isAdmin} />)}
             </tbody>
           </table>
         )}
