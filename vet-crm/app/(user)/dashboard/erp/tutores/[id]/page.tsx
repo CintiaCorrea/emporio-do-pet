@@ -514,6 +514,43 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     } catch { toast.error("Erro ao atualizar principal"); }
   };
 
+  // ── TODO HOOK MORA ACIMA DOS RETURNS ABAIXO ───────────────────────────────────────────
+  // Cintia, 12/09/2026, com a tela em branco na ficha do cliente: "quando vou abrir as vendas
+  // dentro da tela de vendas depois de selecionar o pet aparece essa imagem... essa mensagem
+  // tem aparecido em varios momentos".
+  //
+  // Estes cinco hooks estavam DEPOIS do `if (loading) return` logo abaixo. No primeiro render
+  // `loading` e true, entao o componente parava ali e chamava N hooks; quando o cliente
+  // chegava, `loading` virava false, o render seguia e chamava N+5. React nao admite que a
+  // contagem de hooks mude entre renders — ele lanca "Rendered more hooks than during the
+  // previous render", e como o app nao tinha error boundary a tela inteira virava aquela
+  // mensagem crua de "Application error".
+  //
+  // E o mesmo sintoma que ela relatou em 10/09 ("esta dando mensagem e tela vazia") e que
+  // pareceu se resolver sozinho: nao se resolveu, so dependia de o render bater na ordem certa.
+  //
+  // Regra das regras do React: hook nao pode ficar depois de return, if, laco ou try. Por isso
+  // eles sobem pra ca — antes de QUALQUER saida antecipada.
+
+  // AS VENDAS EM ACORDEAO (Cintia, 09/09/2026: "podemos deixar as vendas na aba do cliente
+  // organizadas como no simplesvet?"). A ficha so traz o CABECALHO das vendas; os itens vem
+  // de /api/tutors/:id/vendas, buscados uma vez, quando alguem abre a primeira linha.
+  const [compraAberta, setCompraAberta] = useState<string>("");
+  const [itensPorVenda, setItensPorVenda] = useState<Record<string, any> | null>(null);
+  const [carregandoItens, setCarregandoItens] = useState(false);
+
+  // Vendas carregadas para o envio por WhatsApp (texto ou PDF). A ficha so' tem o cabecalho;
+  // o extrato precisa dos ITENS, que vem do endpoint proprio.
+  const [vendasParaEnvio, setVendasParaEnvio] = useState<any[]>([]);
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/tutors/${id}/vendas`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (vivo && Array.isArray(d?.vendas)) setVendasParaEnvio(d.vendas); })
+      .catch(() => undefined);
+    return () => { vivo = false; };
+  }, [id]);
+
   if (loading) return <div className="p-6 text-center text-gray-500">Carregando...</div>;
   if (!tutor) return <div className="p-6 text-center text-gray-500">Cliente não encontrado</div>;
 
@@ -557,10 +594,6 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
   // A ficha so traz o CABECALHO das vendas; os itens vem de /api/tutors/:id/vendas, o mesmo
   // caminho que o relatorio ja usa. Buscamos uma vez, na primeira vez que alguem abre uma
   // linha — quem so passa os olhos na lista nao paga por isso.
-  const [compraAberta, setCompraAberta] = useState<string>("");
-  const [itensPorVenda, setItensPorVenda] = useState<Record<string, any> | null>(null);
-  const [carregandoItens, setCarregandoItens] = useState(false);
-
   const abrirCompra = async (idVenda: string) => {
     setCompraAberta((atual) => (atual === idVenda ? "" : idVenda));
     if (itensPorVenda || carregandoItens) return;
@@ -574,18 +607,6 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     } catch { setItensPorVenda({}); }
     finally { setCarregandoItens(false); }
   };
-
-  // Vendas carregadas para o envio por WhatsApp (texto ou PDF). A ficha so' tem o cabecalho;
-  // o extrato precisa dos ITENS, que vem do endpoint proprio.
-  const [vendasParaEnvio, setVendasParaEnvio] = useState<any[]>([]);
-  useEffect(() => {
-    let vivo = true;
-    fetch(`/api/tutors/${id}/vendas`, { cache: "no-store" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (vivo && Array.isArray(d?.vendas)) setVendasParaEnvio(d.vendas); })
-      .catch(() => undefined);
-    return () => { vivo = false; };
-  }, [id]);
 
   const imprimirRelatorio = async () => {
     try {
