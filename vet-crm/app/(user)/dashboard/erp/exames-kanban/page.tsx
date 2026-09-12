@@ -109,20 +109,46 @@ export default function ExamesKanbanPage() {
 
   const Card = ({ e, ultima }: { e: any; ultima: boolean }) => {
     const cor = labColor(e.fornecedorNome);
+    // ATRASADO FICA DE OUTRA COR (Cintia, 12/09/2026: "o box pode ficar de outra cor para
+    // mostrar que esta atrasado"). Quem decide e o servidor (exames.regras.atrasoDoExame), o
+    // mesmo calculo do aviso que vai pros veterinarios — duas contas dariam duas verdades
+    // sobre o mesmo exame.
+    //
+    // A cor NAO substitui o rotulo: cor sozinha nao se le em tela ruim, nem por quem nao
+    // distingue vermelho. Por isso vem com o texto dizendo quantos dias.
+    const atrasado = !!e.atraso?.atrasado;
+    const VERMELHO = "#b23b3b";
+
     return (
       <div
         draggable
         onDragStart={() => setDragId(e.itemId)}
         onDragEnd={() => { setDragId(null); setOver(null); }}
-        className="bg-white rounded-xl p-2.5 cursor-grab active:cursor-grabbing"
-        style={{ border: `1px solid ${LINE}`, borderLeft: `4px solid ${cor}`, boxShadow: "0 1px 2px rgba(1,77,94,.05)" }}
+        className="rounded-xl p-2.5 cursor-grab active:cursor-grabbing"
+        style={{
+          background: atrasado ? "#FDF3F2" : "#fff",
+          border: `1px solid ${atrasado ? "#F0C9C7" : LINE}`,
+          borderLeft: `4px solid ${atrasado ? VERMELHO : cor}`,
+          boxShadow: "0 1px 2px rgba(1,77,94,.05)",
+        }}
       >
-        <div className="text-[13px] font-bold" style={{ color: NAVY }}>{e.nome}</div>
+        <div className="text-[13px] font-bold" style={{ color: atrasado ? VERMELHO : NAVY }}>{e.nome}</div>
         <div className="text-[11.5px] mt-0.5" style={{ color: MUT }}>{e.petNome}{e.tutorNome ? ` · ${e.tutorNome}` : ""}</div>
         <div className="flex items-center gap-2 mt-2 flex-wrap">
           {e.fornecedorNome ? <span className="text-[10px] font-bold rounded px-1.5 py-0.5" style={{ background: cor + "1A", color: cor }}>{e.fornecedorNome}</span> : <span className="text-[10px] rounded px-1.5 py-0.5" style={{ background: "#F1EEE6", color: MUT }}>sem lab</span>}
           {e.date ? <span className="text-[10.5px]" style={{ color: MUT }}>{dt(e.date)}</span> : null}
           {e.labAvisadoAt ? <span className="text-[10px] font-bold" style={{ color: "#0F6E56" }}>🔔 avisado</span> : null}
+          {atrasado ? (
+            <span
+              className="text-[10px] font-bold rounded px-1.5 py-0.5"
+              style={{ background: "#FBE4E2", color: VERMELHO }}
+              title={e.atraso?.estimado
+                ? `Este exame nao tem prazo cadastrado — contado pelo padrao de ${e.atraso?.prazoDias} dias.`
+                : `O laboratorio prometeu em ${e.atraso?.prazoDias} dia(s).`}
+            >
+              ⏰ {e.atraso?.dias} dia(s) do prazo{e.atraso?.estimado ? " ·estimado" : ""}
+            </span>
+          ) : null}
         </div>
         <div className="flex items-center gap-2 mt-2">
           <Link href={`/dashboard/erp/pets/${e.petId}`} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: LINE, color: MUT }}>Abrir ficha</Link>

@@ -4,7 +4,7 @@ import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO } from './exames.regras';
+import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO, atrasoDoExame } from './exames.regras';
 
 /**
  * Aviso de COLETA ao laboratório (Fatia 3 dos exames).
@@ -139,6 +139,8 @@ export class ExamesService {
         fornecedorId: d.fornecedorId || null, externo: !!d.externo,
         labAvisadoAt: d.labAvisadoAt || null, date: d.date || null,
         resultadoUrl: d.resultadoUrl || null,
+        prazoDias: d.prazoDias ?? null, historico: d.historico || null,
+        entregueAt: d.entregueAt || null,
       });
     }
     const [pets, forns] = await Promise.all([
@@ -147,8 +149,13 @@ export class ExamesService {
     ]);
     const petMap: Record<string, any> = Object.fromEntries(pets.map((p) => [p.id, p]));
     const fornMap: Record<string, any> = Object.fromEntries(forns.map((f) => [f.id, f]));
+    // O ATRASO VAI JUNTO (Cintia, 12/09/2026: "o box pode ficar de outra cor para mostrar que
+    // esta atrasado"). Calculado aqui e nao na tela: e a mesma conta do aviso que vai pros
+    // veterinarios, e duas contas de atraso dariam duas verdades sobre o mesmo exame.
+    const fases = await this.fasesExame();
     return linhas.map((l) => ({
       ...l,
+      atraso: atrasoDoExame(l as any, fases),
       petNome: petMap[l.petId]?.name || 'Paciente',
       tutorNome: petMap[l.petId]?.tutor?.name || '',
       fornecedorNome: l.fornecedorId ? (fornMap[l.fornecedorId]?.nome || null) : null,
@@ -213,13 +220,14 @@ export class ExamesService {
       let fornecedorNome: string | null = null;
       let custo: number | null = null;
       let valorSugerido: number | null = null;
+      let prazoDias: number | null = it.tempoResultadoDias ?? null;
       // Fonte ANTIGA: exame vem por catalogoExameId (exa_catalogo).
       if (it.catalogoExameId) {
-        const cat = await this.prisma.catalogoExame.findUnique({
+        const cat: any = await this.prisma.catalogoExame.findUnique({
           where: { id: it.catalogoExameId },
-          select: { valorFornecedor: true, valorClienteSugerido: true, fornecedorId: true, fornecedor: { select: { nome: true } } },
+          select: { valorFornecedor: true, valorClienteSugerido: true, tempoResultadoDias: true, fornecedorId: true, fornecedor: { select: { nome: true } } },
         }).catch(() => null);
-        if (cat) { fornecedorId = fornecedorId || cat.fornecedorId || null; fornecedorNome = cat.fornecedor?.nome ?? null; custo = cat.valorFornecedor ?? null; valorSugerido = cat.valorClienteSugerido ?? null; }
+        if (cat) { fornecedorId = fornecedorId || cat.fornecedorId || null; fornecedorNome = cat.fornecedor?.nome ?? null; custo = cat.valorFornecedor ?? null; valorSugerido = cat.valorClienteSugerido ?? null; prazoDias = prazoDias ?? cat.tempoResultadoDias ?? null; }
       }
       // Fonte NOVA: exame vem por catalogoItemId (cat_item_exame → lab/custo; ItemCatalogo → preço).
       if (fornecedorNome == null && custo == null && it.catalogoItemId) {
@@ -241,6 +249,10 @@ export class ExamesService {
       const origem = it.origem || 'PDV';
       const d = {
         nome: it.descricao || it.nome || 'Exame', status: fase, date: now, externo: true,
+        // O PRAZO DO LABORATORIO, do cadastro do exame. Guardado no card para o aviso de atraso
+        // nao depender de ir ao catalogo a cada leitura — e para continuar valendo o prazo do
+        // dia em que o exame foi pedido, mesmo que o cadastro mude depois.
+        prazoDias: prazoDias ?? null,
         // O ITEM DA VENDA que gerou este exame. Sem isso nao da pra dizer "esta conta a pagar e
         // deste exame que chegou em retirar" — so daria pra casar por nome, que erra em cliente
         // com dois exames iguais. (Cintia, 07/09/2026: o a-pagar nasce na coluna de retirada.)
@@ -312,6 +324,86 @@ export class ExamesService {
    * Não manda nada quando não há o que cobrar: notificação vazia todo dia às 11h ensina a
    * ignorar as cheias.
    */
+  /**
+   * O LAUDO QUE NAO VOLTOU — aviso de atraso, UMA vez por exame.
+   *
+   * Cintia, 12/09/2026: "o aviso de atraso pode aparecer para os veterinarios, assim mesmo que o
+   * veterinario responsavel nao esteja os outros podem checar".
+   *
+   * Existe porque o lembrete diario passou a cobrir so a primeira coluna, a pedido dela. Em
+   * "Retirado" a bola esta com o laboratorio e nao ha o que lembrar todo dia — mas se o laudo
+   * nao volta, ninguem percebe, e o cliente pagou e espera em silencio.
+   *
+   * NAO INSISTE. `atrasoAvisadoEm` e gravado no card na primeira vez; depois disso o exame
+   * continua vermelho no quadro, e so. Repetir seria transformar este aviso naquilo de que ela
+   * se queixou ("NAO E PARA REPETIR").
+   */
+  async avisarAtrasosDoLaboratorio(): Promise<{ atrasados: number; avisados: number }> {
+    const fases = await this.fasesExame();
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: { startsWith: 'petexa_' } },
+      select: { id: true, lista: true, valor: true },
+      take: 3000,
+    }).catch(() => [] as any[]);
+
+    const novos: { id: string; petId: string; d: any; atraso: any }[] = [];
+    for (const it of itens) {
+      let d: any; try { d = JSON.parse(it.valor); } catch { continue; }
+      if (!String(d?.nome || '').trim()) continue;   // nao aparece no quadro, nao avisa
+      if (d.atrasoAvisadoEm) continue;               // ja foi avisado uma vez
+      const atraso = atrasoDoExame(d, fases);
+      if (!atraso.atrasado) continue;
+      novos.push({ id: it.id, petId: it.lista.replace('petexa_', ''), d, atraso });
+    }
+    if (!novos.length) return { atrasados: 0, avisados: 0 };
+
+    const pets = await this.prisma.pet.findMany({
+      where: { id: { in: [...new Set(novos.map((n) => n.petId))] } },
+      select: { id: true, name: true },
+    }).catch(() => [] as any[]);
+    const nomePorPet = new Map(pets.map((x: any) => [x.id, x.name]));
+
+    // Os VETERINARIOS, e o administrativo junto: se ninguem checar, e a Cintia quem precisa
+    // saber. Ela pediu os veterinarios; incluir a dona de um alerta de "algo esta atrasado" e
+    // decisao minha, e ela pode tirar.
+    const destinos = await this.prisma.user.findMany({
+      where: { isBlocked: false, role: { in: ['VETERINARIAN', 'ADMIN'] } },
+      select: { id: true },
+    }).catch(() => [] as any[]);
+
+    if (destinos.length) {
+      const linhas = novos.slice(0, 4).map((n) => {
+        const pet = nomePorPet.get(n.petId) || 'Paciente';
+        const lab = n.d.fornecedorNome ? ` (${n.d.fornecedorNome})` : '';
+        return `${pet} — ${n.d.nome}${lab}: ${n.atraso.dias} dia(s) do prazo`;
+      });
+      const resto = novos.length - linhas.length;
+      const algumEstimado = novos.some((n) => n.atraso.estimado);
+      await this.prisma.notification.createMany({
+        data: destinos.map((u: any) => ({
+          userId: u.id,
+          type: 'WARNING' as any,
+          channel: 'IN_APP' as any,
+          title: novos.length === 1 ? 'Laudo atrasado no laboratorio' : `${novos.length} laudos atrasados no laboratorio`,
+          message: `${linhas.join('; ')}${resto > 0 ? ` e mais ${resto}` : ''}.`
+            + (algumEstimado ? ' (exame sem prazo cadastrado — contado pelo padrao da casa)' : ''),
+          link: '/dashboard/erp/exames-kanban',
+        })),
+      }).catch(() => undefined);
+    }
+
+    // A marca vai DEPOIS de avisar: se a notificacao falhar, o aviso tenta de novo amanha em
+    // vez de se perder calado.
+    const agora = new Date().toISOString();
+    for (const n of novos) {
+      await this.prisma.listaItem.update({
+        where: { id: n.id },
+        data: { valor: JSON.stringify({ ...n.d, atrasoAvisadoEm: agora }) },
+      }).catch(() => undefined);
+    }
+    return { atrasados: novos.length, avisados: destinos.length };
+  }
+
   async lembrarRecepcaoDaSolicitacao(): Promise<{ exames: number; avisados: number }> {
     const fases = await this.fasesExame();
     const itens = await this.prisma.listaItem.findMany({

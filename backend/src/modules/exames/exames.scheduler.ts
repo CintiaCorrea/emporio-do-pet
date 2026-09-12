@@ -42,4 +42,20 @@ export class ExamesScheduler {
       if (r.exames) this.logger.log(`Lembrete de solicitação: ${r.exames} exame(s) para ${r.avisados} pessoa(s).`);
     } catch (e) { this.logger.error(`Lembrete de solicitação falhou: ${String((e as any)?.message || e)}`); }
   }
+
+  // AVISO DE ATRASO DO LABORATÓRIO: uma vez por dia, às 10h30 (Fortaleza).
+  //
+  // Logo depois do lembrete das 10h de propósito: são as duas coisas que a equipe precisa saber
+  // de manhã, e chegam juntas em vez de espalhadas pelo dia.
+  //
+  // O método só avisa de exame que AINDA não foi avisado — o cron rodar todo dia não faz o
+  // mesmo laudo tocar todo dia.
+  @Cron('30 10 * * *', { timeZone: 'America/Fortaleza' })
+  async avisarAtrasos(): Promise<void> {
+    this.cronHealth.registrar('exames').catch(() => undefined);
+    try {
+      const r = await this.exames.avisarAtrasosDoLaboratorio();
+      if (r.atrasados) this.logger.log(`Atraso de laboratório: ${r.atrasados} laudo(s) para ${r.avisados} pessoa(s).`);
+    } catch (e) { this.logger.error(`Aviso de atraso falhou: ${String((e as any)?.message || e)}`); }
+  }
 }

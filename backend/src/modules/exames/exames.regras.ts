@@ -182,3 +182,90 @@ export function textoDoLembrete(exames: ExameParaLembrete[]): { titulo: string; 
     mensagem: `Ainda em Solicitar: ${nomes.join('; ')}${resto > 0 ? ` e mais ${resto}` : ''}.`,
   };
 }
+
+// ── O EXAME QUE O LABORATÓRIO NÃO DEVOLVEU ────────────────────────────────────────────────
+//
+// A Cintia, 12/09/2026, ao fechar o desenho do ciclo: "o aviso de atraso pode aparecer para os
+// veterinários, assim mesmo que o veterinário responsável não esteja os outros podem checar e o
+// box pode ficar de outra cor para mostrar que está atrasado".
+//
+// Ele existe porque o lembrete diário passou a cobrir SÓ a primeira coluna, a pedido dela. Em
+// "Retirado" a bola está com o laboratório e não há o que lembrar todo dia — mas se o laudo não
+// volta, ninguém percebe. O cliente pagou e espera em silêncio.
+//
+// Atraso é coisa diferente de lembrete: aparece UMA vez, quando vira atraso, e não insiste.
+
+/** Sem prazo cadastrado no exame, este é o palpite — e ele viaja marcado como palpite. */
+export const PRAZO_PADRAO_DIAS = 3;
+
+export type ExameParaAtraso = ExameParaLembrete & {
+  entregueAt?: string | null;
+  /** Prazo do laboratório, do cadastro do exame (tempoResultadoDias). */
+  prazoDias?: number | null;
+  /** Mapa fase → { at } gravado a cada movimento no quadro. */
+  historico?: Record<string, { at?: string }> | null;
+};
+
+const DIA_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Quando o laboratório levou o material. É daí que o relógio do prazo começa a contar — e não
+ * da venda: exame vendido sexta e coletado segunda não está três dias atrasado na segunda.
+ *
+ * Sem registro da passagem pela coluna, cai na data do card, que é o melhor que se tem.
+ */
+export function levouEm(e: ExameParaAtraso, fases: string[]): string | null {
+  const retirar = faseDeRetirada(fases);
+  const h = e?.historico || {};
+  if (retirar) {
+    const achado = Object.keys(h).find((k) => k.toLowerCase().trim() === retirar.toLowerCase().trim());
+    if (achado && h[achado]?.at) return h[achado].at as string;
+  }
+  return e?.date || null;
+}
+
+export type Atraso = {
+  atrasado: boolean;
+  /** Dias inteiros passados do prazo. 0 quando não está atrasado. */
+  dias: number;
+  /** O prazo usado; `estimado` quando o exame não tem prazo cadastrado. */
+  prazoDias: number;
+  estimado: boolean;
+};
+
+/**
+ * O exame passou do prazo do laboratório?
+ *
+ * SÓ vale enquanto o material está COM o laboratório — depois que o laudo chega (Resultado) ou
+ * o exame é entregue, não há atraso de laboratório nenhum: a bola passou para o cliente, e essa
+ * espera é outro assunto.
+ *
+ * Exame sem prazo cadastrado usa PRAZO_PADRAO_DIAS e volta com `estimado: true`, para o aviso
+ * poder dizer que é palpite. Avisar "atrasado" com uma certeza que não se tem é o caminho mais
+ * curto para a equipe aprender a ignorar o aviso.
+ */
+export function atrasoDoExame(e: ExameParaAtraso, fases: string[], agora?: Date | string): Atraso {
+  const prazoCru = Number(e?.prazoDias);
+  const estimado = !Number.isFinite(prazoCru) || prazoCru <= 0;
+  const prazoDias = estimado ? PRAZO_PADRAO_DIAS : Math.round(prazoCru);
+  const nada: Atraso = { atrasado: false, dias: 0, prazoDias, estimado };
+
+  if (!e || ehFaseConcluida(e.status, e.entregueAt)) return nada;
+
+  // Só entre "o laboratório levou" e "o laudo chegou".
+  const retirar = faseDeRetirada(fases);
+  if (!retirar) return nada;
+  const atual = faseNormalizada(e.status, fases);
+  const iAtual = indiceDaFase(atual, fases);
+  const iRetirar = indiceDaFase(retirar, fases);
+  if (iAtual < 0 || iRetirar < 0 || iAtual !== iRetirar) return nada;
+
+  const desde = levouEm(e, fases);
+  if (!desde) return nada;
+  const t0 = new Date(desde).getTime();
+  const t1 = agora ? new Date(agora as any).getTime() : Date.now();
+  if (!Number.isFinite(t0) || !Number.isFinite(t1)) return nada;
+
+  const dias = Math.floor((t1 - t0) / DIA_MS) - prazoDias;
+  return dias > 0 ? { atrasado: true, dias, prazoDias, estimado } : nada;
+}
