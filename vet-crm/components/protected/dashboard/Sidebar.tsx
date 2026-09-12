@@ -89,9 +89,18 @@ const NAV: Entry[] = [
       // junto de Ranking e RFM — coisas de estudo. Ela nao e estudo: e onde se procura uma venda,
       // se imprime as comandas do dia e se tira o relatorio do periodo. E trabalho de balcao e de
       // fechamento, e a Cintia foi procura-la em Vendas.
-      { href: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🔎", roles: ["ADMIN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/vendas", label: "Todas as vendas", emoji: "📋", roles: ALL },
-      { href: "/dashboard/erp/comandas", label: "Vendas em aberto", emoji: "🧾", roles: ALL },
+      // UMA PORTA SO PARA VENDAS (Cintia, 12/09/2026: "quero que fique somente a opcao de
+      // consulta de vendas"). Eram quatro entradas para o mesmo assunto, e cada uma tinha uma
+      // acao que so existia nela — tirar do menu sem levar a acao junto seria tirar a acao.
+      // Entao primeiro as acoes mudaram de casa (blocos A e B, 12/09/2026):
+      //   Todas as vendas    -> excluir venda, agora na linha da venda daqui;
+      //   Vendas em aberto   -> receber num pagamento so e cobrar por WhatsApp, agora no
+      //                         cabecalho do cliente;
+      //   Orcamentos         -> converter em venda ja morava aqui (OrcamentosBusca).
+      // Os dois enderecos continuam existindo para quem tem link salvo; sairam do menu.
+      // Orcamentos FICA com aba propria: o follow-up com responsavel e rotina de quem
+      // persegue orcamento e nao cabe numa tela de consulta.
+      { href: "/dashboard/erp/consulta-vendas", label: "Vendas", emoji: "🔎", roles: ALL },
       { href: "/dashboard/erp/orcamentos", label: "Orçamentos", emoji: "📄", roles: ALL },
       // UMA TELA SO DE CAIXA. Havia duas entradas com o mesmo assunto: "Caixa" (a tela
       // completa — lista de caixas, detalhe, conferencia, papel) e "Movimentos de caixa" (120

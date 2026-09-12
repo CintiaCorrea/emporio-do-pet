@@ -54,9 +54,10 @@ export const PERM_SECTIONS: PermSection[] = [
       {
         key: "vendas", label: "Vendas", emoji: "💰", children: [
           { key: "/dashboard/erp/ponto-de-venda", label: "Ponto de venda", emoji: "🛒" },
-          { key: "/dashboard/erp/vendas", label: "Todas as vendas", emoji: "📋" },
+          // A porta unica de vendas (12/09/2026). Absorveu "Todas as vendas" e "Vendas em
+          // aberto", que sairam do menu com as acoes ja mudadas de casa.
+          { key: "/dashboard/erp/consulta-vendas", label: "Vendas", emoji: "🔎" },
           { key: "/dashboard/erp/caixa", label: "Movimento de caixa", emoji: "💵" },
-          { key: "/dashboard/erp/comandas", label: "Vendas em aberto", emoji: "🧾" },
           { key: "/dashboard/erp/orcamentos", label: "Orçamentos", emoji: "📋" },
           { key: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦" },
           { key: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾" },
@@ -78,7 +79,6 @@ export const PERM_SECTIONS: PermSection[] = [
       {
         key: "inteligencia", label: "Inteligência", emoji: "💡", children: [
           { key: "/dashboard/erp/minhas-vendas", label: "Produtividade", emoji: "📈" },
-          { key: "/dashboard/erp/consulta-vendas", label: "Consulta de vendas", emoji: "🧾" },
           { key: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆" },
           { key: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊" },
         ],

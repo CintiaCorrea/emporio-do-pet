@@ -12,7 +12,12 @@ import { codigoDoProjeto } from "@/lib/testes/varreduraDoProjeto";
 // escolha por "pega o meu caixa e pronto", e o dinheiro volta a cair no dia errado sem nenhum
 // teste ficar vermelho.
 
-const TELAS_QUE_RECEBEM = ["app/(user)/dashboard/erp/comandas/page.tsx"];
+// Desde 12/09/2026 o recebimento em lote mora num componente, usado pela tela de comandas e
+// pela Consulta de vendas. A trava tem que seguir a peca: e ela que pergunta o caixa agora.
+const TELAS_QUE_RECEBEM = [
+  "app/(user)/dashboard/erp/comandas/page.tsx",
+  "components/caixa/ReceberEmLoteModal.tsx",
+];
 
 describe("a baixa pergunta em qual caixa entra", () => {
   const arquivos = codigoDoProjeto();
