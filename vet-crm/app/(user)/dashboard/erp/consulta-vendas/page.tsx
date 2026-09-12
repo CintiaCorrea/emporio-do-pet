@@ -12,6 +12,9 @@ import EnviarPorWhatsApp from '@/components/comum/EnviarPorWhatsApp';
 import { textoDoRelatorioVendas } from '@/lib/textoDoRelatorioVendas';
 import { gerarPdfDoExtrato } from '@/lib/documentos/relatorio-vendas-pdf';
 import { imprimirVendasDoCliente } from '@/lib/documentos/relatorio-vendas-print';
+import ReceberEmLoteModal, { type ComandaParaReceber } from '@/components/caixa/ReceberEmLoteModal';
+import { excluirVenda } from '@/lib/vendas/excluirVenda';
+import toast from 'react-hot-toast';
 import { imprimirComandasDoDia } from '@/lib/documentos/relatorio-vendas-print';
 import SeletorDePeriodo from '@/components/comum/SeletorDePeriodo';
 import { imprimirResumoDeVendas } from '@/lib/documentos/relatorio-resumo-vendas-print';
@@ -340,7 +343,7 @@ function Td({ children, dir, forte, sub, cor }: { children: React.ReactNode; dir
 }
 
 /* ---------------- linha expansível ---------------- */
-function LinhaVenda({ v, saldoCliente }: { v: Venda; saldoCliente: number }) {
+function LinhaVenda({ v, saldoCliente, onExcluir, excluindo }: { v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null }) {
   const [open, setOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   return (
@@ -395,6 +398,17 @@ function LinhaVenda({ v, saldoCliente }: { v: Venda; saldoCliente: number }) {
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
                   <button onClick={(e) => { e.stopPropagation(); setDevOpen(true); }} className="inline-flex items-center gap-1.5" style={{ border: `1px solid ${CORAL}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: CORAL, background: '#fff', cursor: 'pointer' }}>↩️ Devolver</button>
                   <button onClick={(e) => { e.stopPropagation(); imprimirVenda(v); }} className="inline-flex items-center gap-1.5" style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: NAVY, background: '#fff', cursor: 'pointer' }}>🖨️ Imprimir comprovante</button>
+                  {/* EXCLUIR VENDA veio da aba "Todas as vendas" (bloco B, 12/09/2026), para
+                      ela poder sair do menu sem levar a acao embora. A regra e a mesma, de
+                      lib/vendas/excluirVenda: quem nao e adm so apaga venda sem recebimento,
+                      e gravacao de audio exige o segundo aviso. */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onExcluir(v); }}
+                    disabled={excluindo === v.id}
+                    title="Excluir a venda"
+                    className="inline-flex items-center gap-1.5"
+                    style={{ border: '1px solid #F0D2D1', borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: '#b23b39', background: '#fff', cursor: 'pointer' }}
+                  >{excluindo === v.id ? '…' : '🗑️ Excluir'}</button>
                 </div>
               </div>
             </div>
@@ -436,6 +450,12 @@ export default function ConsultaVendasPage() {
   const [verTotaisClinica, setVerTotaisClinica] = useState(false);
   // Saldo em aberto POR CLIENTE, de todos os dias — e o que alimenta o aviso da lista.
   const [saldos, setSaldos] = useState<Record<string, number>>({});
+  // As comandas abertas de cada cliente, de TODOS os dias — a fonte do recebimento em lote.
+  const [abertasPorCliente, setAbertasPorCliente] = useState<Record<string, ComandaParaReceber[]>>({});
+  // Muda de valor depois de um recebimento, e com isso o efeito recarrega as abertas.
+  const [recarregarAbertas, setRecarregarAbertas] = useState(0);
+  const [receberDe, setReceberDe] = useState<{ nome: string; comandas: ComandaParaReceber[] } | null>(null);
+  const [excluindo, setExcluindo] = useState<string | null>(null);
   const [pagina, setPagina] = useState(1);
   const POR_PAGINA = 30;
 
@@ -472,15 +492,25 @@ export default function ConsultaVendasPage() {
         if (!r.ok) return;
         const arr = await r.json();
         const m: Record<string, number> = {};
+        // Guarda tambem as LINHAS, nao so a soma: sao elas que o recebimento em lote precisa.
+        const porCliente: Record<string, ComandaParaReceber[]> = {};
         for (const x of Array.isArray(arr) ? arr : []) {
           const k = x.tutorId || x.tutor;
           if (!k) continue;
-          m[k] = (m[k] || 0) + Math.max(0, Number(x.valor || 0) - Number(x.pago || 0));
+          const aberto = Math.max(0, Number(x.valor || 0) - Number(x.pago || 0));
+          m[k] = (m[k] || 0) + aberto;
+          if (aberto > 0.009 && x.id) {
+            (porCliente[k] = porCliente[k] || []).push({
+              id: x.id, date: x.date, pet: x.pet, origem: x.origem,
+              numeroVenda: x.numeroVenda ?? x.codigoExterno ?? null, aberto,
+            });
+          }
         }
         setSaldos(m);
+        setAbertasPorCliente(porCliente);
       } catch { /* o aviso e um extra: sem ele a lista continua inteira */ }
     })();
-  }, []);
+  }, [recarregarAbertas]);
 
   const t = data?.totais;
   const funcs = useMemo(() => [...new Set((data?.vendas || []).map((v) => v.funcionario).filter(Boolean))] as string[], [data]);
@@ -507,6 +537,20 @@ export default function ConsultaVendasPage() {
      Nao precisou de campo novo: se o que a consulta devolveu e de UM cliente so — achado
      pelo nome dele, pelo nome do pet ou pelo numero da venda — o cabecalho vira o extrato
      dele. O gesto de quem usa continua o mesmo. */
+  /* EXCLUIR VENDA veio da aba "Todas as vendas" (bloco B, 12/09/2026), para ela poder sair
+     do menu sem levar a acao embora. A regra e a MESMA, de lib/vendas/excluirVenda. */
+  const pedirExclusao = async (v: Venda) => {
+    if (excluindo) return;   // trava no primeiro clique: nao se apaga venda duas vezes
+    setExcluindo(v.id);
+    const r = await excluirVenda(
+      { id: v.id, numeroVenda: v.numeroVenda, tutor: v.cliente, pet: v.pet, valor: v.valor, pago: v.pago },
+      { isAdmin, confirmar: (m) => window.confirm(m) },
+    );
+    setExcluindo(null);
+    if (r.ok) { toast.success('Venda excluída.'); setRecarregarAbertas((n) => n + 1); load(); return; }
+    if (r.erro) toast.error(r.erro);
+  };
+
   const clienteUnico = useMemo(() => {
     const ids = new Set(vendasF.map((v) => v.clienteId).filter(Boolean));
     if (ids.size !== 1) return null;
@@ -725,10 +769,27 @@ export default function ConsultaVendasPage() {
             <EnviarPorWhatsApp
               tutorId={clienteUnico.id}
               texto={textoDoRelatorioVendas({ cliente: clienteUnico.nome, vendas: vendasDoCliente })}
-              rotulo="💬 Enviar extrato"
+              rotulo="💬 Extrato"
               titulo={`Extrato — ${clienteUnico.nome}`}
               gerarPdf={async () => gerarPdfDoExtrato({ cliente: clienteUnico.nome, vendas: vendasDoCliente })}
             />
+            {/* COBRAR e RECEBER só aparecem quando ha o que cobrar. Os dois trabalham com as
+                vendas abertas de TODOS os dias, nao com as do periodo filtrado: cobrar "o que
+                venceu em setembro" deixa a divida antiga pra tras. */}
+            {(abertasPorCliente[clienteUnico.id]?.length || 0) > 0 && (<>
+              <EnviarPorWhatsApp
+                tutorId={clienteUnico.id}
+                texto={textoDoRelatorioVendas({ cliente: clienteUnico.nome, vendas: vendasDoCliente, apenasEmAberto: true })}
+                rotulo="💬 Cobrar"
+                titulo={`Cobrança — ${clienteUnico.nome}`}
+                gerarPdf={async () => gerarPdfDoExtrato({ cliente: clienteUnico.nome, vendas: vendasDoCliente, apenasEmAberto: true })}
+              />
+              <button
+                onClick={() => setReceberDe({ nome: clienteUnico.nome, comandas: abertasPorCliente[clienteUnico.id] || [] })}
+                title="Receber todas as vendas em aberto deste cliente num pagamento só"
+                style={{ ...botaoIcone, width: 'auto', padding: '0 11px', fontSize: 12, fontWeight: 600, background: TEAL, borderColor: TEAL, color: '#fff' }}
+              >💰 Receber</button>
+            </>)}
           </div>
         </div>
         <div className="flex gap-3 flex-wrap mb-4">
@@ -1042,7 +1103,7 @@ export default function ConsultaVendasPage() {
               </tr>
             </thead>
             <tbody>
-              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} />)}
+              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} />)}
             </tbody>
           </table>
         )}
@@ -1059,6 +1120,20 @@ export default function ConsultaVendasPage() {
         )}
       </div>
       </>)}
+
+      {/* RECEBER TUDO JUNTO, aqui mesmo (bloco B, 12/09/2026). Cintia: "quero que fique
+          somente a opcao de consulta de vendas" — para a aba de Vendas em aberto poder sair
+          do menu, receber precisa existir DENTRO desta tela. O componente e o MESMO que a
+          tela de comandas usa: recebimento e dinheiro, e duas copias significam corrigir uma
+          e esquecer a outra. */}
+      {receberDe && (
+        <ReceberEmLoteModal
+          tutor={receberDe.nome}
+          comandas={receberDe.comandas}
+          onFechar={() => setReceberDe(null)}
+          onRecebido={() => { setRecarregarAbertas((n) => n + 1); load(); }}
+        />
+      )}
     </div>
   );
 }
