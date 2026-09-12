@@ -423,7 +423,7 @@ export default function ConsultaVendasPage() {
 
   const [de, setDe] = useState(mesIni);
   const [ate, setAte] = useState(mesFim);
-  const [status, setStatus] = useState('');
+  const [sitPg, setSitPg] = useState<'' | 'BAIXADO' | 'ABERTO'>('');
   const [marca, setMarca] = useState('');
   const [busca, setBusca] = useState('');
   const [cod, setCod] = useState('');
@@ -449,7 +449,6 @@ export default function ConsultaVendasPage() {
       const p = new URLSearchParams();
       if (de) p.set('de', de);
       if (ate) p.set('ate', ate);
-      if (status) p.set('status', status);
       if (marca) p.set('marca', marca);
       if (busca.trim()) p.set('busca', busca.trim());
       if (cod.trim()) p.set('cod', cod.trim());
@@ -461,7 +460,7 @@ export default function ConsultaVendasPage() {
     } finally {
       jaCarregou.current = true; setLoading(false);
     }
-  }, [de, ate, status, marca, busca, cod]);
+  }, [de, ate, marca, busca, cod]);
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
@@ -487,13 +486,15 @@ export default function ConsultaVendasPage() {
   const funcs = useMemo(() => [...new Set((data?.vendas || []).map((v) => v.funcionario).filter(Boolean))] as string[], [data]);
   const vendasF = useMemo(() => (data?.vendas || [])
     .filter((v) => !func || v.funcionario === func)
+    // Baixado = nao deve mais nada. Parcial ainda deve, entao conta como em aberto.
+    .filter((v) => !sitPg || (sitPg === 'BAIXADO' ? v.situacao === 'PAGA' : v.situacao !== 'PAGA'))
     // Dia mais recente primeiro e, dentro do dia, o codigo maior primeiro — a ordem que a
     // recepcao espera. Por hora nao serve: venda lancada as 18h30 pode ter codigo menor.
     .sort((a, b) => {
       const da = String(a.date).slice(0, 10), db = String(b.date).slice(0, 10);
       if (da !== db) return db.localeCompare(da);
       return (Number(b.numeroVenda) || 0) - (Number(a.numeroVenda) || 0);
-    }), [data, func]);
+    }), [data, func, sitPg]);
   // Todos os quadros do Resumo saem de UMA passada (lib/resumoDeVendas, com teste): é o que
   // garante que card, quadro e linha nunca contem histórias diferentes.
   const resumo = useMemo(() => resumoDeVendas(vendasF as any), [vendasF]);
@@ -543,8 +544,8 @@ export default function ConsultaVendasPage() {
   const totalPaginas = Math.max(1, Math.ceil(vendasF.length / POR_PAGINA));
   const paginaAtual = Math.min(pagina, totalPaginas);
   const vendasDaPagina = useMemo(() => vendasF.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA), [vendasF, paginaAtual]);
-  useEffect(() => { setPagina(1); }, [data, func]);
-  useEffect(() => { if (!isAdmin && modo === 'RESUMO') setModo('VENDAS'); }, [isAdmin, modo]);
+  useEffect(() => { setPagina(1); }, [data, func, sitPg]);
+  useEffect(() => { if (!isAdmin && (modo === 'RESUMO' || modo === 'TOTAIS')) setModo('VENDAS'); }, [isAdmin, modo]);
   // Totais por produto/serviço (agrega os itens das vendas do período)
   const totaisProduto = useMemo(() => {
     const m = new Map<string, { qtd: number; total: number }>();
@@ -566,7 +567,7 @@ export default function ConsultaVendasPage() {
       {/* cabeçalho só de impressão */}
       <div className="cv-print-h" style={{ display: 'none', marginBottom: 14 }}>
         <div style={{ fontSize: 16, fontWeight: 600, color: NAVY }}>Consulta de vendas · Empório do Pet</div>
-        <div style={{ fontSize: 12, color: GREY }}>Período {de} a {ate}{cod ? ` · cód. ${cod}` : ''}{marca ? ` · ${marca}` : ''}{status ? ` · ${status}` : ''}</div>
+        <div style={{ fontSize: 12, color: GREY }}>Período {de} a {ate}{cod ? ` · cód. ${cod}` : ''}{marca ? ` · ${marca}` : ''}{sitPg === 'BAIXADO' ? ' · baixadas' : sitPg === 'ABERTO' ? ' · em aberto' : ''}</div>
       </div>
 
       {/* ── A LINHA DE FILTROS, FINA E INTEIRA ──────────────────────────────────────────
@@ -589,20 +590,20 @@ export default function ConsultaVendasPage() {
             style={{ ...fino, fontWeight: 600, color: NAVY, borderColor: TEAL, minWidth: 168 }}
           >
             <option value="VENDAS">🧾 Vendas</option>
-            <option value="TOTAIS">📊 Totais por produto</option>
-            {/* O Resumo e' o painel consolidado da clinica (faturamento, desconto, ticket
-                medio, convenios). Junto com o olhinho, e' o que tira o dinheiro da empresa
-                da tela que fica virada pro balcao. */}
+            {/* Totais por produto e Resumo sao painel consolidado da CLINICA — faturamento,
+                desconto, ticket medio, convenios. Cintia, 12/09/2026: "so vendas, e orcamento
+                para o restante da equipe — somente adm ve tudo". */}
+            {isAdmin && <option value="TOTAIS">📊 Totais por produto</option>}
             {isAdmin && <option value="RESUMO">📈 Resumo</option>}
             <option value="ORCAMENTOS">📄 Orçamentos</option>
           </select>
 
           <SeletorDePeriodo faixa={{ de, ate }} onMudar={(f) => { setDe(f.de); setAte(f.ate); }} />
 
-          <select value={status} onChange={(e) => setStatus(e.target.value)} style={fino}>
+          <select value={sitPg} onChange={(e) => setSitPg(e.target.value as any)} style={fino}>
             <option value="">Situação: todas</option>
-            <option value="COMPLETED">Baixado</option>
-            <option value="SCHEDULED">Orçamento</option>
+            <option value="BAIXADO">Baixado</option>
+            <option value="ABERTO">Em aberto</option>
           </select>
 
           <select value={marca} onChange={(e) => setMarca(e.target.value)} style={fino}>
@@ -647,7 +648,7 @@ export default function ConsultaVendasPage() {
               resumo,
               pacotes: data?.pacotes || [],
               periodo: `${de.split('-').reverse().join('/')} a ${ate.split('-').reverse().join('/')}`,
-              filtros: [cod && `cód. ${cod}`, marca, status === 'COMPLETED' ? 'baixadas' : status === 'SCHEDULED' ? 'orçamentos' : '', func && `funcionário ${func}`].filter(Boolean).join(' · '),
+              filtros: [cod && `cód. ${cod}`, marca, sitPg === 'BAIXADO' ? 'baixadas' : sitPg === 'ABERTO' ? 'em aberto' : '', func && `funcionário ${func}`].filter(Boolean).join(' · '),
             })}
             disabled={!vendasF.length}
             title="Relatório do período: os cartões e todos os quadros do Resumo, em papel"

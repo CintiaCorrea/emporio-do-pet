@@ -60,10 +60,31 @@ describe("consulta de vendas: cabecalho por cliente", () => {
     expect(doCliente).not.toMatch(/resumo\.cards\.aberto/);
   });
 
-  it("o modo Resumo (painel da clinica) e' so do administrativo", () => {
+  it("Totais e Resumo (painel da clinica) sao so do administrativo", () => {
+    // Cintia, 12/09/2026: "so vendas, e orcamento para o restante da equipe — somente adm
+    // ve tudo". Os dois modos consolidam a clinica inteira; Vendas e Orcamentos nao.
     expect(tela).toMatch(/\{isAdmin && <option value="RESUMO">/);
-    // e quem nao e' adm nao fica preso nele por link ou troca de perfil
-    expect(tela).toMatch(/if \(!isAdmin && modo === 'RESUMO'\) setModo\('VENDAS'\)/);
+    expect(tela).toMatch(/\{isAdmin && <option value="TOTAIS">/);
+    expect(tela).toMatch(/<option value="VENDAS">/);
+    expect(tela).toMatch(/<option value="ORCAMENTOS">/);
+    // e quem nao e' adm nao fica preso num deles por link ou troca de perfil
+    expect(tela).toMatch(/if \(!isAdmin && \(modo === 'RESUMO' \|\| modo === 'TOTAIS'\)\) setModo\('VENDAS'\)/);
+  });
+
+  it("situacao e' baixado ou em aberto — nao existe outra", () => {
+    // Cintia, 12/09/2026: "situacao e baixado e aberto (nao existe outra situacao)".
+    // "Orcamento" nao e' situacao de pagamento; tem aba propria.
+    const sel = tela.slice(tela.indexOf("value={sitPg}"), tela.indexOf("value={sitPg}") + 420);
+    expect(sel).toMatch(/<option value="">Situação: todas<\/option>/);
+    expect(sel).toMatch(/<option value="BAIXADO">Baixado<\/option>/);
+    expect(sel).toMatch(/<option value="ABERTO">Em aberto<\/option>/);
+    expect(sel).not.toMatch(/Orçamento</);
+  });
+
+  it("baixado sai do SALDO, nao da etiqueta de status", () => {
+    // Venda parcialmente recebida ainda deve. Com status COMPLETED ela passava por baixada.
+    expect(tela).toMatch(/sitPg === 'BAIXADO' \? v\.situacao === 'PAGA' : v\.situacao !== 'PAGA'/);
+    expect(tela).not.toMatch(/p\.set\('status'/);
   });
 
   it("papel, PDF e WhatsApp do extrato saem da mesma fonte das outras telas", () => {
