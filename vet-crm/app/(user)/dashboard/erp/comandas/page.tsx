@@ -14,8 +14,7 @@ import { imprimirVendasAbertas } from "@/lib/documentos/vendas-abertas-print";
 import { textoDoRelatorioVendas } from "@/lib/textoDoRelatorioVendas";
 import EnviarPorWhatsApp from "@/components/comum/EnviarPorWhatsApp";
 import { gerarPdfDoExtrato } from "@/lib/documentos/relatorio-vendas-pdf";
-import PagamentoFormas from "@/components/financeiro/PagamentoFormas";
-import { carregarFormasRecebimento, validarPagamentosCartao, type PagForma, type FormaCfg, type TaxaRow } from "@/lib/formasPagamento";
+import ReceberEmLoteModal from "@/components/caixa/ReceberEmLoteModal";
 import { hojeNaClinicaISO } from "@/lib/datas";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
@@ -59,10 +58,6 @@ export default function ComandasPage() {
   const [detItens, setDetItens] = useState<any[]>([]);
   const [detLoading, setDetLoading] = useState(false);
   const [forma, setForma] = useState("Dinheiro");
-  // Pagamento UNICO do grupo: varias formas (Pix + cartao + dinheiro), como no ponto de venda.
-  const [formasLote, setFormasLote] = useState<PagForma[]>([]);
-  const [formasConfig, setFormasConfig] = useState<FormaCfg[]>([]);
-  const [taxas, setTaxas] = useState<TaxaRow[]>([]);
   const [baixando, setBaixando] = useState(false);
   const [detGrupo, setDetGrupo] = useState<any | null>(null); // baixar todas as comandas de um cliente (1B)
 
@@ -93,46 +88,6 @@ export default function ComandasPage() {
     jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
-  // Config de formas e taxas: o mesmo carregador do ponto de venda, para o pagamento unico
-  // aceitar cartao com operadora/NSU e calcular taxa igual la'.
-  useEffect(() => {
-    carregarFormasRecebimento()
-      .then(({ formasConfig: fc, taxas: tx }) => { setFormasConfig(fc); setTaxas(tx); })
-      .catch(() => undefined);
-  }, []);
-  // Digitar refaz SO a lista; caixa e "baixado hoje" nao mudam com a busca.
-  const primeiraBusca = useRef(true);
-  const buscaSeq = useRef(0); // resposta atrasada de busca antiga nao pode sobrescrever a atual
-  useEffect(() => {
-    if (primeiraBusca.current) { primeiraBusca.current = false; return; }
-    setBuscando(true);
-    const t = setTimeout(() => {
-      const seq = ++buscaSeq.current;
-      fetch(urlComandas(busca))
-        .then((r) => r.json())
-        .catch(() => [])
-        .then((c) => {
-          if (seq !== buscaSeq.current) return; // chegou tarde: ja existe busca mais nova
-          setComandas(Array.isArray(c) ? c : (c.data || []));
-          setBuscando(false);
-        });
-    }, 350);
-    return () => clearTimeout(t);
-  }, [busca]);
-  // O recebimento entra no caixa de QUEM ESTÁ LOGADA (lib/caixaAtual). Só dá pra saber depois que a
-  // sessão carrega — por isso este efeito separado, e não dentro do load().
-  useEffect(() => {
-    if (!meId) return;
-    carregarMeuCaixa(meId).then((m) => {
-      setMeuCaixa(m.meu); setCaixasDeOutros(m.deOutros);
-      // Três casos (lib/caixaAtual): o meu; ou o único aberto; ou recusa se há mais de um
-      // e nenhum é meu. Antes bastava não ter o meu pra travar a baixa.
-      const r = caixaParaReceber(m);
-      setCaixaUsado(r); setCaixaAberto(r.caixa?.id || null);
-    });
-    carregarMeusCaixasAbertos(meId).then(setMeusAbertos);
-  }, [meId]);
-
   // TODOS os meus caixas abertos, de qualquer dia — a lista da escolha. Diferente de
   // `meuCaixa`, que so enxerga os de HOJE e por isso nao via os dias reabertos.
   const [meusAbertos, setMeusAbertos] = useState<CaixaAberto[]>([]);
@@ -187,39 +142,6 @@ export default function ComandasPage() {
     }
     return [...m.values()];
   }, [agora]);
-
-  const baixarGrupo = async () => {
-    if (!detGrupo) return;
-    if (!meId) { alert("Só um instante — ainda estou identificando o seu usuário. Tente de novo em 2 segundos."); return; }
-    if (!caixaAberto) { setAbrirCaixaMotivo(`Para receber as vendas de ${detGrupo.tutor || "o cliente"}`); return; }
-    if (!confirm(`Receber TODAS as ${detGrupo.comandas.length} vendas de ${detGrupo.tutor} em ${forma}? (${fmtBRL(detGrupo.total)})`)) return;
-    setBaixando(true);
-    try {
-      // Cartao exige operadora + NSU + AUT: e' o que casa a venda com a linha do extrato.
-      const falta = validarPagamentosCartao(formasLote.filter((f) => Number(f.valor) > 0), formasConfig);
-      if (falta) { alert(falta); setBaixando(false); return; }
-      const res = await fetch(`/api/caixa/${caixaAberto}/recebimento-lote`, {
-        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
-        body: JSON.stringify({
-          appointmentIds: detGrupo.comandas.map((c: any) => c.id),
-          formas: formasLote.filter((f) => Number(f.valor) > 0),
-        }),
-      });
-      const dd = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(dd?.message || "Erro ao receber");
-      // O servidor valida tudo ANTES de gravar; se ainda assim algo falhar, ele diz o que.
-      if (Array.isArray(dd?.falhou) && dd.falhou.length) {
-        alert(`Recebi ${dd.quitadas} de ${dd.comandas} comanda(s). Nao consegui: ${dd.falhou.length}. Confira a lista antes de tentar de novo.`);
-      } else {
-        const resto = Number(dd?.restanteEmAberto || 0);
-        alert(resto > 0.009
-          ? `Recebido ${fmtBRL(dd.valorRecebido)}. Ainda em aberto: ${fmtBRL(resto)}.`
-          : `Recebido ${fmtBRL(dd.valorRecebido)} — tudo quitado.${Number(dd?.troco) > 0.009 ? ` Troco: ${fmtBRL(dd.troco)}.` : ""}`);
-      }
-      setDetGrupo(null); setFormasLote([]); load();
-    } catch (e: any) { alert(e?.message || "Erro ao receber as vendas."); }
-    finally { setBaixando(false); }
-  };
 
   // UMA LINHA da lista. A Cintia pediu lista, nao caixinhas: em cartao cabiam 3 por fileira e
   // ela precisava rolar a tela inteira pra conferir os valores de um dia. Aqui cabe tudo junto,
@@ -419,7 +341,7 @@ export default function ComandasPage() {
                               );
                             })()}
                           </span>
-                          <button onClick={(e) => { e.stopPropagation(); setFormasLote([{ forma: "Dinheiro", valor: Number(g.total.toFixed(2)) }]); setDetGrupo(g); }} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">💰 Baixar tudo</button>
+                          <button onClick={(e) => { e.stopPropagation(); setDetGrupo(g); }} className="text-[11.5px] font-medium text-white bg-[#009AAC] px-2.5 py-1 rounded-lg whitespace-nowrap">💰 Baixar tudo</button>
                         </td>
                       </tr>
                       {aberto && g.comandas.map((c: any) => linhaComanda(c, true))}
@@ -530,70 +452,19 @@ export default function ComandasPage() {
       )}
 
       {/* ===== GRUPO (baixar todas as comandas do cliente) ===== */}
+      {/* RECEBER TUDO JUNTO — a peca mora em components/caixa/ReceberEmLoteModal desde
+          12/09/2026, porque a Consulta de vendas passou a receber tambem. Duas telas, um
+          componente: recebimento e dinheiro, e duas copias significam corrigir uma e
+          esquecer a outra. */}
       {detGrupo && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50" {...fundoDeModal(() => setDetGrupo(null))}>
-          <div className="rounded-2xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
-              <div>
-                <h3 className="text-base font-medium text-[#014D5E]">{especieEmoji(detGrupo.petSpecies)} {detGrupo.tutor}</h3>
-                <div className="text-[11px] text-[#374151] mt-0.5">{detGrupo.comandas.length} comandas abertas · baixar tudo junto</div>
-              </div>
-              <button onClick={() => setDetGrupo(null)} className="text-[#374151] text-lg leading-none">✕</button>
-            </div>
-            <div className="px-5 py-3">
-              {detGrupo.comandas.map((c: any) => (
-                <div key={c.id} className="flex items-center justify-between py-1.5 border-b last:border-b-0 text-[12.5px]" style={{ borderColor: "#F0EBE0" }}>
-                  <span className="text-[#5C6B70] truncate">{(ORIGEM[c.origem] || ORIGEM.VENDA).lbl} · {c.pet || "—"}</span>
-                  <span className="text-[#1F2A2E] tabular-nums flex-shrink-0 ml-2">{money(Number(c.aberto || c.valor || 0))}</span>
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between items-center px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-              <span className="text-[13px] text-[#5C6B70]">Total a receber</span>
-              <span className="text-[18px] font-medium text-[#014D5E] tabular-nums">{money(detGrupo.total)}</span>
-            </div>
-            {/* EM QUAL CAIXA ESTA BAIXA ENTRA. Fica FORA do `caixaAberto ?` de proposito: quando
-                a pessoa nao tem caixa de hoje mas tem um de outro dia reaberto, e esta faixa
-                que descobre isso e destrava o recebimento. Some sozinha quando so ha um caixa. */}
-            <div className="px-5 pt-3">
-              <EscolhaDoCaixa meusAbertos={meusAbertos} dataDaVenda={detGrupo.comandas.map((c: any) => c.date).sort()[0] || null} valor={caixaAberto} onEscolher={setCaixaAberto} />
-            </div>
-
-            {caixaAberto ? (
-              <>
-                <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-                  <div className="text-[10.5px] text-[#374151] uppercase tracking-wide mb-2">
-                    Como o cliente pagou — pode dividir entre formas
-                  </div>
-                  <PagamentoFormas formas={formasLote} onChange={setFormasLote} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
-                  {(() => {
-                    const pago = formasLote.reduce((sm, f) => sm + Number(f.valor || 0), 0);
-                    const falta = detGrupo.total - pago;
-                    if (Math.abs(falta) < 0.01) return <div className="mt-2 text-[12px] font-medium text-[#0F6E56]">✓ Fecha certo com o total.</div>;
-                    return falta > 0
-                      ? <div className="mt-2 text-[12px] text-[#b23b39]">Falta lançar {money(falta)} — o que sobrar em aberto continua na lista, da comanda mais nova.</div>
-                      : <div className="mt-2 text-[12px] text-[#8a6400]">Passou {money(-falta)} do total — sai como troco.</div>;
-                  })()}
-                </div>
-                <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
-                  <button onClick={() => setDetGrupo(null)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Fechar</button>
-                  <button
-                    onClick={baixarGrupo}
-                    disabled={baixando || formasLote.reduce((sm, f) => sm + Number(f.valor || 0), 0) <= 0.009}
-                    className="px-5 py-2 text-[13px] font-medium text-white bg-[#009AAC] rounded-lg disabled:opacity-60"
-                  >{baixando ? "Recebendo..." : "💰 Receber num pagamento só"}</button>
-                </div>
-              </>
-            ) : (
-              <div className="px-5 py-4 border-t" style={{ borderColor: "#E8E2D6" }}>
-                <div className="text-[12.5px] text-[#b23b39] bg-[#FDECEC] border rounded-lg px-3 py-2" style={{ borderColor: "#F3D2D0" }}>
-                  {caixaUsado?.erro || "Você não tem caixa aberto."}
-                  <button onClick={() => setAbrirCaixaMotivo("Para receber esta venda")} className="ml-2 underline font-semibold" style={{ color: "#0E7C86" }}>Abrir o meu caixa</button>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        <ReceberEmLoteModal
+          tutor={detGrupo.tutor}
+          emoji={especieEmoji(detGrupo.petSpecies)}
+          comandas={detGrupo.comandas}
+          ocultarValores={!olho}
+          onFechar={() => setDetGrupo(null)}
+          onRecebido={load}
+        />
       )}
 
       {abrirCaixaMotivo !== null && (
