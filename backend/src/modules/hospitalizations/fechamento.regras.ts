@@ -16,6 +16,8 @@
 
 /** O fuso da casa. Dia de calendario em Fortaleza, nao em UTC — senao tudo o que acontece
  *  depois das 21h cai no dia seguinte e o fechamento da meia-noite cobra errado. */
+import { dentroDaJanelaDeAjuste } from '../../common/janela-de-ajuste';
+
 export const FUSO = 'America/Fortaleza';
 
 /** "2026-09-05" a partir de qualquer data, no fuso da casa. */
@@ -216,36 +218,26 @@ export function diasEmAberto(params: {
  */
 export function podeEditarItem(item: ItemDaConta, papel?: string, agora?: Date | string): boolean {
   if (!item?.baixado) return true;
-  if (dentroDaSemanaDeAjuste(agora)) return true;
+  if (dentroDaJanelaDeAjuste(agora)) return true;
   return String(papel || '').toUpperCase() === 'ADMIN';
 }
 
 /**
- * SEMANA DE AJUSTE — combinada com a Cintia em 06/09/2026.
+ * A JANELA DE AJUSTE mora em common/janela-de-ajuste desde 12/09/2026, porque o caixa passou a
+ * usar a MESMA data (o administrativo lanca em caixa de outra pessoa durante a conciliacao).
+ * Duas datas seriam duas verdades: prorrogar uma e esquecer a outra deixa uma trava aberta que
+ * todo mundo pensa que fechou.
  *
- * Ate 13/09 QUALQUER PERFIL edita QUALQUER item, inclusive os ja cobrados. E a semana em
- * que a equipe aprende a lancar na internacao e as contas antigas sao acertadas: travar
- * agora obrigaria a chamar a Cintia a cada correcao, e ela viraria gargalo do plantao.
+ * O que ela libera AQUI, na internacao: qualquer perfil edita qualquer item, inclusive os ja
+ * cobrados, e corrige a hora de entrada — que e o relogio das diarias. Fora da janela, item ja
+ * cobrado so o administrativo mexe, e a trava volta sozinha.
  *
- * A data mora NO CODIGO, e nao numa promessa de alguem lembrar: passada ela, a trava volta
- * sozinha e "item ja cobrado so o administrativo edita" passa a valer sem ninguem fazer
- * nada. Se a semana precisar de mais dias, muda-se esta linha — de proposito, porque
- * afrouxar trava de dinheiro tem de ser uma decisao escrita, nao um esquecimento.
- *
- * PRORROGADO de 12/09 para 13/09 a pedido da Cintia, em 12/09/2026: "vou conferir todos os
- * caixas e lancamentos e fazer a conciliacao bancaria, para deixar o mes de setembro
- * redondo e testar todas as telas". A decisao escrita que o paragrafo acima pede e esta.
- *
- * Depois disso: o relatorio das edicoes da semana (quem mexeu em que) mostra o que cada
- * perfil realmente precisa, e a regra definitiva sai de dado, nao de palpite.
+ * Os dois nomes seguem exportados daqui: e por eles que a tela, o service e o teste desta pasta
+ * conhecem a regra, e renomear isso agora seria mexer em codigo testado sem ganho nenhum.
  */
-export const AJUSTE_ATE = '2026-09-13T23:59:59-03:00';
+export { AJUSTE_ATE } from '../../common/janela-de-ajuste';
+export { dentroDaJanelaDeAjuste as dentroDaSemanaDeAjuste } from '../../common/janela-de-ajuste';
 
-export function dentroDaSemanaDeAjuste(agora?: Date | string): boolean {
-  const t = agora ? new Date(agora as any).getTime() : Date.now();
-  if (!Number.isFinite(t)) return false;
-  return t <= new Date(AJUSTE_ATE).getTime();
-}
 
 /**
  * O QUE FAZER COM A VENDA DE UM DIA DA INTERNACAO.
