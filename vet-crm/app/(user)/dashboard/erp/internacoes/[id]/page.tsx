@@ -137,7 +137,11 @@ export default function FichaInternacaoPage() {
   // administrativo. A MESMA data esta no backend (fechamento.regras.AJUSTE_ATE), que e
   // quem de fato recusa — isto aqui e so pra tela nao oferecer o que vai ser negado.
   const isAdmin = String((session?.user as any)?.role || "").toUpperCase() === "ADMIN";
-  const podeCorrigirEntrada = Date.now() <= new Date("2026-09-12T23:59:59-03:00").getTime();
+  // UMA data so nesta tela. Ela estava escrita em dois lugares e prorrogar um e esquecer o
+  // outro deixaria o aviso mentindo pra equipe. A MESMA data esta no backend
+  // (fechamento.regras.AJUSTE_ATE), que e quem de fato recusa.
+  const AJUSTE_ATE = "2026-09-13T23:59:59-03:00";
+  const podeCorrigirEntrada = Date.now() <= new Date(AJUSTE_ATE).getTime();
 
   const [h, setH] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -2389,9 +2393,9 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                   <div><b>{h?.pet?.name || "Este paciente"} está sem peso no cadastro</b> — os lançamentos estão travados. Diária, medicação e caução são cobradas por faixa de peso; sem ele o preço sai errado e ninguém percebe. Registre uma aferição com o peso.</div>
                 </div>
               )}
-              {Date.now() <= new Date("2026-09-12T23:59:59-03:00").getTime() && (
+              {podeCorrigirEntrada && (
                 <div className="mx-4 mb-2 text-[11.5px]" style={{ background: "#EDE9FE", border: "1px solid #D6CCF5", borderRadius: 9, padding: "8px 11px", color: "#5B3FA8" }}>
-                  🔓 <b>Semana de ajuste — até 12/09.</b> Todo mundo pode editar qualquer item, inclusive os já cobrados, enquanto a equipe se acostuma e as contas antigas são acertadas. Depois dessa data, item já cobrado só o administrativo mexe.
+                  🔓 <b>Semana de ajuste — até 13/09.</b> Todo mundo pode editar qualquer item, inclusive os já cobrados, enquanto a equipe se acostuma e as contas antigas são acertadas. Depois dessa data, item já cobrado só o administrativo mexe.
                 </div>
               )}
               <div className="px-4 pb-3 text-[10.5px] text-[#374151]">Diárias entram automáticas (dias × valor/dia) — o valor se corrige no ✏️. Insumos “só estoque” não somam na conta.</div>

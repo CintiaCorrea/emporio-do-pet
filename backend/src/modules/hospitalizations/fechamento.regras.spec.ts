@@ -172,18 +172,18 @@ describe('fechamento diário da internação', () => {
       it('dentro da semana, qualquer perfil edita item já cobrado', () => {
         const cobrado = item({ baixado: true });
         expect(podeEditarItem(cobrado, 'RECEPTIONIST', '2026-09-08T10:00:00-03:00')).toBe(true);
-        expect(podeEditarItem(cobrado, 'VET', '2026-09-12T23:00:00-03:00')).toBe(true);
+        expect(podeEditarItem(cobrado, 'VET', '2026-09-13T23:00:00-03:00')).toBe(true);
       });
-      it('no dia 13 a trava volta SOZINHA — sem ninguém precisar lembrar', () => {
+      it('no dia 14 a trava volta SOZINHA — sem ninguém precisar lembrar', () => {
         const cobrado = item({ baixado: true });
-        expect(podeEditarItem(cobrado, 'RECEPTIONIST', '2026-09-13T00:00:01-03:00')).toBe(false);
+        expect(podeEditarItem(cobrado, 'RECEPTIONIST', '2026-09-14T00:00:01-03:00')).toBe(false);
       });
-      it('a virada é no fim do dia 12, não no começo', () => {
-        expect(dentroDaSemanaDeAjuste('2026-09-12T23:59:00-03:00')).toBe(true);
-        expect(dentroDaSemanaDeAjuste('2026-09-13T00:00:01-03:00')).toBe(false);
+      it('a virada é no fim do dia 13, não no começo', () => {
+        expect(dentroDaSemanaDeAjuste('2026-09-13T23:59:00-03:00')).toBe(true);
+        expect(dentroDaSemanaDeAjuste('2026-09-14T00:00:01-03:00')).toBe(false);
       });
       it('a data está escrita no código, não numa promessa de alguém lembrar', () => {
-        expect(AJUSTE_ATE).toBe('2026-09-12T23:59:59-03:00');
+        expect(AJUSTE_ATE).toBe('2026-09-13T23:59:59-03:00');
       });
       it('item em aberto continua livre pra todo mundo, dentro ou fora da semana', () => {
         expect(podeEditarItem(item({ baixado: false }), 'VET', DEPOIS)).toBe(true);

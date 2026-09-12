@@ -223,19 +223,23 @@ export function podeEditarItem(item: ItemDaConta, papel?: string, agora?: Date |
 /**
  * SEMANA DE AJUSTE — combinada com a Cintia em 06/09/2026.
  *
- * Ate 12/09 QUALQUER PERFIL edita QUALQUER item, inclusive os ja cobrados. E a semana em
+ * Ate 13/09 QUALQUER PERFIL edita QUALQUER item, inclusive os ja cobrados. E a semana em
  * que a equipe aprende a lancar na internacao e as contas antigas sao acertadas: travar
  * agora obrigaria a chamar a Cintia a cada correcao, e ela viraria gargalo do plantao.
  *
- * A data mora NO CODIGO, e nao numa promessa de alguem lembrar: dia 13 a trava volta
- * sozinha, e "item ja cobrado so o administrativo edita" passa a valer sem ninguem fazer
+ * A data mora NO CODIGO, e nao numa promessa de alguem lembrar: passada ela, a trava volta
+ * sozinha e "item ja cobrado so o administrativo edita" passa a valer sem ninguem fazer
  * nada. Se a semana precisar de mais dias, muda-se esta linha — de proposito, porque
  * afrouxar trava de dinheiro tem de ser uma decisao escrita, nao um esquecimento.
+ *
+ * PRORROGADO de 12/09 para 13/09 a pedido da Cintia, em 12/09/2026: "vou conferir todos os
+ * caixas e lancamentos e fazer a conciliacao bancaria, para deixar o mes de setembro
+ * redondo e testar todas as telas". A decisao escrita que o paragrafo acima pede e esta.
  *
  * Depois disso: o relatorio das edicoes da semana (quem mexeu em que) mostra o que cada
  * perfil realmente precisa, e a regra definitiva sai de dado, nao de palpite.
  */
-export const AJUSTE_ATE = '2026-09-12T23:59:59-03:00';
+export const AJUSTE_ATE = '2026-09-13T23:59:59-03:00';
 
 export function dentroDaSemanaDeAjuste(agora?: Date | string): boolean {
   const t = agora ? new Date(agora as any).getTime() : Date.now();
