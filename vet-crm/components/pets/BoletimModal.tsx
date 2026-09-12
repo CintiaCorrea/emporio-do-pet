@@ -4,7 +4,7 @@
    Modal Base44 por cima da ficha do pet. Grava em petboletim_${petId} (JSON).
    Fase 2: envio automatico via WhatsApp API/template (opt-in + template Meta)
    ───────────────────────────────────────────────────────────── */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { ageFromBirth, genderLabel } from "@/lib/pets/labels";
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
@@ -151,6 +151,22 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
   const [idSalvo, setIdSalvo] = useState<string | null>(boletimId);
   useEffect(() => { setIdSalvo(boletimId); }, [boletimId]);
 
+  /**
+   * TRAVA NO PRIMEIRO CLIQUE (Cintia, 12/09/2026: "pode travar o salvamento no primeiro clique").
+   * Tem que ser ref, nao estado: `saving` so vira true no proximo render, entao dois cliques no
+   * mesmo instante leriam `saving === false` os dois e mandariam a gravacao em dobro — a segunda
+   * batia no indice unico (lista, valor). A ref muda na hora. O `disabled={saving}` do botao
+   * continua valendo pro caso lento; esta guarda cobre o clique duplo rapido.
+   */
+  const salvandoRef = useRef(false);
+  function travarPrimeiroClique(): boolean {
+    if (salvandoRef.current) return true;
+    salvandoRef.current = true;
+    setSaving(true);
+    return false;
+  }
+  function liberarTrava() { salvandoRef.current = false; setSaving(false); }
+
   async function persistir(enviado: boolean): Promise<boolean> {
     const payload: BoletimData = { ...b, texto: textoPreview, enviadoAt: enviado ? new Date().toISOString() : (b.enviadoAt || null), createdAt: b.createdAt || new Date().toISOString() };
     // desconto da sessão: via agenda (quando o tutor chega/entra na sala de espera) — não descontamos aqui.
@@ -170,28 +186,32 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
     } catch (e: any) {
       const msg = String(e?.message || "");
       if (/unique|duplicate|lista_valor/i.test(msg)) {
-        toast.error("Este boletim ja esta salvo exatamente assim. Mude alguma coisa antes de salvar de novo.");
-      } else {
-        toast.error("Erro ao salvar boletim");
+        // Nao e' erro: o conteudo JA esta gravado assim. Dizer "erro" aqui assustava sem
+        // motivo — a pessoa achava que tinha perdido o boletim (Cintia, 12/09/2026).
+        toast.success("Este boletim ja esta salvo.");
+        return true;
       }
+      toast.error("Erro ao salvar boletim");
       return false;
     }
   }
 
   async function handleSalvar() {
-    setSaving(true);
+    if (travarPrimeiroClique()) return;
     const ok = await persistir(false);
-    setSaving(false);
+    liberarTrava();
     if (ok) { limparRascunho(); toast.success("Boletim salvo"); onSaved(); }
   }
 
   async function handleSalvarEnviar() {
+    if (salvandoRef.current) return;   // ja' esta salvando: o segundo clique nao faz nada
     if (!acceptsWA) { toast.error("O tutor ainda não autorizou receber por WhatsApp"); return; }
     // Autorização explícita: nada é enviado sem esse OK.
     if (!confirm(`Autorizar o envio do boletim do(a) ${pet.name} para ${pet.tutor?.name || "o tutor"} agora pelo WhatsApp?`)) return;
-    setSaving(true);
+    // So trava DEPOIS das guardas acima — travar antes e sair pelo cancelar deixaria o botao morto.
+    if (travarPrimeiroClique()) return;
     const ok = await persistir(true);
-    if (!ok) { setSaving(false); return; }
+    if (!ok) { liberarTrava(); return; }
     limparRascunho(); // já salvou no banco — descarta o rascunho local
     // Conversa ABERTA → envia o boletim completo e registra no inbox.
     // Conversa FECHADA → manda a abridora e deixa o boletim na FILA (vai automático
@@ -203,7 +223,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
         body: JSON.stringify({ tutorId: pet.tutorId, texto: textoPreview, petNome: pet.name }),
       });
       const d = await safeJson<any>(r, { status: "erro" });
-      setSaving(false);
+      liberarTrava();
       if (d?.status === "enviado") { toast.success("Boletim enviado pelo WhatsApp ✅"); onSaved(); return; }
       if (d?.status === "na_fila") {
         toast("Conversa fechada — enviei a mensagem que abre a conversa. O boletim completo vai automático quando o cliente responder. 🕐", { duration: 6500 });
@@ -211,7 +231,7 @@ export default function BoletimModal({ pet, boletimId, fisioRec, agenda, onClose
       }
       toast.error("Não consegui enviar automático" + (d?.error ? `: ${d.error}` : "") + ". Abrindo o WhatsApp pra enviar manual.");
     } catch {
-      setSaving(false);
+      liberarTrava();
       toast.error("Envio automático falhou. Abrindo o WhatsApp pra enviar manual.");
     }
     try { await navigator.clipboard.writeText(textoPreview); } catch {}
