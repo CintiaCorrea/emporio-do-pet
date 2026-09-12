@@ -7,6 +7,11 @@ import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import OrcamentosBusca from '@/components/vendas/OrcamentosBusca';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { resumoDeVendas } from '@/lib/resumoDeVendas';
+import { useRolePreview } from '@/lib/ui/RolePreview';
+import EnviarPorWhatsApp from '@/components/comum/EnviarPorWhatsApp';
+import { textoDoRelatorioVendas } from '@/lib/textoDoRelatorioVendas';
+import { gerarPdfDoExtrato } from '@/lib/documentos/relatorio-vendas-pdf';
+import { imprimirVendasDoCliente } from '@/lib/documentos/relatorio-vendas-print';
 import { imprimirComandasDoDia } from '@/lib/documentos/relatorio-vendas-print';
 import SeletorDePeriodo from '@/components/comum/SeletorDePeriodo';
 import { imprimirResumoDeVendas } from '@/lib/documentos/relatorio-resumo-vendas-print';
@@ -115,9 +120,10 @@ function StatusPill({ v }: { v: Venda }) {
 }
 
 /* ---------------- KPI ---------------- */
-function Kpi({ emoji, label, value, color }: { emoji: string; label: string; value: string; color: string }) {
+function Kpi({ emoji, label, value, color, destaque }: { emoji: string; label: string; value: string; color: string; destaque?: boolean }) {
   return (
-    <div style={{ ...cardCss, padding: '14px 16px' }} className="flex-1 min-w-[150px]">
+    // `destaque` levanta UM cartao — o saldo do cliente. Se todos tivessem borda, nenhum teria.
+    <div style={{ ...cardCss, padding: destaque ? '13px 15px' : '14px 16px', border: destaque ? `2px solid ${CORAL}` : cardCss.border }} className="flex-1 min-w-[150px]">
       <div className="flex items-center gap-2 mb-1">
         <span style={{ fontSize: 18 }}>{emoji}</span>
         <span style={{ fontSize: 11.5, color: GREY2, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px' }}>{label}</span>
@@ -423,6 +429,11 @@ export default function ConsultaVendasPage() {
   const [cod, setCod] = useState('');
   const [func, setFunc] = useState('');
   const [modo, setModo] = useState<'VENDAS' | 'ORCAMENTOS' | 'TOTAIS' | 'RESUMO'>('VENDAS');
+  const { effectiveRole } = useRolePreview();
+  const isAdmin = effectiveRole === 'ADMIN';
+  // Comeca ESCONDIDO: a tela abre virada pro balcao, e o dinheiro da clinica nao e assunto
+  // de quem esta do outro lado. Um clique no olhinho mostra; outro esconde.
+  const [verTotaisClinica, setVerTotaisClinica] = useState(false);
   // Saldo em aberto POR CLIENTE, de todos os dias — e o que alimenta o aviso da lista.
   const [saldos, setSaldos] = useState<Record<string, number>>({});
   const [pagina, setPagina] = useState(1);
@@ -486,10 +497,54 @@ export default function ConsultaVendasPage() {
   // Todos os quadros do Resumo saem de UMA passada (lib/resumoDeVendas, com teste): é o que
   // garante que card, quadro e linha nunca contem histórias diferentes.
   const resumo = useMemo(() => resumoDeVendas(vendasF as any), [vendasF]);
+
+  /* ── QUEM ESTA NA TELA ────────────────────────────────────────────────────────────
+     Cintia, 12/09/2026 (Fig 2): "a unica coisa que preciso e que essa parte apareca
+     somente a informacoes do cliente solicitado, nao quero que todas as informacoes da
+     empresa fiquem disponivel para todos os clientes."
+
+     Nao precisou de campo novo: se o que a consulta devolveu e de UM cliente so — achado
+     pelo nome dele, pelo nome do pet ou pelo numero da venda — o cabecalho vira o extrato
+     dele. O gesto de quem usa continua o mesmo. */
+  const clienteUnico = useMemo(() => {
+    const ids = new Set(vendasF.map((v) => v.clienteId).filter(Boolean));
+    if (ids.size !== 1) return null;
+    const id = [...ids][0] as string;
+    const dele = vendasF.filter((v) => v.clienteId === id);
+    const datas = dele.map((v) => String(v.date)).sort();
+    return {
+      id,
+      nome: dele.find((v) => v.cliente)?.cliente || 'Cliente',
+      pets: [...new Set(dele.map((v) => v.pet).filter(Boolean))] as string[],
+      ultima: datas[datas.length - 1] || '',
+      comprado: dele.reduce((t, v) => t + (Number(v.valor) || 0), 0),
+      pago: dele.reduce((t, v) => t + (Number(v.pago) || 0), 0),
+      qtd: dele.length,
+    };
+  }, [vendasF]);
+
+  /* As vendas do cliente no formato que o extrato, o PDF e o WhatsApp já falam — o mesmo
+     de lib/textoDoRelatorioVendas, para a conta sair igual em papel, PDF e mensagem. */
+  const vendasDoCliente = useMemo(() => !clienteUnico ? [] : vendasF
+    .filter((v) => v.clienteId === clienteUnico.id)
+    .map((v) => ({
+      numero: v.numeroVenda ?? v.codigoExterno ?? null,
+      data: v.date,
+      pet: v.pet || '',
+      valor: Number(v.valor) || 0,
+      pago: Number(v.pago) || 0,
+      itens: (v.itens || []).map((it) => ({
+        descricao: it.descricao || 'Item',
+        quantidade: Number(it.quantidade) || 1,
+        valorUnitario: Number(it.valorUnitario) || 0,
+        desconto: Number(it.desconto) || 0,
+      })),
+    })), [clienteUnico, vendasF]);
   const totalPaginas = Math.max(1, Math.ceil(vendasF.length / POR_PAGINA));
   const paginaAtual = Math.min(pagina, totalPaginas);
   const vendasDaPagina = useMemo(() => vendasF.slice((paginaAtual - 1) * POR_PAGINA, paginaAtual * POR_PAGINA), [vendasF, paginaAtual]);
   useEffect(() => { setPagina(1); }, [data, func]);
+  useEffect(() => { if (!isAdmin && modo === 'RESUMO') setModo('VENDAS'); }, [isAdmin, modo]);
   // Totais por produto/serviço (agrega os itens das vendas do período)
   const totaisProduto = useMemo(() => {
     const m = new Map<string, { qtd: number; total: number }>();
@@ -535,7 +590,10 @@ export default function ConsultaVendasPage() {
           >
             <option value="VENDAS">🧾 Vendas</option>
             <option value="TOTAIS">📊 Totais por produto</option>
-            <option value="RESUMO">📈 Resumo</option>
+            {/* O Resumo e' o painel consolidado da clinica (faturamento, desconto, ticket
+                medio, convenios). Junto com o olhinho, e' o que tira o dinheiro da empresa
+                da tela que fica virada pro balcao. */}
+            {isAdmin && <option value="RESUMO">📈 Resumo</option>}
             <option value="ORCAMENTOS">📄 Orçamentos</option>
           </select>
 
@@ -617,21 +675,88 @@ export default function ConsultaVendasPage() {
           </button>
 
           <a href="/dashboard/erp/recebimentos" title="Ir para Recebimentos" aria-label="Ir para Recebimentos" style={{ ...botaoIcone, textDecoration: 'none' }}>💰</a>
+
+          {/* O OLHINHO — ultimo da fileira, so o simbolo (Cintia, 12/09/2026: "o olhinho pode
+              ficar ao lado dos outros botoes, so o simbolo"). Mostra e esconde os totais da
+              clinica. So o administrativo ve: pra recepcao e veterinario ele nao existe. */}
+          {isAdmin && !clienteUnico && (
+            <button
+              onClick={() => setVerTotaisClinica((v) => !v)}
+              title={verTotaisClinica ? 'Esconder os totais da clínica' : 'Ver os totais da clínica'}
+              aria-label={verTotaisClinica ? 'Esconder os totais da clínica' : 'Ver os totais da clínica'}
+              aria-pressed={verTotaisClinica}
+              style={{ ...botaoIcone, background: verTotaisClinica ? TEAL : '#fff', borderColor: verTotaisClinica ? TEAL : NAVY }}
+            >👁️</button>
+          )}
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="flex gap-3 flex-wrap mb-4">
-        {/* Os cartões saem do mesmo cálculo dos quadros (lib/resumoDeVendas) e respeitam o
-            filtro de funcionário — antes vinham do total do backend e discordavam da tela. */}
-        <Kpi emoji="💰" label="Venda bruta" value={brl(resumo.cards.bruto)} color={GREEN} />
-        <Kpi emoji="🏷️" label={`Descontos · ${resumo.cards.percentualDesconto.toFixed(1).replace('.', ',')}%`} value={brl(resumo.cards.desconto)} color={'#946200'} />
-        <Kpi emoji="🧮" label="Venda líquida" value={brl(resumo.cards.liquido)} color={NAVY} />
-        <Kpi emoji="✅" label="Recebido" value={brl(resumo.cards.recebido)} color={GREEN} />
-        <Kpi emoji="⏳" label="A receber no período" value={brl(resumo.cards.aberto)} color={CORAL} />
-        <Kpi emoji="🧾" label="Nº vendas" value={String(resumo.cards.qtd)} color={NAVY} />
-        <Kpi emoji="🎯" label="Ticket médio" value={brl(resumo.cards.ticket)} color={TEAL} />
-      </div>
+      {/* ── O CABEÇALHO, EM TRÊS ESTADOS ───────────────────────────────────────────────
+          Cintia, 12/09/2026 (Fig 2): "a única coisa que preciso é que essa parte apareça
+          somente a informações do cliente solicitado, não quero que todas as informações
+          da empresa fiquem disponível para todos os clientes."
+
+          1. cliente pesquisado   -> o extrato DELE, e nada da clínica;
+          2. sem cliente + adm    -> os sete cartões, atrás do 👁️, que abre escondido;
+          3. sem cliente + outros -> nenhum valor; os totais moram no Resumo, só do adm.
+
+          O cálculo não mudou: é o mesmo lib/resumoDeVendas, que sempre respeitou a pesquisa.
+          O que faltava era mostrar só o do cliente. */}
+      {clienteUnico ? (<>
+        <div style={{ ...cardCss, borderLeft: `4px solid ${NAVY}`, padding: '11px 14px' }} className="mb-3 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: NAVY }}>{clienteUnico.nome}</div>
+            <div style={{ fontSize: 11.5, color: GREY, marginTop: 2 }}>
+              {clienteUnico.pets.slice(0, 3).join(' · ')}{clienteUnico.pets.length > 3 ? ` +${clienteUnico.pets.length - 3}` : ''}
+              {clienteUnico.ultima ? `${clienteUnico.pets.length ? ' · ' : ''}última compra ${dm(clienteUnico.ultima)}` : ''}
+              {` · ${clienteUnico.qtd} venda${clienteUnico.qtd === 1 ? '' : 's'} no período`}
+            </div>
+          </div>
+          <div className="flex gap-1.5 flex-wrap no-print">
+            {/* Papel, PDF e WhatsApp saem do MESMO texto e da MESMA soma da ficha do tutor e
+                das comandas — duas contas parecidas e a clínica se contradiz na frente do
+                cliente, que não sabe que são duas telas. */}
+            <button
+              onClick={() => imprimirVendasDoCliente({ tutor: clienteUnico.nome, comandas: vendasDoCliente.map((v) => ({ ...v, tutor: clienteUnico.nome })) })}
+              title="Extrato em papel: todas as vendas deste cliente, dia a dia, com os itens"
+              style={{ ...botaoIcone, width: 'auto', padding: '0 11px', fontSize: 12, fontWeight: 600 }}
+            >🖨️ Extrato</button>
+            <EnviarPorWhatsApp
+              tutorId={clienteUnico.id}
+              texto={textoDoRelatorioVendas({ cliente: clienteUnico.nome, vendas: vendasDoCliente })}
+              rotulo="💬 Enviar extrato"
+              titulo={`Extrato — ${clienteUnico.nome}`}
+              gerarPdf={async () => gerarPdfDoExtrato({ cliente: clienteUnico.nome, vendas: vendasDoCliente })}
+            />
+          </div>
+        </div>
+        <div className="flex gap-3 flex-wrap mb-4">
+          <Kpi emoji="🛒" label="Total comprado" value={brl(clienteUnico.comprado)} color={NAVY} />
+          <Kpi emoji="✅" label="Já pago" value={brl(clienteUnico.pago)} color={GREEN} />
+          {/* O CARTÃO EM DESTAQUE é o saldo de TODOS os tempos, não o do período filtrado.
+              Filtrar setembro e cobrar o "a receber de setembro" deixa dívida antiga pra trás. */}
+          <Kpi emoji="⚠️" label="Em aberto · todos os períodos" value={brl(saldos[clienteUnico.id] || 0)} color={CORAL} destaque />
+          <Kpi emoji="🧾" label="Nº de compras" value={String(clienteUnico.qtd)} color={NAVY} />
+          <Kpi emoji="📅" label="Última compra" value={clienteUnico.ultima ? dm(clienteUnico.ultima) : '—'} color={GREY2} />
+        </div>
+      </>) : (isAdmin && verTotaisClinica) ? (
+        <div className="flex gap-3 flex-wrap mb-4">
+          {/* Os cartões saem do mesmo cálculo dos quadros (lib/resumoDeVendas) e respeitam o
+              filtro de funcionário — antes vinham do total do backend e discordavam da tela. */}
+          <Kpi emoji="💰" label="Venda bruta" value={brl(resumo.cards.bruto)} color={GREEN} />
+          <Kpi emoji="🏷️" label={`Descontos · ${resumo.cards.percentualDesconto.toFixed(1).replace('.', ',')}%`} value={brl(resumo.cards.desconto)} color={'#946200'} />
+          <Kpi emoji="🧮" label="Venda líquida" value={brl(resumo.cards.liquido)} color={NAVY} />
+          <Kpi emoji="✅" label="Recebido" value={brl(resumo.cards.recebido)} color={GREEN} />
+          <Kpi emoji="⏳" label="A receber no período" value={brl(resumo.cards.aberto)} color={CORAL} />
+          <Kpi emoji="🧾" label="Nº vendas" value={String(resumo.cards.qtd)} color={NAVY} />
+          <Kpi emoji="🎯" label="Ticket médio" value={brl(resumo.cards.ticket)} color={TEAL} />
+        </div>
+      ) : (
+        <div className="no-print mb-4" style={{ ...cardCss, border: `1px dashed ${CARD_LINE}`, padding: '13px 15px', fontSize: 12.5, color: GREY, lineHeight: 1.6 }}>
+          Pesquise um cliente — por nome, pelo pet ou pelo nº da venda — para ver o extrato dele.
+          {isAdmin ? ' Os totais da clínica estão no 👁️ da barra.' : ' Os totais da clínica ficam no Resumo, com o administrativo.'}
+        </div>
+      )}
 
       {/* Sem esta linha, a primeira comparação com o relatório do SimplesVet vira desconfiança
           do sistema: lá o mesmo dinheiro era contado duas vezes (produto e forma de pagamento). */}
