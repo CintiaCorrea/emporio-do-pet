@@ -4,6 +4,7 @@ import { CreateOrcamentoDto } from './dto/create-orcamento.dto';
 import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { ExamesService } from '../exames/exames.service';
+import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
 
 function calcItemTotal(it: any): number {
   const q = Number(it.quantidade ?? 1);
@@ -225,9 +226,24 @@ export class OrcamentosService {
     });
 
     // 🔬 Converteu o orçamento → inicia o ciclo dos exames dele no Kanban (usa o companheiro orcexa_).
+    //
+    // COM O VINCULO ao item da venda (Cintia, 12/09/2026). Ate aqui a conversao de orcamento
+    // criava o card SOLTO: sem `appointmentItemId`, a conta a pagar do laboratorio nao nascia na
+    // coluna de retirada e voltava a esperar o cliente pagar — o oposto do que ela decidiu em
+    // 07/09. Em 12/09 os cinco cards vindos de orcamento estavam todos assim.
+    //
+    // O PDV ja fazia; e a MESMA funcao, nao uma parecida.
     try {
       const examItems = examItemsRaw.map((e) => ({ ...e, origem: 'ORCAMENTO' }));
-      if (examItems.length) await this.examesService.iniciarExamesDaVenda(orc.petId, examItems as any[]);
+      if (examItems.length) {
+        const criados = await this.prisma.appointmentItem.findMany({
+          where: { appointmentId: (appointment as any).id },
+          select: { id: true, descricao: true },
+          orderBy: { createdAt: 'asc' },
+        }).catch(() => [] as any[]);
+        const comVinculo = ligarAoItemDaVenda(examItems as any[], criados as any[]);
+        await this.examesService.iniciarExamesDaVenda(orc.petId, comVinculo as any[]);
+      }
     } catch { /* não quebra a conversão */ }
 
     return appointment;

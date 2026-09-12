@@ -11,6 +11,7 @@ import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
 import { distribuirPagamento, repartirFormas, totalEmAberto } from './recebimento-lote.regras';
+import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
 // Ver caixa.regras.faixaDoDia: caixa aberto as 21h30 nascia no dia seguinte e sumia da
@@ -1602,13 +1603,9 @@ export class CaixaService {
         select: { id: true, descricao: true },
         orderBy: { createdAt: 'asc' },
       }).catch(() => [] as any[]);
-      const usados = new Set<string>();
-      const comVinculo = examItems.map((e: any) => {
-        const alvo = String(e.descricao || '').trim().toLowerCase();
-        const achado = criados.find((c: any) => !usados.has(c.id) && String(c.descricao || '').trim().toLowerCase() === alvo);
-        if (achado) usados.add(achado.id);
-        return { ...e, appointmentItemId: achado?.id || null };
-      });
+      // A regra do casamento mora em exames/vincular-item-da-venda desde 12/09/2026, porque a
+      // conversao de orcamento passou a precisar da MESMA — e nao de uma parecida.
+      const comVinculo = ligarAoItemDaVenda(examItems as any[], criados as any[]);
       examesCriados = await this.examesService.iniciarExamesDaVenda(dto.petId, comVinculo).catch(() => 0);
     }
 
