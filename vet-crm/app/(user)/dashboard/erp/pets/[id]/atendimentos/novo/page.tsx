@@ -20,6 +20,7 @@ import { buscarItens } from "@/lib/buscaCatalogo";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { imprimirDocumento } from "@/lib/print";
 import { erroDoPeso } from '@/lib/peso';
+import { agoraNaClinicaISO, campoDataHoraNaClinica } from "@/lib/datas";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -64,7 +65,7 @@ export default function NovoAtendimentoPage() {
   const [exFases, setExFases] = useState<string[]>(EX_FASES_DEFAULT);
 
   const [form, setForm] = useState({
-    date: new Date().toISOString().slice(0, 16), type: "CONSULTA", userId: "", status: "Realizado",
+    date: agoraNaClinicaISO(), type: "CONSULTA", userId: "", status: "Realizado",
     peso: "", chiefComplaint: "", anamnesis: "", physicalExam: "", diagnosis: "", conduct: "",
     recModelo: "", followUpNotes: "", followUpDate: "", followUpResp: "",
   });

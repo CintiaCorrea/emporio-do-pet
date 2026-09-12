@@ -58,3 +58,34 @@ export function diaNaClinicaISO(v: Date | string | number): string {
 export function hojeLocalISO(): string {
   return hojeNaClinicaISO();
 }
+
+/** AGORA na clínica, no formato do <input type="datetime-local">: "AAAA-MM-DDTHH:mm".
+ *
+ *  Cintia, 12/09/2026: "em relação ao horário continuamos com problema, você está usando
+ *  outro que não é o nosso". Os campos de data/hora vinham de dois jeitos errados:
+ *    · `new Date().toISOString().slice(0,16)` → hora em UTC, TRÊS HORAS à frente;
+ *    · `d.setMinutes(d.getMinutes() - d.getTimezoneOffset())` → hora do COMPUTADOR, que
+ *      depende de como a máquina está configurada e de onde a pessoa acessa.
+ *  Nenhum dos dois é a hora da clínica. Este é. */
+export function agoraNaClinicaISO(): string {
+  return campoDataHoraNaClinica(new Date());
+}
+
+/** Um instante gravado → o mesmo instante na hora da clínica, no formato do campo. */
+export function campoDataHoraNaClinica(v?: Date | string | number | null): string {
+  const d = v instanceof Date ? v : new Date(v ?? Date.now());
+  if (isNaN(d.getTime())) return "";
+  // 'sv-SE' formata como "AAAA-MM-DD HH:mm" — só falta trocar o espaço pelo T do campo.
+  const s = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: FUSO_CLINICA,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(d);
+  return s.replace(" ", "T").slice(0, 16);
+}
+
+/** A HORA na clínica ("HH:mm") de um instante qualquer. */
+export function horaNaClinica(v?: Date | string | number | null): string {
+  const c = campoDataHoraNaClinica(v);
+  return c ? c.slice(11, 16) : "";
+}

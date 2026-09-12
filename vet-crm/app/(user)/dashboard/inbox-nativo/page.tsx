@@ -28,6 +28,7 @@ import BoletimModal from "@/components/pets/BoletimModal";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
 import { pollVisivel } from "@/lib/pollVisivel";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
+import { agoraNaClinicaISO, campoDataHoraNaClinica } from "@/lib/datas";
   import InboxRightPanel from "@/components/inbox/InboxRightPanel";
   import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 type Tab = "conversas" | "internas" | "encaminhadas";
@@ -526,7 +527,7 @@ export default function InboxUnificadoPage() {
   // Adicionar atendimento
   const [atendModalOpen, setAtendModalOpen] = useState(false);
   const [atendDescricao, setAtendDescricao] = useState("");
-  const [atendDate, setAtendDate] = useState(() => new Date().toISOString().substring(0, 16));
+  const [atendDate, setAtendDate] = useState(() => agoraNaClinicaISO());
   const [atendSaving, setAtendSaving] = useState(false);
 
   // Modal Nota clínica no pet

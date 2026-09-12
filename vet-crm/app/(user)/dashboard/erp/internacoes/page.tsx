@@ -11,6 +11,7 @@ import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { rotuloDaFaixa, ordenarFaixas, lerFaixas, precoPorPorte, type FaixaPorte } from "@/lib/porte";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
+import { agoraNaClinicaISO, campoDataHoraNaClinica } from "@/lib/datas";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -52,9 +53,7 @@ export default function InternacoesPage() {
   // Hora local no formato do <input type="datetime-local"> — sem passar por UTC, senão a
   // entrada aparece 3 horas deslocada em Fortaleza.
   const agoraLocal = () => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    return d.toISOString().slice(0, 16);
+    return agoraNaClinicaISO();   // hora da clinica, nao a do computador
   };
   const [novoOpen, setNovoOpen] = useState(false);
   const [form, setForm] = useState<any>({ tutorId: "", petId: "", userId: "", reason: "", estado: "Estável", canal: "WhatsApp", estimatedDischargeDate: "", dailyRate: "", diariaServicoId: "", diariaCatalogoItemId: "", diariaCusto: undefined, diariaNome: "", boletinsDia: 3, boletinsHorarios: "07:00, 14:00, 20:00", notes: "", boxId: "", admissaoEm: agoraLocal() });

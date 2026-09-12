@@ -17,7 +17,7 @@ import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, ehServicoDoCatalo
 import { buscarItens } from "@/lib/buscaCatalogo";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { calcularHorarios as horariosDoDia, horariosDaPrescricao, horariosNoDia, prescricaoAtivaEm, rotuloDoPeriodo, minutosDaFrequencia, PERIODOS } from "@/lib/internacaoHorarios";
-import { hojeNaClinicaISO } from "@/lib/datas";
+import { hojeNaClinicaISO, agoraNaClinicaISO, campoDataHoraNaClinica } from "@/lib/datas";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
 import { textoDoBoletimFinanceiro } from "@/lib/textoDoBoletimFinanceiro";
@@ -57,19 +57,10 @@ function diaCurto(iso?: string): string {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 }
-function agoraLocal(): string {
-  const d = new Date();
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-}
+// A hora da CLINICA, nao a do computador nem a de UTC (ver lib/datas).
+function agoraLocal(): string { return agoraNaClinicaISO(); }
 /** ISO gravado → o mesmo instante no formato do campo. Vazio quando não dá pra ler. */
-function paraCampoLocal(iso?: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
-}
+function paraCampoLocal(iso?: string): string { return campoDataHoraNaClinica(iso); }
 const STATUS_MED: Record<string, { lbl: string; bg: string; fg: string }> = {
   atrasado: { lbl: "Atrasada", bg: "#FCE9EF", fg: "#CC3366" },
   pendente: { lbl: "Pendente", bg: "#FDF4DD", fg: "#8a6400" },
