@@ -1040,13 +1040,21 @@ export class CaixaService {
    * A tela ja escolhe o caixa certo, mas tela nao e protecao: bastava mandar outro id na
    * requisicao. Aqui e onde o dinheiro entra, entao e aqui que a regra vale.
    */
-  private async exigirDonoDoCaixa(caixaId: string, userId: string): Promise<void> {
+  /**
+   * O papel entra aqui por causa da janela de ajuste (common/janela-de-ajuste): ate a data dela
+   * o ADMINISTRATIVO lanca em caixa de outra pessoa sem precisar abrir o dele, para conseguir
+   * fazer a conciliacao de setembro. Fora da janela, e so o dono — e a regra volta sozinha.
+   *
+   * Quem lancou continua gravado em cada recebimento/movimento (userId): o caixa passa a aceitar
+   * a mao do administrativo, nao a esquecer de quem ela foi.
+   */
+  private async exigirDonoDoCaixa(caixaId: string, userId: string, papel?: string): Promise<void> {
     const caixa = await this.prisma.caixaSessao.findUnique({
       where: { id: caixaId },
       select: { userId: true, numero: true, user: { select: { name: true } } },
     });
     if (!caixa) throw new NotFoundException('Caixa nao encontrado');
-    if (!podeLancarNoCaixa(caixa.userId, userId)) {
+    if (!podeLancarNoCaixa(caixa.userId, userId, papel)) {
       throw new BadRequestException(
         `O caixa ${caixa.numero} e de ${caixa.user?.name || 'outra pessoa'}. Cada um lanca no proprio caixa — abra o seu em Vendas › Caixa.`,
       );
@@ -1068,8 +1076,8 @@ export class CaixaService {
    * Quita da MAIS ANTIGA para a mais nova (decisao dela) e reparte as formas entre as vendas,
    * para cada uma saber COMO foi paga — e' isso que liga a taxa da operadora a venda certa.
    */
-  async registrarRecebimentoLote(caixaId: string, dto: any, userId: string) {
-    await this.exigirDonoDoCaixa(caixaId, userId);
+  async registrarRecebimentoLote(caixaId: string, dto: any, userId: string, papel?: string) {
+    await this.exigirDonoDoCaixa(caixaId, userId, papel);
 
     const ids: string[] = [...new Set(((Array.isArray(dto?.appointmentIds) ? dto.appointmentIds : []) as string[]).filter(Boolean))];
     if (!ids.length) throw new BadRequestException('Escolha ao menos uma comanda.');
@@ -1154,8 +1162,8 @@ export class CaixaService {
     };
   }
 
-  async registrarRecebimento(caixaId: string, dto: any, userId: string) {
-    await this.exigirDonoDoCaixa(caixaId, userId);
+  async registrarRecebimento(caixaId: string, dto: any, userId: string, papel?: string) {
+    await this.exigirDonoDoCaixa(caixaId, userId, papel);
     const appointmentId = dto.appointmentId || null;
     // Normaliza: achata malformado (ex.: [[]] de baixa sem forma) e mantém só objetos {forma,valor} válidos.
     const formas = (Array.isArray(dto.formas) ? (dto.formas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
@@ -1424,8 +1432,8 @@ export class CaixaService {
     }
   }
 
-  async registrarMovimento(caixaId: string, dto: any, userId: string) {
-    await this.exigirDonoDoCaixa(caixaId, userId);
+  async registrarMovimento(caixaId: string, dto: any, userId: string, papel?: string) {
+    await this.exigirDonoDoCaixa(caixaId, userId, papel);
     const caixa = await this.prisma.caixaSessao.findUnique({ where: { id: caixaId } });
     if (!caixa) throw new NotFoundException('Caixa nao encontrado');
     const mov = await this.prisma.caixaMovimento.create({
@@ -1496,7 +1504,7 @@ export class CaixaService {
     } as any);
   }
 
-  async vendaDireta(dto: any, userId: string) {
+  async vendaDireta(dto: any, userId: string, papel?: string) {
     if (!dto?.tutorId) throw new BadRequestException('Cliente obrigatorio');
     if (!dto?.petId) throw new BadRequestException('Pet obrigatorio');
 
@@ -1569,7 +1577,7 @@ export class CaixaService {
         caixaId = r.caixa.id;
       }
       // Mesma pergunta, mesma resposta: o que a regra escolheu tem de passar pelo dono.
-      await this.exigirDonoDoCaixa(caixaId, userId);
+      await this.exigirDonoDoCaixa(caixaId, userId, papel);
     }
 
     const appointment: any = await this.appointmentsService.create({

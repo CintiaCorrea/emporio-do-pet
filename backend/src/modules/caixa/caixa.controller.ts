@@ -88,8 +88,8 @@ export class CaixaController {
   }
 
   @Post('pdv')
-  pdv(@Body() dto: any, @CurrentUser('id') userId: string) {
-    return this.service.vendaDireta(dto, userId);
+  pdv(@Body() dto: any, @CurrentUser('id') userId: string, @CurrentUser('role') papel: string) {
+    return this.service.vendaDireta(dto, userId, papel);
   }
 
   // Grade de caixas (todos os dias, filtrável por período/status) — antes do :id pra não colidir.
@@ -135,19 +135,34 @@ export class CaixaController {
   }
 
   @Post(':id/recebimento')
-  receber(@Param('id') id: string, @Body() dto: RecebimentoDto, @CurrentUser('id') userId: string) {
-    return this.service.registrarRecebimento(id, dto, userId);
+  receber(
+    @Param('id') id: string,
+    @Body() dto: RecebimentoDto,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') papel: string,
+  ) {
+    return this.service.registrarRecebimento(id, dto, userId, papel);
   }
 
   // Um pagamento so' quitando varias comandas do MESMO cliente. Valida tudo antes de gravar.
   @Post(':id/recebimento-lote')
-  receberLote(@Param('id') id: string, @Body() dto: any, @CurrentUser('id') userId: string) {
-    return this.service.registrarRecebimentoLote(id, dto, userId);
+  receberLote(
+    @Param('id') id: string,
+    @Body() dto: any,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') papel: string,
+  ) {
+    return this.service.registrarRecebimentoLote(id, dto, userId, papel);
   }
 
   @Post(':id/movimento')
-  movimento(@Param('id') id: string, @Body() dto: MovimentoDto, @CurrentUser('id') userId: string) {
-    return this.service.registrarMovimento(id, dto, userId);
+  movimento(
+    @Param('id') id: string,
+    @Body() dto: MovimentoDto,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') papel: string,
+  ) {
+    return this.service.registrarMovimento(id, dto, userId, papel);
   }
 
   // Apagar o caixa inteiro: so o administrativo, e so caixa sem movimento (caixa.regras).

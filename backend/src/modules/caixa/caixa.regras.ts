@@ -5,6 +5,8 @@
 // Antes, a venda do PDV caía no caixa aberto mais recente — e o PDV não envia caixaId, então
 // era este atalho do backend que decidia: a venda de uma funcionária ia pra gaveta da outra.
 
+import { dentroDaJanelaDeAjuste } from '../../common/janela-de-ajuste';
+
 export type CaixaAbertoRef = { id: string; userId: string; abertura: Date | string };
 
 /**
@@ -151,12 +153,34 @@ export function podeAbrirCaixa(papel?: string | null): boolean {
 // estivesse logada podia lançar na gaveta da colega sem querer — e a diferença só aparecia no
 // fechamento, para a pessoa errada. Proteção que só existe na tela não é proteção.
 
-/** Quem pode LANÇAR dinheiro num caixa: só o dono. */
-export function podeLancarNoCaixa(donoId?: string | null, quemId?: string | null): boolean {
+/**
+ * Quem pode LANÇAR dinheiro num caixa: só o dono.
+ *
+ * EXCEÇÃO COM PRAZO (Cintia, 12/09/2026): "pode permitir que eu como adm faça as alterações nos
+ * caixas já abertos, sem necessidade de abrir um em meu nome, somente até amanhã também?"
+ *
+ * Ela está conferindo todos os caixas de setembro e fazendo a conciliação bancária. Obrigá-la a
+ * abrir um caixa no próprio nome para corrigir o caixa da Victoria criaria um caixa fantasma a
+ * cada correção — justamente a sujeira que a limpeza de 09/09 veio desfazer.
+ *
+ * Três limites, e os três importam:
+ *   · só o ADMINISTRATIVO — para os outros perfis a regra de 08/09 continua inteira;
+ *   · só até a data de common/janela-de-ajuste, que passa sozinha. Dia 14 isto aqui volta a
+ *     recusar sem ninguém fazer nada;
+ *   · o recebimento continua gravando QUEM lançou (userId), então o rastro de quem mexeu no
+ *     caixa de quem não se perde — é o que permite conferir depois.
+ */
+export function podeLancarNoCaixa(
+  donoId?: string | null,
+  quemId?: string | null,
+  papel?: string | null,
+  agora?: Date | string,
+): boolean {
   const dono = String(donoId || '').trim();
   const quem = String(quemId || '').trim();
   if (!dono || !quem) return false; // sem saber de quem é, não lança
-  return dono === quem;
+  if (dono === quem) return true;
+  return String(papel || '').toUpperCase() === 'ADMIN' && dentroDaJanelaDeAjuste(agora);
 }
 
 /**
