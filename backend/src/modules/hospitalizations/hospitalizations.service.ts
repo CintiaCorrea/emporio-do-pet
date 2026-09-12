@@ -6,6 +6,7 @@ import { CreateHospitalizationDto } from './dto/create-hospitalization.dto';
 import { UpdateHospitalizationDto } from './dto/update-hospitalization.dto';
 import { diariasDevidas, diariasAFaturar } from './diaria.regras';
 import { montarFechamento, diasEmAberto, acaoDaVendaDoDia, diaDe, dentroDaSemanaDeAjuste, type ItemDaConta } from './fechamento.regras';
+import { ligarCardsSoltosDoPet } from '../exames/vincular-item-da-venda';
 
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -223,8 +224,14 @@ export class HospitalizationsService {
           type: 'Venda', status: 'COMPLETED', value, items,
         } as any).catch(() => null);
         if (nova?.id) { vendas[dia] = nova.id; mudou = true; }
+        // O EXAME DA INTERNACAO SO AGORA TEM ITEM DE VENDA (Cintia, 12/09/2026: "internacao
+        // tambem tem que ir para o kanban"). O card foi criado quando o exame foi lancado na
+        // conta, quando ainda nao havia venda nenhuma — entao o vinculo e' feito aqui, do outro
+        // lado. Sem ele a conta a pagar do laboratorio volta a esperar o cliente pagar.
+        if (nova?.id && appt.petId) await ligarCardsSoltosDoPet(this.prisma as any, appt.petId, nova.id);
       } else {
         await this.appointmentsService.update(vendaId as string, { value, items } as any).catch(() => undefined);
+        if (appt.petId) await ligarCardsSoltosDoPet(this.prisma as any, appt.petId, vendaId as string);
       }
     }
 
