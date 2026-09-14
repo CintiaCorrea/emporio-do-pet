@@ -20,10 +20,14 @@
  *    backend e duas vezes na tela da internação) e prorrogar um e esquecer o outro deixaria o
  *    aviso mentindo para a equipe — ou pior, uma trava aberta que todo mundo pensa que fechou.
  *
- * Prorrogada de 12/09 para 13/09 em 12/09/2026, a pedido da Cintia: "vou conferir todos os
- * caixas e lançamentos e fazer a conciliação bancária, para deixar o mês de setembro redondo".
+ * PRORROGAÇÕES, cada uma um pedido escrito dela:
+ *   12/09 → 13/09, em 12/09/2026: "vou conferir todos os caixas e lançamentos e fazer a
+ *           conciliação bancária, para deixar o mês de setembro redondo".
+ *   13/09 → 14/09, em 14/09/2026: "encerramos ontem a edição dos caixas antigos, pode deixar
+ *           para até o fim do dia de hoje?" — a janela já havia vencido na véspera, e a
+ *           conciliação de setembro ainda estava aberta.
  */
-export const AJUSTE_ATE = '2026-09-13T23:59:59-03:00';
+export const AJUSTE_ATE = '2026-09-14T23:59:59-03:00';
 
 /** Ainda estamos dentro da janela? Fora dela, cada trava volta a valer por si. */
 export function dentroDaJanelaDeAjuste(agora?: Date | string): boolean {
