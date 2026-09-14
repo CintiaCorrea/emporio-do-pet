@@ -57,6 +57,12 @@ export class ExamesController {
     return this.service.anexarResultado(itemId, body?.url, body?.arquivo, porQuem);
   }
 
+  /** Avisa o tutor de que o laudo chegou (o mesmo aviso que sai sozinho ao anexar). */
+  @Post(':itemId/avisar-cliente')
+  avisarCliente(@Param('itemId') itemId: string) {
+    return this.service.avisarClienteDoResultado(itemId);
+  }
+
   /** Devolve o exame arquivado ao quadro, na fase em que ele estava. */
   @Post(':itemId/restaurar')
   restaurar(@Param('itemId') itemId: string) {

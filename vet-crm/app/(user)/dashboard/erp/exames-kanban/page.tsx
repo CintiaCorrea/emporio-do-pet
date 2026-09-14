@@ -137,6 +137,21 @@ export default function ExamesKanbanPage() {
     setMexendo(null);
   };
 
+  // Avisar o tutor de que o laudo chegou. Sai sozinho ao anexar; este botão é para quando o
+  // automático não conseguiu — e ele SÓ aparece nesse caso, para ninguém mandar duas vezes.
+  const avisarCliente = async (e: any) => {
+    if (!window.confirm(`📲 Avisar ${e.tutorNome || "o tutor"} de que o laudo de ${e.petNome || "o pet"} está pronto?`)) return;
+    setMexendo(e.itemId);
+    try {
+      const r = await fetch(`/api/exames/${e.itemId}/avisar-cliente`, { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (d?.desligado) toast("Aviso ao cliente ainda desligado (aguardando o template ser aprovado na Meta).", { icon: "⏸️" });
+      else if (r.ok && d?.ok) { toast.success("Cliente avisado"); await load(); }
+      else toast.error(d?.erro || "Não consegui avisar o cliente.");
+    } catch { toast.error("Falha de conexão ao avisar o cliente."); }
+    setMexendo(null);
+  };
+
   const restaurar = async (a: any) => {
     setMexendo(a.itemId);
     try {
@@ -223,6 +238,8 @@ export default function ExamesKanbanPage() {
           {e.fornecedorNome ? <span className="text-[10px] font-bold rounded px-1.5 py-0.5" style={{ background: cor + "1A", color: cor }}>{e.fornecedorNome}</span> : <span className="text-[10px] rounded px-1.5 py-0.5" style={{ background: "#F1EEE6", color: MUT }}>sem lab</span>}
           {e.date ? <span className="text-[10.5px]" style={{ color: MUT }}>{dt(e.date)}</span> : null}
           {e.labAvisadoAt ? <span className="text-[10px] font-bold" style={{ color: "#0F6E56" }}>🔔 avisado</span> : null}
+          {/* Quem já sabe do laudo: sem isto, a equipe reavisa o mesmo cliente sem saber. */}
+          {e.clienteAvisadoAt ? <span className="text-[10px] font-bold" style={{ color: "#6A4FB0" }}>📨 cliente avisado</span> : null}
           {atrasado ? (
             <span
               className="text-[10px] font-bold rounded px-1.5 py-0.5"
@@ -243,7 +260,14 @@ export default function ExamesKanbanPage() {
           {/* O laudo já anexado vira um link, no lugar do botão: o vet precisa CONFERIR o que
               subiu antes de avisar o cliente, e sem isto ele teria de abrir a ficha para ver. */}
           {e.resultadoUrl ? (
-            <a href={`/api/media/ver?u=${encodeURIComponent(e.resultadoUrl)}`} target="_blank" rel="noopener" className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>📄 ver laudo</a>
+            <>
+              <a href={`/api/media/ver?u=${encodeURIComponent(e.resultadoUrl)}`} target="_blank" rel="noopener" className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>📄 ver laudo</a>
+              {e.podeAvisarCliente ? (
+                <button onClick={() => avisarCliente(e)} disabled={mexendo === e.itemId} title="O aviso automático não saiu — mandar agora" className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#6A4FB0", color: "#6A4FB0", background: "#F3EFFB" }}>
+                  {mexendo === e.itemId ? "enviando…" : "📲 Avisar cliente"}
+                </button>
+              ) : null}
+            </>
           ) : (
             <label title="Subir o PDF/foto do laudo — salva na ficha do pet e move para Resultado" className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md border cursor-pointer ${mexendo === e.itemId ? "opacity-60" : ""}`} style={{ borderColor: "#009AAC", color: "#fff", background: "#009AAC" }}>
               {mexendo === e.itemId ? "enviando…" : "📎 Anexar laudo"}

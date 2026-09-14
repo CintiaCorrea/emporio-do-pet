@@ -197,6 +197,48 @@ export function diasAteExpurgo(
   return Math.max(0, ARQUIVO_DIAS - passados);
 }
 
+// ── O CLIENTE, O LAUDO E A ENTREGA ────────────────────────────────────────────────────────
+//
+// Cintia, 12/09/2026, descrevendo o fim do ciclo: "envia mensagem para o cliente que o exame
+// está pronto e depois que o cliente responder é considerado entregue e sai do quadro". E em
+// 16/09, confirmando a lógica: "assim que o vet recebe o retorno do cliente o card pode sair da
+// lista, pois aí o resultado já está sendo passado".
+//
+// A ESCOLHA DELA QUE MANDA AQUI (13/09): "só conta se a mensagem saiu". Entrega é o par de uma
+// conversa — sem a nossa mensagem ter partido, a resposta do cliente é sobre outra coisa, e
+// tratá-la como recebimento do laudo marcaria entregue um exame que ninguém mandou.
+
+/** Dá para avisar o cliente de que o laudo chegou? */
+export function podeAvisarCliente(
+  d: { resultadoUrl?: string | null; clienteAvisadoAt?: string | null; entregueAt?: string | null; arquivadoEm?: string | null } | null | undefined,
+): boolean {
+  if (!d) return false;
+  if (!String(d.resultadoUrl || '').trim()) return false;   // sem laudo não há o que avisar
+  if (d.clienteAvisadoAt) return false;                     // já avisado: não insiste
+  if (d.entregueAt || ehArquivado(d)) return false;
+  return true;
+}
+
+/**
+ * Esta resposta do cliente fecha este exame?
+ *
+ * `quando` é a hora da mensagem recebida. A comparação com `clienteAvisadoAt` não é preciosismo:
+ * sem ela, uma conversa que o cliente já tinha puxado ANTES de mandarmos o laudo fecharia o
+ * exame no instante em que o aviso saísse — entregue sem ninguém ter lido nada.
+ */
+export function respostaMarcaEntregue(
+  d: { clienteAvisadoAt?: string | null; entregueAt?: string | null; arquivadoEm?: string | null } | null | undefined,
+  quando?: Date | string,
+): boolean {
+  if (!d || !d.clienteAvisadoAt) return false;              // a mensagem não saiu: não conta
+  if (d.entregueAt || ehArquivado(d)) return false;
+  const tAviso = new Date(d.clienteAvisadoAt).getTime();
+  if (!Number.isFinite(tAviso)) return false;
+  const tResp = quando ? new Date(quando as any).getTime() : Date.now();
+  if (!Number.isFinite(tResp)) return false;
+  return tResp >= tAviso;
+}
+
 export type ExameParaLembrete = {
   nome?: string | null;
   status?: string | null;

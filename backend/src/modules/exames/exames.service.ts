@@ -4,7 +4,7 @@ import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO, atrasoDoExame, fasesVigentes, ehArquivado, podeSerExpurgado, diasAteExpurgo } from './exames.regras';
+import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO, atrasoDoExame, fasesVigentes, ehArquivado, podeSerExpurgado, diasAteExpurgo, podeAvisarCliente, respostaMarcaEntregue } from './exames.regras';
 
 /**
  * Aviso de COLETA ao laboratório (Fatia 3 dos exames).
@@ -19,6 +19,7 @@ export class ExamesService {
   private readonly logger = new Logger(ExamesService.name);
   private readonly TEMPLATE = 'solicitacao_coleta_exame';       // manual (urgência): específico do exame
   private readonly TEMPLATE_LOTE = 'solicitacao_coleta_lote';   // lote 11/17: genérico, 1 msg/laboratório
+  private readonly TEMPLATE_CLIENTE = 'resultado_exame_pronto'; // ao tutor: o laudo chegou
 
   constructor(
     private readonly prisma: PrismaService,
@@ -51,6 +52,116 @@ export class ExamesService {
       const erro = String((e as any)?.message || e);
       this.logger.warn(`Falha ao solicitar coleta ao laboratório ${fornecedor?.nome}: ${erro}`);
       return { ok: false, erro };
+    }
+  }
+
+  /**
+   * AVISA O TUTOR de que o laudo chegou.
+   *
+   * Cintia, 12/09/2026: "envia mensagem para o cliente que o exame está pronto".
+   *
+   * DESLIGADO até `EXAMES_AVISO_CLIENTE_ATIVO=1`, pelo mesmo motivo do lote ao laboratório: o
+   * template precisa estar aprovado na Meta, e mensagem para cliente não é coisa que se ligue
+   * "para ver no que dá" — sai do nosso lado e chega no celular de quem pagou pelo exame.
+   *
+   * `clienteAvisadoAt` só é gravado quando o envio DÁ CERTO (escolha dela, 13/09: "só conta se a
+   * mensagem saiu"). Enquanto não sair, o card continua mostrando o botão de avisar, e a resposta
+   * do cliente não fecha o exame.
+   */
+  async avisarClienteDoResultado(itemId: string): Promise<{ ok: boolean; erro?: string; desligado?: boolean }> {
+    if (process.env.EXAMES_AVISO_CLIENTE_ATIVO !== '1') return { ok: false, desligado: true };
+    const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true, valor: true } });
+    if (!it || !it.lista.startsWith('petexa_')) return { ok: false, erro: 'Exame não encontrado' };
+    let d: any = null;
+    try { d = JSON.parse(it.valor); } catch { return { ok: false, erro: 'Exame ilegível' }; }
+    if (!podeAvisarCliente(d)) return { ok: false, erro: 'Este exame não está pronto para avisar o cliente' };
+
+    const petId = it.lista.replace('petexa_', '');
+    const pet: any = await this.prisma.pet.findUnique({
+      where: { id: petId },
+      select: { name: true, tutor: { select: { id: true, name: true, contacts: true } } },
+    }).catch(() => null);
+    const contatos = (pet?.tutor?.contacts || []) as any[];
+    const wa = contatos.find((c) => c.isWhatsApp) || contatos.find((c) => c.isPrimary) || contatos[0];
+    if (!wa?.number) return { ok: false, erro: 'Tutor sem WhatsApp cadastrado' };
+
+    let res: any = null;
+    try {
+      res = await this.whatsapp.sendTemplateMessage(wa.number, this.TEMPLATE_CLIENTE, [
+        { type: 'text', text: pet?.name || 'seu pet' },
+        { type: 'text', text: d.nome || 'Exame' },
+      ]);
+    } catch (e) {
+      const erro = String((e as any)?.message || e);
+      this.logger.warn(`Falha ao avisar tutor sobre o laudo: ${erro}`);
+      return { ok: false, erro };
+    }
+    if (!res?.success) return { ok: false, erro: res?.error || 'Não consegui enviar (o template pode estar em aprovação na Meta)' };
+
+    await this.prisma.listaItem.update({
+      where: { id: itemId },
+      data: { valor: JSON.stringify({ ...d, clienteAvisadoAt: new Date().toISOString(), clienteMessageId: res?.messageId || null, tutorId: pet?.tutor?.id || d.tutorId || null }) },
+    });
+    return { ok: true };
+  }
+
+  /**
+   * O CLIENTE RESPONDEU: os exames avisados daquele tutor passam a entregues e saem do quadro.
+   *
+   * Cintia, 16/09/2026: "assim que o vet recebe o retorno do cliente o card pode sair da lista,
+   * pois aí o resultado já está sendo passado".
+   *
+   * QUALQUER resposta conta — foi o desenho dela, e faz sentido: a conversa começou. Por isso a
+   * equipe é NOTIFICADA de cada exame que sai assim; um card sumindo do quadro sozinho, sem
+   * ninguém saber por quê, é a diferença entre automático e misterioso.
+   */
+  async marcarEntregueAoResponder(tutorId: string, quando?: string): Promise<{ entregues: number }> {
+    if (!tutorId) return { entregues: 0 };
+    const pets = await this.prisma.pet.findMany({ where: { tutorId }, select: { id: true, name: true } }).catch(() => [] as any[]);
+    if (!pets.length) return { entregues: 0 };
+
+    const fases = await this.fasesExame();
+    const terminal = fases.length ? fases[fases.length - 1] : 'Entregue';
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: { in: pets.map((p: any) => `petexa_${p.id}`) } },
+      select: { id: true, lista: true, valor: true },
+    }).catch(() => [] as any[]);
+
+    const nomePorPet = new Map(pets.map((p: any) => [p.id, p.name]));
+    const fechados: string[] = [];
+    for (const it of itens) {
+      let d: any; try { d = JSON.parse(it.valor); } catch { continue; }
+      if (!respostaMarcaEntregue(d, quando)) continue;
+      const ok = await this.prisma.listaItem.update({
+        where: { id: it.id },
+        data: { valor: JSON.stringify({ ...d, entregueAt: new Date().toISOString(), status: terminal }) },
+      }).catch(() => null);
+      if (ok) fechados.push(`${nomePorPet.get(it.lista.replace('petexa_', '')) || 'Paciente'} — ${d.nome || 'Exame'}`);
+    }
+
+    if (fechados.length) await this.avisarEquipeDaEntrega(fechados);
+    return { entregues: fechados.length };
+  }
+
+  /** A equipe fica sabendo: card que some sozinho sem explicação vira desconfiança no sistema. */
+  private async avisarEquipeDaEntrega(fechados: string[]): Promise<void> {
+    try {
+      const equipe = await this.prisma.user.findMany({
+        where: { isBlocked: false, role: { in: ['VETERINARIAN', 'ADMIN', 'RECEPTIONIST'] } },
+        select: { id: true },
+      });
+      for (const u of equipe) {
+        await this.notifications.create({
+          userId: u.id,
+          type: NotificationType.INFO,
+          title: fechados.length === 1 ? 'Exame entregue ao cliente' : `${fechados.length} exames entregues ao cliente`,
+          message: `${fechados.slice(0, 4).join('; ')}${fechados.length > 4 ? ` e mais ${fechados.length - 4}` : ''}. O cliente respondeu, então o card saiu do quadro.`,
+          link: '/dashboard/erp/exames-kanban',
+          metadata: { kind: 'exame_entregue' },
+        }).catch(() => undefined);
+      }
+    } catch (e) {
+      this.logger.warn(`Falha ao avisar equipe da entrega: ${String((e as any)?.message || e)}`);
     }
   }
 
@@ -142,6 +253,8 @@ export class ExamesService {
         resultadoUrl: d.resultadoUrl || null,
         prazoDias: d.prazoDias ?? null, historico: d.historico || null,
         entregueAt: d.entregueAt || null,
+        clienteAvisadoAt: d.clienteAvisadoAt || null,
+        podeAvisarCliente: podeAvisarCliente(d),
       });
     }
     const [pets, forns] = await Promise.all([
@@ -239,7 +352,7 @@ export class ExamesService {
     url: string,
     arquivo?: string,
     porQuem?: string,
-  ): Promise<{ ok: boolean; erro?: string; status?: string }> {
+  ): Promise<{ ok: boolean; erro?: string; status?: string; clienteAvisado?: boolean }> {
     const limpa = String(url || '').trim();
     if (!limpa) return { ok: false, erro: 'Laudo sem arquivo' };
     const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true, valor: true } });
@@ -271,7 +384,11 @@ export class ExamesService {
         }),
       },
     });
-    return { ok: true, status: faseResultado };
+    // O AVISO AO CLIENTE VAI JUNTO, mas NÃO pode derrubar o anexo. O laudo já está salvo; se o
+    // WhatsApp falhar (template em aprovação, tutor sem número), o card mostra o botão de avisar
+    // e alguém manda à mão. Perder o anexo por causa da mensagem seria trocar o certo pelo extra.
+    const aviso = await this.avisarClienteDoResultado(itemId).catch(() => ({ ok: false } as any));
+    return { ok: true, status: faseResultado, clienteAvisado: !!aviso?.ok };
   }
 
   /** Devolve o exame arquivado ao quadro, na fase em que ele estava. */
