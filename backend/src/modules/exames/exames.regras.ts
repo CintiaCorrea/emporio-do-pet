@@ -143,6 +143,60 @@ export function faseDeRetirada(fases: string[]): string | null {
   return achada || null;
 }
 
+// ── O EXAME TIRADO DO QUADRO ──────────────────────────────────────────────────────────────
+//
+// Cintia, 13/09/2026, escolhendo entre apagar e arquivar: "Arquivar, reversível". E no dia
+// seguinte, fechando o prazo: "Pode ficar arquivado por 45 dias pode ser? Só não pode sumir das
+// vendas e orçamentos".
+//
+// O botão da lixeira no quadro sempre quis dizer "tira isto da minha frente", não "destrói o
+// registro" — mas apagava de verdade, sem volta e sem rastro. Quem limpasse o card errado num
+// dia corrido perdia o acompanhamento do exame e só descobriria quando o tutor cobrasse.
+//
+// A segunda metade do pedido dela ("não pode sumir das vendas") já é garantida pelo desenho: o
+// card é uma REFERÊNCIA ao item da venda, não o dono dele — e há um teste guardando isso
+// (excluir-do-kanban-nao-apaga-a-venda.spec.ts). Arquivar mexe menos ainda no financeiro do que
+// apagar mexia.
+
+/** Quantos dias o exame arquivado espera antes de ser apagado de vez. Pedido dela, 14/09/2026. */
+export const ARQUIVO_DIAS = 45;
+
+/** Fora do quadro? Card arquivado não entra em fila, lembrete, atraso nem contagem. */
+export function ehArquivado(d: { arquivadoEm?: string | null } | null | undefined): boolean {
+  return !!d?.arquivadoEm;
+}
+
+/**
+ * Já passou dos 45 dias e pode ser apagado de vez?
+ *
+ * Só olha `arquivadoEm`: card que não foi arquivado NUNCA é expurgado, por mais velho que seja.
+ * Data ilegível devolve `false` — na dúvida, o expurgo não apaga. Um erro de leitura de data não
+ * pode virar exclusão em massa.
+ */
+export function podeSerExpurgado(
+  d: { arquivadoEm?: string | null } | null | undefined,
+  agora?: Date | string,
+): boolean {
+  if (!ehArquivado(d)) return false;
+  const t0 = new Date(d!.arquivadoEm as string).getTime();
+  const t1 = agora ? new Date(agora as any).getTime() : Date.now();
+  if (!Number.isFinite(t0) || !Number.isFinite(t1)) return false;
+  return t1 - t0 >= ARQUIVO_DIAS * 24 * 60 * 60 * 1000;
+}
+
+/** Dias que ainda faltam para o expurgo — para a tela dizer o prazo em vez de só "arquivado". */
+export function diasAteExpurgo(
+  d: { arquivadoEm?: string | null } | null | undefined,
+  agora?: Date | string,
+): number | null {
+  if (!ehArquivado(d)) return null;
+  const t0 = new Date(d!.arquivadoEm as string).getTime();
+  const t1 = agora ? new Date(agora as any).getTime() : Date.now();
+  if (!Number.isFinite(t0) || !Number.isFinite(t1)) return null;
+  const passados = Math.floor((t1 - t0) / (24 * 60 * 60 * 1000));
+  return Math.max(0, ARQUIVO_DIAS - passados);
+}
+
 export type ExameParaLembrete = {
   nome?: string | null;
   status?: string | null;
@@ -150,6 +204,8 @@ export type ExameParaLembrete = {
   fornecedorNome?: string | null;
   /** Quando o exame entrou no ciclo. */
   date?: string | null;
+  /** Preenchido = tirado do quadro (arquivado). */
+  arquivadoEm?: string | null;
 };
 
 /**
@@ -178,6 +234,10 @@ export function precisaLembrarSolicitacao(e: ExameParaLembrete, fases: string[])
   // Eram duas definições diferentes de "existe", e é assim que nasce o lembrete fantasma —
   // toca, a pessoa abre o quadro e não acha nada.
   if (!String(e.nome || '').trim()) return false;
+  // Arquivado não é lembrado. A checagem mora AQUI e não em quem chama: `lembrarRecepcao` roda a
+  // regra em dois pontos do mesmo método, e uma checagem esquecida num deles faria o lembrete
+  // tocar por um exame que não está mais no quadro — o aviso fantasma que já nos custou caro.
+  if (ehArquivado(e)) return false;
   if (ehFaseConcluida(e.status, (e as any).entregueAt)) return false;
   const primeira = (Array.isArray(fases) ? fases : [])[0];
   if (!primeira) return false;
@@ -272,7 +332,9 @@ export function atrasoDoExame(e: ExameParaAtraso, fases: string[], agora?: Date 
   const prazoDias = estimado ? PRAZO_PADRAO_DIAS : Math.round(prazoCru);
   const nada: Atraso = { atrasado: false, dias: 0, prazoDias, estimado };
 
-  if (!e || ehFaseConcluida(e.status, e.entregueAt)) return nada;
+  // Arquivado não atrasa: o exame saiu do quadro, e cobrar prazo de quem já foi tirado de vista
+  // é o alarme que ninguém consegue desligar.
+  if (!e || ehArquivado(e) || ehFaseConcluida(e.status, e.entregueAt)) return nada;
 
   // Só entre "o laboratório levou" e "o laudo chegou".
   const retirar = faseDeRetirada(fases);

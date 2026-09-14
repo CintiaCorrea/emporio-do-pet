@@ -20,7 +20,10 @@ import { ExamesService } from './exames.service';
 // ninguém ligaria uma coisa à outra.
 
 const src = fs.readFileSync(path.resolve(__dirname, 'exames.service.ts'), 'utf8');
-const corpoDoExcluir = src.slice(src.indexOf('async excluir('), src.indexOf('async excluir(') + 700);
+// O método inteiro, da assinatura até o próximo método. Era uma janela de 700 caracteres, que
+// deixou de cobrir o corpo quando o excluir cresceu para arquivar — e uma janela curta demais
+// faria o teste passar sem ler o trecho que ele existe para vigiar.
+const corpoDoExcluir = src.slice(src.indexOf('async excluir('), src.indexOf('async restaurar('));
 
 describe('excluir exame do Kanban', () => {
   it('o corpo do excluir só toca no card do Kanban', () => {
@@ -37,11 +40,14 @@ describe('excluir exame do Kanban', () => {
     expect(corpoDoExcluir).toContain("startsWith('petexa_')");
   });
 
-  it('na prática: apaga UM listaItem e nada mais', async () => {
+  it('na prática: mexe em UM listaItem e nada mais', async () => {
+    // Desde 14/09/2026 tirar do quadro ARQUIVA em vez de apagar, mas o que este teste guarda não
+    // mudou: o caminho inteiro toca um único listaItem e não encosta na venda.
     const chamadas: string[] = [];
     const prisma: any = {
       listaItem: {
-        findUnique: async () => { chamadas.push('listaItem.findUnique'); return { id: 'card1', lista: 'petexa_pet1' }; },
+        findUnique: async () => { chamadas.push('listaItem.findUnique'); return { id: 'card1', lista: 'petexa_pet1', valor: JSON.stringify({ nome: 'Hemograma', status: 'Retirado' }) }; },
+        update: async () => { chamadas.push('listaItem.update'); return {}; },
         delete: async () => { chamadas.push('listaItem.delete'); return {}; },
       },
       // Qualquer toque nestes é falha do teste: são eles que guardam o dinheiro.
@@ -52,6 +58,24 @@ describe('excluir exame do Kanban', () => {
     const r = await svc.excluir('card1');
 
     expect(r.ok).toBe(true);
+    expect(r.arquivado).toBe(true);
+    expect(chamadas).toEqual(['listaItem.findUnique', 'listaItem.update']);
+  });
+
+  it('nem o apagar DEFINITIVO do adm encosta na venda', async () => {
+    const chamadas: string[] = [];
+    const prisma: any = {
+      listaItem: {
+        findUnique: async () => { chamadas.push('listaItem.findUnique'); return { id: 'card1', lista: 'petexa_pet1', valor: '{"nome":"X"}' }; },
+        delete: async () => { chamadas.push('listaItem.delete'); return {}; },
+      },
+      appointment: new Proxy({}, { get: () => () => { chamadas.push('appointment.QUALQUER'); } }),
+      appointmentItem: new Proxy({}, { get: () => () => { chamadas.push('appointmentItem.QUALQUER'); } }),
+    };
+    const svc = new ExamesService(prisma, {} as any, {} as any);
+    const r = await svc.excluir('card1', { definitivo: true, papel: 'ADMIN' });
+
+    expect(r.ok).toBe(true);
     expect(chamadas).toEqual(['listaItem.findUnique', 'listaItem.delete']);
   });
 
@@ -60,6 +84,7 @@ describe('excluir exame do Kanban', () => {
     const prisma: any = {
       listaItem: {
         findUnique: async () => ({ id: 'x', lista: 'petboletim_pet1' }),   // é boletim, não exame
+        update: async () => { chamadas.push('listaItem.update'); return {}; },
         delete: async () => { chamadas.push('listaItem.delete'); return {}; },
       },
     };

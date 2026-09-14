@@ -58,4 +58,20 @@ export class ExamesScheduler {
       if (r.atrasados) this.logger.log(`Atraso de laboratório: ${r.atrasados} laudo(s) para ${r.avisados} pessoa(s).`);
     } catch (e) { this.logger.error(`Aviso de atraso falhou: ${String((e as any)?.message || e)}`); }
   }
+
+  // EXPURGO DO ARQUIVO: apaga de vez o que está arquivado há mais de 45 dias (Cintia, 14/09/2026).
+  //
+  // De madrugada, longe do movimento: é a única rotina que apaga dados, e se ela pesar no banco
+  // não pode ser durante o atendimento.
+  //
+  // Falhar aqui é inofensivo — o card fica mais um dia e sai amanhã. Por isso o erro é só
+  // registrado: nada de tentar de novo em cima, insistindo numa rotina que apaga.
+  @Cron('20 3 * * *', { timeZone: 'America/Fortaleza' })
+  async expurgarArquivo(): Promise<void> {
+    this.cronHealth.registrar('exames').catch(() => undefined);
+    try {
+      const r = await this.exames.expurgarArquivados();
+      if (r.apagados) this.logger.log(`Arquivo de exames: ${r.apagados} card(s) passaram dos 45 dias e foram apagados.`);
+    } catch (e) { this.logger.error(`Expurgo do arquivo falhou: ${String((e as any)?.message || e)}`); }
+  }
 }

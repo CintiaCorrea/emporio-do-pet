@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@n
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ExamesService } from './exames.service';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @ApiTags('exames')
 @Controller('exames')
@@ -34,10 +35,28 @@ export class ExamesController {
     return this.service.mudarFase(itemId, body?.status);
   }
 
-  /** Exclui um exame do Kanban. */
+  /** Os arquivados, com o prazo que falta para serem apagados. Rota fixa ANTES de `:itemId`. */
+  @Get('arquivados')
+  arquivados() {
+    return this.service.listarArquivados();
+  }
+
+  /** Tira o exame do quadro — ARQUIVA por 45 dias, não apaga (Cintia, 13-14/09/2026). */
   @Delete(':itemId')
-  excluir(@Param('itemId') itemId: string) {
-    return this.service.excluir(itemId);
+  excluir(@Param('itemId') itemId: string, @CurrentUser('id') porQuem: string) {
+    return this.service.excluir(itemId, { porQuem });
+  }
+
+  /** Devolve o exame arquivado ao quadro, na fase em que ele estava. */
+  @Post(':itemId/restaurar')
+  restaurar(@Param('itemId') itemId: string) {
+    return this.service.restaurar(itemId);
+  }
+
+  /** Apaga de vez, sem esperar os 45 dias. Só ADMIN — a trava é conferida no service. */
+  @Delete(':itemId/definitivo')
+  apagarDeVez(@Param('itemId') itemId: string, @CurrentUser('role') papel: string, @CurrentUser('id') porQuem: string) {
+    return this.service.excluir(itemId, { definitivo: true, papel, porQuem });
   }
 
   /** "Enviar agora": avisa o laboratório de um exame específico (id do listaItem petexa_). */

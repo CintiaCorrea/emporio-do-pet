@@ -4,7 +4,7 @@ import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO, atrasoDoExame, fasesVigentes } from './exames.regras';
+import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO, atrasoDoExame, fasesVigentes, ehArquivado, podeSerExpurgado, diasAteExpurgo } from './exames.regras';
 
 /**
  * Aviso de COLETA ao laboratório (Fatia 3 dos exames).
@@ -130,6 +130,7 @@ export class ExamesService {
       let d: any = null;
       try { d = JSON.parse(it.valor); } catch { continue; }
       if (!d?.nome) continue;
+      if (ehArquivado(d)) continue;                         // tirado do quadro, guardado por 45 dias
       if (/entreg/i.test(String(d.status || ''))) continue; // "Entregue" saiu do quadro
       const petId = it.lista.replace('petexa_', '');
       petIds.add(petId);
@@ -177,12 +178,113 @@ export class ExamesService {
     return { ok: true };
   }
 
-  /** Exclui um exame do Kanban (remove o petexa_ do pet). Não mexe na venda/financeiro. */
-  async excluir(itemId: string): Promise<{ ok: boolean; erro?: string }> {
-    const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true } });
+  /**
+   * Tira o exame do Kanban — ARQUIVANDO, não apagando. Não mexe na venda/financeiro.
+   *
+   * Cintia, 13/09: "Arquivar, reversível". 14/09: "Pode ficar arquivado por 45 dias".
+   *
+   * O card sai do quadro na hora (a fila ignora arquivado), mas continua no banco por 45 dias,
+   * visível em "Arquivados" e restaurável num clique. Depois disso o expurgo apaga.
+   *
+   * `definitivo` apaga na hora e é só do ADMIN. Existe para o card que nunca deveria ter sido
+   * criado — teste, duplicata, pet errado — e que não faz sentido guardar por 45 dias.
+   */
+  async excluir(
+    itemId: string,
+    opts?: { definitivo?: boolean; papel?: string; porQuem?: string },
+  ): Promise<{ ok: boolean; erro?: string; arquivado?: boolean }> {
+    const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true, valor: true } });
     if (!it || !it.lista.startsWith('petexa_')) return { ok: false, erro: 'Exame não encontrado' };
-    await this.prisma.listaItem.delete({ where: { id: itemId } });
+
+    if (opts?.definitivo) {
+      // A trava do apagar de vez mora AQUI, no servidor. Esconder o botão na tela não é trava:
+      // a rota continuaria aberta para quem soubesse chamá-la.
+      if (String(opts.papel || '').toUpperCase() !== 'ADMIN') {
+        return { ok: false, erro: 'Só o administrativo apaga um exame definitivamente.' };
+      }
+      await this.prisma.listaItem.delete({ where: { id: itemId } });
+      return { ok: true, arquivado: false };
+    }
+
+    let d: any = null;
+    try { d = JSON.parse(it.valor); } catch { d = null; }
+    // Card ilegível não tem como ser arquivado (não há JSON onde gravar a marca) — e também não
+    // pode ficar entalado no quadro sem ninguém conseguir tirá-lo. Esse, sim, sai.
+    if (!d) {
+      await this.prisma.listaItem.delete({ where: { id: itemId } });
+      return { ok: true, arquivado: false };
+    }
+    if (d.arquivadoEm) return { ok: true, arquivado: true };   // já estava fora: nada a fazer
+
+    await this.prisma.listaItem.update({
+      where: { id: itemId },
+      data: { valor: JSON.stringify({ ...d, arquivadoEm: new Date().toISOString(), arquivadoPor: opts?.porQuem || null }) },
+    });
+    return { ok: true, arquivado: true };
+  }
+
+  /** Devolve o exame arquivado ao quadro, na fase em que ele estava. */
+  async restaurar(itemId: string): Promise<{ ok: boolean; erro?: string }> {
+    const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true, valor: true } });
+    if (!it || !it.lista.startsWith('petexa_')) return { ok: false, erro: 'Exame não encontrado' };
+    let d: any = null;
+    try { d = JSON.parse(it.valor); } catch { return { ok: false, erro: 'Exame ilegível' }; }
+    // A fase não é tocada: o card volta para a coluna de onde saiu, e não para o começo. Voltar
+    // ao início faria a equipe pedir de novo uma coleta que o laboratório já fez.
+    const { arquivadoEm, arquivadoPor, ...resto } = d;
+    await this.prisma.listaItem.update({ where: { id: itemId }, data: { valor: JSON.stringify(resto) } });
     return { ok: true };
+  }
+
+  /** Os arquivados, com quantos dias faltam para o expurgo. Fora do quadro, mas achável. */
+  async listarArquivados() {
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: { startsWith: 'petexa_' } },
+      select: { id: true, lista: true, valor: true },
+    });
+    const linhas: any[] = [];
+    const petIds = new Set<string>();
+    for (const it of itens) {
+      let d: any = null;
+      try { d = JSON.parse(it.valor); } catch { continue; }
+      if (!ehArquivado(d) || !d?.nome) continue;
+      const petId = it.lista.replace('petexa_', '');
+      petIds.add(petId);
+      linhas.push({
+        itemId: it.id, petId, nome: d.nome, status: String(d.status || ''),
+        arquivadoEm: d.arquivadoEm, diasParaApagar: diasAteExpurgo(d),
+      });
+    }
+    const pets = petIds.size
+      ? await this.prisma.pet.findMany({ where: { id: { in: [...petIds] } }, select: { id: true, name: true, tutor: { select: { name: true } } } })
+      : [];
+    const petMap: Record<string, any> = Object.fromEntries(pets.map((p: any) => [p.id, p]));
+    return linhas
+      .map((l) => ({ ...l, petNome: petMap[l.petId]?.name || 'Paciente', tutorNome: petMap[l.petId]?.tutor?.name || '' }))
+      .sort((a, b) => String(a.arquivadoEm).localeCompare(String(b.arquivadoEm)));
+  }
+
+  /**
+   * O EXPURGO: apaga de vez o que está arquivado há mais de 45 dias.
+   *
+   * Apaga UM listaItem por vez, nunca em lote com `deleteMany` sobre um filtro: a data mora
+   * dentro do JSON e um filtro amplo demais neste lugar já levou 22 vendas embora em 31/08/2026.
+   * Cada card é lido, conferido pela regra e apagado sozinho.
+   */
+  async expurgarArquivados(agora?: Date | string): Promise<{ apagados: number }> {
+    const itens = await this.prisma.listaItem.findMany({
+      where: { lista: { startsWith: 'petexa_' } },
+      select: { id: true, valor: true },
+    }).catch(() => [] as any[]);
+    let apagados = 0;
+    for (const it of itens) {
+      let d: any = null;
+      try { d = JSON.parse(it.valor); } catch { continue; }   // ilegível não é expurgado por engano
+      if (!podeSerExpurgado(d, agora)) continue;
+      const r = await this.prisma.listaItem.delete({ where: { id: it.id } }).catch(() => null);
+      if (r) apagados++;
+    }
+    return { apagados };
   }
 
   /** 1ª fase configurada dos exames (Config › Exames = exame_fases). Fallback "Solicitado". */
@@ -352,6 +454,7 @@ export class ExamesService {
     for (const it of itens) {
       let d: any; try { d = JSON.parse(it.valor); } catch { continue; }
       if (!String(d?.nome || '').trim()) continue;   // nao aparece no quadro, nao avisa
+      if (ehArquivado(d)) continue;                  // tirado do quadro: nao cobra mais ninguem
       if (d.atrasoAvisadoEm) continue;               // ja foi avisado uma vez
       const atraso = atrasoDoExame(d, fases);
       if (!atraso.atrasado) continue;

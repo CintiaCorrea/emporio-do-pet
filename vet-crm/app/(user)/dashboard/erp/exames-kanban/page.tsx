@@ -7,6 +7,7 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { podeAvisarLab, loadExameFases, faseNormalizada } from "@/lib/exameFases";
+import { useRolePreview } from "@/lib/ui/RolePreview";
 
 const NAVY = "#014D5E", LINE = "#E8E2D6", MUT = "#5C6B70", INK = "#1F2A2E", TEAL = "#009AAC";
 const PALETTE = ["#0C447C", "#6D3B8A", "#B45309", "#0E7490", "#9D174D", "#4D7C0F", "#7C2D12", "#1E4E8C"];
@@ -29,6 +30,13 @@ export default function ExamesKanbanPage() {
   const [avisando, setAvisando] = useState<string | null>(null);
   const [rodandoLote, setRodandoLote] = useState(false);
   const jaCarregou = useRef(false);
+  const { effectiveRole } = useRolePreview();
+  const isAdmin = effectiveRole === "ADMIN";
+  // O ARQUIVO (Cintia, 13-14/09/2026): tirar do quadro guarda por 45 dias em vez de apagar.
+  // A gaveta começa fechada — é lugar de ir buscar, não de ficar no caminho todo dia.
+  const [arquivados, setArquivados] = useState<any[]>([]);
+  const [verArquivo, setVerArquivo] = useState(false);
+  const [mexendo, setMexendo] = useState<string | null>(null);
 
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
@@ -36,12 +44,14 @@ export default function ExamesKanbanPage() {
       // As fases vem de `loadExameFases`, a MESMA fonte da ficha do pet, do Hoje e da inbox. Esta
       // tela tinha a sua propria leitura e a sua propria lista de reserva — que ainda trazia
       // "Aguardando" depois de a coluna ter sido aposentada. Duas listas, duas verdades.
-      const [f, fs] = await Promise.all([
+      const [f, fs, arq] = await Promise.all([
         fetch("/api/exames/fila", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
         loadExameFases(),
+        fetch("/api/exames/arquivados", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
       ]);
       setFila(Array.isArray(f) ? f : (f.data || []));
       setFases(fs);
+      setArquivados(Array.isArray(arq) ? arq : []);
     } catch {}
     jaCarregou.current = true; setLoading(false);
   };
@@ -78,15 +88,44 @@ export default function ExamesKanbanPage() {
     catch { load(); }
   };
 
-  // Excluir o exame do Kanban (não mexe na venda/financeiro).
-  const excluir = async (e: any) => {
-    if (!window.confirm(`🗑️ Excluir este exame do quadro?\n\n${e.petNome ? e.petNome + " — " : ""}${e.nome}\n\n(Não desfaz a venda nem o a-pagar do laboratório.)`)) return;
+  // Tirar do quadro = ARQUIVAR por 45 dias (Cintia, 13-14/09/2026). Não mexe na venda/financeiro.
+  // O texto do aviso diz o que vai acontecer de verdade: antes prometia "excluir" e apagava sem
+  // volta, e quem clicava por engano num dia corrido não tinha como desfazer.
+  const arquivar = async (e: any) => {
+    if (!window.confirm(`🗃️ Tirar este exame do quadro?\n\n${e.petNome ? e.petNome + " — " : ""}${e.nome}\n\nFica guardado em Arquivados por 45 dias e pode ser restaurado.\n(Não desfaz a venda nem o a-pagar do laboratório.)`)) return;
     setFila((prev) => prev.filter((x) => x.itemId !== e.itemId));
     try {
       const r = await fetch(`/api/exames/${e.itemId}`, { method: "DELETE" });
       if (!r.ok) throw new Error();
-      toast.success("Exame removido do quadro");
-    } catch { toast.error("Não consegui excluir. Recarregando…"); load(); }
+      toast.success("Arquivado — dá para restaurar em 🗃️ Arquivados");
+      load();
+    } catch { toast.error("Não consegui arquivar. Recarregando…"); load(); }
+  };
+
+  const restaurar = async (a: any) => {
+    setMexendo(a.itemId);
+    try {
+      const r = await fetch(`/api/exames/${a.itemId}/restaurar`, { method: "POST" });
+      if (!r.ok) throw new Error();
+      toast.success("De volta ao quadro, na fase em que estava");
+      await load();
+    } catch { toast.error("Não consegui restaurar."); }
+    setMexendo(null);
+  };
+
+  // Apagar de vez, sem esperar os 45 dias. Só adm — e o servidor confere de novo, porque esconder
+  // o botão não é trava.
+  const apagarDeVez = async (a: any) => {
+    if (!window.confirm(`⚠️ Apagar DEFINITIVAMENTE?\n\n${a.petNome ? a.petNome + " — " : ""}${a.nome}\n\nIsto não tem volta. O normal é deixar o prazo de 45 dias correr.\n(A venda e o a-pagar continuam intactos.)`)) return;
+    setMexendo(a.itemId);
+    try {
+      const r = await fetch(`/api/exames/${a.itemId}/definitivo`, { method: "DELETE" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d?.ok === false) throw new Error(d?.erro || "");
+      toast.success("Apagado definitivamente");
+      await load();
+    } catch (err: any) { toast.error(err?.message || "Não consegui apagar."); }
+    setMexendo(null);
   };
 
   // Solicitar coleta ao laboratório AGORA (urgência). O lote automático 11:30/17:00 cuida do resto.
@@ -167,7 +206,7 @@ export default function ExamesKanbanPage() {
             <button onClick={() => avisarLab(e)} disabled={avisando === e.itemId} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#6A4FB0", color: "#6A4FB0", background: "#F3EFFB" }}>{avisando === e.itemId ? "enviando…" : "📲 Solicitar ao lab"}</button>
           ) : null}
           {ultima ? <button onClick={() => mover(e.itemId, lastFase)} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>✓ {lastFase}</button> : null}
-          <button onClick={() => excluir(e)} title="Excluir exame do quadro" className="ml-auto text-[11px] px-1.5 py-0.5 rounded-md border" style={{ borderColor: LINE, color: "#b23b3b" }}>🗑️</button>
+          <button onClick={() => arquivar(e)} title="Tirar do quadro (fica arquivado 45 dias)" className="ml-auto text-[11px] px-1.5 py-0.5 rounded-md border" style={{ borderColor: LINE, color: MUT }}>🗃️</button>
         </div>
       </div>
     );
@@ -178,12 +217,46 @@ export default function ExamesKanbanPage() {
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="text-[13px]" style={{ color: MUT }}><b style={{ color: NAVY }}>{total}</b> exame(s) em andamento</div>
         <span className="text-[11.5px]" style={{ color: MUT }}>· arraste o card entre as fases · <b>{lastFase}</b> tira do quadro</span>
+        {arquivados.length > 0 ? (
+          <button onClick={() => setVerArquivo((v) => !v)} className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border" style={{ borderColor: LINE, color: MUT, background: verArquivo ? "#EFEADF" : "#fff" }}>
+            🗃️ Arquivados ({arquivados.length})
+          </button>
+        ) : null}
         <button onClick={rodarLote} disabled={rodandoLote} className="ml-auto text-[11.5px] font-semibold px-2.5 py-1 rounded-md border" style={{ borderColor: "#6A4FB0", color: "#6A4FB0", background: "#F3EFFB" }}>{rodandoLote ? "enviando…" : "📲 Enviar lote agora"}</button>
         {/* As fases moram na lista `exame_fases`, editada em Configurações › Listas. Este botão
             apontava para Configurações › Exames, que cadastra laboratórios e exames e NÃO tem
             editor de fases — mandava a pessoa procurar um controle que não existe ali. */}
         <Link href="/dashboard/configuracoes/listas" className="text-[11.5px] font-semibold" style={{ color: TEAL }}>⚙️ Configurar fases</Link>
       </div>
+
+      {/* A GAVETA DOS ARQUIVADOS. Sem ela, "reversível" era só uma palavra: ninguém desfaz o que
+          não consegue encontrar. Mostra o prazo que falta em cada card, para o arquivo não virar
+          um lugar onde as coisas somem sem aviso. */}
+      {verArquivo && arquivados.length > 0 ? (
+        <div className="mb-4 rounded-2xl p-3" style={{ background: "#F7F4EC", border: `1px solid ${LINE}` }}>
+          <div className="text-[12px] font-bold mb-2" style={{ color: NAVY }}>
+            🗃️ Fora do quadro — apagados automaticamente 45 dias depois de arquivados
+          </div>
+          <div className="flex flex-col gap-1.5">
+            {arquivados.map((a: any) => (
+              <div key={a.itemId} className="flex items-center gap-2 flex-wrap rounded-lg px-2.5 py-1.5 bg-white" style={{ border: `1px solid ${LINE}` }}>
+                <span className="text-[12px] font-semibold" style={{ color: NAVY }}>{a.nome}</span>
+                <span className="text-[11.5px]" style={{ color: MUT }}>{a.petNome}{a.tutorNome ? ` · ${a.tutorNome}` : ""}</span>
+                {a.status ? <span className="text-[10px] rounded px-1.5 py-0.5" style={{ background: "#F1EEE6", color: MUT }}>{a.status}</span> : null}
+                <span className="text-[10.5px]" style={{ color: a.diasParaApagar <= 7 ? "#b23b3b" : MUT }}>
+                  arquivado {dt(a.arquivadoEm)} · apaga em {a.diasParaApagar} dia(s)
+                </span>
+                <button onClick={() => restaurar(a)} disabled={mexendo === a.itemId} className="ml-auto text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>
+                  {mexendo === a.itemId ? "…" : "↩️ Restaurar"}
+                </button>
+                {isAdmin ? (
+                  <button onClick={() => apagarDeVez(a)} disabled={mexendo === a.itemId} title="Apagar definitivamente (só adm)" className="text-[10.5px] px-1.5 py-0.5 rounded-md border" style={{ borderColor: LINE, color: "#b23b3b" }}>🗑️</button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="py-20 text-center text-sm" style={{ color: MUT }}>Carregando…</div>
