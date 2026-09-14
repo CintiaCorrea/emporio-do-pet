@@ -35,6 +35,18 @@ export class ExamesController {
     return this.service.mudarFase(itemId, body?.status);
   }
 
+  /** Horários de coleta de cada laboratório. Rota fixa ANTES de `:itemId`. */
+  @Get('horarios-lab')
+  horariosLab() {
+    return this.service.listarHorariosDosLabs();
+  }
+
+  /** Grava os horários de um laboratório. Lista vazia devolve ele ao padrão da casa. */
+  @Post('horarios-lab')
+  salvarHorariosLab(@Body() body: { fornecedorId: string; horarios: string[] }) {
+    return this.service.salvarHorariosDoLab(body?.fornecedorId, body?.horarios);
+  }
+
   /** Os arquivados, com o prazo que falta para serem apagados. Rota fixa ANTES de `:itemId`. */
   @Get('arquivados')
   arquivados() {

@@ -4,7 +4,7 @@ import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO, atrasoDoExame, fasesVigentes, ehArquivado, podeSerExpurgado, diasAteExpurgo, podeAvisarCliente, respostaMarcaEntregue } from './exames.regras';
+import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO, atrasoDoExame, fasesVigentes, ehArquivado, podeSerExpurgado, diasAteExpurgo, podeAvisarCliente, respostaMarcaEntregue, horariosLimpos, horariosDoLab, ehHoraDeAvisar, HORARIOS_PADRAO_LAB } from './exames.regras';
 
 /**
  * Aviso de COLETA ao laboratório (Fatia 3 dos exames).
@@ -58,13 +58,23 @@ export class ExamesService {
     private readonly notifications: NotificationsService,
   ) {}
 
-  private async enviar(fornecedor: { nome?: string; telefone?: string | null }, petNome: string, exameNome: string): Promise<{ ok: boolean; messageId?: string; erro?: string }> {
+  /**
+   * Solicitação de coleta ao laboratório (o botão "📲 Solicitar ao lab", urgência).
+   *
+   * SEM VARIÁVEIS, e isso não é descuido. O template `solicitacao_coleta_exame` aprovado na Meta
+   * é um texto fixo — "🔬 Solicitação de coleta — Empório do Pet. Por favor, agende a coleta de
+   * exame." — e mandar variáveis para um template que não tem nenhuma faz a Meta RECUSAR o envio.
+   *
+   * Até 16/09/2026 este método mandava paciente e exame. O envio falhava sempre, e o erro que
+   * volta da Meta não diz qual é a conta certa — o botão simplesmente não funcionava.
+   *
+   * Consequência a assumir: a mensagem urgente não diz de qual pet é. Para dizer, o template
+   * precisa ser recriado na Meta com {{1}} e {{2}}, e aí este método volta a mandá-los.
+   */
+  private async enviar(fornecedor: { nome?: string; telefone?: string | null }, _petNome: string, _exameNome: string): Promise<{ ok: boolean; messageId?: string; erro?: string }> {
     if (!fornecedor?.telefone) return { ok: false, erro: 'Laboratório sem WhatsApp' };
     try {
-      const res: any = await this.whatsapp.sendTemplateMessage(fornecedor.telefone, this.TEMPLATE, [
-        { type: 'text', text: petNome || 'Paciente' },
-        { type: 'text', text: exameNome || 'Exame' },
-      ]);
+      const res: any = await this.whatsapp.sendTemplateMessage(fornecedor.telefone, this.TEMPLATE, []);
       return { ok: !!res?.success, messageId: res?.messageId, erro: res?.error };
     } catch (e) {
       const erro = String((e as any)?.message || e);
@@ -520,6 +530,67 @@ export class ExamesService {
     return [...FASES_PADRAO];
   }
 
+  /** Horários de coleta por laboratório (lista `exame_lab_horarios`, valor `{fornecedorId, horarios}`). */
+  private async horariosPorLab(): Promise<Record<string, string[]>> {
+    const mapa: Record<string, string[]> = {};
+    try {
+      const arr = await this.prisma.listaItem.findMany({ where: { lista: 'exame_lab_horarios' } });
+      for (const it of arr) {
+        let d: any; try { d = JSON.parse(it.valor); } catch { continue; }
+        const id = String(d?.fornecedorId || '').trim();
+        if (!id) continue;
+        mapa[id] = horariosLimpos(d?.horarios);
+      }
+    } catch { /* sem config, todo mundo no padrão */ }
+    return mapa;
+  }
+
+  /** Para a tela: todo laboratório com os horários dele (ou o padrão, dito como padrão). */
+  async listarHorariosDosLabs(): Promise<{ fornecedorId: string; nome: string; telefone: string | null; horarios: string[]; padrao: boolean }[]> {
+    const [forns, mapa] = await Promise.all([
+      this.prisma.fornecedor.findMany({
+        where: { ativo: true, tipo: 'LABORATORIO' as any },
+        select: { id: true, nome: true, telefone: true },
+        orderBy: { nome: 'asc' },
+      }).catch(() => [] as any[]),
+      this.horariosPorLab(),
+    ]);
+    return forns.map((f: any) => {
+      const proprios = horariosLimpos(mapa[f.id]);
+      return {
+        fornecedorId: f.id, nome: f.nome, telefone: f.telefone || null,
+        horarios: proprios.length ? proprios : [...HORARIOS_PADRAO_LAB],
+        padrao: !proprios.length,   // a tela precisa dizer "é o padrão", não fingir que foi escolhido
+      };
+    });
+  }
+
+  /**
+   * Grava os horários de UM laboratório.
+   *
+   * Lista vazia volta ao padrão da casa em vez de deixar o laboratório sem aviso nenhum: um
+   * laboratório que nunca é avisado é um exame que nunca é coletado, e não há tela que mostre
+   * essa ausência.
+   */
+  async salvarHorariosDoLab(fornecedorId: string, horarios: unknown): Promise<{ ok: boolean; erro?: string; horarios?: string[] }> {
+    const id = String(fornecedorId || '').trim();
+    if (!id) return { ok: false, erro: 'Laboratório não informado' };
+    const limpos = horariosLimpos(horarios);
+    const existente = await this.prisma.listaItem.findFirst({
+      where: { lista: 'exame_lab_horarios', valor: { contains: `"fornecedorId":"${id}"` } },
+      select: { id: true },
+    }).catch(() => null);
+
+    if (!limpos.length) {
+      if (existente) await this.prisma.listaItem.delete({ where: { id: existente.id } }).catch(() => undefined);
+      return { ok: true, horarios: [...HORARIOS_PADRAO_LAB] };
+    }
+    const valor = JSON.stringify({ fornecedorId: id, horarios: limpos });
+    if (existente) await this.prisma.listaItem.update({ where: { id: existente.id }, data: { valor } });
+    else await this.prisma.listaItem.create({ data: { lista: 'exame_lab_horarios', valor } });
+    return { ok: true, horarios: limpos };
+  }
+
   private async faseInicialExame(): Promise<string> {
     // Pela MESMA lista que o quadro usa: o exame nasce numa coluna que existe. Lendo direto do
     // banco, um nome aposentado no topo faria o card nascer fora do quadro.
@@ -786,7 +857,9 @@ export class ExamesService {
    * histórico). Idempotente: relê cada item imediatamente antes de marcar (clique + cron não duplicam).
    * DESLIGADO por segurança até EXAMES_LOTE_ATIVO=1 (liga-se quando o template estiver aprovado na Meta).
    */
-  async avisarLaboratorios(): Promise<{ enviados: number; labs: number; semWhatsapp: number; desligado?: boolean }> {
+  async avisarLaboratorios(
+    opts?: { apenasNoHorario?: boolean; agora?: Date | string },
+  ): Promise<{ enviados: number; labs: number; semWhatsapp: number; desligado?: boolean }> {
     if (process.env.EXAMES_LOTE_ATIVO !== '1') return { enviados: 0, labs: 0, semWhatsapp: 0, desligado: true };
 
     const desde = new Date(process.env.EXAMES_LOTE_DESDE || '2026-08-11T00:00:00-03:00'); // só exames novos
@@ -812,8 +885,15 @@ export class ExamesService {
     const forns = await this.prisma.fornecedor.findMany({ where: { id: { in: fornIds } }, select: { id: true, nome: true, telefone: true } });
     const fornMap: Record<string, any> = Object.fromEntries(forns.map((f) => [f.id, f]));
 
+    // CADA LABORATÓRIO NO SEU HORÁRIO (Cintia, 12/09/2026). A cron bate de meia em meia hora e
+    // manda só para quem tem coleta marcada naquele minuto; quem não configurou segue nos 11h30
+    // e 17h de sempre. O botão "Enviar lote agora" passa sem `apenasNoHorario` e ignora a grade,
+    // porque ele é o caminho da urgência.
+    const horarios = opts?.apenasNoHorario ? await this.horariosPorLab() : null;
+
     let enviados = 0, labs = 0, semWhatsapp = 0;
     for (const [fid, grupo] of grupos) {
+      if (horarios && !ehHoraDeAvisar(horariosDoLab(horarios, fid), opts?.agora)) continue;
       const forn = fornMap[fid];
       if (!forn?.telefone) { semWhatsapp += grupo.length; await this.alertarFalhaLab(forn?.nome || 'Laboratório', 'sem WhatsApp cadastrado', grupo.length); continue; }
 

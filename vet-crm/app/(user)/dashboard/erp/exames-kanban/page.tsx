@@ -37,6 +37,9 @@ export default function ExamesKanbanPage() {
   const [arquivados, setArquivados] = useState<any[]>([]);
   const [verArquivo, setVerArquivo] = useState(false);
   const [mexendo, setMexendo] = useState<string | null>(null);
+  const [labs, setLabs] = useState<any[]>([]);
+  const [verHorarios, setVerHorarios] = useState(false);
+  const [salvandoLab, setSalvandoLab] = useState<string | null>(null);
 
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
@@ -139,6 +142,33 @@ export default function ExamesKanbanPage() {
 
   // Avisar o tutor de que o laudo chegou. Sai sozinho ao anexar; este botão é para quando o
   // automático não conseguiu — e ele SÓ aparece nesse caso, para ninguém mandar duas vezes.
+  const carregarLabs = async () => {
+    const r = await fetch("/api/exames/horarios-lab", { cache: "no-store" }).then((x) => x.json()).catch(() => []);
+    setLabs(Array.isArray(r) ? r : []);
+  };
+
+  const salvarHorarios = async (fornecedorId: string, horarios: string[]) => {
+    setSalvandoLab(fornecedorId);
+    try {
+      const r = await fetch("/api/exames/horarios-lab", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fornecedorId, horarios }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d?.ok === false) throw new Error(d?.erro || "");
+      await carregarLabs();
+    } catch (err: any) { toast.error(err?.message || "Não consegui salvar os horários."); }
+    setSalvandoLab(null);
+  };
+
+  // Marcar o PRIMEIRO horário de um laboratório no padrão começa do zero, e não com 11:30/17:00
+  // já dentro: quem clica em 09:00 quer 09:00, não 09:00 mais os dois herdados sem perceber.
+  const alternarHorario = (l: any, h: string) => {
+    const atuais: string[] = l.padrao ? [] : (l.horarios || []);
+    const novos = atuais.includes(h) ? atuais.filter((x) => x !== h) : [...atuais, h].sort();
+    salvarHorarios(l.fornecedorId, novos);
+  };
+
   const avisarCliente = async (e: any) => {
     if (!window.confirm(`📲 Avisar ${e.tutorNome || "o tutor"} de que o laudo de ${e.petNome || "o pet"} está pronto?`)) return;
     setMexendo(e.itemId);
@@ -206,6 +236,64 @@ export default function ExamesKanbanPage() {
   };
 
   const total = fila.length;
+
+  // ── HORÁRIOS DE COLETA POR LABORATÓRIO ──────────────────────────────────────────────────
+  // A grade é de meia em meia hora porque é assim que a cron bate. Oferecer um campo livre
+  // deixaria alguém digitar 09:20, que nunca dispararia — e o laboratório ficaria sem aviso
+  // em silêncio, que é o pior jeito de uma configuração falhar.
+  const GRADE: string[] = [];
+  for (let h = 7; h <= 19; h++) { GRADE.push(`${String(h).padStart(2, "0")}:00`); GRADE.push(`${String(h).padStart(2, "0")}:30`); }
+
+  const ModalHorarios = () => {
+    if (!verHorarios) return null;
+    return (
+      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(1,77,94,.35)" }} onClick={() => setVerHorarios(false)}>
+        <div className="w-full max-w-2xl rounded-2xl my-8" style={{ background: "#fff", border: `1px solid ${LINE}` }} onClick={(ev) => ev.stopPropagation()}>
+          <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: `1px solid ${LINE}` }}>
+            <div className="text-[14px] font-bold" style={{ color: NAVY }}>⏰ Horários de coleta</div>
+            <button onClick={() => setVerHorarios(false)} className="ml-auto text-[12px] px-2 py-1 rounded-md border" style={{ borderColor: LINE, color: MUT }}>fechar</button>
+          </div>
+          <div className="px-4 py-3 text-[11.5px]" style={{ color: MUT }}>
+            Cada laboratório é avisado no horário dele. Quem não tiver horário marcado segue no padrão da casa — <b>11:30 e 17:00</b>.
+          </div>
+          {/* Rolagem AQUI dentro, não na página: com muitos laboratórios a lista precisa caber
+              sem empurrar o botão de fechar para fora da tela. */}
+          <div className="px-4 pb-4 flex flex-col gap-3" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+            {labs.length === 0 ? (
+              <div className="text-[12px] py-6 text-center" style={{ color: MUT }}>Nenhum laboratório ativo cadastrado em Fornecedores.</div>
+            ) : labs.map((l: any) => (
+              <div key={l.fornecedorId} className="rounded-xl p-3" style={{ border: `1px solid ${LINE}`, background: "#FBF9F4" }}>
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="text-[12.5px] font-bold" style={{ color: NAVY }}>{l.nome}</span>
+                  {!l.telefone ? <span className="text-[10px] font-bold rounded px-1.5 py-0.5" style={{ background: "#FBE4E2", color: "#b23b3b" }}>sem WhatsApp</span> : null}
+                  {l.padrao ? <span className="text-[10px] rounded px-1.5 py-0.5" style={{ background: "#F1EEE6", color: MUT }}>usando o padrão</span> : null}
+                  {salvandoLab === l.fornecedorId ? <span className="text-[10px]" style={{ color: TEAL }}>salvando…</span> : null}
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {GRADE.map((h) => {
+                    const marcado = (l.horarios || []).includes(h) && !l.padrao;
+                    return (
+                      <button
+                        key={h}
+                        onClick={() => alternarHorario(l, h)}
+                        className="text-[10.5px] font-semibold rounded-md px-1.5 py-0.5 border"
+                        style={marcado
+                          ? { borderColor: TEAL, background: "#E6F4F5", color: NAVY }
+                          : { borderColor: LINE, background: "#fff", color: MUT }}
+                      >{h}</button>
+                    );
+                  })}
+                </div>
+                {!l.padrao ? (
+                  <button onClick={() => salvarHorarios(l.fornecedorId, [])} className="mt-2 text-[10.5px] underline" style={{ color: MUT }}>voltar ao padrão (11:30 e 17:00)</button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const Card = ({ e, ultima }: { e: any; ultima: boolean }) => {
     const cor = labColor(e.fornecedorNome);
@@ -289,6 +377,7 @@ export default function ExamesKanbanPage() {
 
   return (
     <div className="p-4 md:p-6 w-full">
+      <ModalHorarios />
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="text-[13px]" style={{ color: MUT }}><b style={{ color: NAVY }}>{total}</b> exame(s) em andamento</div>
         <span className="text-[11.5px]" style={{ color: MUT }}>· arraste o card entre as fases · <b>{lastFase}</b> tira do quadro</span>
@@ -301,6 +390,7 @@ export default function ExamesKanbanPage() {
         {/* As fases moram na lista `exame_fases`, editada em Configurações › Listas. Este botão
             apontava para Configurações › Exames, que cadastra laboratórios e exames e NÃO tem
             editor de fases — mandava a pessoa procurar um controle que não existe ali. */}
+        <button onClick={() => { setVerHorarios(true); carregarLabs(); }} className="text-[11.5px] font-semibold px-2.5 py-1 rounded-md border" style={{ borderColor: LINE, color: MUT }}>⏰ Horários de coleta</button>
         <Link href="/dashboard/configuracoes/listas" className="text-[11.5px] font-semibold" style={{ color: TEAL }}>⚙️ Configurar fases</Link>
       </div>
 

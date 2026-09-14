@@ -14,16 +14,22 @@ export class ExamesScheduler {
 
   constructor(private readonly exames: ExamesService, private readonly cronHealth: CronHealthService) {}
 
-  @Cron('30 11 * * *', { timeZone: 'America/Fortaleza' })
-  async manha(): Promise<void> {
+  // COLETA: de meia em meia hora, das 7h às 19h — mas cada laboratório só é avisado NO HORÁRIO
+  // DELE (Cintia, 12/09/2026: "nos horários já estipulados, conforme o laboratório do exame
+  // solicitado"). Quem não tem horário configurado continua nos 11h30 e 17h de sempre.
+  //
+  // Eram duas crons fixas. A hora do aviso é a hora em que o motoboy daquele laboratório passa:
+  // mandar às 17h para quem coleta às 9h faz o material dormir aqui e o resultado atrasar um dia
+  // inteiro, sem ninguém ter errado nada.
+  //
+  // Bater de meia em meia hora e filtrar dentro é de propósito: uma cron por laboratório seria
+  // uma cron que ninguém sabe que existe quando o laboratório muda de horário.
+  @Cron('0,30 7-19 * * *', { timeZone: 'America/Fortaleza' })
+  async coletaNoHorarioDoLab(): Promise<void> {
     this.cronHealth.registrar('exames').catch(() => undefined);
-    try { await this.exames.avisarLaboratorios(); } catch (e) { this.logger.error(`Aviso de coleta (manhã) falhou: ${String((e as any)?.message || e)}`); }
-  }
-
-  @Cron('0 17 * * *', { timeZone: 'America/Fortaleza' })
-  async tarde(): Promise<void> {
-    this.cronHealth.registrar('exames').catch(() => undefined);
-    try { await this.exames.avisarLaboratorios(); } catch (e) { this.logger.error(`Aviso de coleta (tarde) falhou: ${String((e as any)?.message || e)}`); }
+    try {
+      await this.exames.avisarLaboratorios({ apenasNoHorario: true });
+    } catch (e) { this.logger.error(`Aviso de coleta falhou: ${String((e as any)?.message || e)}`); }
   }
 
   // LEMBRETE DA RECEPÇÃO: UMA VEZ, às 10h (Fortaleza).

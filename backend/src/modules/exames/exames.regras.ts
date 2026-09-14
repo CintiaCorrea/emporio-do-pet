@@ -239,6 +239,61 @@ export function respostaMarcaEntregue(
   return tResp >= tAviso;
 }
 
+// ── CADA LABORATÓRIO NO SEU HORÁRIO ───────────────────────────────────────────────────────
+//
+// Cintia, 12/09/2026, no desenho do ciclo: "avisa o laboratório (nos horários já estipulados,
+// CONFORME O LABORATÓRIO do exame solicitado)".
+//
+// Até aqui todos os laboratórios eram avisados às 11h30 e 17h. Mas a hora do aviso é a hora em
+// que o motoboy daquele laboratório passa — mandar às 17h para quem coleta às 9h faz o material
+// dormir aqui, e o resultado atrasa um dia inteiro sem ninguém ter errado nada.
+
+/** O que vale para o laboratório que ninguém configurou. São os horários de sempre. */
+export const HORARIOS_PADRAO_LAB = ['11:30', '17:00'];
+
+/** "HH:MM" no fuso da clínica. O servidor roda em UTC; comparar sem converter erra por 3 horas. */
+export function horaDaClinica(agora?: Date | string): string {
+  const d = agora ? new Date(agora as any) : new Date();
+  if (!Number.isFinite(d.getTime())) return '';
+  return new Intl.DateTimeFormat('pt-BR', {
+    timeZone: 'America/Fortaleza', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).format(d);
+}
+
+/** Normaliza o que a pessoa digitou: "9:5" vira "09:05"; lixo some. */
+export function horariosLimpos(bruto: unknown): string[] {
+  const lista = Array.isArray(bruto) ? bruto : String(bruto || '').split(/[,;\s]+/);
+  const vistos = new Set<string>();
+  for (const x of lista) {
+    const m = String(x || '').trim().match(/^(\d{1,2}):?(\d{2})$/);
+    if (!m) continue;
+    const h = Number(m[1]), min = Number(m[2]);
+    if (h < 0 || h > 23 || min < 0 || min > 59) continue;
+    vistos.add(`${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`);
+  }
+  return [...vistos].sort();
+}
+
+/** Os horários deste laboratório — os dele, ou o padrão da casa. */
+export function horariosDoLab(mapa: Record<string, string[]> | null | undefined, fornecedorId?: string | null): string[] {
+  const id = String(fornecedorId || '').trim();
+  const meus = id && mapa ? horariosLimpos(mapa[id]) : [];
+  return meus.length ? meus : [...HORARIOS_PADRAO_LAB];
+}
+
+/**
+ * É a hora de avisar este laboratório?
+ *
+ * A comparação é exata, e a cron bate de meia em meia hora. Um horário digitado fora da grade
+ * (09:20, por exemplo) NUNCA dispararia, e o laboratório ficaria sem aviso em silêncio — por
+ * isso `horariosLimpos` não é o bastante e a tela precisa oferecer as opções, não um campo livre.
+ */
+export function ehHoraDeAvisar(horarios: string[], agora?: Date | string): boolean {
+  const hhmm = horaDaClinica(agora);
+  if (!hhmm) return false;
+  return (horarios || []).includes(hhmm);
+}
+
 export type ExameParaLembrete = {
   nome?: string | null;
   status?: string | null;
