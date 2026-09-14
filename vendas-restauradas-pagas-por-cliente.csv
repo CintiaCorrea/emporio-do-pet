@@ -1,0 +1,32 @@
+﻿Cliente;Cod. cliente;Venda;Data;Pet;Valor (R$);Situacao;Consta no caixa
+Ada Beatriz Gallicchio Kroef;2294;#1026;20/08/2026;Batata;90,00;Paga;Nao
+Amanda Nogueira;4823;#1077;29/08/2026;Amora;380,00;Paga;Nao
+Ana Relvya Monteiro;2895;#1052;26/08/2026;Stella;2018,00;Paga;Nao
+Anne Melissa de Araújo Melo;4567;#1056;27/08/2026;Jujuba;70,00;Paga;Nao
+Cintia Corrêa;178;#1010;20/08/2026;Alana;1954,00;Paga;Nao
+Cintia Corrêa;178;#1035;24/08/2026;Atma;313,50;Paga;Nao
+Cintia Corrêa;;;;Subtotal (2 vendas);2267,50;;
+Cleide Silveira | Ringo;5079;#1085;29/08/2026;Ringo Star;353,50;Paga;Nao
+Elayne Nascimento Vieira;251;#1023;24/08/2026;Loki;170,00;Paga;Nao
+Elba Benevides Feijó;427;#1050;26/08/2026;Nen;80,00;Paga;Nao
+Elba Benevides Feijó;427;#1082;29/08/2026;Nen;40,00;Paga;Nao
+Elba Benevides Feijó;;;;Subtotal (2 vendas);120,00;;
+Elizabeth Fiuza Lima Sarte/ Rochele;1883;#1036;24/08/2026;Nenem;150,00;Paga;Nao
+Elizangela Bezerra;489;#1012;20/08/2026;Dora;170,00;Paga;Nao
+George Lemos Reis;312;#1029;22/08/2026;Baixinho;490,00;Paga;Nao
+Greice Maria Feitosa;5153;#1044;25/08/2026;Misuki;80,00;Paga;Nao
+Helano Alves Alencar;3545;#1079;29/08/2026;Estrela;150,00;Paga;Nao
+Helano Alves Alencar;3545;#1080;29/08/2026;Lua;150,00;Paga;Nao
+Helano Alves Alencar;;;;Subtotal (2 vendas);300,00;;
+Jessica Santos Cunha;2849;#1051;26/08/2026;Luke;170,00;Paga;Nao
+Lara Costa;4162;#1063;14/08/2026;Brad;1710,00;Paga;Nao
+Lorena Alves Trajano;2952;#1011;20/08/2026;Pepper;1214,00;Paga;Nao
+Lorena Alves Trajano;2952;#1054;26/08/2026;Pepper;1214,00;Paga;Nao
+Lorena Alves Trajano;;;;Subtotal (2 vendas);2428,00;;
+Lorena Vasconcelos Colares;4957;#1090;29/08/2026;Scooby Doo;200,00;Paga;Nao
+Milton Gehrmann Castro;5020;#1033;24/08/2026;Hayka;2018,00;Paga;Nao
+Monick Bezerra Oliveira;4568;#1078;29/08/2026;Bob Bezerra;1482,00;Paga;Nao
+Raimundo Edson;5030;#1046;25/08/2026;Luna;30,00;Paga;Nao
+Tatyana de Castro Bochensky Diniz de Freitas;2019;#1048;22/08/2026;Kate;1825,64;Paga;Nao
+;;;;;;;
+TOTAL GERAL;;;;(25 vendas · 21 clientes);16522,64;;

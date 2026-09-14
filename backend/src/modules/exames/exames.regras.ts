@@ -36,6 +36,28 @@ export const FASES_ANTIGAS: Record<string, string> = {
   retirar: 'Retirado',
 };
 
+/**
+ * As fases que AINDA VALEM: a lista configurada, menos os nomes aposentados.
+ *
+ * Existe porque as colunas moram no BANCO (lista `exame_fases`) e não aqui. Mudar FASES_PADRAO
+ * não muda nada para quem já configurou as suas — foi exatamente o que aconteceu em 14/09/2026:
+ * a Cintia pediu "Aguardando: vamos eliminar (redundante)", eu mudei o padrão, publiquei, e a
+ * coluna continuou na tela dela. O padrão é só a rede de quem nunca configurou.
+ *
+ * SÓ REMOVE UM NOME APOSENTADO SE O DESTINO DELE JÁ ESTIVER NA LISTA. "Aguardando" sai porque
+ * "Retirado" existe e recebe os cards dela. Mas uma casa que tenha só "Retirar" como coluna de
+ * retirada não pode perdê-la — sem destino, o nome velho É a coluna, e fica.
+ */
+export function fasesVigentes(fases: string[]): string[] {
+  const lista = (Array.isArray(fases) ? fases : []).map((f) => String(f || '').trim()).filter(Boolean);
+  const presentes = new Set(lista.map((f) => f.toLowerCase()));
+  return lista.filter((f) => {
+    const destino = FASES_ANTIGAS[f.toLowerCase()];
+    if (!destino) return true;
+    return !presentes.has(destino.toLowerCase());
+  });
+}
+
 /** A fase como ela deve ser lida hoje — traduzindo o vocabulário que saiu. */
 export function faseNormalizada(status: string | null | undefined, fases: string[]): string {
   const bruto = String(status || '').trim();

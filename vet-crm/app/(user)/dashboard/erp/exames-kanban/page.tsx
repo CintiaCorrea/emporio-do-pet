@@ -6,7 +6,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
-import { podeAvisarLab } from "@/lib/exameFases";
+import { podeAvisarLab, loadExameFases, faseNormalizada } from "@/lib/exameFases";
 
 const NAVY = "#014D5E", LINE = "#E8E2D6", MUT = "#5C6B70", INK = "#1F2A2E", TEAL = "#009AAC";
 const PALETTE = ["#0C447C", "#6D3B8A", "#B45309", "#0E7490", "#9D174D", "#4D7C0F", "#7C2D12", "#1E4E8C"];
@@ -33,14 +33,15 @@ export default function ExamesKanbanPage() {
   const load = async () => {
     if (!jaCarregou.current) setLoading(true);
     try {
+      // As fases vem de `loadExameFases`, a MESMA fonte da ficha do pet, do Hoje e da inbox. Esta
+      // tela tinha a sua propria leitura e a sua propria lista de reserva — que ainda trazia
+      // "Aguardando" depois de a coluna ter sido aposentada. Duas listas, duas verdades.
       const [f, fs] = await Promise.all([
         fetch("/api/exames/fila", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
-        fetch("/api/listas?lista=exame_fases", { cache: "no-store" }).then((r) => r.json()).catch(() => []),
+        loadExameFases(),
       ]);
       setFila(Array.isArray(f) ? f : (f.data || []));
-      const arr = Array.isArray(fs) ? fs : (fs.itens || fs.data || []);
-      const nomes = arr.map((x: any) => { try { return JSON.parse(x.valor).nome || x.valor; } catch { return x.valor; } }).filter(Boolean);
-      setFases(nomes.length ? nomes : ["Solicitar", "Retirado", "Aguardando", "Resultado", "Entregue"]);
+      setFases(fs);
     } catch {}
     jaCarregou.current = true; setLoading(false);
   };
@@ -49,8 +50,18 @@ export default function ExamesKanbanPage() {
   const lastFase = fases.length ? fases[fases.length - 1] : "Entregue";
   const colunas = fases.length > 1 ? fases.slice(0, -1) : fases;
 
+  // EM QUE COLUNA O CARD CAI.
+  //
+  // A tradução do nome antigo (`faseNormalizada`) vem ANTES do palpite por texto, e isso não é
+  // detalhe: um exame gravado em "Aguardando", com a coluna aposentada, não parece nenhuma das
+  // que sobraram — caía no `idx < 0 ? 0`, ou seja, de volta em "Solicitar". O laboratório já
+  // tinha levado o material e a equipe seria mandada pedir a coleta de novo.
+  //
+  // O último recurso continua sendo a primeira coluna, e de propósito: card que ninguém sabe
+  // onde fica tem de aparecer em algum lugar. Sumir do quadro e seguir cobrado em silêncio é o
+  // pior dos dois mundos.
   const colDe = (status?: string) => {
-    const st = norm(status);
+    const st = norm(faseNormalizada(status, colunas));
     let idx = colunas.findIndex((c) => norm(c) === st);
     if (idx < 0) idx = colunas.findIndex((c) => st.includes(norm(c)) || norm(c).includes(st));
     return idx < 0 ? 0 : idx;
@@ -168,7 +179,10 @@ export default function ExamesKanbanPage() {
         <div className="text-[13px]" style={{ color: MUT }}><b style={{ color: NAVY }}>{total}</b> exame(s) em andamento</div>
         <span className="text-[11.5px]" style={{ color: MUT }}>· arraste o card entre as fases · <b>{lastFase}</b> tira do quadro</span>
         <button onClick={rodarLote} disabled={rodandoLote} className="ml-auto text-[11.5px] font-semibold px-2.5 py-1 rounded-md border" style={{ borderColor: "#6A4FB0", color: "#6A4FB0", background: "#F3EFFB" }}>{rodandoLote ? "enviando…" : "📲 Enviar lote agora"}</button>
-        <Link href="/dashboard/configuracoes/exames" className="text-[11.5px] font-semibold" style={{ color: TEAL }}>⚙️ Configurar fases</Link>
+        {/* As fases moram na lista `exame_fases`, editada em Configurações › Listas. Este botão
+            apontava para Configurações › Exames, que cadastra laboratórios e exames e NÃO tem
+            editor de fases — mandava a pessoa procurar um controle que não existe ali. */}
+        <Link href="/dashboard/configuracoes/listas" className="text-[11.5px] font-semibold" style={{ color: TEAL }}>⚙️ Configurar fases</Link>
       </div>
 
       {loading ? (

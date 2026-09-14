@@ -14,6 +14,28 @@ export const EXAME_FASES_ANTIGAS: Record<string, string> = {
   retirar: "Retirado",
 };
 
+/**
+ * As fases que AINDA VALEM: a configurada menos os nomes aposentados. Espelha o backend
+ * (exames.regras.fasesVigentes) — se as duas listas discordarem, a tela mostra uma coluna que o
+ * servidor nao reconhece, e o card fica num limbo.
+ *
+ * As colunas moram no BANCO, nao no codigo. Mudar EXAME_FASES_PADRAO nao muda nada para quem ja
+ * configurou as suas: foi o que aconteceu em 14/09/2026, quando "Aguardando" continuou na tela
+ * depois de eu ter "eliminado" a coluna.
+ *
+ * SO REMOVE SE O DESTINO JA ESTIVER NA LISTA: "Aguardando" sai porque "Retirado" existe e recebe
+ * os cards dela. Sem destino, o nome velho E a coluna, e fica.
+ */
+export function fasesVigentes(fases: string[]): string[] {
+  const lista = (Array.isArray(fases) ? fases : []).map((f) => String(f || "").trim()).filter(Boolean);
+  const presentes = new Set(lista.map((f) => f.toLowerCase()));
+  return lista.filter((f) => {
+    const destino = EXAME_FASES_ANTIGAS[f.toLowerCase()];
+    if (!destino) return true;
+    return !presentes.has(destino.toLowerCase());
+  });
+}
+
 /** A fase como ela deve ser lida hoje. Card em coluna que nao existe mais nao pode sumir da
  *  tela: some do quadro e continua cobrado em silencio, que e o pior dos dois mundos. */
 export function faseNormalizada(status: string | null | undefined, fases: string[]): string {
@@ -43,10 +65,13 @@ export async function loadExameFases(): Promise<string[]> {
   try {
     const r = await fetch(`/api/listas?lista=exame_fases`, { cache: "no-store" });
     const d = await r.json();
+    // O valor pode estar gravado como JSON (`{"nome":"Solicitar"}`) ou como texto puro — o quadro
+    // ja lia das duas formas e o resto das telas nao, o que fazia aparecer o JSON cru no lugar do
+    // nome da fase. Uma leitura so, aqui.
     const arr = (Array.isArray(d) ? d : (d.itens || d.data || []))
-      .map((i: any) => i.valor)
+      .map((i: any) => { try { return JSON.parse(i.valor)?.nome || i.valor; } catch { return i.valor; } })
       .filter(Boolean);
-    return arr.length ? arr : EXAME_FASES_PADRAO;
+    return arr.length ? fasesVigentes(arr) : EXAME_FASES_PADRAO;
   } catch {
     return EXAME_FASES_PADRAO;
   }

@@ -4,7 +4,7 @@ import { NotificationType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO, atrasoDoExame } from './exames.regras';
+import { exameElegivelLote, precisaLembrarSolicitacao, textoDoLembrete, atingiuFase, faseDeRetirada, FASES_PADRAO, atrasoDoExame, fasesVigentes } from './exames.regras';
 
 /**
  * Aviso de COLETA ao laboratório (Fatia 3 dos exames).
@@ -191,7 +191,10 @@ export class ExamesService {
     try {
       const arr = await this.prisma.listaItem.findMany({ where: { lista: 'exame_fases' }, orderBy: { createdAt: 'asc' } });
       const nomes = arr.map((i) => { try { const o = JSON.parse(i.valor); return o?.nome || i.valor; } catch { return i.valor; } }).filter(Boolean);
-      if (nomes.length) return nomes;
+      // `fasesVigentes` tira os nomes aposentados (hoje: "Aguardando"). Sem isto, a coluna que a
+      // Cintia mandou eliminar continua na tela de quem já tinha configurado — e o exame parado
+      // nela não conta atraso, porque atraso só corre na coluna de retirada.
+      if (nomes.length) return fasesVigentes(nomes);
     } catch { /* usa o padrao */ }
     // O padrao acompanha as tres colunas de 12/09/2026 (exames.regras.FASES_PADRAO). Se a casa
     // configurou as dela em Config > Exames, valem as dela — isto aqui e so a rede.
@@ -199,11 +202,10 @@ export class ExamesService {
   }
 
   private async faseInicialExame(): Promise<string> {
-    try {
-      const arr = await this.prisma.listaItem.findMany({ where: { lista: 'exame_fases' }, orderBy: { createdAt: 'asc' } });
-      for (const it of arr) { try { const v = JSON.parse(it.valor); const n = v?.nome || it.valor; if (n) return String(n); } catch { if (it.valor) return it.valor; } }
-    } catch { /* usa fallback */ }
-    return 'Solicitado';
+    // Pela MESMA lista que o quadro usa: o exame nasce numa coluna que existe. Lendo direto do
+    // banco, um nome aposentado no topo faria o card nascer fora do quadro.
+    const fases = await this.fasesExame();
+    return fases[0] || 'Solicitado';
   }
 
   /**

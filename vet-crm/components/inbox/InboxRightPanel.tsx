@@ -21,7 +21,7 @@ import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
 import ClienteEditModal from "@/components/inbox/ClienteEditModal";
 import PetEditModal from "@/components/inbox/PetEditModal";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
-import { loadExameFases, podeAvisarLab } from "@/lib/exameFases";
+import { loadExameFases, podeAvisarLab, EXAME_FASES_PADRAO } from "@/lib/exameFases";
 import { loadFuResp, assignFollowUp } from "@/lib/followup";
 import { pollVisivel } from "@/lib/pollVisivel";
 import { erroDoPeso } from "@/lib/peso";
@@ -314,7 +314,9 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   // Exames do pet (Fatia 1 do item 8) — só acompanhar (avançar a fase)
   const [exOpen, setExOpen] = useState(false);
   const [exList, setExList] = useState<{ id: string; data: any }[]>([]);
-  const [exFases, setExFases] = useState<string[]>(["Solicitar", "Retirado", "Aguardando", "Resultado", "Entregue"]);
+  // Estado inicial vem do padrão compartilhado, não de uma lista escrita aqui: esta cópia ainda
+  // trazia "Aguardando" depois de a coluna ter sido aposentada.
+  const [exFases, setExFases] = useState<string[]>(EXAME_FASES_PADRAO);
   const [exLoading, setExLoading] = useState(false);
   const [avisandoLab, setAvisandoLab] = useState<string | null>(null);
   const [subindoEx, setSubindoEx] = useState<string | null>(null);
