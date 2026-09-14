@@ -19,7 +19,38 @@ export class ExamesService {
   private readonly logger = new Logger(ExamesService.name);
   private readonly TEMPLATE = 'solicitacao_coleta_exame';       // manual (urgência): específico do exame
   private readonly TEMPLATE_LOTE = 'solicitacao_coleta_lote';   // lote 11/17: genérico, 1 msg/laboratório
-  private readonly TEMPLATE_CLIENTE = 'resultado_exame_pronto'; // ao tutor: o laudo chegou
+  /**
+   * O TEMPLATE QUE AVISA O TUTOR — e as variáveis que cada um espera, na ordem.
+   *
+   * Isto é um mapa e não um nome solto porque template errado não avisa ninguém: a Meta recusa
+   * o envio quando a quantidade de variáveis não bate, e o erro que volta não diz qual é a
+   * conta certa. Escrever aqui o que cada template pede deixa a conferência possível.
+   *
+   * Os dois já estão APROVADOS na conta da clínica (conferidos em 16/09/2026):
+   *   · resultado_exame — "Olá, {{1}}! 🐾 O resultado do exame do(a) {{2}} já está disponível.
+   *     Em breve nossa equipe te envia os detalhes." Botões: Agendar retorno / Tirar dúvida.
+   *   · resultado_exame_disponivel — o mesmo, mais "{{3}} vai conversar com você sobre os
+   *     achados" e "responda esta mensagem". Botão: Falar com a recepção.
+   *
+   * O PADRÃO É `resultado_exame_disponivel`, escolha da Cintia em 16/09/2026: é o único que pede
+   * ao cliente para responder — e a resposta dele é o que fecha o exame no quadro. Com o outro,
+   * a entrega dependeria de o cliente resolver escrever por conta própria.
+   *
+   * O {{3}} dele promete que uma PESSOA vai conversar sobre os achados, e aí mora o cuidado:
+   * só vai um nome quando quem anexou é veterinário. Se a recepção anexar, a mensagem diz "Nossa
+   * equipe" — prometer que Fulana vai explicar o exame, quando Fulana não vai, é pior do que não
+   * dizer nome nenhum.
+   *
+   * Trocar: EXAMES_TEMPLATE_CLIENTE=resultado_exame.
+   */
+  private readonly TEMPLATES_CLIENTE: Record<string, (c: { tutor: string; pet: string; vet: string }) => string[]> = {
+    resultado_exame: (c) => [c.tutor, c.pet],
+    resultado_exame_disponivel: (c) => [c.tutor, c.pet, c.vet],
+  };
+  private get TEMPLATE_CLIENTE(): string {
+    const escolhido = String(process.env.EXAMES_TEMPLATE_CLIENTE || '').trim();
+    return this.TEMPLATES_CLIENTE[escolhido] ? escolhido : 'resultado_exame_disponivel';
+  }
 
   constructor(
     private readonly prisma: PrismaService,
@@ -85,12 +116,26 @@ export class ExamesService {
     const wa = contatos.find((c) => c.isWhatsApp) || contatos.find((c) => c.isPrimary) || contatos[0];
     if (!wa?.number) return { ok: false, erro: 'Tutor sem WhatsApp cadastrado' };
 
+    // A ORDEM É TUTOR, DEPOIS PET. Os dois templates começam com "Olá, {{1}}!" — mandar o pet
+    // no {{1}} faria a mensagem cumprimentar o cachorro pelo nome. O exame NÃO entra: nenhum dos
+    // dois textos aprovados tem lugar para ele.
+    const nomeTemplate = this.TEMPLATE_CLIENTE;
+    const partes = this.TEMPLATES_CLIENTE[nomeTemplate]({
+      tutor: pet?.tutor?.name || 'tudo bem',
+      pet: pet?.name || 'seu pet',
+      // SÓ VETERINÁRIO VIRA NOME. O texto diz "{{3}} vai conversar com você sobre os achados" —
+      // uma promessa sobre uma pessoa. Quem anexou pode ser a recepção, que não vai explicar
+      // exame nenhum; nesse caso a mensagem fala pela clínica, não por alguém.
+      vet: d.resultadoPorEhVet && d.resultadoPor ? d.resultadoPor : 'Nossa equipe',
+    });
+
     let res: any = null;
     try {
-      res = await this.whatsapp.sendTemplateMessage(wa.number, this.TEMPLATE_CLIENTE, [
-        { type: 'text', text: pet?.name || 'seu pet' },
-        { type: 'text', text: d.nome || 'Exame' },
-      ]);
+      res = await this.whatsapp.sendTemplateMessage(
+        wa.number,
+        nomeTemplate,
+        partes.map((text) => ({ type: 'text', text })),
+      );
     } catch (e) {
       const erro = String((e as any)?.message || e);
       this.logger.warn(`Falha ao avisar tutor sobre o laudo: ${erro}`);
@@ -352,6 +397,7 @@ export class ExamesService {
     url: string,
     arquivo?: string,
     porQuem?: string,
+    papelDeQuem?: string,
   ): Promise<{ ok: boolean; erro?: string; status?: string; clienteAvisado?: boolean }> {
     const limpa = String(url || '').trim();
     if (!limpa) return { ok: false, erro: 'Laudo sem arquivo' };
@@ -379,6 +425,9 @@ export class ExamesService {
           resultadoArquivo: arquivo || d.resultadoArquivo || null,
           resultadoEm: new Date().toISOString(),
           resultadoPor: porQuem || null,
+          // Guardado no card, e não conferido na hora de avisar: o papel de quem anexou pode
+          // mudar depois, e o que vale é quem era no momento em que o laudo entrou.
+          resultadoPorEhVet: /^(VETERINARIAN|VET)$/i.test(String(papelDeQuem || '').trim()),
           status: faseResultado,
           historico,
         }),

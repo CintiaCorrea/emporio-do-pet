@@ -53,8 +53,9 @@ export class ExamesController {
     @Param('itemId') itemId: string,
     @Body() body: { url: string; arquivo?: string },
     @CurrentUser('name') porQuem: string,
+    @CurrentUser('role') papel: string,
   ) {
-    return this.service.anexarResultado(itemId, body?.url, body?.arquivo, porQuem);
+    return this.service.anexarResultado(itemId, body?.url, body?.arquivo, porQuem, papel);
   }
 
   /** Avisa o tutor de que o laudo chegou (o mesmo aviso que sai sozinho ao anexar). */

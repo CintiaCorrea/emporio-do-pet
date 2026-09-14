@@ -101,6 +101,88 @@ describe('avisar o cliente e considerar entregue', () => {
       expect(gravado.tutorId).toBe('t1');
     });
 
+    describe('o template e as variáveis', () => {
+      const CARTA = (card: any = { resultadoPor: 'Dra. Vivian', resultadoPorEhVet: true }) => {
+        const visto: any = { nome: null, partes: null };
+        const prisma: any = {
+          listaItem: {
+            findUnique: async () => ({ id: 'c1', lista: 'petexa_p1', valor: JSON.stringify({ nome: 'Citologia', resultadoUrl: 'u', ...card }) }),
+            update: async () => ({}),
+          },
+          pet: { findUnique: async () => ({ name: 'Madona', tutor: { id: 't1', name: 'Juliana', contacts: [{ number: '5585999990000', isWhatsApp: true }] } }) },
+        };
+        const whatsapp = {
+          sendTemplateMessage: async (_tel: string, nome: string, partes: any[]) => {
+            visto.nome = nome; visto.partes = partes.map((p) => p.text);
+            return { success: true, messageId: 'w1' };
+          },
+        };
+        return { visto, prisma, whatsapp };
+      };
+
+      it('o padrão é o que PEDE resposta — é a resposta que fecha o exame', async () => {
+        // Escolha da Cintia, 16/09/2026. Com o outro template a entrega dependeria de o cliente
+        // resolver escrever por conta própria.
+        process.env.EXAMES_AVISO_CLIENTE_ATIVO = '1';
+        delete process.env.EXAMES_TEMPLATE_CLIENTE;
+        const { visto, prisma, whatsapp } = CARTA();
+        await svcCom(prisma, whatsapp).avisarClienteDoResultado('c1');
+        expect(visto.nome).toBe('resultado_exame_disponivel');
+      });
+
+      it('o TUTOR vem primeiro — os dois textos começam com "Olá, {{1}}!"', async () => {
+        // Trocar a ordem faria a mensagem cumprimentar o cachorro pelo nome. Foi assim que este
+        // envio nasceu (pet, exame) e o teste existe para não voltar a ser.
+        process.env.EXAMES_AVISO_CLIENTE_ATIVO = '1';
+        delete process.env.EXAMES_TEMPLATE_CLIENTE;
+        const { visto, prisma, whatsapp } = CARTA();
+        await svcCom(prisma, whatsapp).avisarClienteDoResultado('c1');
+        expect(visto.partes.slice(0, 2)).toEqual(['Juliana', 'Madona']);
+      });
+
+      it('só VETERINÁRIO vira nome no {{3}}', async () => {
+        process.env.EXAMES_AVISO_CLIENTE_ATIVO = '1';
+        delete process.env.EXAMES_TEMPLATE_CLIENTE;
+        const vet = CARTA({ resultadoPor: 'Dra. Vivian', resultadoPorEhVet: true });
+        await svcCom(vet.prisma, vet.whatsapp).avisarClienteDoResultado('c1');
+        expect(vet.visto.partes).toEqual(['Juliana', 'Madona', 'Dra. Vivian']);
+      });
+
+      it('recepção anexando NÃO vira promessa — o texto diz que essa pessoa vai explicar o exame', async () => {
+        process.env.EXAMES_AVISO_CLIENTE_ATIVO = '1';
+        delete process.env.EXAMES_TEMPLATE_CLIENTE;
+        for (const card of [
+          { resultadoPor: 'Victoria', resultadoPorEhVet: false },
+          { resultadoPor: 'Victoria' },                            // card antigo, sem o campo
+          { resultadoPorEhVet: true },                             // vet sem nome gravado
+        ]) {
+          const c = CARTA(card);
+          await svcCom(c.prisma, c.whatsapp).avisarClienteDoResultado('c1');
+          expect(c.visto.partes[2]).toBe('Nossa equipe');
+        }
+      });
+
+      it('o de duas variáveis continua disponível, e manda só tutor e pet', async () => {
+        process.env.EXAMES_AVISO_CLIENTE_ATIVO = '1';
+        process.env.EXAMES_TEMPLATE_CLIENTE = 'resultado_exame';
+        const { visto, prisma, whatsapp } = CARTA();
+        await svcCom(prisma, whatsapp).avisarClienteDoResultado('c1');
+        expect(visto.nome).toBe('resultado_exame');
+        expect(visto.partes).toEqual(['Juliana', 'Madona']);
+        delete process.env.EXAMES_TEMPLATE_CLIENTE;
+      });
+
+      it('nome desconhecido na variável de ambiente cai no padrão, não quebra o envio', async () => {
+        // Um erro de digitação no Fly não pode virar "nenhum cliente é avisado e ninguém sabe".
+        process.env.EXAMES_AVISO_CLIENTE_ATIVO = '1';
+        process.env.EXAMES_TEMPLATE_CLIENTE = 'resultado_exames';   // o nome que não existe
+        const { visto, prisma, whatsapp } = CARTA();
+        await svcCom(prisma, whatsapp).avisarClienteDoResultado('c1');
+        expect(visto.nome).toBe('resultado_exame_disponivel');
+        delete process.env.EXAMES_TEMPLATE_CLIENTE;
+      });
+    });
+
     it('envio que FALHA não grava nada — senão o exame fecharia sem o cliente saber', async () => {
       process.env.EXAMES_AVISO_CLIENTE_ATIVO = '1';
       const toques: string[] = [];
