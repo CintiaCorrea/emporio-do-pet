@@ -61,6 +61,45 @@ export function podeAvisarLab(ex: { status?: string | null; fornecedorId?: strin
   return !!ex.fornecedorId && !ex.labAvisadoAt && !ehFaseConcluida(ex.status);
 }
 
+// ── ANEXAR O LAUDO PELO QUADRO, E NAO PELA FICHA ──────────────────────────────────────────
+//
+// Cintia, 12/09/2026, desenhando o ciclo: "Ao anexar o exame pelo kanban ele salva na ficha do
+// pet (a principio vamos travar o salvamento do exame na ficha do pet, por 30 dias dessa forma,
+// depois revisaremos — para que a equipe aprenda a utilizar o kanban)".
+//
+// DUAS COISAS PARA QUEM LER ISTO DEPOIS:
+//
+// 1. ISTO NAO E UMA TRAVA DE SEGURANCA, e nao adianta fingir que e. E um empurrao de habito: o
+//    anexo grava pelo endpoint generico de listas, que mil outras telas usam, e por ali nao ha
+//    onde conferir esta regra sem arriscar o resto. Quem souber chamar a API continua anexando.
+//    Para o que ela existe — fazer a equipe usar o quadro — o botao desligado basta.
+//
+// 2. ELA VENCE SOZINHA. "Depois revisaremos" nao pode virar uma trava que ninguem lembra de
+//    tirar. Em 15/10/2026 os botoes voltam sem ninguem mexer em nada, e ai se decide se volta.
+export const TRAVA_ANEXO_NA_FICHA_ATE = "2026-10-14T23:59:59-03:00";
+
+/**
+ * Este exame deve ser anexado pelo QUADRO, e nao aqui?
+ *
+ * So vale para exame QUE ESTA NO QUADRO (escolha dela, 13/09: "travar so quem tem box"): o que
+ * ja foi entregue ou arquivado nao tem card para arrastar, e travar a ficha dele seria fechar a
+ * unica porta que sobrou.
+ */
+export function anexoDeveSerPeloQuadro(
+  ex: { status?: string | null; arquivadoEm?: string | null; entregueAt?: string | null } | null | undefined,
+  agora?: Date | string,
+): boolean {
+  if (!ex) return false;
+  if (ex.arquivadoEm) return false;                       // fora do quadro: sem card, sem trava
+  if (ex.entregueAt || ehFaseConcluida(ex.status)) return false;
+  const t = agora ? new Date(agora as any).getTime() : Date.now();
+  if (!Number.isFinite(t)) return false;                  // data ilegivel nao tranca ninguem
+  return t <= new Date(TRAVA_ANEXO_NA_FICHA_ATE).getTime();
+}
+
+/** O recado do botao desligado — o mesmo texto em toda tela, para nao virar tres explicacoes. */
+export const AVISO_ANEXE_PELO_QUADRO = "Anexe o laudo pelo quadro de exames (ERP › Exames). Até 14/10.";
+
 export async function loadExameFases(): Promise<string[]> {
   try {
     const r = await fetch(`/api/listas?lista=exame_fases`, { cache: "no-store" });

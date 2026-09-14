@@ -102,6 +102,41 @@ export default function ExamesKanbanPage() {
     } catch { toast.error("Não consegui arquivar. Recarregando…"); load(); }
   };
 
+  /**
+   * 📎 ANEXAR O LAUDO PELO QUADRO (Cintia, 12/09/2026: "Ao anexar o exame pelo kanban ele salva
+   * na ficha do pet").
+   *
+   * Não há nada a copiar para a ficha: o card É o registro do pet (a lista `petexa_<pet>` é a
+   * mesma que a aba Exames da ficha lê). Anexar aqui aparece lá sozinho — e é justamente por
+   * isso que dá para pedir à equipe que use o quadro sem perder nada.
+   *
+   * Move para "Resultado" junto, porque foi isso que ela descreveu: o laudo chegar É a mudança
+   * de fase. Deixar as duas ações separadas criaria o card com laudo anexado parado em Retirado,
+   * dizendo que o laboratório ainda está com o material.
+   */
+  const anexarLaudo = async (e: any, file: File) => {
+    setMexendo(e.itemId);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const up = await fetch(`/api/media/upload?pasta=exames&origem=exame&origemId=${e.petId}`, { method: "POST", body: fd });
+      const j = await up.json().catch(() => ({}));
+      if (!up.ok || !j?.url) throw new Error(j?.error || j?.message || "falha ao subir o arquivo");
+
+      const r = await fetch(`/api/exames/${e.itemId}/resultado`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: j.url, arquivo: file.name }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d?.ok === false) throw new Error(d?.erro || "não consegui salvar o laudo");
+      toast.success("Laudo anexado e salvo na ficha do pet");
+      await load();
+    } catch (err: any) {
+      toast.error(String(err?.message || "Não consegui anexar o laudo").slice(0, 120));
+    }
+    setMexendo(null);
+  };
+
   const restaurar = async (a: any) => {
     setMexendo(a.itemId);
     try {
@@ -205,6 +240,22 @@ export default function ExamesKanbanPage() {
           {podeAvisarLab({ status: e.status, fornecedorId: e.fornecedorId || e.fornecedorNome, labAvisadoAt: e.labAvisadoAt }) ? (
             <button onClick={() => avisarLab(e)} disabled={avisando === e.itemId} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#6A4FB0", color: "#6A4FB0", background: "#F3EFFB" }}>{avisando === e.itemId ? "enviando…" : "📲 Solicitar ao lab"}</button>
           ) : null}
+          {/* O laudo já anexado vira um link, no lugar do botão: o vet precisa CONFERIR o que
+              subiu antes de avisar o cliente, e sem isto ele teria de abrir a ficha para ver. */}
+          {e.resultadoUrl ? (
+            <a href={`/api/media/ver?u=${encodeURIComponent(e.resultadoUrl)}`} target="_blank" rel="noopener" className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>📄 ver laudo</a>
+          ) : (
+            <label title="Subir o PDF/foto do laudo — salva na ficha do pet e move para Resultado" className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md border cursor-pointer ${mexendo === e.itemId ? "opacity-60" : ""}`} style={{ borderColor: "#009AAC", color: "#fff", background: "#009AAC" }}>
+              {mexendo === e.itemId ? "enviando…" : "📎 Anexar laudo"}
+              <input
+                type="file"
+                className="hidden"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx"
+                disabled={mexendo === e.itemId}
+                onChange={(ev) => { const f = ev.target.files?.[0]; ev.target.value = ""; if (f) anexarLaudo(e, f); }}
+              />
+            </label>
+          )}
           {ultima ? <button onClick={() => mover(e.itemId, lastFase)} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>✓ {lastFase}</button> : null}
           <button onClick={() => arquivar(e)} title="Tirar do quadro (fica arquivado 45 dias)" className="ml-auto text-[11px] px-1.5 py-0.5 rounded-md border" style={{ borderColor: LINE, color: MUT }}>🗃️</button>
         </div>

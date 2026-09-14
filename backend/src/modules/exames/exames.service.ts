@@ -223,6 +223,57 @@ export class ExamesService {
     return { ok: true, arquivado: true };
   }
 
+  /**
+   * O LAUDO CHEGOU: grava o arquivo no card e move para "Resultado", numa operação só.
+   *
+   * Cintia, 12/09/2026: "Ao anexar o exame pelo kanban ele salva na ficha do pet". Não há cópia
+   * a fazer — o card É o registro do pet (mesma lista `petexa_<pet>` que a ficha lê). O que este
+   * método garante é que as duas coisas andem juntas: gravar o laudo e dizer que ele chegou.
+   *
+   * Separadas, a primeira podia dar certo e a segunda falhar, deixando o card com laudo anexado
+   * parado em "Retirado" — dizendo que o laboratório ainda está com o material, e contando
+   * atraso de um exame que já voltou.
+   */
+  async anexarResultado(
+    itemId: string,
+    url: string,
+    arquivo?: string,
+    porQuem?: string,
+  ): Promise<{ ok: boolean; erro?: string; status?: string }> {
+    const limpa = String(url || '').trim();
+    if (!limpa) return { ok: false, erro: 'Laudo sem arquivo' };
+    const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true, valor: true } });
+    if (!it || !it.lista.startsWith('petexa_')) return { ok: false, erro: 'Exame não encontrado' };
+    let d: any = null;
+    try { d = JSON.parse(it.valor); } catch { return { ok: false, erro: 'Exame ilegível' }; }
+
+    const fases = await this.fasesExame();
+    // Posicional, como o resto: a coluna do laudo pode se chamar outra coisa amanhã. Sem uma
+    // coluna de resultado configurada, o laudo é gravado e a fase fica onde está — melhor um
+    // card na coluna errada do que o anexo recusado.
+    const faseResultado = fases.find((f) => /resultad/i.test(String(f || ''))) || d.status;
+    const historico = { ...(d.historico || {}) };
+    if (faseResultado && !historico[faseResultado]) {
+      historico[faseResultado] = { at: new Date().toISOString(), por: porQuem || null };
+    }
+
+    await this.prisma.listaItem.update({
+      where: { id: itemId },
+      data: {
+        valor: JSON.stringify({
+          ...d,
+          resultadoUrl: limpa,
+          resultadoArquivo: arquivo || d.resultadoArquivo || null,
+          resultadoEm: new Date().toISOString(),
+          resultadoPor: porQuem || null,
+          status: faseResultado,
+          historico,
+        }),
+      },
+    });
+    return { ok: true, status: faseResultado };
+  }
+
   /** Devolve o exame arquivado ao quadro, na fase em que ele estava. */
   async restaurar(itemId: string): Promise<{ ok: boolean; erro?: string }> {
     const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true, valor: true } });

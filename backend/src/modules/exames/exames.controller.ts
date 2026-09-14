@@ -47,6 +47,16 @@ export class ExamesController {
     return this.service.excluir(itemId, { porQuem });
   }
 
+  /** Anexa o laudo e move para "Resultado" — as duas coisas juntas, nunca uma sem a outra. */
+  @Post(':itemId/resultado')
+  anexarResultado(
+    @Param('itemId') itemId: string,
+    @Body() body: { url: string; arquivo?: string },
+    @CurrentUser('name') porQuem: string,
+  ) {
+    return this.service.anexarResultado(itemId, body?.url, body?.arquivo, porQuem);
+  }
+
   /** Devolve o exame arquivado ao quadro, na fase em que ele estava. */
   @Post(':itemId/restaurar')
   restaurar(@Param('itemId') itemId: string) {

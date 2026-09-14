@@ -56,7 +56,7 @@ const COAT_VALID = new Set(COAT_OPTS.map(([v]) => v));
 const CORES_DEFAULT = ["Preto", "Branco", "Marrom", "Caramelo", "Cinza", "Dourado", "Rajado", "Tricolor", "Malhado", "Creme", "Amarelo", "Frajola"];
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { montarTextoBoletim } from "@/lib/pets/boletim";
-import { loadExameFases, EXAME_FASES_PADRAO, podeAvisarLab } from "@/lib/exameFases";
+import { loadExameFases, EXAME_FASES_PADRAO, podeAvisarLab, anexoDeveSerPeloQuadro, AVISO_ANEXE_PELO_QUADRO } from "@/lib/exameFases";
 import { montarPetExame, acharExameNoCatalogo, registrarHistoricoFase } from "@/lib/petExame";
 import BoletimModal from "@/components/pets/BoletimModal";
 import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
@@ -2579,25 +2579,36 @@ export default function PetDetailPage() {
                           {x.data.cobrado
                             ? <span title={`Já lançado na venda${x.data.cobradoAt ? " em " + fmtDataBR(x.data.cobradoAt) : ""}`} className="text-[11px] px-2.5 py-1 rounded-full font-semibold" style={{ background: "#E1F5EE", color: "#0F6E56" }}>🧾 Cobrado</span>
                             : <button onClick={() => cobrarExame(x)} title="Lançar este exame na venda (caixa)" className="text-[11px] px-2.5 py-1 rounded-full font-semibold text-white hover:opacity-90" style={{ background: "#0F7B5A" }}>💲 Cobrar</button>}
-                          {/* Anexar ARQUIVO — o label é um file picker disfarçado de botão */}
-                          <label
-                            title="Subir o PDF/foto do laudo (até 20MB)"
-                            className={`text-[11px] px-2.5 py-1 rounded-full border cursor-pointer transition ${subindoEx === x.id ? "opacity-60" : "hover:border-[#009AAC]"}`}
-                            style={{ borderColor: "#E8E2D6", color: "#fff", background: "#009AAC", borderWidth: 1 }}>
-                            {subindoEx === x.id ? "Enviando…" : "📎 Anexar arquivo"}
-                            <input
-                              type="file"
-                              className="hidden"
-                              accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx,.xls,.xlsx"
-                              disabled={subindoEx === x.id}
-                              onChange={(e) => {
-                                const f = e.target.files?.[0];
-                                e.target.value = ""; // permite reenviar o mesmo arquivo
-                                if (f) subirResultado(x.id, x.data, f);
-                              }}
-                            />
-                          </label>
-                          <button onClick={() => anexarResultado(x.id, x.data)} title="Colar um link (Drive, etc.) em vez de subir arquivo" className="text-[11px] px-2.5 py-1 rounded-full border border-[#E8E2D6] text-[#009AAC] hover:border-[#009AAC]">🔗 Link</button>
+                          {/* Anexar ARQUIVO — o label é um file picker disfarçado de botão.
+                              Enquanto o exame estiver NO QUADRO, o caminho é o quadro (Cintia,
+                              12/09/2026). Exame entregue ou arquivado continua livre aqui: sem
+                              card para arrastar, fechar esta porta seria fechar a única. */}
+                          {anexoDeveSerPeloQuadro(x.data) ? (
+                            <Link href="/dashboard/erp/exames-kanban" title={AVISO_ANEXE_PELO_QUADRO} className="text-[11px] px-2.5 py-1 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#5C6B70", background: "#F1EEE6" }}>
+                              🗂️ Anexar no quadro de exames
+                            </Link>
+                          ) : (
+                            <>
+                              <label
+                                title="Subir o PDF/foto do laudo (até 20MB)"
+                                className={`text-[11px] px-2.5 py-1 rounded-full border cursor-pointer transition ${subindoEx === x.id ? "opacity-60" : "hover:border-[#009AAC]"}`}
+                                style={{ borderColor: "#E8E2D6", color: "#fff", background: "#009AAC", borderWidth: 1 }}>
+                                {subindoEx === x.id ? "Enviando…" : "📎 Anexar arquivo"}
+                                <input
+                                  type="file"
+                                  className="hidden"
+                                  accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx,.xls,.xlsx"
+                                  disabled={subindoEx === x.id}
+                                  onChange={(e) => {
+                                    const f = e.target.files?.[0];
+                                    e.target.value = ""; // permite reenviar o mesmo arquivo
+                                    if (f) subirResultado(x.id, x.data, f);
+                                  }}
+                                />
+                              </label>
+                              <button onClick={() => anexarResultado(x.id, x.data)} title="Colar um link (Drive, etc.) em vez de subir arquivo" className="text-[11px] px-2.5 py-1 rounded-full border border-[#E8E2D6] text-[#009AAC] hover:border-[#009AAC]">🔗 Link</button>
+                            </>
+                          )}
                           <button onClick={async () => { if (!(await confirmDelete({ entityLabel: "exame", itemName: x.data?.nome || "exame" }))) return; await delExame(x.id); }} className="text-[11px] text-[#b23b39]">Excluir</button>
                         </div>
                       </div>

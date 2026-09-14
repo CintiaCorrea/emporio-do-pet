@@ -21,7 +21,7 @@ import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
 import ClienteEditModal from "@/components/inbox/ClienteEditModal";
 import PetEditModal from "@/components/inbox/PetEditModal";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
-import { loadExameFases, podeAvisarLab, EXAME_FASES_PADRAO } from "@/lib/exameFases";
+import { loadExameFases, podeAvisarLab, EXAME_FASES_PADRAO, anexoDeveSerPeloQuadro, AVISO_ANEXE_PELO_QUADRO } from "@/lib/exameFases";
 import { loadFuResp, assignFollowUp } from "@/lib/followup";
 import { pollVisivel } from "@/lib/pollVisivel";
 import { erroDoPeso } from "@/lib/peso";
@@ -537,7 +537,13 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
   }
 
   // 📎 Anexar resultado (arquivo) — mesma ação da ficha, agora também no inbox.
-  function pickAnexoExame(ex: { id: string; data: any }) { setExUploadTarget(ex); exFileRef.current?.click(); }
+  // Enquanto o exame estiver NO QUADRO, o laudo entra por lá (Cintia, 12/09/2026). A checagem
+  // fica AQUI, e não só no visual do botão: botão desabilitado ainda dispara por teclado, e um
+  // caminho que "parece" fechado mas grava assim mesmo é pior do que não travar nada.
+  function pickAnexoExame(ex: { id: string; data: any }) {
+    if (anexoDeveSerPeloQuadro(ex.data)) { toast(AVISO_ANEXE_PELO_QUADRO, { icon: "🗂️" }); return; }
+    setExUploadTarget(ex); exFileRef.current?.click();
+  }
   async function onExFileChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
@@ -2583,7 +2589,7 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                                       {proxima && (
                                         <button onClick={() => avancarFaseExame(ex)} title={`Avançar → ${proxima}`} className="w-6 h-6 flex items-center justify-center rounded-md border text-[15px] leading-none flex-shrink-0" style={{ borderColor: "#009AAC", color: "#009AAC" }}>›</button>
                                       )}
-                                      <button onClick={() => pickAnexoExame(ex)} disabled={subindoEx === ex.id} title="Anexar resultado" className="w-6 h-6 flex items-center justify-center rounded-md border text-[12px] flex-shrink-0 disabled:opacity-50" style={{ borderColor: "#E8DFC8" }}>{subindoEx === ex.id ? "…" : "📎"}</button>
+                                      <button onClick={() => pickAnexoExame(ex)} disabled={subindoEx === ex.id} title={anexoDeveSerPeloQuadro(ex.data) ? AVISO_ANEXE_PELO_QUADRO : "Anexar resultado"} className="w-6 h-6 flex items-center justify-center rounded-md border text-[12px] flex-shrink-0 disabled:opacity-50" style={{ borderColor: "#E8DFC8", opacity: anexoDeveSerPeloQuadro(ex.data) ? 0.45 : 1 }}>{subindoEx === ex.id ? "…" : anexoDeveSerPeloQuadro(ex.data) ? "🗂️" : "📎"}</button>
                                       <button onClick={() => excluirExameInbox(ex.id)} title="Excluir exame" className="w-6 h-6 flex items-center justify-center rounded-md border flex-shrink-0" style={{ borderColor: "#F0D5D5", color: "#A32D2D" }}><LuTrash size={12} /></button>
                                     </div>
                                     {/* linha de fases (FU) independente por exame */}
