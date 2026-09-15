@@ -1613,23 +1613,21 @@ export class CaixaService {
       value: valorVenda, items,
     } as any);
 
-    // 🔬 Exame vendido = inicia o ciclo do exame no Kanban (petexa_) ligado ao pet. Só em VENDA
-    // (orçamento vira exame de verdade só quando é convertido). Não quebra a venda se falhar.
-    let examesCriados = 0;
-    if (!orcamento && examItems.length) {
-      // Liga cada exame ao ITEM DA VENDA que o gerou. E esse vinculo que permite a conta a pagar
-      // do laboratorio nascer quando o exame chega na coluna de retirada (Cintia, 07/09/2026) —
-      // sem ele, so daria pra casar por nome, que erra em cliente com dois exames iguais.
-      const criados = await this.prisma.appointmentItem.findMany({
-        where: { appointmentId: appointment.id },
-        select: { id: true, descricao: true },
-        orderBy: { createdAt: 'asc' },
-      }).catch(() => [] as any[]);
-      // A regra do casamento mora em exames/vincular-item-da-venda desde 12/09/2026, porque a
-      // conversao de orcamento passou a precisar da MESMA — e nao de uma parecida.
-      const comVinculo = ligarAoItemDaVenda(examItems as any[], criados as any[]);
-      examesCriados = await this.examesService.iniciarExamesDaVenda(dto.petId, comVinculo).catch(() => 0);
-    }
+    // 🔬 O CARD DO EXAME NÃO NASCE MAIS AQUI.
+    //
+    // Nascia — e em 15/09/2026 isso passou a DUPLICAR: quando o ponto único
+    // (`exames.garantirCardsDaVenda`, ouvindo `venda.itens.gravados`) entrou, o ponto de venda
+    // continuou criando o card por conta própria. Resultado: dois cards por exame vendido, no
+    // mesmo segundo, um com origem PDV e outro com origem VENDA. A Cintia viu no quadro.
+    //
+    // A lição é a do próprio ponto único: o problema nunca foi uma tela esquecer de criar o
+    // card, foi EXISTIR mais de um lugar que cria. Acrescentar o ponto único sem remover os
+    // criadores antigos deixou o defeito do avesso — em vez de faltar, sobrava.
+    //
+    // Quem cria agora é o ouvinte, disparado por `appointmentsService.create` logo acima. Ele
+    // liga o card ao item da venda igual, e ainda cobre a edição de comanda, que este caminho
+    // nunca cobriu.
+    const examesCriados = 0;
 
     const temDinheiro = formas.some((f: any) => /dinheiro/i.test(f.forma || ''));
     const troco = temDinheiro && somaFormas > valorVenda ? Number((somaFormas - valorVenda).toFixed(2)) : 0;

@@ -225,26 +225,17 @@ export class OrcamentosService {
       data: { appointmentId: (appointment as any).id, status: 'APROVADO' },
     });
 
-    // 🔬 Converteu o orçamento → inicia o ciclo dos exames dele no Kanban (usa o companheiro orcexa_).
+    // 🔬 O CARD DO EXAME NÃO NASCE MAIS AQUI.
     //
-    // COM O VINCULO ao item da venda (Cintia, 12/09/2026). Ate aqui a conversao de orcamento
-    // criava o card SOLTO: sem `appointmentItemId`, a conta a pagar do laboratorio nao nascia na
-    // coluna de retirada e voltava a esperar o cliente pagar — o oposto do que ela decidiu em
-    // 07/09. Em 12/09 os cinco cards vindos de orcamento estavam todos assim.
+    // A conversão cria a venda por `appointmentsService.create` logo acima, e é ELA que dispara
+    // `venda.itens.gravados` — o ponto único que cria o card e o liga ao item da venda.
     //
-    // O PDV ja fazia; e a MESMA funcao, nao uma parecida.
-    try {
-      const examItems = examItemsRaw.map((e) => ({ ...e, origem: 'ORCAMENTO' }));
-      if (examItems.length) {
-        const criados = await this.prisma.appointmentItem.findMany({
-          where: { appointmentId: (appointment as any).id },
-          select: { id: true, descricao: true },
-          orderBy: { createdAt: 'asc' },
-        }).catch(() => [] as any[]);
-        const comVinculo = ligarAoItemDaVenda(examItems as any[], criados as any[]);
-        await this.examesService.iniciarExamesDaVenda(orc.petId, comVinculo as any[]);
-      }
-    } catch { /* não quebra a conversão */ }
+    // Este bloco criava o card também, e virou duplicata quando o ponto único entrou (15/09/2026):
+    // dois cards por exame, no mesmo segundo. O mesmo defeito do ponto de venda, pela mesma razão —
+    // acrescentar o criador central sem remover os antigos troca "faltar card" por "sobrar card".
+    //
+    // O vínculo com o item da venda, que era o motivo deste bloco existir (Cintia, 12/09/2026),
+    // continua garantido: o ponto único liga pelo id do item, sem depender de casar por nome.
 
     return appointment;
   }

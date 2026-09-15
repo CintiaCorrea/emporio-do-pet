@@ -231,3 +231,32 @@ describe('toda venda com exame cria o card', () => {
     });
   });
 });
+
+describe('UM criador, e só um', () => {
+  // Cintia, 15/09/2026, com o print do quadro: "os cards dos exames estão sendo duplicados".
+  //
+  // Era eu. Quando o ponto único entrou, o ponto de venda e a conversão de orçamento CONTINUARAM
+  // criando o card por conta própria — dois cards por exame vendido, no mesmo segundo, um com
+  // origem PDV e outro com origem VENDA.
+  //
+  // A lição é a do próprio ponto único, do avesso: o problema nunca foi uma tela esquecer de
+  // criar o card, foi EXISTIR mais de um lugar que cria. Acrescentar o criador central sem
+  // remover os antigos trocou "faltar" por "sobrar".
+  const ler = (...p: string[]) => readFileSync(join(__dirname, '..', ...p), 'utf8');
+
+  it('o ponto de venda NÃO cria card de exame', () => {
+    expect(ler('caixa', 'caixa.service.ts')).not.toContain('iniciarExamesDaVenda');
+  });
+
+  it('a conversão de orçamento NÃO cria card de exame', () => {
+    expect(ler('orcamentos', 'orcamentos.service.ts')).not.toContain('iniciarExamesDaVenda');
+  });
+
+  it('quem cria é o ouvinte do evento, e mais ninguém', () => {
+    // A internação continua com porta própria (`exames/iniciar`): ela não passa por
+    // appointmentItem, então o ponto único não a alcança. É a exceção, e é deliberada.
+    const svc = ler('exames', 'exames.service.ts');
+    expect(svc).toContain("@OnEvent('venda.itens.gravados')");
+    expect(svc).toContain('async iniciarExamesDaVenda(');   // segue existindo para a internação
+  });
+});
