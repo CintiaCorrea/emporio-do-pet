@@ -343,7 +343,7 @@ function Td({ children, dir, forte, sub, cor }: { children: React.ReactNode; dir
 }
 
 /* ---------------- linha expansível ---------------- */
-function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber }: { v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null; isAdmin: boolean; onReceber?: (v: Venda) => void }) {
+function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber, onReabrir }: { v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null; isAdmin: boolean; onReceber?: (v: Venda) => void; onReabrir?: (v: Venda) => void }) {
   const [open, setOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   return (
@@ -412,6 +412,18 @@ function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber 
                       SimplesVet). O recebimento em lote ja existia, mas so aparecia depois de
                       filtrar a tela ate sobrar um cliente so: quem estava OLHANDO UMA VENDA nao
                       tinha como saber que o cliente tinha outras nove em aberto. */}
+                  {/* 🔓 REABRIR — so o adm, e so quando ja ha dinheiro recebido (Cintia,
+                      15/09/2026: "depois de baixada ou recebida somente o adm pode reabrir a
+                      venda para que sejam feitas as devidas correcoes"). Estorna o recebimento
+                      do caixa, que foi o que ela confirmou ser o comportamento do SimplesVet. */}
+                  {onReabrir && isAdmin && (v.pago ?? 0) > 0.009 ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onReabrir(v); }}
+                      title="Estornar o recebimento e deixar a venda editavel de novo"
+                      className="inline-flex items-center gap-1.5"
+                      style={{ border: `1px solid ${CORAL}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: CORAL, background: '#fff', cursor: 'pointer' }}
+                    >🔓 Reabrir</button>
+                  ) : null}
                   {onReceber && (v.aberto ?? 0) > 0.009 ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); onReceber(v); }}
@@ -507,6 +519,27 @@ export default function ConsultaVendasPage() {
    * A venda clicada nasce MARCADA e as outras aparecem desmarcadas. Assim o aviso e a escolha
    * ficam na mesma tela: ninguém baixa o que não quis, e ninguém deixa de ver o que existe.
    */
+  /**
+   * REABRIR: estorna o recebimento e devolve a venda para "em aberto".
+   *
+   * A confirmacao diz o VALOR que vai voltar, e nao so "tem certeza?". Estornar R$ 550,81 do
+   * caixa de alguem e uma decisao diferente de estornar R$ 16,00 — e quem clica precisa ver o
+   * numero antes, nao depois.
+   */
+  const reabrirVenda = async (v: Venda) => {
+    if (!window.confirm(`🔓 Reabrir a venda ${vendaNum(v)} de ${v.cliente || 'cliente'}?
+
+O recebimento de ${brl(v.pago || 0)} sai do caixa e a venda volta a ficar em aberto, editavel.`)) return;
+    try {
+      const r = await fetch(`/api/caixa/venda/${v.id}/reabrir`, { method: 'PATCH' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d?.ok === false) throw new Error(d?.message || d?.erro || 'Nao consegui reabrir a venda.');
+      toast.success(`Venda reaberta. ${brl(d?.estornado || 0)} estornado do caixa.`);
+      setRecarregarAbertas((n) => n + 1);
+      load();
+    } catch (e: any) { toast.error(String(e?.message || 'Nao consegui reabrir a venda.').slice(0, 180)); }
+  };
+
   const abrirRecebimentoDaVenda = (v: Venda) => {
     const doCliente = abertasPorCliente[v.clienteId] || [];
     // A venda clicada pode não estar na lista carregada (período diferente do filtro) — então
@@ -1164,7 +1197,7 @@ export default function ConsultaVendasPage() {
               </tr>
             </thead>
             <tbody>
-              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} isAdmin={isAdmin} onReceber={abrirRecebimentoDaVenda} />)}
+              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} isAdmin={isAdmin} onReceber={abrirRecebimentoDaVenda} onReabrir={reabrirVenda} />)}
             </tbody>
           </table>
         )}

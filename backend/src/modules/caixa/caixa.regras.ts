@@ -290,3 +290,66 @@ export function contaQueFaltaNoMovimento(
   }
   return null;
 }
+
+// ── REABRIR UMA VENDA JÁ RECEBIDA ─────────────────────────────────────────────────────────
+//
+// Cintia, 15/09/2026, respondendo às três perguntas sobre edição de vendas:
+//   1. "Depois de baixada ou recebida somente o adm pode reabrir a venda para que sejam feitas
+//      as devidas correções"
+//   2. "Sim, é possível [excluir] e também é possível deletar a venda, também tudo pelo adm"
+//   3. "Antes de receber todos podem editar vendas e orçamento, depois de receber somente o adm"
+//
+// E sobre o que fazer com o caixa: "Hoje no SimplesVet estornamos a venda do caixa."
+//
+// O QUE ESTA REGRA PROTEGE: uma venda recebida não é um texto, é dinheiro que já entrou e já
+// foi contado numa gaveta. Reabrir sem desfazer o recebimento deixaria uma venda de R$ 100 com
+// R$ 80 recebidos e ninguém saberia qual dos dois está certo.
+
+export type PapelUsuario = string | null | undefined;
+
+const ehAdmin = (papel: PapelUsuario) => String(papel || '').trim().toUpperCase() === 'ADMIN';
+
+/**
+ * Quem pode EDITAR esta venda?
+ *
+ * Antes de receber, todo mundo — é trabalho de balcão corrigir um item digitado errado. Depois
+ * de receber, só o administrativo, porque mexer no valor de uma venda paga muda o que está na
+ * gaveta.
+ */
+export function podeEditarVenda(jaRecebida: boolean, papel: PapelUsuario): boolean {
+  return jaRecebida ? ehAdmin(papel) : true;
+}
+
+export type MotivoRecusa = { ok: false; erro: string };
+export type Liberado = { ok: true };
+
+/**
+ * Dá para reabrir esta venda agora?
+ *
+ * Três portas, e as três precisam estar abertas:
+ *   · só o administrativo;
+ *   · a venda precisa ter algum recebimento (senão já está aberta, não há o que reabrir);
+ *   · nenhum dos recebimentos pode estar num caixa FECHADO.
+ *
+ * A terceira é a que mais importa e a menos óbvia. Tirar um recebimento de um caixa já fechado
+ * muda o total de um dia que alguém já conferiu e assinou — a gaveta bateu com o sistema
+ * naquele momento, e deixaria de bater depois, sem nada na tela explicando. Então o caminho é
+ * reabrir o caixa primeiro, de propósito: quem reabre o caixa sabe que vai ter de conferir de
+ * novo.
+ */
+export function podeReabrirVenda(
+  papel: PapelUsuario,
+  recebimentos: Array<{ caixaFechado?: boolean; caixaNumero?: number | null }>,
+): Liberado | MotivoRecusa {
+  if (!ehAdmin(papel)) return { ok: false, erro: 'Só o administrativo reabre uma venda já recebida.' };
+  const lista = recebimentos || [];
+  if (!lista.length) return { ok: false, erro: 'Esta venda não tem recebimento — ela já está em aberto.' };
+  const fechados = [...new Set(lista.filter((r) => r?.caixaFechado).map((r) => r?.caixaNumero).filter((n) => n != null))];
+  if (fechados.length) {
+    return {
+      ok: false,
+      erro: `O recebimento está no caixa ${fechados.join(', ')}, que já foi fechado. Reabra o caixa antes — o total dele vai mudar e precisa ser conferido de novo.`,
+    };
+  }
+  return { ok: true };
+}

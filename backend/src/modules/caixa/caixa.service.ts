@@ -6,7 +6,7 @@ import { RecebimentosService } from '../financeiro/recebimentos.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
-import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa, contaQueFaltaNoMovimento } from './caixa.regras';
+import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa, contaQueFaltaNoMovimento, podeReabrirVenda } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
@@ -1660,6 +1660,57 @@ export class CaixaService {
       }
     }
     return { ok: true };
+  }
+
+  /**
+   * REABRIR UMA VENDA JÁ RECEBIDA — estornando o recebimento do caixa.
+   *
+   * Cintia, 15/09/2026: "depois de baixada ou recebida somente o adm pode reabrir a venda para
+   * que sejam feitas as devidas correções". E sobre o caixa: "hoje no SimplesVet estornamos a
+   * venda do caixa".
+   *
+   * Reabrir sem estornar deixaria uma venda de R$ 100 com R$ 80 recebidos, e ninguém saberia
+   * qual dos dois está certo. Então o recebimento é desfeito de verdade — com a mesma limpeza
+   * que já existia (taxa de cartão, uso de crédito, receita no DRE), para não sobrar lançamento
+   * órfão apontando para um recebimento que não existe mais.
+   *
+   * NÃO MEXE EM CAIXA FECHADO. A regra explica por quê: a gaveta daquele dia bateu com o
+   * sistema e deixaria de bater, sem nada na tela dizendo. Reabre-se o caixa primeiro.
+   *
+   * Quem fez fica no log de auditoria, que grava toda alteração — é lá que se responde "quem
+   * reabriu esta venda e quando".
+   */
+  async reabrirVenda(appointmentId: string, papel?: string) {
+    const venda = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        id: true, value: true, numeroVenda: true,
+        recebimentos: { select: { id: true, valorTotal: true, caixaSessaoId: true } },
+      },
+    });
+    if (!venda) throw new NotFoundException('Venda nao encontrada');
+
+    const caixaIds = [...new Set(venda.recebimentos.map((r) => r.caixaSessaoId).filter(Boolean))] as string[];
+    const caixas = caixaIds.length
+      ? await this.prisma.caixaSessao.findMany({ where: { id: { in: caixaIds } }, select: { id: true, numero: true, status: true } })
+      : [];
+    const porCaixa = new Map(caixas.map((c) => [c.id, c]));
+
+    const r = podeReabrirVenda(papel, venda.recebimentos.map((rec) => {
+      const c = rec.caixaSessaoId ? porCaixa.get(rec.caixaSessaoId) : null;
+      return { caixaFechado: String(c?.status || '').toUpperCase() === 'FECHADO', caixaNumero: c?.numero ?? null };
+    }));
+    if (!r.ok) throw new BadRequestException(r.erro);
+
+    // Reaproveita o estorno que já existia, um recebimento por vez: ele é quem sabe limpar a
+    // taxa do cartão, o uso de crédito e a receita no DRE.
+    let estornado = 0;
+    for (const rec of venda.recebimentos) {
+      if (!rec.caixaSessaoId) continue;
+      await this.deleteRecebimento(rec.caixaSessaoId, rec.id);
+      estornado += Number(rec.valorTotal || 0);
+    }
+    return { ok: true, estornado: Number(estornado.toFixed(2)), recebimentos: venda.recebimentos.length, numeroVenda: venda.numeroVenda };
   }
 
   async deleteCredito(caixaId: string, itemId: string) {
