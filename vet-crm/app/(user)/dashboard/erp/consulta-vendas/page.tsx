@@ -436,10 +436,12 @@ function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber,
                     <Link
                       href={`/dashboard/erp/ponto-de-venda?editar=${v.id}`}
                       onClick={(e) => e.stopPropagation()}
-                      title="Abrir esta venda no formulario do Ponto de venda"
+                      target="_blank"
+                      rel="noopener"
+                      title="Abrir esta venda no Ponto de venda, em outra aba"
                       className="inline-flex items-center gap-1.5"
                       style={{ border: `1px solid ${TEAL}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: TEAL, background: '#fff', textDecoration: 'none' }}
-                    >✏️ Editar</Link>
+                    >✏️ Editar ↗</Link>
                   ) : (
                     <span
                       title="So o administrativo edita venda"

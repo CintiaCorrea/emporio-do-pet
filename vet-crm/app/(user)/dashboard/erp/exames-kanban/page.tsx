@@ -366,7 +366,11 @@ export default function ExamesKanbanPage() {
           ) : null}
         </div>
         <div className="flex items-center gap-2 mt-2">
-          <Link href={`/dashboard/erp/pets/${e.petId}`} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: LINE, color: MUT }}>Abrir ficha</Link>
+          {/* ABRE EM OUTRA ABA. Cintia, 15/09/2026: "quando clicar e for encaminhar para uma
+              nova tela, pode abrir essa nova tela em uma nova janela ou em pop up, pois sempre
+              sai da tela em que estamos e acaba criando retrabalho". Quem está trabalhando o
+              quadro de exames não pode perder a fila para consultar uma ficha. */}
+          <Link href={`/dashboard/erp/pets/${e.petId}`} target="_blank" rel="noopener" className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: LINE, color: MUT }}>Abrir ficha ↗</Link>
           {podeAvisarLab({ status: e.status, fornecedorId: e.fornecedorId || e.fornecedorNome, labAvisadoAt: e.labAvisadoAt }) ? (
             <button onClick={() => avisarLab(e)} disabled={avisando === e.itemId} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#6A4FB0", color: "#6A4FB0", background: "#F3EFFB" }}>{avisando === e.itemId ? "enviando…" : "📲 Solicitar ao lab"}</button>
           ) : null}
