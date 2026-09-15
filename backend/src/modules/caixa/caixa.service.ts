@@ -115,6 +115,11 @@ export class CaixaService {
       if (query.from) where.date.gte = new Date(String(query.from) + 'T00:00:00');
       if (query.to) where.date.lte = new Date(String(query.to) + 'T23:59:59');
     }
+    // POR CLIENTE. A etiqueta de "deve" precisa do saldo de UM tutor, em toda tela em que ele
+    // aparece — carregar as 300 vendas abertas da casa para somar as de um cliente seria caro
+    // em cada ficha aberta.
+    const tutorId = String(query?.tutorId ?? '').trim();
+    if (tutorId) where.tutorId = tutorId;
     if (abertas) {
       where.paymentStatus = { not: 'PAID' };
       where.value = { gt: 0 };

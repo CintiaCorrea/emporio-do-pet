@@ -57,6 +57,7 @@ const CORES_DEFAULT = ["Preto", "Branco", "Marrom", "Caramelo", "Cinza", "Dourad
 import { openWhatsAppMeta } from "@/lib/actions/whatsapp";
 import { montarTextoBoletim } from "@/lib/pets/boletim";
 import { loadExameFases, EXAME_FASES_PADRAO, podeAvisarLab, anexoDeveSerPeloQuadro, AVISO_ANEXE_PELO_QUADRO } from "@/lib/exameFases";
+import SaldoDevedorTag from "@/components/comum/SaldoDevedorTag";
 import { montarPetExame, acharExameNoCatalogo, registrarHistoricoFase } from "@/lib/petExame";
 import BoletimModal from "@/components/pets/BoletimModal";
 import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
@@ -1681,7 +1682,15 @@ export default function PetDetailPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0.5 mt-1 text-[12.5px] text-[#5C6B70]" style={{ maxWidth: 560 }}>
                 <span>{[speciesLabel(pet.species), pet.breed, genderLabel(pet.gender), pet.birthDate ? ageFromBirth(pet.birthDate) : null, sterilLabel(pet.sterilization)].filter((x) => x && x !== "—").join(" · ")}</span>
-                {pet.tutor && <span>🧑 Tutor(a): <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="text-[#009AAC] hover:underline">{pet.tutor.name} →</Link></span>}
+                {/* O saldo do tutor acompanha o pet: é na ficha dele que a equipe passa o dia,
+                    e é ali que a conversa sobre cobrança acontece (Cintia, 15/09/2026: a tag
+                    "deve acompanhar em todas as telas do sistema"). */}
+                {pet.tutor && (
+                  <span className="inline-flex items-center gap-2">
+                    🧑 Tutor(a): <Link href={`/dashboard/erp/tutores/${pet.tutorId}`} className="text-[#009AAC] hover:underline">{pet.tutor.name} →</Link>
+                    <SaldoDevedorTag tutorId={pet.tutorId} nome={pet.tutor.name} />
+                  </span>
+                )}
                 {pesoRecente && <span><b className="text-[#0E2244]">⚖️ {pesoRecente.w} kg</b>{pesoRecente.date ? <span className="text-[#8A938F]"> ({fmtDataBR(pesoRecente.date).slice(0, 10)})</span> : null}</span>}
                 {tutorWhats && <span>📞 {tutorWhats}</span>}
               </div>

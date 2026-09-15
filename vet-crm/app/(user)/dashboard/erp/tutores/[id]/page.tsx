@@ -29,6 +29,7 @@ import { gerarPdfDoExtrato } from "@/lib/documentos/relatorio-vendas-pdf";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import { ehCompra } from "@/lib/tipoDeVenda";
 import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
+import SaldoDevedorTag from "@/components/comum/SaldoDevedorTag";
 import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
   LuTrash, LuPhone, LuCalendar, LuUser, LuPlus, LuCheck, LuX} from "react-icons/lu";
@@ -681,6 +682,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                   </span>
                 )}
                 {tutor.codigo ? <span className="text-[13px] text-[#374151] font-medium" title="Código do cliente">#{tutor.codigo}</span> : null}
+                {/* O QUE ELE DEVE, ao lado do nome (Cintia, 15/09/2026). A ficha do Lucas
+                    mostrava "Em dia" enquanto ele devia R$ 3.842,25 — aquele selo fala de
+                    frequência de visita, não de dinheiro, mas ninguém le assim ao lado do nome. */}
+                <SaldoDevedorTag tutorId={tutor.id} nome={tutor.name} />
                 {naoCliente ? <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#EDE7F6", color: "#5B4B9E" }}>🤝 {tutor.classificacao}</span> : (tutor.score && <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: nivel.bg, color: nivel.fg }}>{nivel.emoji} {nivel.nome}</span>)}
                 <button onClick={() => setSituacaoOpen(true)} title="Situação — clique para alterar" className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{ background: status.bg, color: status.color }}>{HUMANIZAR(tutor.estadoRelacionamento) || status.label} ▾</button>
                 <button onClick={() => { setNota(tutor.notaCliente || ""); setNotaOpen(true); }} title={tutor.notaCliente ? `Nota: ${tutor.notaCliente}` : "Adicionar nota"} className="text-[15px] leading-none">{tutor.notaCliente ? "❤️" : "🤍"}</button>
