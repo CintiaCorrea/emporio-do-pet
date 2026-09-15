@@ -7,6 +7,7 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { ensureNumeroVenda } from '../../common/venda-numero';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class AppointmentsService {
@@ -15,7 +16,29 @@ export class AppointmentsService {
     private readonly eventsService: EventsService,
     private readonly boardsService: BoardsService,
     private readonly whatsapp: WhatsAppService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
+
+  /**
+   * AVISA QUE OS ITENS DA VENDA FORAM GRAVADOS.
+   *
+   * Quem escuta hoje é o módulo de exames, que garante o card no quadro e religa o vínculo com o
+   * item da venda. Mas esta camada NÃO precisa saber disso — e é esse o ponto.
+   *
+   * Cintia, 15/09/2026: "Não estava salvando os exames nas comandas". Em 10 dias, 13 exames
+   * vendidos e 1 card criado. A causa era a forma: só o PDV e a conversão de orçamento criavam o
+   * card, e cada tela nova que gravasse itens era mais uma chance de esquecer. Agora quem grava
+   * item só avisa; quem se importa escuta.
+   *
+   * Por evento, e não por chamada direta, por dois motivos: não acopla venda a exame (nem cria
+   * ciclo entre os módulos), e um erro do ouvinte não derruba a venda que já foi gravada.
+   */
+  private avisarItensGravados(appointmentId?: string | null): void {
+    if (!appointmentId) return;
+    try {
+      this.eventEmitter.emit('venda.itens.gravados', { appointmentId });
+    } catch { /* avisar é acessório; a venda já está salva */ }
+  }
 
   // ============================================
   // Confirmação de agendamento (WhatsApp / futuro portal)
@@ -464,6 +487,12 @@ export class AppointmentsService {
     if (result && nasceComoVenda) {
       try { (result as any).numeroVenda = await ensureNumeroVenda(this.prisma, result.id); }
       catch (e) { console.error('numeroVenda (create) falhou:', e); }
+    }
+
+    // Itens gravados → quem se importa (hoje: exames) que se vire. Fora da transação de
+    // propósito: o ouvinte precisa enxergar os itens já comitados.
+    if (result && ((createAppointmentDto as any).items || []).length > 0) {
+      this.avisarItensGravados(result.id);
     }
 
     // Emit appointment created event for automations
@@ -947,6 +976,14 @@ export class AppointmentsService {
           (result as any).paymentStatus = novoStatus;
         }
       } catch (e) { console.error('reavaliar paymentStatus (update) falhou:', e); }
+    }
+
+    // EDITAR A COMANDA APAGA E RECRIA TODOS OS ITENS, com ids novos. O card do exame apontava
+    // para o id antigo, que deixou de existir — e é esse vínculo que autoriza a conta a pagar do
+    // laboratório. Avisar aqui é o que religa; sem isto, toda edição deixava um exame órfão,
+    // cobrado do cliente e sem custo lançado.
+    if (result && (updateAppointmentDto as any).items !== undefined) {
+      this.avisarItensGravados(id);
     }
 
     // Emit events based on status change

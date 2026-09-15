@@ -530,6 +530,142 @@ export class ExamesService {
     return [...FASES_PADRAO];
   }
 
+  /**
+   * O PONTO ÚNICO: toda venda que grava itens passa por aqui, e sai com os cards de exame certos.
+   *
+   * Cintia, 15/09/2026: "Não estava salvando os exames nas comandas". Os números deram razão a
+   * ela — 13 exames vendidos em 10 dias, UM card criado. O exame era cobrado do cliente e não
+   * existia para o laboratório: sem quadro, sem solicitação de coleta e sem conta a pagar.
+   *
+   * A causa era a forma, não o código de ninguém: só o PDV e a conversão de orçamento criavam o
+   * card. Editar uma comanda, a comanda da ficha, o atendimento — todas gravavam o item e não
+   * avisavam ninguém. Cada tela nova era uma chance de esquecer de novo.
+   *
+   * DUAS COISAS QUE ESTE MÉTODO FAZ, e a segunda é tão importante quanto a primeira:
+   *
+   * 1. CRIA o card que falta. Quem decide se o item é exame é o CATÁLOGO (cat_itens.tipo), não o
+   *    que a tela mandou no corpo da requisição — telas erram, e uma delas errando em silêncio é
+   *    exatamente o que nos trouxe aqui.
+   *
+   * 2. RELIGA o card cujo vínculo se perdeu. Editar uma comanda APAGA e recria todos os itens,
+   *    com ids novos — o `itemVendaId` do card passa a apontar para um item que não existe mais,
+   *    e é esse vínculo que autoriza a conta a pagar do laboratório a nascer. Sem religar, toda
+   *    edição de comanda deixaria um exame órfão, cobrado e sem custo lançado.
+   *
+   * É idempotente de propósito: chamado no create, no update e quantas vezes for, o resultado é o
+   * mesmo. Nunca lança — é ouvinte de evento e não pode derrubar a venda.
+   */
+  async garantirCardsDaVenda(
+    appointmentId: string,
+    opts?: { statusInicial?: string },
+  ): Promise<{ criados: number; religados: number }> {
+    const nada = { criados: 0, religados: 0 };
+    if (!appointmentId) return nada;
+
+    const venda: any = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: { id: true, petId: true, type: true },
+    }).catch(() => null);
+    if (!venda?.petId) return nada;
+    // Orçamento não vira exame: o card nasce quando ele é convertido em venda.
+    if (/or[çc]amento/i.test(String(venda.type || ''))) return nada;
+
+    const itens: any[] = await this.prisma.appointmentItem.findMany({
+      where: { appointmentId },
+      select: { id: true, descricao: true, catalogoItemId: true, fornecedorId: true, custoUnitario: true, valorUnitario: true },
+      orderBy: { createdAt: 'asc' },
+    }).catch(() => []);
+    if (!itens.length) return nada;
+
+    // QUEM DIZ QUE É EXAME É O CATÁLOGO. Um item sem `catalogoItemId` (venda antiga, item
+    // digitado à mão) não tem como ser classificado — e não inventamos: melhor não criar card do
+    // que criar um exame que não existe.
+    const catIds = [...new Set(itens.map((i) => i.catalogoItemId).filter(Boolean))] as string[];
+    if (!catIds.length) return nada;
+    const doCatalogo: any[] = await this.prisma.itemCatalogo.findMany({
+      where: { id: { in: catIds }, tipo: 'EXAME' as any },
+      select: { id: true },
+    }).catch(() => []);
+    const ehExame = new Set(doCatalogo.map((c: any) => c.id));
+    const itensExame = itens.filter((i) => i.catalogoItemId && ehExame.has(i.catalogoItemId));
+    if (!itensExame.length) return nada;
+
+    const lista = `petexa_${venda.petId}`;
+    const brutos: any[] = await this.prisma.listaItem.findMany({
+      where: { lista },
+      select: { id: true, valor: true },
+    }).catch(() => []);
+    const cards = brutos
+      .map((b) => { try { return { id: b.id, d: JSON.parse(b.valor) }; } catch { return null; } })
+      .filter(Boolean) as { id: string; d: any }[];
+
+    // Um card só conta como "deste item" se o item ainda EXISTE. Depois de uma edição de comanda
+    // o id antigo aponta para o vazio, e tratá-lo como vínculo válido deixaria o exame órfão para
+    // sempre.
+    const referenciados = [...new Set(cards.map((c) => c.d?.itemVendaId).filter(Boolean))] as string[];
+    const vivos = referenciados.length
+      ? new Set((await this.prisma.appointmentItem.findMany({
+          where: { id: { in: referenciados } }, select: { id: true },
+        }).catch(() => [] as any[])).map((x: any) => x.id))
+      : new Set<string>();
+
+    const abertos = cards.filter((c) => !ehArquivado(c.d) && !c.d?.entregueAt);
+    const jaLigados = new Set(abertos.filter((c) => c.d?.itemVendaId && vivos.has(c.d.itemVendaId)).map((c) => c.d.itemVendaId));
+    const orfaos = abertos.filter((c) => !c.d?.itemVendaId || !vivos.has(c.d.itemVendaId));
+
+    const mesmoNome = (a?: string, b?: string) =>
+      String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+
+    let religados = 0;
+    const semCard: any[] = [];
+    for (const item of itensExame) {
+      if (jaLigados.has(item.id)) continue;
+      // Cada órfão é consumido UMA vez: dois exames iguais na mesma comanda são dois cards, e
+      // casar os dois com o mesmo card perderia um deles.
+      const i = orfaos.findIndex((c) => mesmoNome(c.d?.nome, item.descricao));
+      if (i < 0) { semCard.push(item); continue; }
+      const [card] = orfaos.splice(i, 1);
+      const ok = await this.prisma.listaItem.update({
+        where: { id: card.id },
+        data: { valor: JSON.stringify({ ...card.d, itemVendaId: item.id }) },
+      }).catch(() => null);
+      if (ok) religados++;
+    }
+
+    let criados = 0;
+    if (semCard.length) {
+      criados = await this.iniciarExamesDaVenda(venda.petId, semCard.map((i) => ({
+        descricao: i.descricao,
+        catalogoItemId: i.catalogoItemId,
+        fornecedorId: i.fornecedorId,
+        custoUnitario: i.custoUnitario,
+        valorUnitario: i.valorUnitario,
+        appointmentItemId: i.id,
+        origem: 'VENDA',
+        ...(opts?.statusInicial ? { statusInicial: opts.statusInicial } : {}),
+      }))).catch(() => 0);
+    }
+
+    if (criados || religados) {
+      this.logger.log(`Exames da venda ${appointmentId}: ${criados} card(s) criado(s), ${religados} religado(s).`);
+    }
+    return { criados, religados };
+  }
+
+  /**
+   * O gatilho. Qualquer tela que grave itens de venda emite este evento — e não precisa saber que
+   * exame existe. Nunca deixa o erro subir: a venda já foi gravada, e derrubá-la por causa do
+   * card seria trocar o essencial pelo acessório.
+   */
+  @OnEvent('venda.itens.gravados')
+  async aoGravarItensDaVenda(ev: { appointmentId?: string }): Promise<void> {
+    try {
+      await this.garantirCardsDaVenda(String(ev?.appointmentId || ''));
+    } catch (e) {
+      this.logger.warn(`Falha ao garantir cards da venda: ${String((e as any)?.message || e)}`);
+    }
+  }
+
   /** Horários de coleta por laboratório (lista `exame_lab_horarios`, valor `{fornecedorId, horarios}`). */
   private async horariosPorLab(): Promise<Record<string, string[]>> {
     const mapa: Record<string, string[]> = {};
@@ -605,9 +741,13 @@ export class ExamesService {
    */
   async iniciarExamesDaVenda(petId: string, examItems: any[]): Promise<number> {
     if (!petId || !examItems?.length) return 0;
-    const fase = await this.faseInicialExame();
+    const inicial = await this.faseInicialExame();
     let n = 0;
     for (const it of examItems) {
+      // A fase quase sempre é a primeira. A exceção é a recuperação de exames antigos, que já
+      // foram entregues e nascem direto em "Resultado" — pedido da Cintia em 15/09/2026: "se
+      // entrarem no kanban coloque na aba de resultados, pois eles já devem ter sido entregues".
+      const fase = String(it.statusInicial || '').trim() || inicial;
       let fornecedorId: string | null = it.fornecedorId || null;
       let fornecedorNome: string | null = null;
       let custo: number | null = null;
