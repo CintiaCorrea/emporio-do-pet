@@ -9,6 +9,7 @@ import { EmailService } from '../email/email.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RedisService } from '../redis/redis.service';
+import { chaveDaSessao, chaveAntiga, padraoDasSessoes, sessaoValida } from './sessoes.regras';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
 export interface JwtPayload {
@@ -169,11 +170,13 @@ export class AuthService {
       expiresIn: this.configService.get<string>('jwt.refreshExpiresIn'),
     });
 
-    // Salvar refresh token no Redis
+    // UMA CHAVE POR SESSÃO, e não uma por usuário. Antes, cada login sobrescrevia
+    // `refresh:<userId>` e matava a sessão anterior — abrir uma segunda aba derrubava a
+    // primeira, em silêncio (Cintia, 15/09/2026: "preciso poder usar mais de uma aba").
     try {
       await this.redisService.set(
-        `refresh:${user.id}`,
-        refreshToken,
+        chaveDaSessao(user.id, refreshToken),
+        '1',
         60 * 60 * 24 * 30, // 30 dias
       );
     } catch (err) {
@@ -246,11 +249,19 @@ export class AuthService {
       throw new UnauthorizedException('Usuário não encontrado');
     }
 
-    // Verificar se o refresh token está no Redis (se disponível)
+    // A sessão vale se a chave dela existe. A chave ANTIGA é conferida junto para não
+    // deslogar quem já estava dentro quando esta mudança subiu.
     try {
-      const storedToken = await this.redisService.get(`refresh:${user.id}`);
-      if (storedToken && storedToken !== refreshToken) {
-        throw new UnauthorizedException('Refresh token foi revogado');
+      const existeChaveNova = await this.redisService.exists(chaveDaSessao(user.id, refreshToken));
+      const tokenAntigoGuardado = existeChaveNova
+        ? null
+        : await this.redisService.get<string>(chaveAntiga(user.id));
+      if (!sessaoValida({ existeChaveNova, tokenAntigoGuardado, refreshToken })) {
+        throw new UnauthorizedException('Sessão encerrada. Entre de novo.');
+      }
+      // Sessão antiga que ainda vale ganha a chave nova, para parar de depender da legada.
+      if (!existeChaveNova) {
+        await this.redisService.set(chaveDaSessao(user.id, refreshToken), '1', 60 * 60 * 24 * 30).catch(() => undefined);
       }
     } catch (err) {
       // Redis indisponível - continuar sem validação de revogação
@@ -277,8 +288,11 @@ export class AuthService {
   }
 
   async logout(userId: string) {
+    // Encerra TODAS as sessões da pessoa. Com várias abas abertas, sair numa e continuar
+    // logada na outra seria pior do que não ter botão de sair.
     try {
-      await this.redisService.del(`refresh:${userId}`);
+      await this.redisService.delByPattern(padraoDasSessoes(userId));
+      await this.redisService.del(chaveAntiga(userId));
     } catch (err) {
       this.logger.warn(
         `Falha ao remover refresh token no Redis para userId=${userId}: ${

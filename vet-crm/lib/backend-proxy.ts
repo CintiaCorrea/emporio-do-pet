@@ -154,6 +154,23 @@ export async function proxyToBackend(
       data = raw;
     }
 
+    // SESSÃO CAÍDA PRECISA DIZER O NOME (Cintia, 15/09/2026: "preciso saber o porquê das coisas
+    // não salvarem"). Antes, um 401 chegava na tela como um erro qualquer — ou como nada — e a
+    // pessoa clicava em salvar de novo achando que o sistema estava lento. Era assim que uma
+    // sessão morta virava uma tarde inteira de mistério.
+    //
+    // A mensagem é fixa aqui, e não no backend, porque QUALQUER rota pode devolver 401: deixar
+    // cada tela inventar o seu texto daria dez versões do mesmo aviso.
+    if (upstreamResponse.status === 401) {
+      return NextResponse.json(
+        {
+          error: 'Sua sessão expirou. Entre de novo para continuar — o que você digitou não foi perdido.',
+          sessaoExpirada: true,
+        },
+        { status: 401 },
+      );
+    }
+
     if (!upstreamResponse.ok) {
       // Repassar o body completo do backend pro frontend ver os detalhes do erro
       if (data && typeof data === 'object') {
