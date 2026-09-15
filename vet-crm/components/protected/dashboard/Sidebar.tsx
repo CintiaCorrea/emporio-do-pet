@@ -62,6 +62,11 @@ const NAV: Entry[] = [
     group: true, key: "clientes", label: "Clientes", emoji: "👥", roles: ALL, section: "DIA",
     children: [
       { href: "/dashboard/erp/tutores", label: "Lista de clientes", emoji: "👥", roles: ALL },
+      // Saiu de Configuracoes em 15/09/2026, a pedido da Cintia: "para que as recepcionistas
+      // possam verificar independente de mim". Estava na matriz de perfis e NAO no menu — que
+      // e outro arquivo. Tela que existe e ninguem alcanca e tela que nao existe.
+      { href: "/dashboard/erp/cadastros-recebidos", label: "Cadastros recebidos", emoji: "📝", roles: ALL },
+      { href: "/dashboard/erp/portal-tutores", label: "Portal do tutor", emoji: "📱", roles: ALL },
       { href: "/dashboard/erp/aniversarios", label: "Aniversários", emoji: "🎂", roles: ALL },
       { href: "/dashboard/erp/vacinacao", label: "Vacinação", emoji: "💉", roles: ALL },
     ],
@@ -203,6 +208,7 @@ const NAV: Entry[] = [
     ],
   },
   { href: "/dashboard/erp/logs", label: "Log de auditoria", emoji: "🔎", roles: ["ADMIN"], section: "SISTEMA" },
+  { href: "/dashboard/erros", label: "Erros de tela", emoji: "🐞", roles: ["ADMIN"], section: "SISTEMA" },
   { href: "/dashboard/configuracoes", label: "Configurações", emoji: "⚙️", roles: ["ADMIN"], section: "SISTEMA" },
   // Dados da clínica e Perfis de acesso → agora só dentro de Configurações.
 ];
