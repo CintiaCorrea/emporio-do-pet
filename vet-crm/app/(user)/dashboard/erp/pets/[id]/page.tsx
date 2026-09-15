@@ -63,6 +63,7 @@ import BoletimModal from "@/components/pets/BoletimModal";
 import { carregarCatalogoVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
 import { erroDoPeso } from '@/lib/peso';
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
+import { dentroDaJanelaDeAjuste, AJUSTE_ATE_CURTO } from "@/lib/janelaDeAjuste";
 
 // Emoji da espécie (avatar do cabeçalho — padrão Base44)
 const PET_EMOJI = (species: string) => {
@@ -1169,7 +1170,10 @@ export default function PetDetailPage() {
     if (!nome) { toast.error("Escolha um serviço ou informe o nome do pacote"); return; }
     const total = Number(pacForm.total) || 0; if (total <= 0) { toast.error("Informe o total de sessões"); return; }
     setSavingPac(true);
-    try { await listasAdd(`petpac_${petId}`, JSON.stringify({ serviceId: srv?.id || null, nome, total, used: Math.min(Math.max(Number(pacForm.jaFeitas) || 0, 0), total), createdAt: new Date().toISOString() })); toast.success("Pacote lançado"); setPacForm({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" }); await loadPetColecoes(); try { await patchPet({ pipelineFisioEtapa: "Pacote em andamento" }); await load(); } catch {} } catch { toast.error("Erro ao lançar pacote"); } finally { setSavingPac(false); }
+    // ORIGEM MARCADA: pacote lancado a mao nao veio de venda nenhuma. Sem esta marca, o painel
+      // de "Pacotes vendidos" e a conferencia do financeiro contariam como receita uma sessao que
+      // o cliente pagou no sistema antigo (Cintia, 15/09/2026: "sem ter conexao com o financeiro").
+      try { await listasAdd(`petpac_${petId}`, JSON.stringify({ serviceId: srv?.id || null, nome, total, used: Math.min(Math.max(Number(pacForm.jaFeitas) || 0, 0), total), createdAt: new Date().toISOString(), origem: 'MANUAL', semFinanceiro: true })); toast.success("Pacote lançado"); setPacForm({ open: false, serviceId: "", nome: "", total: "4", jaFeitas: "0" }); await loadPetColecoes(); try { await patchPet({ pipelineFisioEtapa: "Pacote em andamento" }); await load(); } catch {} } catch { toast.error("Erro ao lançar pacote"); } finally { setSavingPac(false); }
   }
   async function usarSessao(p: { id: string; data: any }) {
     const total = p.data.total || 0;
@@ -1809,12 +1813,27 @@ export default function PetDetailPage() {
               ))}
             </div>
             {/* 📦 Pacotes e doses em andamento — DENTRO da caixa "Em tratamento" (patinhas 🐾 + doses 💠), lugar único */}
-            {(pacotesAtivosRaw.length > 0 || dosesAtivas.length > 0 || pacForm.open) && (
+            {/* O BLOCO APARECE MESMO SEM PACOTE NENHUM, enquanto a janela de ajuste estiver
+                aberta (Cintia, 15/09/2026: "preciso poder colocar pacotes de fisioterapia em
+                alguns clientes sem ter conexao com o financeiro, pois alguns ainda tinham
+                sessoes no outro sistema").
+                O botao "+ pacote" sempre existiu — mas vivia DENTRO deste bloco, que so
+                renderizava se o pet ja tivesse um pacote. Para quem nao tinha nenhum, que e
+                exatamente o caso da migracao, nao havia por onde comecar. */}
+            {(pacotesAtivosRaw.length > 0 || dosesAtivas.length > 0 || pacForm.open || dentroDaJanelaDeAjuste()) && (
               <div className="pt-2 border-t border-[#F0EBE0]">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-[11.5px] font-medium text-[#014D5E] flex items-center gap-1">📦 Pacotes e doses</span>
                   <button onClick={() => setPacForm((f) => ({ ...f, open: !f.open, id: undefined, serviceId: "", nome: "", total: "4", jaFeitas: "0" }))} className="text-[10.5px] px-2 py-0.5 rounded-full border" style={{ borderColor: "#E8E2D6", color: "#009AAC" }}>＋ pacote</button>
                 </div>
+                {/* O PRAZO DITO NA TELA. A janela fecha sozinha, e quem estiver migrando sessoes
+                    precisa saber ate quando — nao adianta a trava voltar em silencio. */}
+                {dentroDaJanelaDeAjuste() && (
+                  <div className="mb-1.5 text-[10.5px] rounded px-2 py-1" style={{ background: "#F0FBFC", border: "1px solid #B7E3E8", color: "#0E5560" }}>
+                    Pacote lancado aqui <b>nao passa pelo financeiro</b> — use para as sessoes que
+                    vieram do sistema antigo. Ate <b>{AJUSTE_ATE_CURTO}</b>.
+                  </div>
+                )}
                 {pacForm.open && !pacForm.id && (
                   <div className="mb-2 pb-2 border-b border-[#F0EBE0] flex flex-wrap items-end gap-2">
                     <div className="flex-1 min-w-[150px]"><label className="text-[10px] uppercase tracking-wide text-[#374151]">Serviço de fisioterapia</label>

@@ -24,6 +24,7 @@ import { textoDoBoletimFinanceiro } from "@/lib/textoDoBoletimFinanceiro";
 import EnviarPorWhatsApp from "@/components/comum/EnviarPorWhatsApp";
 import { agruparItens } from "@/lib/textoDoBoletimFinanceiro";
 import { gerarPdfDaConta } from "@/lib/documentos/relatorio-vendas-pdf";
+import { AJUSTE_ATE as JANELA_ATE } from "@/lib/janelaDeAjuste";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -140,7 +141,9 @@ export default function FichaInternacaoPage() {
   // UMA data so nesta tela. Ela estava escrita em dois lugares e prorrogar um e esquecer o
   // outro deixaria o aviso mentindo pra equipe. A MESMA data esta no backend
   // (fechamento.regras.AJUSTE_ATE), que e quem de fato recusa.
-  const AJUSTE_ATE = "2026-09-19T23:59:59-03:00";
+  // A data vem de lib/janelaDeAjuste, e nao mais escrita aqui: esta copia local ja fez uma
+  // prorrogacao passar batida numa tela enquanto valia na outra.
+  const AJUSTE_ATE = JANELA_ATE;
   const podeCorrigirEntrada = Date.now() <= new Date(AJUSTE_ATE).getTime();
 
   const [h, setH] = useState<any>(null);
