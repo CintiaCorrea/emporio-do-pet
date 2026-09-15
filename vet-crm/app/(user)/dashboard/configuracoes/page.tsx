@@ -24,7 +24,7 @@ const ITEMS: Item[] = [
 
   // Comunicação & Mensagens
   { href: "/dashboard/configuracoes/inbox", title: "Caixa de Entrada", description: "WhatsApp: criar lead automático de número novo", emoji: "📥", group: "COMUNICACAO" },
-  { href: "/dashboard/configuracoes/cadastros-recebidos", title: "Cadastros recebidos", description: "Fichas que os clientes preenchem pelo link público", emoji: "📝", group: "COMUNICACAO", novo: true },
+  { href: "/dashboard/erp/cadastros-recebidos", title: "Cadastros recebidos", description: "Fichas que os clientes preenchem pelo link público — agora em Clientes", emoji: "📝", group: "COMUNICACAO", novo: true },
   { href: "/dashboard/configuracoes/resposta-automatica", title: "Resposta automática", description: "Mensagem automática fora do horário", emoji: "⏰", group: "COMUNICACAO" },
   { href: "/dashboard/configuracoes/scripts", title: "Scripts", description: "Roteiros de mensagem (texto/áudio/e-mail)", emoji: "💬", group: "COMUNICACAO" },
   { href: "/dashboard/configuracoes/figurinhas", title: "Figurinhas", description: "Figurinhas da clínica pra enviar no WhatsApp", emoji: "🩹", group: "COMUNICACAO", novo: true },
