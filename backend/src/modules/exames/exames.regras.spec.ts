@@ -92,7 +92,19 @@ describe('Lembrete da solicitacao', () => {
   // Nao e ela mudando de ideia: "Retirado" passou a significar, explicitamente, o laboratorio
   // levar o material. Sob esse nome, a unica coluna em que a acao e NOSSA e a primeira.
   it('lembra SO o que esta na primeira coluna, esperando o laboratorio buscar', () => {
-    expect(precisaLembrarSolicitacao({ nome: 'Hemograma', status: 'Solicitar' }, HOJE)).toBe(true);
+    expect(precisaLembrarSolicitacao({ nome: 'Hemograma', status: 'Solicitar', fornecedorId: 'lab1' }, HOJE)).toBe(true);
+  });
+
+  it('EXAME SEM LABORATORIO nao e lembrado — nao ha a quem pedir coleta', () => {
+    // Cintia, 15/09/2026, liberando a imagem para o quadro: "os exames de imagem podem entrar no
+    // kanban, mas nao sao necessarios avisos, pois os profissionais vem fazer aqui". Raio-x, US e
+    // eco sao feitos na casa: o card serve para o laudo, nao para cobrar coleta de ninguem.
+    //
+    // O lembrete diz "esperando o laboratorio". Sobre um exame que ninguem vai buscar ele e so
+    // barulho — e alerta que e barulho a equipe aprende a ignorar, inclusive os que importam.
+    expect(precisaLembrarSolicitacao({ nome: 'US Abdominal', status: 'Solicitar' }, HOJE)).toBe(false);
+    expect(precisaLembrarSolicitacao({ nome: 'RX', status: 'Solicitar', fornecedorId: '' }, HOJE)).toBe(false);
+    expect(precisaLembrarSolicitacao({ nome: 'RX', status: 'Solicitar', fornecedorId: '   ' }, HOJE)).toBe(false);
   });
 
   it('NAO lembra depois que o laboratorio levou — ai e so esperar', () => {
@@ -116,7 +128,7 @@ describe('Lembrete da solicitacao', () => {
 
   it('card gravado com nome antigo cai na coluna certa', () => {
     // "Solicitado" e vocabulario antigo da primeira coluna.
-    expect(precisaLembrarSolicitacao({ nome: 'X', status: 'Solicitado' }, HOJE)).toBe(true);
+    expect(precisaLembrarSolicitacao({ nome: 'X', status: 'Solicitado', fornecedorId: 'lab1' }, HOJE)).toBe(true);
     // "Aguardando" era o laboratorio com o material: hoje e Retirado, entao NAO lembra.
     expect(precisaLembrarSolicitacao({ nome: 'X', status: 'Aguardando' }, HOJE)).toBe(false);
   });

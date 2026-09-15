@@ -89,7 +89,9 @@ describe('arquivar em vez de apagar', () => {
   });
 
   describe('o arquivado some de verdade', () => {
-    const CARD = { nome: 'Citologia', status: FASES_PADRAO[0], arquivadoEm: '2026-09-14T10:00:00-03:00' };
+    // Com laboratório: exame sem lab não é lembrado de qualquer jeito (imagem, feita na casa), e
+    // aí o teste passaria pelo motivo errado.
+    const CARD = { nome: 'Citologia', status: FASES_PADRAO[0], fornecedorId: 'lab1', arquivadoEm: '2026-09-14T10:00:00-03:00' };
 
     it('não é lembrado, mesmo parado na primeira coluna', () => {
       expect(precisaLembrarSolicitacao({ ...CARD, arquivadoEm: null }, FASES_PADRAO)).toBe(true);

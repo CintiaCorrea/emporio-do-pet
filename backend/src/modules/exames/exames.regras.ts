@@ -299,6 +299,8 @@ export type ExameParaLembrete = {
   status?: string | null;
   petNome?: string | null;
   fornecedorNome?: string | null;
+  /** Laboratório do exame. Vazio = feito na casa (imagem) — não há coleta a pedir. */
+  fornecedorId?: string | null;
   /** Quando o exame entrou no ciclo. */
   date?: string | null;
   /** Preenchido = tirado do quadro (arquivado). */
@@ -331,6 +333,16 @@ export function precisaLembrarSolicitacao(e: ExameParaLembrete, fases: string[])
   // Eram duas definições diferentes de "existe", e é assim que nasce o lembrete fantasma —
   // toca, a pessoa abre o quadro e não acha nada.
   if (!String(e.nome || '').trim()) return false;
+  // EXAME SEM LABORATÓRIO NÃO SE LEMBRA — não há a quem pedir coleta.
+  //
+  // Cintia, 15/09/2026, liberando a imagem para o quadro: "os exames de imagem podem entrar no
+  // kanban, mas não são necessários avisos, pois os profissionais vêm fazer aqui".
+  //
+  // Raio-x, ultrassom e eco são feitos na casa: o card serve para o laudo e para avisar o
+  // cliente, não para cobrar coleta de ninguém. O lembrete diz "esperando o laboratório" — sobre
+  // um exame que ninguém vai buscar, ele é só barulho, e alerta que é barulho a equipe aprende
+  // a ignorar (inclusive os que importam).
+  if (!String((e as any).fornecedorId || '').trim()) return false;
   // Arquivado não é lembrado. A checagem mora AQUI e não em quem chama: `lembrarRecepcao` roda a
   // regra em dois pontos do mesmo método, e uma checagem esquecida num deles faria o lembrete
   // tocar por um exame que não está mais no quadro — o aviso fantasma que já nos custou caro.
