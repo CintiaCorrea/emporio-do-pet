@@ -17,8 +17,8 @@ import { AJUSTE_ATE, dentroDaJanelaDeAjuste } from '../../common/janela-de-ajust
  * inacessíveis por outra pessoa". Por isso a exceção tem três limites, e é isto que os testes
  * guardam: só ADMIN, só dentro da janela, e a janela passa sozinha.
  */
-const DENTRO = '2026-09-14T10:00:00-03:00';
-const DEPOIS = '2026-09-15T00:00:01-03:00';
+const DENTRO = '2026-09-19T10:00:00-03:00';
+const DEPOIS = '2026-09-20T00:00:01-03:00';
 
 const DONO = 'user-victoria';
 const OUTRA = 'user-cintia';
@@ -52,13 +52,13 @@ describe('adm lança em caixa alheio', () => {
       expect(podeLancarNoCaixa(DONO, OUTRA, 'ADMIN', DEPOIS)).toBe(false);
     });
 
-    it('a virada é no fim do dia 14', () => {
-      expect(dentroDaJanelaDeAjuste('2026-09-14T23:59:00-03:00')).toBe(true);
-      expect(dentroDaJanelaDeAjuste('2026-09-15T00:00:01-03:00')).toBe(false);
+    it('a virada é no fim do dia 19', () => {
+      expect(dentroDaJanelaDeAjuste('2026-09-19T23:59:00-03:00')).toBe(true);
+      expect(dentroDaJanelaDeAjuste('2026-09-20T00:00:01-03:00')).toBe(false);
     });
 
     it('a data está escrita no código, não numa promessa de alguém lembrar', () => {
-      expect(AJUSTE_ATE).toBe('2026-09-14T23:59:59-03:00');
+      expect(AJUSTE_ATE).toBe('2026-09-19T23:59:59-03:00');
     });
 
     it('o papel vem sem espaço pra dúvida: "admin" minúsculo também é adm', () => {

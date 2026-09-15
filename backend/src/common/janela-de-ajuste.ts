@@ -26,8 +26,13 @@
  *   13/09 → 14/09, em 14/09/2026: "encerramos ontem a edição dos caixas antigos, pode deixar
  *           para até o fim do dia de hoje?" — a janela já havia vencido na véspera, e a
  *           conciliação de setembro ainda estava aberta.
+ *   14/09 → 19/09, em 15/09/2026: "preciso que libere até o dia 19 a edição dos caixas pois
+ *           ainda não conseguimos coisas básicas que já estamos trabalhando há muito tempo" —
+ *           fechar caixa e transferir saldo entre caixas, e baixar várias comandas, ainda não
+ *           funcionam. A janela não está aberta porque a equipe precisa de tempo: está aberta
+ *           porque o SISTEMA ainda não faz o que deveria. Ela fecha quando isso for resolvido.
  */
-export const AJUSTE_ATE = '2026-09-14T23:59:59-03:00';
+export const AJUSTE_ATE = '2026-09-19T23:59:59-03:00';
 
 /** Ainda estamos dentro da janela? Fora dela, cada trava volta a valer por si. */
 export function dentroDaJanelaDeAjuste(agora?: Date | string): boolean {

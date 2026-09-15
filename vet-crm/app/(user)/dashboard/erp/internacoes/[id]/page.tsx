@@ -140,7 +140,7 @@ export default function FichaInternacaoPage() {
   // UMA data so nesta tela. Ela estava escrita em dois lugares e prorrogar um e esquecer o
   // outro deixaria o aviso mentindo pra equipe. A MESMA data esta no backend
   // (fechamento.regras.AJUSTE_ATE), que e quem de fato recusa.
-  const AJUSTE_ATE = "2026-09-14T23:59:59-03:00";
+  const AJUSTE_ATE = "2026-09-19T23:59:59-03:00";
   const podeCorrigirEntrada = Date.now() <= new Date(AJUSTE_ATE).getTime();
 
   const [h, setH] = useState<any>(null);
@@ -2395,7 +2395,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
               )}
               {podeCorrigirEntrada && (
                 <div className="mx-4 mb-2 text-[11.5px]" style={{ background: "#EDE9FE", border: "1px solid #D6CCF5", borderRadius: 9, padding: "8px 11px", color: "#5B3FA8" }}>
-                  🔓 <b>Semana de ajuste — até 14/09.</b> Todo mundo pode editar qualquer item, inclusive os já cobrados, enquanto a equipe se acostuma e as contas antigas são acertadas. Depois dessa data, item já cobrado só o administrativo mexe.
+                  🔓 <b>Semana de ajuste — até 19/09.</b> Todo mundo pode editar qualquer item, inclusive os já cobrados, enquanto a equipe se acostuma e as contas antigas são acertadas. Depois dessa data, item já cobrado só o administrativo mexe.
                 </div>
               )}
               <div className="px-4 pb-3 text-[10.5px] text-[#374151]">Diárias entram automáticas (dias × valor/dia) — o valor se corrige no ✏️. Insumos “só estoque” não somam na conta.</div>
