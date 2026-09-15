@@ -296,7 +296,15 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
 
   function imprimirComanda() {
     if (!itens.length) { toast.error("Venda sem itens."); return; }
-    imprimirVenda({ itens: itens.map(linhaBody), valor: total, petNome, tutorNome, petId, numeroVenda, date: new Date().toISOString() }, { rotulo: "Venda" });
+    // O PAPEL SEGUE A INTENÇÃO (Cintia, 15/09/2026: "não está vindo com o nome de orçamento e
+    // sim vendas"). Este botão imprimia SEMPRE "Venda", mesmo com a pessoa montando um orçamento
+    // — e sem a observação, que é onde o modelo escolhido escreve o que o cliente precisa ler.
+    // Eram três defeitos no mesmo clique: o nome errado, o número que ela não quer no papel, e a
+    // informação do modelo que sumia.
+    imprimirVenda(
+      { itens: itens.map(linhaBody), valor: total, petNome, tutorNome, petId, observacao: obs || undefined, ...(orcando ? {} : { numeroVenda }), date: new Date().toISOString() },
+      { rotulo: orcando ? "Orçamento" : "Venda" },
+    );
   }
   // Comanda = venda (modelo SimplesVet): SALVA a venda, ela vira independente em "A receber" no Caixa
   // (visível a todos, paga ou não), e a comanda FECHA/LIMPA pra iniciar OUTRA venda na hora.

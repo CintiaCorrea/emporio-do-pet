@@ -28,6 +28,12 @@ export async function imprimirVenda(v: any, opts?: { rotulo?: string; preview?: 
   }).join("");
 
   const total = Number(v?.valor ?? v?.value ?? v?.valorTotal ?? itens.reduce((s, it) => s + Number(it.valorTotal ?? 0), 0));
+  // O NÚMERO SAIU DO TÍTULO (Cintia, 15/09/2026): "é para utilizar somente vendas ou
+  // orçamento, não precisa do número, ele já fica registrado no sistema".
+  //
+  // O papel que vai para a mão do cliente diz o que ele é — "Venda" ou "Orçamento". O número é
+  // controle interno: quem precisa dele procura no sistema, e quem recebe o papel não precisa.
+  // Ele continua na LINHA de dados, abaixo da data, para a conferência de balcão.
   const num = v?.numeroVenda != null ? `#${v.numeroVenda}` : (v?.codigoExterno ? `SV ${v.codigoExterno}` : "");
   // pet/tutor: busca o pet COMPLETO pelo id (cabeçalho cheio, padrão receita); senão usa o que veio.
   const petIdV = v?.petId || (v?.pet && typeof v.pet === "object" ? v.pet.id : undefined);
@@ -40,7 +46,7 @@ export async function imprimirVenda(v: any, opts?: { rotulo?: string; preview?: 
   const formasStr = formasArr.length
     ? formasArr.map((f: any) => `${f.forma || "—"}${Number(f.parcelas) > 1 ? ` ${f.parcelas}x` : ""}`).filter(Boolean).join(" + ")
     : (v?.paymentMethod ? String(v.paymentMethod) : "");
-  const meta = [dataBR(v?.date || v?.createdAt || new Date()), v?.paymentMethod ? esc(v.paymentMethod) : ""].filter(Boolean).join(" · ");
+  const meta = [dataBR(v?.date || v?.createdAt || new Date()), num, v?.paymentMethod ? esc(v.paymentMethod) : ""].filter(Boolean).join(" · ");
   const body = `
     <div style="font-size:12px;color:#6B7280;margin-bottom:12px">${meta}</div>
     <table style="width:100%;border-collapse:collapse;font-size:13px">
@@ -60,5 +66,5 @@ export async function imprimirVenda(v: any, opts?: { rotulo?: string; preview?: 
     <div style="margin-top:22px;font-size:12px;color:#6B7280">Obrigado pela preferência! 🐾</div>
   `;
 
-  await imprimirDocumento(`${rotulo} ${num}`.trim(), body, undefined, { pet: petObj, tutor: tutorObj }, { preview: opts?.preview });
+  await imprimirDocumento(rotulo, body, undefined, { pet: petObj, tutor: tutorObj }, { preview: opts?.preview });
 }
