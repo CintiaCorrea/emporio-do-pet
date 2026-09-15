@@ -66,6 +66,19 @@ export default function MovimentoCaixaModal({ caixaId, tipo, onClose, onFeito }:
   const salvar = async () => {
     const valor = Number(String(form.valor).replace(",", ".")) || 0;
     if (valor <= 0) { toast.error("Informe o valor."); return; }
+    // A CONTA É OBRIGATÓRIA. O campo já existia, só era opcional — e quem deixasse em branco
+    // tinha o movimento gravado no caixa sem nenhum lançamento no financeiro, em silêncio.
+    // Em setembro foram 9 movimentações, R$ 1.040,54, que saíram do caixa e não entraram em
+    // conta nenhuma. O servidor recusa também: trava que só existe na tela não é trava.
+    if ((tipo === "SANGRIA" || tipo === "TRANSFERENCIA") && !form.contaDestinoId) {
+      toast.error("Escolha a conta de destino: o dinheiro precisa entrar em algum lugar."); return;
+    }
+    if ((tipo === "SUPRIMENTO" || tipo === "TRANSFERENCIA") && !form.contaOrigemId) {
+      toast.error("Escolha a conta de origem: o dinheiro precisa ter saído de algum lugar."); return;
+    }
+    if (tipo === "TRANSFERENCIA" && form.contaOrigemId === form.contaDestinoId) {
+      toast.error("Origem e destino são a mesma conta — a transferência não sairia do lugar."); return;
+    }
     setSalvando(true);
     try {
       const r = await fetch(`/api/caixa/${caixaId}/movimento`, {

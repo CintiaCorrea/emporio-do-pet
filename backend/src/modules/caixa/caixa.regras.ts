@@ -259,3 +259,34 @@ export function numeroDoProximoCaixa(numerosJaUsados: (number | null | undefined
   }
   return maior + 1;
 }
+
+// ── DINHEIRO QUE SAI DO CAIXA PRECISA DIZER PARA ONDE VAI ─────────────────────────────────
+//
+// Cintia, 15/09/2026, olhando a transferência: "não podemos escolher a conta para onde queremos
+// transferir, ao invés de isso ser uma regra fixa do sistema?"
+//
+// O seletor de conta EXISTIA — e era opcional. Quem deixasse em branco tinha o movimento
+// gravado no caixa e NENHUM lançamento no financeiro: o serviço desistia em silêncio quando
+// faltava a conta. Em setembro foram 9 movimentações, R$ 1.040,54, todas sem contrapartida. O
+// dinheiro saía do caixa na tela e não entrava em conta nenhuma.
+//
+// Silêncio é o defeito aqui, não a regra. Agora falta conta = a operação NÃO acontece, e a
+// pessoa lê por quê.
+
+/** Sangria, suprimento e transferência mexem em duas contas — e as duas têm de ser conhecidas. */
+export function contaQueFaltaNoMovimento(
+  tipo?: string | null,
+  dto?: { contaOrigemId?: string | null; contaDestinoId?: string | null } | null,
+): string | null {
+  const tp = String(tipo || '').toUpperCase();
+  const origem = String(dto?.contaOrigemId || '').trim();
+  const destino = String(dto?.contaDestinoId || '').trim();
+
+  if (tp === 'SANGRIA' && !destino) return 'Escolha a conta de destino: o dinheiro sai do caixa e precisa entrar em algum lugar.';
+  if (tp === 'SUPRIMENTO' && !origem) return 'Escolha a conta de origem: o dinheiro entra no caixa e precisa ter saído de algum lugar.';
+  if (tp === 'TRANSFERENCIA') {
+    if (!origem || !destino) return 'Escolha a conta de origem e a de destino da transferência.';
+    if (origem === destino) return 'A conta de origem e a de destino são a mesma — a transferência não sairia do lugar.';
+  }
+  return null;
+}

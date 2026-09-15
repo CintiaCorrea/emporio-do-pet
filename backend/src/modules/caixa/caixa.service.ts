@@ -6,7 +6,7 @@ import { RecebimentosService } from '../financeiro/recebimentos.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
-import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa } from './caixa.regras';
+import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa, contaQueFaltaNoMovimento } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
@@ -1437,6 +1437,11 @@ export class CaixaService {
     await this.exigirDonoDoCaixa(caixaId, userId, papel);
     const caixa = await this.prisma.caixaSessao.findUnique({ where: { id: caixaId } });
     if (!caixa) throw new NotFoundException('Caixa nao encontrado');
+    // A CONTA É OBRIGATÓRIA, e a recusa vem ANTES de gravar. Até 15/09/2026 o movimento era
+    // gravado e o lançamento financeiro desistia calado quando faltava a conta — 9 movimentações
+    // de setembro, R$ 1.040,54, saíram do caixa e não entraram em conta nenhuma.
+    const faltando = contaQueFaltaNoMovimento(dto?.tipo, dto);
+    if (faltando) throw new BadRequestException(faltando);
     const mov = await this.prisma.caixaMovimento.create({
       data: {
         caixaSessaoId: caixaId,

@@ -182,9 +182,7 @@ export default function ReceberEmLoteModal({
           <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
             <div>
               <h3 className="text-base font-medium text-[#014D5E]">{emoji ? `${emoji} ` : ""}{tutor}</h3>
-              <div className="text-[11px] text-[#374151] mt-0.5">
-                {comandas.length} venda(s) em aberto · {money(totalGeral)} no total
-              </div>
+              <div className="text-[11px] text-[#374151] mt-0.5">{comandas.length} venda(s) deste cliente</div>
             </div>
             <button onClick={onFechar} aria-label="Fechar" className="text-[#374151] text-lg leading-none">✕</button>
           </div>
@@ -193,9 +191,8 @@ export default function ReceberEmLoteModal({
               motivou isto — 10 vendas do Chico, R$ 3.842,25 — "existem outras vendas" e "o
               cliente deve R$ 3.842,25" são conversas diferentes com quem está no balcão. */}
           {forasSelecao > 0 ? (
-            <div className="mx-5 mt-3 rounded-lg px-3 py-2 text-[11.5px]" style={{ background: "#FDF3F2", border: "1px solid #F0C9C7", color: "#8A4A45" }}>
-              ⚠️ Este cliente tem <b>{comandas.length} venda(s) em aberto</b>, somando <b>{money(totalGeral)}</b>.
-              Marque abaixo as que vão ser baixadas agora.
+            <div className="mx-5 mt-3 rounded-lg px-3 py-2 text-[12.5px] font-semibold" style={{ background: "#FDF3F2", border: "1px solid #F0C9C7", color: "#b23b3b" }}>
+              Vendas em aberto {money(totalGeral)}
             </div>
           ) : null}
 
