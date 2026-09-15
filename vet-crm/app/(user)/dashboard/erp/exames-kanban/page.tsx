@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { podeAvisarLab, loadExameFases, faseNormalizada } from "@/lib/exameFases";
 import { useRolePreview } from "@/lib/ui/RolePreview";
+import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 
 const NAVY = "#014D5E", LINE = "#E8E2D6", MUT = "#5C6B70", INK = "#1F2A2E", TEAL = "#009AAC";
 const PALETTE = ["#0C447C", "#6D3B8A", "#B45309", "#0E7490", "#9D174D", "#4D7C0F", "#7C2D12", "#1E4E8C"];
@@ -246,8 +247,11 @@ export default function ExamesKanbanPage() {
 
   const ModalHorarios = () => {
     if (!verHorarios) return null;
+    // O fundo usa `fundoDeModal`, e não um onClick cru: arrastar para selecionar texto começa
+    // DENTRO do miolo e termina fora, e o navegador dispara o clique no fundo — o modal fechava
+    // no meio da seleção (Cintia, 09/09/2026). O helper exige que o clique tenha COMEÇADO ali.
     return (
-      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(1,77,94,.35)" }} onClick={() => setVerHorarios(false)}>
+      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 overflow-y-auto" style={{ background: "rgba(1,77,94,.35)" }} {...fundoDeModal(() => setVerHorarios(false))}>
         <div className="w-full max-w-2xl rounded-2xl my-8" style={{ background: "#fff", border: `1px solid ${LINE}` }} onClick={(ev) => ev.stopPropagation()}>
           <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: `1px solid ${LINE}` }}>
             <div className="text-[14px] font-bold" style={{ color: NAVY }}>⏰ Horários de coleta</div>
