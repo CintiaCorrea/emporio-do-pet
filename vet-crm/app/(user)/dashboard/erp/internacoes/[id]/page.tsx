@@ -25,6 +25,7 @@ import EnviarPorWhatsApp from "@/components/comum/EnviarPorWhatsApp";
 import { agruparItens } from "@/lib/textoDoBoletimFinanceiro";
 import { gerarPdfDaConta } from "@/lib/documentos/relatorio-vendas-pdf";
 import { AJUSTE_ATE as JANELA_ATE } from "@/lib/janelaDeAjuste";
+import SaldoDevedorTag from "@/components/comum/SaldoDevedorTag";
 
 const ESTADOS = [
   { v: "Estável", prio: "LOW", bg: "#E1F5EE", fg: "#0F6E56" },
@@ -2475,7 +2476,13 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
       {/* ===== RESUMO DE ALTA (só na impressão) ===== */}
       <div className="hidden print:block p-8" style={{ fontFamily: "Segoe UI, system-ui, sans-serif", color: "#1F2A2E" }}>
         <h1 style={{ fontSize: 20, color: "#014D5E", marginBottom: 2 }}>Resumo de internação — {h.pet?.name}</h1>
-        <div style={{ fontSize: 12, color: "#5C6B70", marginBottom: 16 }}>{[h.pet?.breed, idadeDe(h.pet?.birthDate), h.pet?.weight ? `${h.pet.weight} kg` : null, boxCodigo ? `Box ${boxCodigo}` : null].filter(Boolean).join(" · ")} · Tutor(a): {h.tutor?.name} · {h.tutor?.phone}</div>
+        <div style={{ fontSize: 12, color: "#5C6B70", marginBottom: 16 }}>{[h.pet?.breed, idadeDe(h.pet?.birthDate), h.pet?.weight ? `${h.pet.weight} kg` : null, boxCodigo ? `Box ${boxCodigo}` : null].filter(Boolean).join(" · ")} · Tutor(a): {h.tutor?.name} · {h.tutor?.phone}
+          {/* A internacao acumula diaria todo dia: e a tela em que o saldo em aberto mais
+              importa, porque a conta cresce enquanto o pet esta aqui. */}
+          <span style={{ marginLeft: 8, display: "inline-block", verticalAlign: "middle" }}>
+            <SaldoDevedorTag tutorId={h.tutorId || h.tutor?.id} nome={h.tutor?.name} />
+          </span>
+        </div>
         <table style={{ width: "100%", fontSize: 13, borderCollapse: "collapse" }}>
           <tbody>
             {[["Entrada", fmtDataHora(h.admissionDate)], ["Peso / temp. de entrada", [adm.pesoEntrada ? `${adm.pesoEntrada} kg` : null, adm.tempEntrada ? `${adm.tempEntrada} °C` : null].filter(Boolean).join(" · ") || "—"], ["Motivo / diagnóstico", h.diagnosis || h.reason || "—"], ["Prognóstico", adm.prognostico || "—"], ["Veterinário responsável", h.veterinarian?.name || "—"], ["Estado atual", estado], ["Alta prevista", h.estimatedDischargeDate ? fmtData(h.estimatedDischargeDate) : "—"], ["Dias internado", String(diasInternado(h.admissionDate, h.actualDischargeDate))], ["Total acumulado", fmtBRL(h.totalCost)]].map(([k, v]) => (

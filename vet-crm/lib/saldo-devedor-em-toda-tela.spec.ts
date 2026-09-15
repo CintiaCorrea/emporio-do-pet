@@ -65,6 +65,20 @@ describe("as telas que a carregam", () => {
     const pet = ler("app", "(user)", "dashboard", "erp", "pets", "[id]", "page.tsx");
     expect(pet).toContain("SaldoDevedorTag");
   });
+
+  it("o PONTO DE VENDA, onde se decide cobrar", () => {
+    // E a mais importante das quatro: e' a unica tela em que da' pra fazer alguma coisa com a
+    // divida no mesmo instante em que ela aparece.
+    const pdv = ler("app", "(user)", "dashboard", "erp", "ponto-de-venda", "page.tsx");
+    expect(pdv).toContain("SaldoDevedorTag");
+    expect(pdv).toMatch(/from ['"]@\/components\/comum\/SaldoDevedorTag['"]/);
+  });
+
+  it("a INTERNACAO, que e' onde a conta cresce sem ninguem olhar", () => {
+    const int = ler("app", "(user)", "dashboard", "erp", "internacoes", "[id]", "page.tsx");
+    expect(int).toContain("SaldoDevedorTag");
+    expect(int).toMatch(/from ['"]@\/components\/comum\/SaldoDevedorTag['"]/);
+  });
 });
 
 describe("o servidor sabe filtrar por cliente", () => {

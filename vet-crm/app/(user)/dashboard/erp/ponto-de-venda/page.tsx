@@ -27,6 +27,7 @@ import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import { hojeNaClinicaISO } from "@/lib/datas";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import CampoValor from '@/components/comum/CampoValor';
+import SaldoDevedorTag from '@/components/comum/SaldoDevedorTag';
 
 const TEAL = '#009AAC';
 const NAVY = '#014D5E';
@@ -982,7 +983,16 @@ export default function PDVPage() {
             ) : (
               <div style={{ background: AGUA, border: `1px solid ${LINE}`, borderRadius: 12, padding: 13, marginBottom: 20, display: 'flex', gap: 11, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span style={{ width: 40, height: 40, borderRadius: '50%', background: '#fff', color: NAVY, fontWeight: 500, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{iniciais(cliente.name)}</span>
-                <div style={{ flex: 1, minWidth: 120 }}><div style={{ fontWeight: 500, color: NAVY }}>{cliente.name}</div><div style={{ fontSize: 11.5, color: INK2 }}>{pets.length} pet(s) cadastrado(s)</div></div>
+                <div style={{ flex: 1, minWidth: 120 }}>
+                  <div style={{ fontWeight: 500, color: NAVY, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {cliente.name}
+                    {/* O QUE ELE JA DEVE, antes de lancar mais. Saber que o cliente tem R$ 3.842
+                        em aberto muda a conversa no balcao — e o PDV era justamente a tela em que
+                        isso nao aparecia. */}
+                    <SaldoDevedorTag tutorId={cliente.id} nome={cliente.name} />
+                  </div>
+                  <div style={{ fontSize: 11.5, color: INK2 }}>{pets.length} pet(s) cadastrado(s)</div>
+                </div>
                 {pets.length === 0 ? (
                   <span style={{ fontSize: 12.5, color: WARN }}>Sem pets cadastrados</span>
                 ) : (
