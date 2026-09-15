@@ -76,6 +76,12 @@ export class ExamesController {
     return this.service.avisarClienteDoResultado(itemId);
   }
 
+  /** Envia o laudo ao cliente pelo WhatsApp E o libera no portal — a mesma ação. */
+  @Post(':itemId/enviar-laudo')
+  enviarLaudo(@Param('itemId') itemId: string, @CurrentUser('name') porQuem: string) {
+    return this.service.enviarLaudoAoCliente(itemId, porQuem);
+  }
+
   /** Devolve o exame arquivado ao quadro, na fase em que ele estava. */
   @Post(':itemId/restaurar')
   restaurar(@Param('itemId') itemId: string) {

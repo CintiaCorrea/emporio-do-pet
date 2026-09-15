@@ -144,6 +144,27 @@ export class PortalSaudeService {
       const f = await this.storage.baixarPorChave(hist.arquivoKey);
       return f ? { ...f, nome: hist.arquivoNome || hist.titulo || 'documento' } : null;
     }
+    // LAUDO DO QUADRO DE EXAMES (listaItem `petexa_<pet>`). O porteiro é o mesmo dos outros: o
+    // pet tem de ser do tutor. E a liberação é conferida AQUI também, não só na listagem —
+    // esconder o botão não impede quem monta o endereço do arquivo na mão.
+    const card = await this.prisma.listaItem.findUnique({
+      where: { id: docId },
+      select: { lista: true, valor: true },
+    });
+    if (card?.lista?.startsWith('petexa_')) {
+      let o: any = null;
+      try { o = JSON.parse(card.valor); } catch { return null; }
+      if (!o?.laudoLiberadoEm) return null;   // ainda não liberado pela veterinária
+      const laudos: any[] = Array.isArray(o.laudos)
+        ? o.laudos
+        : (o.resultadoUrl ? [{ url: o.resultadoUrl, arquivo: o.resultadoArquivo }] : []);
+      if (!laudos.length) return null;
+      await this.escopo.assertPetDoTutor(tutorId, card.lista.replace('petexa_', ''));
+      // O mais recente: o portal abre um arquivo por vez, e é esse que o tutor acabou de receber.
+      const ultimo = laudos[laudos.length - 1];
+      const f = await this.storage.baixarPorUrl(ultimo.url);
+      return f ? { ...f, nome: ultimo.arquivo || `${o.nome || 'laudo'}.pdf` } : null;
+    }
     return null;
   }
 
@@ -371,7 +392,13 @@ export class PortalSaudeService {
           titulo: String(o.nome || 'Exame'),
           data: o.date ? new Date(o.date) : new Date(),
           detalhe: o.status ? String(o.status) : null,
-          temArquivo: false, // o resultado (PDF) chega depois, via HistoricoClinico
+          // O LAUDO SÓ APARECE DEPOIS DE LIBERADO (Cintia, 15/09/2026). Era `false` fixo: o
+          // tutor via o exame na lista e não tinha o que abrir, mesmo com o laudo anexado.
+          //
+          // Quem libera é a veterinária, no botão "Enviar laudo ao cliente" do quadro. A regra
+          // dela: "não é interessante que ele veja antes de falar com o veterinário, já que o
+          // resultado precisa ser interpretado". Sem a liberação, continua sem arquivo.
+          temArquivo: !!o.laudoLiberadoEm && !!(Array.isArray(o.laudos) ? o.laudos.length : o.resultadoUrl),
           texto: null,
         };
       }),

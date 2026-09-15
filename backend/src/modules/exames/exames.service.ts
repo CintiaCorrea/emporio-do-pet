@@ -161,6 +161,55 @@ export class ExamesService {
   }
 
   /**
+   * ENVIA O LAUDO AO CLIENTE — e é a MESMA ação que o libera no portal.
+   *
+   * Cintia, 15/09/2026: "manda o PDF pelo WhatsApp na hora e libera o laudo no portal, para ele
+   * reabrir quando quiser — isso mesmo, perfeito".
+   *
+   * O PORTAL NASCE FECHADO, e isso é a regra dela: "não é interessante que ele veja antes de
+   * falar com o veterinário, já que o resultado precisa ser interpretado". Até alguém clicar
+   * aqui, o portal mostra o exame SEM arquivo para abrir.
+   *
+   * Quem libera é o CLIQUE, não a entrega do WhatsApp. Se a janela de 24h estiver fechada, o
+   * arquivo fica na fila e sai quando o tutor responder — mas o portal já abre, porque o que
+   * autoriza é a conversa ter acontecido, e disso quem sabe é a pessoa que clicou.
+   */
+  async enviarLaudoAoCliente(itemId: string, porQuem?: string): Promise<{ ok: boolean; erro?: string; situacao?: string }> {
+    const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true, valor: true } });
+    if (!it || !it.lista.startsWith('petexa_')) return { ok: false, erro: 'Exame não encontrado' };
+    let d: any = null;
+    try { d = JSON.parse(it.valor); } catch { return { ok: false, erro: 'Exame ilegível' }; }
+
+    const laudos: any[] = Array.isArray(d.laudos)
+      ? d.laudos
+      : (d.resultadoUrl ? [{ url: d.resultadoUrl, arquivo: d.resultadoArquivo || null }] : []);
+    if (!laudos.length) return { ok: false, erro: 'Este exame ainda não tem laudo anexado' };
+
+    const petId = it.lista.replace('petexa_', '');
+    const pet: any = await this.prisma.pet.findUnique({
+      where: { id: petId },
+      select: { name: true, tutor: { select: { id: true, name: true } } },
+    }).catch(() => null);
+    if (!pet?.tutor?.id) return { ok: false, erro: 'Pet sem tutor cadastrado' };
+
+    const texto = `Segue o laudo de ${d.nome || 'exame'} do(a) ${pet.name || 'seu pet'}. Qualquer dúvida, estamos por aqui. 💙`;
+    const r = await this.whatsapp.enviarDocumentosProntuario(
+      pet.tutor.id,
+      texto,
+      laudos.map((l) => ({ url: l.url, tipo: 'document' as const, nome: l.arquivo || 'laudo.pdf' })),
+      pet.name || undefined,
+    ).catch((e: any) => ({ status: 'erro' as const, error: String(e?.message || e) }));
+
+    if (r.status === 'erro') return { ok: false, erro: (r as any).error || 'Não consegui enviar o laudo' };
+
+    await this.prisma.listaItem.update({
+      where: { id: itemId },
+      data: { valor: JSON.stringify({ ...d, laudoLiberadoEm: new Date().toISOString(), laudoLiberadoPor: porQuem || null, laudoEnvio: r.status }) },
+    });
+    return { ok: true, situacao: r.status };
+  }
+
+  /**
    * O CLIENTE RESPONDEU: os exames avisados daquele tutor passam a entregues e saem do quadro.
    *
    * Cintia, 16/09/2026: "assim que o vet recebe o retorno do cliente o card pode sair da lista,
@@ -311,6 +360,7 @@ export class ExamesService {
         laudos: Array.isArray(d.laudos)
           ? d.laudos
           : (d.resultadoUrl ? [{ url: d.resultadoUrl, arquivo: d.resultadoArquivo || null, em: d.resultadoEm || null, por: d.resultadoPor || null }] : []),
+        laudoLiberadoEm: d.laudoLiberadoEm || null, laudoEnvio: d.laudoEnvio || null,
         prazoDias: d.prazoDias ?? null, historico: d.historico || null,
         entregueAt: d.entregueAt || null,
         clienteAvisadoAt: d.clienteAvisadoAt || null,

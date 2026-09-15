@@ -2612,12 +2612,28 @@ export default function PetDetailPage() {
                           <button onClick={async () => { if (!(await confirmDelete({ entityLabel: "exame", itemName: x.data?.nome || "exame" }))) return; await delExame(x.id); }} className="text-[11px] text-[#b23b39]">Excluir</button>
                         </div>
                       </div>
-                      {x.data.resultadoUrl && (
-                        // Mostra o NOME do arquivo quando temos; a URL crua do bucket é ilegível.
-                        <a href={`/api/media/ver?u=${encodeURIComponent(x.data.resultadoUrl)}`} target="_blank" rel="noopener" className="text-[11.5px] text-[#009AAC] underline break-all block mb-2">
-                          📄 {x.data.resultadoArquivo || x.data.resultadoUrl}
-                        </a>
-                      )}
+                      {/* TODOS os laudos, não só o último (Cintia, 15/09/2026: "preciso que
+                          mostre todos"). Uma citologia de 5 lâminas volta em partes, e a ficha
+                          mostrava um link só — os outros existiam e ninguém via.
+                          Exames antigos têm só `resultadoUrl`; a lista cobre os dois formatos. */}
+                      {(() => {
+                        const laudos: any[] = Array.isArray(x.data.laudos) && x.data.laudos.length
+                          ? x.data.laudos
+                          : (x.data.resultadoUrl ? [{ url: x.data.resultadoUrl, arquivo: x.data.resultadoArquivo }] : []);
+                        if (!laudos.length) return null;
+                        return (
+                          <div className="mb-2 flex flex-col gap-0.5">
+                            {laudos.map((l: any, i: number) => (
+                              <a key={l.url || i} href={`/api/media/ver?u=${encodeURIComponent(l.url)}`} target="_blank" rel="noopener" className="text-[11.5px] text-[#009AAC] underline break-all block">
+                                📄 {l.arquivo || l.url}
+                              </a>
+                            ))}
+                            {x.data.laudoLiberadoEm ? (
+                              <span className="text-[10.5px]" style={{ color: "#0F6E56" }}>✅ enviado ao tutor e liberado no portal</span>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                       {/* Acompanhamento em fases (stepper) — cada fase concluída grava data + quem */}
                       <div className="mt-1">
                         {fases.map((f, fi) => {

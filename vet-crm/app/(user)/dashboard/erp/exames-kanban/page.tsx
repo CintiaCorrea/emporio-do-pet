@@ -183,6 +183,22 @@ export default function ExamesKanbanPage() {
     setMexendo(null);
   };
 
+  const enviarLaudo = async (e: any) => {
+    const n = (e.laudos || []).length;
+    if (!window.confirm(`📨 Enviar ${n > 1 ? `os ${n} laudos` : "o laudo"} de ${e.nome} para ${e.tutorNome || "o tutor"}?\n\nO PDF vai pelo WhatsApp e o laudo fica liberado no portal do tutor.\n\nFaça isto depois de conversar com o cliente — antes disso ele não vê o resultado.`)) return;
+    setMexendo(e.itemId);
+    try {
+      const r = await fetch(`/api/exames/${e.itemId}/enviar-laudo`, { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d?.ok === false) throw new Error(d?.erro || "");
+      toast.success(d?.situacao === "na_fila"
+        ? "Liberado no portal. O PDF sai assim que o cliente responder."
+        : "Laudo enviado e liberado no portal.");
+      await load();
+    } catch (err: any) { toast.error(err?.message || "Não consegui enviar o laudo."); }
+    setMexendo(null);
+  };
+
   const restaurar = async (a: any) => {
     setMexendo(a.itemId);
     try {
@@ -332,6 +348,11 @@ export default function ExamesKanbanPage() {
           {e.labAvisadoAt ? <span className="text-[10px] font-bold" style={{ color: "#0F6E56" }}>🔔 avisado</span> : null}
           {/* Quem já sabe do laudo: sem isto, a equipe reavisa o mesmo cliente sem saber. */}
           {e.clienteAvisadoAt ? <span className="text-[10px] font-bold" style={{ color: "#6A4FB0" }}>📨 cliente avisado</span> : null}
+          {e.laudoLiberadoEm ? (
+            <span className="text-[10px] font-bold" style={{ color: "#0F6E56" }} title={e.laudoEnvio === "na_fila" ? "O laudo sai assim que o cliente responder — a janela do WhatsApp estava fechada." : "Laudo entregue e liberado no portal."}>
+              {e.laudoEnvio === "na_fila" ? "📨 laudo na fila" : "✅ laudo entregue"}
+            </span>
+          ) : null}
           {atrasado ? (
             <span
               className="text-[10px] font-bold rounded px-1.5 py-0.5"
@@ -378,6 +399,13 @@ export default function ExamesKanbanPage() {
           {e.podeAvisarCliente ? (
             <button onClick={() => avisarCliente(e)} disabled={mexendo === e.itemId} title="O aviso automático não saiu — mandar agora" className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#6A4FB0", color: "#6A4FB0", background: "#F3EFFB" }}>
               {mexendo === e.itemId ? "enviando…" : "📲 Avisar cliente"}
+            </button>
+          ) : null}
+          {/* O ENVIO DO LAUDO é da veterinária, depois de conversar com o cliente — é ele que
+              libera o arquivo no portal. Só aparece quando há laudo e ainda não foi enviado. */}
+          {(e.laudos || []).length && !e.laudoLiberadoEm ? (
+            <button onClick={() => enviarLaudo(e)} disabled={mexendo === e.itemId} title="Manda o PDF pelo WhatsApp e libera no portal do tutor" className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#fff", background: "#0F6E56" }}>
+              {mexendo === e.itemId ? "enviando…" : "📨 Enviar laudo"}
             </button>
           ) : null}
           {ultima ? <button onClick={() => mover(e.itemId, lastFase)} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>✓ {lastFase}</button> : null}
