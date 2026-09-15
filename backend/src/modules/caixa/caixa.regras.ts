@@ -338,10 +338,13 @@ export type Liberado = { ok: true };
  * novo.
  */
 export function podeReabrirVenda(
-  papel: PapelUsuario,
+  autorizado: boolean,
   recebimentos: Array<{ caixaFechado?: boolean; caixaNumero?: number | null }>,
 ): Liberado | MotivoRecusa {
-  if (!ehAdmin(papel)) return { ok: false, erro: 'Só o administrativo reabre uma venda já recebida.' };
+  // `autorizado` vem da MATRIZ de perfis (modules/permissoes), e não mais de um `papel === ADMIN`
+  // escrito aqui. A diferença: a Cintia pode liberar "reabrir venda" para um perfil na tela
+  // dela, sem precisar de mim. Enquanto ela não liberar, a ação nasce fechada — é de dinheiro.
+  if (!autorizado) return { ok: false, erro: 'Seu perfil não pode reabrir uma venda já recebida. Fale com o administrativo.' };
   const lista = recebimentos || [];
   if (!lista.length) return { ok: false, erro: 'Esta venda não tem recebimento — ela já está em aberto.' };
   const fechados = [...new Set(lista.filter((r) => r?.caixaFechado).map((r) => r?.caixaNumero).filter((n) => n != null))];

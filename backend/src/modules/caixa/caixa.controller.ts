@@ -183,8 +183,12 @@ export class CaixaController {
 
   /** Reabre uma venda já recebida, estornando o recebimento do caixa. Só ADMIN (regra no service). */
   @Patch('venda/:appointmentId/reabrir')
-  reabrirVenda(@Param('appointmentId') appointmentId: string, @CurrentUser('role') papel: string) {
-    return this.service.reabrirVenda(appointmentId, papel);
+  reabrirVenda(
+    @Param('appointmentId') appointmentId: string,
+    @CurrentUser('role') papel: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.service.reabrirVenda(appointmentId, papel, userId);
   }
 
   @Delete(':id/credito')

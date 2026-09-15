@@ -157,6 +157,41 @@ export const PERM_SECTIONS: PermSection[] = [
       { key: "acao:pet.excluir", label: "Excluir pet", emoji: "🗑️" },
     ],
   },
+  // ── DINHEIRO ──────────────────────────────────────────────────────────────────────────
+  //
+  // Cintia, 15/09/2026, com os prints do Perfil de acesso do SimplesVet: "todas estão liberadas
+  // para o adm, essa mesma lista aparece para os outros perfis e eu determino quais ficarão
+  // disponíveis para cada perfil". Lá existem ~40 ações só embaixo de "Ponto de venda"; aqui
+  // começam as que ela pediu explicitamente, e as outras entram conforme a necessidade real.
+  //
+  // ESTAS SÃO AS ÚNICAS QUE O SERVIDOR TAMBÉM OBEDECE (modules/permissoes). As demais chaves
+  // desta tela seguem escondendo botão — o que basta para agenda e relatório, e não basta para
+  // dinheiro.
+  //
+  // Nascem FECHADAS para quem não é adm, ao contrário das telas: esconder uma tela por engano
+  // só atrapalha; liberar um estorno por engano mexe na gaveta de alguém.
+  {
+    titulo: "Dinheiro", emoji: "💰", itens: [
+      { key: "acao:venda.editar_recebida", label: "Editar venda já recebida", emoji: "✏️" },
+      { key: "acao:venda.reabrir", label: "Reabrir venda (estorna o recebimento)", emoji: "🔓" },
+      { key: "acao:venda.excluir", label: "Excluir venda", emoji: "🗑️" },
+      { key: "acao:venda.alterar_data", label: "Alterar data da venda", emoji: "📅" },
+      { key: "acao:venda.conceder_desconto", label: "Conceder desconto", emoji: "🏷️" },
+      { key: "acao:caixa.reabrir", label: "Reabrir caixa fechado", emoji: "💵" },
+      { key: "acao:caixa.lancar_em_caixa_alheio", label: "Lançar no caixa de outra pessoa", emoji: "👥" },
+    ],
+  },
+];
+
+/** As ações que o SERVIDOR confere, e não só a tela. Espelha backend/permissoes.regras. */
+export const ACOES_DINHEIRO = [
+  "acao:venda.editar_recebida",
+  "acao:venda.reabrir",
+  "acao:venda.excluir",
+  "acao:venda.alterar_data",
+  "acao:venda.conceder_desconto",
+  "acao:caixa.reabrir",
+  "acao:caixa.lancar_em_caixa_alheio",
 ];
 
 /** Prefixo das chaves que são AÇÃO (botão), não TELA (rota). */
@@ -165,7 +200,14 @@ export const isAcao = (key: string) => key.startsWith(ACAO_PREFIX);
 
 /** Excluir cliente/pet apaga as vendas em cascata. Diferente das telas, que nascem em
  *  EDITA (permissivo), estas nascem liberadas SÓ para o Admin. */
-export const ACOES_SO_ADMIN = ["acao:cliente.excluir", "acao:pet.excluir"];
+export const ACOES_SO_ADMIN = [
+  "acao:cliente.excluir", "acao:pet.excluir",
+  // As de dinheiro seguem a mesma lógica, e o servidor concorda (backend/permissoes.regras):
+  // o que ninguém decidiu, ninguém pode.
+  "acao:venda.editar_recebida", "acao:venda.reabrir", "acao:venda.excluir",
+  "acao:venda.alterar_data", "acao:venda.conceder_desconto",
+  "acao:caixa.reabrir", "acao:caixa.lancar_em_caixa_alheio",
+];
 
 /** Todas as chaves-folha (hrefs) da matriz. */
 export function allLeafKeys(): string[] {

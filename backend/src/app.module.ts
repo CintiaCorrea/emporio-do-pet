@@ -47,6 +47,7 @@ import { EtiquetasModule } from './modules/etiquetas/etiquetas.module';
 import { ServicosModule } from './modules/servicos/servicos.module';
 import { OrcamentosModule } from './modules/orcamentos/orcamentos.module';
 import { CaixaModule } from './modules/caixa/caixa.module';
+import { PermissoesModule } from './modules/permissoes/permissoes.module';
 import { PacotesModule } from './modules/pacotes/pacotes.module';
 import { CatalogoModule } from './modules/catalogo/catalogo.module';
 import { CreditoModule } from './modules/credito/credito.module';
@@ -204,6 +205,7 @@ import configuration from './config/configuration';
     EtiquetasModule,
     ServicosModule,
     OrcamentosModule,
+    PermissoesModule,
     CaixaModule,
     PacotesModule,
     CatalogoModule,

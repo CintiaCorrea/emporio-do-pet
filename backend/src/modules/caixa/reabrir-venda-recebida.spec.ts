@@ -42,17 +42,22 @@ describe('quem edita uma venda', () => {
 });
 
 describe('reabrir a venda recebida', () => {
-  it('só o administrativo', () => {
-    for (const papel of ['RECEPTIONIST', 'VETERINARIAN', '', null]) {
-      const r = podeReabrirVenda(papel as any, [REC()]);
-      expect(r.ok).toBe(false);
-      if (!r.ok) expect(r.erro).toMatch(/administrativo/i);
-    }
-    expect(podeReabrirVenda('ADMIN', [REC()]).ok).toBe(true);
+  it('quem a MATRIZ não autoriza, não reabre', () => {
+    // Desde 15/09/2026 quem decide não é um `papel === ADMIN` escrito na regra: é a matriz de
+    // perfis que a Cintia edita na tela dela. O administrativo continua passando sempre (a
+    // trava anti-tranca vive em permissoes.regras), e ela pode liberar para outro perfil sem
+    // depender de mim.
+    const r = podeReabrirVenda(false, [REC()]);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.erro).toMatch(/perfil não pode/i);
+  });
+
+  it('autorizado, reabre', () => {
+    expect(podeReabrirVenda(true, [REC()]).ok).toBe(true);
   });
 
   it('venda sem recebimento não tem o que reabrir', () => {
-    const r = podeReabrirVenda('ADMIN', []);
+    const r = podeReabrirVenda(true, []);
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.erro).toMatch(/já está em aberto/i);
   });
@@ -61,7 +66,7 @@ describe('reabrir a venda recebida', () => {
     it('recusa, e diz qual caixa', () => {
       // Tirar um recebimento de um caixa fechado muda o total de um dia que alguém já conferiu:
       // a gaveta bateu com o sistema naquele momento e deixaria de bater, sem nada explicando.
-      const r = podeReabrirVenda('ADMIN', [REC(true, 12)]);
+      const r = podeReabrirVenda(true, [REC(true, 12)]);
       expect(r.ok).toBe(false);
       if (!r.ok) {
         expect(r.erro).toContain('12');
@@ -71,7 +76,7 @@ describe('reabrir a venda recebida', () => {
     });
 
     it('lista todos os caixas fechados envolvidos, sem repetir', () => {
-      const r = podeReabrirVenda('ADMIN', [REC(true, 12), REC(true, 12), REC(true, 15)]);
+      const r = podeReabrirVenda(true, [REC(true, 12), REC(true, 12), REC(true, 15)]);
       expect(r.ok).toBe(false);
       if (!r.ok) {
         expect(r.erro).toContain('12, 15');
@@ -80,11 +85,11 @@ describe('reabrir a venda recebida', () => {
     });
 
     it('basta UM fechado no meio de abertos para recusar', () => {
-      expect(podeReabrirVenda('ADMIN', [REC(false, 1), REC(true, 2)]).ok).toBe(false);
+      expect(podeReabrirVenda(true, [REC(false, 1), REC(true, 2)]).ok).toBe(false);
     });
 
     it('todos abertos, libera', () => {
-      expect(podeReabrirVenda('ADMIN', [REC(false, 1), REC(false, 2)]).ok).toBe(true);
+      expect(podeReabrirVenda(true, [REC(false, 1), REC(false, 2)]).ok).toBe(true);
     });
   });
 });
@@ -112,9 +117,13 @@ describe('o estorno na prática', () => {
     expect(fn).toContain('estornado');
   });
 
-  it('o controller manda o papel; sem ele a trava não existiria', () => {
+  it('o controller manda papel E usuário; sem os dois a matriz não sabe quem pergunta', () => {
     const ctrl = readFileSync(join(__dirname, 'caixa.controller.ts'), 'utf8');
-    expect(ctrl).toMatch(/reabrirVenda\([^)]*papel\)/);
     expect(ctrl).toContain("@Patch('venda/:appointmentId/reabrir')");
+    expect(ctrl).toContain('this.service.reabrirVenda(appointmentId, papel, userId)');
+  });
+
+  it('a autorização vem da MATRIZ, não de um papel escrito na regra', () => {
+    expect(fn).toContain("this.permissoes.pode(userId, papel, 'acao:venda.reabrir')");
   });
 });

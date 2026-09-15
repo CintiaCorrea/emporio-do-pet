@@ -6,6 +6,7 @@ import { RecebimentosService } from '../financeiro/recebimentos.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
+import { PermissoesService } from '../permissoes/permissoes.service';
 import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa, contaQueFaltaNoMovimento, podeReabrirVenda } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
@@ -42,6 +43,7 @@ export class CaixaService {
     private readonly recebimentos: RecebimentosService,
     private readonly lancamentos: LancamentosService,
     private readonly catalogo: CatalogoService,
+    private readonly permissoes: PermissoesService,
   ) {}
 
   private async saldoTutor(tutorId: string) {
@@ -1685,7 +1687,7 @@ export class CaixaService {
    * Quem fez fica no log de auditoria, que grava toda alteração — é lá que se responde "quem
    * reabriu esta venda e quando".
    */
-  async reabrirVenda(appointmentId: string, papel?: string) {
+  async reabrirVenda(appointmentId: string, papel?: string, userId?: string) {
     const venda = await this.prisma.appointment.findUnique({
       where: { id: appointmentId },
       select: {
@@ -1701,7 +1703,10 @@ export class CaixaService {
       : [];
     const porCaixa = new Map(caixas.map((c) => [c.id, c]));
 
-    const r = podeReabrirVenda(papel, venda.recebimentos.map((rec) => {
+    // Quem autoriza e a MATRIZ de perfis, que a Cintia edita na tela dela. O administrativo
+    // passa sempre (trava anti-tranca); os outros perfis passam se ela liberar.
+    const autorizado = await this.permissoes.pode(userId, papel, 'acao:venda.reabrir');
+    const r = podeReabrirVenda(autorizado, venda.recebimentos.map((rec) => {
       const c = rec.caixaSessaoId ? porCaixa.get(rec.caixaSessaoId) : null;
       return { caixaFechado: String(c?.status || '').toUpperCase() === 'FECHADO', caixaNumero: c?.numero ?? null };
     }));
