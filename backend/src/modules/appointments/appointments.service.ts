@@ -8,6 +8,7 @@ import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { ensureNumeroVenda } from '../../common/venda-numero';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PermissoesService } from '../permissoes/permissoes.service';
 
 @Injectable()
 export class AppointmentsService {
@@ -17,6 +18,7 @@ export class AppointmentsService {
     private readonly boardsService: BoardsService,
     private readonly whatsapp: WhatsAppService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly permissoes: PermissoesService,
   ) {}
 
   /**
@@ -38,6 +40,36 @@ export class AppointmentsService {
     try {
       this.eventEmitter.emit('venda.itens.gravados', { appointmentId });
     } catch { /* avisar é acessório; a venda já está salva */ }
+  }
+
+  /**
+   * EDITAR UMA VENDA JÁ RECEBIDA — só quem a matriz autorizar.
+   *
+   * Cintia, 15/09/2026: "antes de receber todos podem editar vendas e orçamento, depois de
+   * receber somente o adm". A liberdade antes do recebimento é o ponto dela — corrigir um item
+   * digitado errado é trabalho de balcão. Depois que o dinheiro entrou e foi contado numa
+   * gaveta, mexer no valor muda o que está lá dentro.
+   *
+   * SÓ OLHA O QUE MEXE EM DINHEIRO: itens, valor e data. Mudar o status do atendimento, a
+   * observação ou o profissional continua livre para todo mundo — travar isso seria exatamente
+   * o "engessado" de que ela se queixou.
+   */
+  private async exigirPermissaoParaEditarRecebida(
+    id: string,
+    dto: any,
+    papel?: string,
+    userId?: string,
+  ): Promise<void> {
+    const mexeEmDinheiro = dto?.items !== undefined || dto?.value !== undefined || dto?.date !== undefined;
+    if (!mexeEmDinheiro) return;
+    const recebida = await this.prisma.recebimento.count({ where: { appointmentId: id } }).catch(() => 0);
+    if (!recebida) return;
+    const pode = await this.permissoes.pode(userId, papel, 'acao:venda.editar_recebida');
+    if (!pode) {
+      throw new ForbiddenException(
+        'Esta venda já foi recebida. Para corrigir, o administrativo precisa reabri-la — isso estorna o recebimento do caixa.',
+      );
+    }
   }
 
   // ============================================
@@ -722,8 +754,9 @@ export class AppointmentsService {
     return appointment;
   }
 
-  async update(id: string, updateAppointmentDto: UpdateAppointmentDto, requesterRole?: string) {
+  async update(id: string, updateAppointmentDto: UpdateAppointmentDto, requesterRole?: string, requesterId?: string) {
     const existingAppointment = await this.findById(id);
+    await this.exigirPermissaoParaEditarRecebida(id, updateAppointmentDto, requesterRole, requesterId);
     const previousStatus = existingAppointment.status;
 
     // Regra: venda que já tem recebimento só pode ter os itens/valor alterados pelo ADM.

@@ -1028,7 +1028,17 @@ export class CaixaService {
   // A conferencia de gaveta tambem se desfaz: valor esperado, contado e diferenca eram o
   // retrato de um fechamento que deixou de existir. Mantê-los seria guardar uma conferencia
   // de um caixa que voltou a receber dinheiro depois dela.
-  async reabrir(id: string) {
+  async reabrir(id: string, papel?: string, userId?: string) {
+    // ATÉ 15/09/2026 ESTA ROTA NÃO TINHA TRAVA NENHUMA: qualquer pessoa logada reabria qualquer
+    // caixa fechado, inclusive o de outra funcionária, inclusive de dias anteriores. Reabrir um
+    // caixa desfaz a conferência de gaveta daquele dia — o valor esperado, o contado e a
+    // diferença somem, como este mesmo método explica acima.
+    //
+    // Agora obedece a matriz de perfis (acao:caixa.reabrir), que nasce fechada para quem não é
+    // administrativo.
+    if (!(await this.permissoes.pode(userId, papel, 'acao:caixa.reabrir'))) {
+      throw new BadRequestException('Seu perfil não pode reabrir um caixa fechado. Fale com o administrativo.');
+    }
     return this.prisma.caixaSessao.update({
       where: { id },
       data: { status: 'ABERTO', fechamento: null, obsFechamento: null, valorEsperado: null, valorContado: null, diferenca: null },

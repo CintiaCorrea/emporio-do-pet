@@ -87,3 +87,39 @@ describe('de quem é este perfil', () => {
     expect(papelParaPerfil(null)).toBe('Admin');
   });
 });
+
+describe('as ações ligadas de verdade', () => {
+  const { readFileSync } = require('fs');
+  const { join } = require('path');
+  const ler = (...p: string[]) => readFileSync(join(__dirname, '..', ...p), 'utf8');
+
+  it('REABRIR CAIXA deixou de ser porta aberta', () => {
+    // Até 15/09/2026 esta rota não tinha trava NENHUMA: qualquer pessoa logada reabria qualquer
+    // caixa fechado, de qualquer dia, inclusive o de outra funcionária — desfazendo a
+    // conferência de gaveta daquele dia sem deixar rastro na tela.
+    const svc = ler('caixa', 'caixa.service.ts');
+    const fn = svc.slice(svc.indexOf('async reabrir(id: string'), svc.indexOf('async reabrir(id: string') + 900);
+    expect(fn).toContain("'acao:caixa.reabrir'");
+    expect(fn).toContain('throw new BadRequestException');
+  });
+
+  it('EDITAR VENDA RECEBIDA passa pela matriz', () => {
+    const svc = ler('appointments', 'appointments.service.ts');
+    expect(svc).toContain("'acao:venda.editar_recebida'");
+    // E a conferência acontece no começo do update, antes de qualquer gravação.
+    const upd = svc.slice(svc.indexOf('async update(id: string'), svc.indexOf('async update(id: string') + 400);
+    expect(upd).toContain('exigirPermissaoParaEditarRecebida');
+  });
+
+  it('a trava só morde o que mexe em DINHEIRO', () => {
+    // Mudar status, observação ou profissional de uma venda recebida continua livre. Travar
+    // tudo seria o "engessado" de que ela se queixou — o oposto do que ela pediu.
+    const svc = ler('appointments', 'appointments.service.ts');
+    expect(svc).toContain("dto?.items !== undefined || dto?.value !== undefined || dto?.date !== undefined");
+  });
+
+  it('a mensagem diz o CAMINHO, não só o "não pode"', () => {
+    const svc = ler('appointments', 'appointments.service.ts');
+    expect(svc).toContain('o administrativo precisa reabri-la');
+  });
+});

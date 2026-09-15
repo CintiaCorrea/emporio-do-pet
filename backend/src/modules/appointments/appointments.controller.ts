@@ -94,8 +94,13 @@ export class AppointmentsController {
 
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar agendamento' })
-  update(@Param('id') id: string, @Body() updateAppointmentDto: UpdateAppointmentDto, @CurrentUser('role') role: string) {
-    return this.appointmentsService.update(id, updateAppointmentDto, role);
+  update(
+    @Param('id') id: string,
+    @Body() updateAppointmentDto: UpdateAppointmentDto,
+    @CurrentUser('role') role: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.appointmentsService.update(id, updateAppointmentDto, role, userId);
   }
 
   @Post(':id/confirmar-whatsapp')
