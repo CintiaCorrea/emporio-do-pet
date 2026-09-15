@@ -58,6 +58,22 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
 
   const [aberto, setAberto] = useState(false);
   const [sub, setSub] = useState<"VENDA" | "ORC">("VENDA");
+  /**
+   * O QUE ESTÁ SENDO MONTADO — venda ou orçamento.
+   *
+   * Cintia, 15/09/2026: "a tela de orçamento não está funcionando, quando clicamos para fazer
+   * orçamento ele entra em vendas".
+   *
+   * E era literal: "➕ Montar novo orçamento" fazia `setSub("VENDA")` e largava a pessoa na
+   * Comanda, onde tudo diz VENDA — a observação, o botão grande e destacado — com o orçamento
+   * escondido num botão pequeno embaixo. Quem queria orçamento e clicava no botão óbvio criava
+   * uma VENDA, que vira cobrança ao cliente.
+   *
+   * Agora a intenção acompanha: quem entrou para orçar vê o orçamento em destaque e a venda em
+   * segundo plano, e um aviso dizendo o que vai acontecer ao salvar.
+   */
+  const [intencao, setIntencao] = useState<"VENDA" | "ORCAMENTO">("VENDA");
+  const orcando = intencao === "ORCAMENTO";
   const [itens, setItens] = useState<Item[]>([]);
   const [estoque, setEstoque] = useState<MapaEstoque>(new Map()); // núcleo lib/estoqueComprometido
   const [cat, setCat] = useState<{ id: string; nome: string; valor: number; custoPadrao?: number; _precosPorte?: string | null; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null; codigo?: number | null; codigoBarras?: string | null }[]>([]);
@@ -307,6 +323,9 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tutorId, observacao: obs.trim() || undefined, itens: itens.map(linhaBody) }) });
       if (!r.ok) throw new Error();
       toast.success("Orçamento gerado ✅"); await limpar(); await loadOrcs(); setSub("ORC");
+      // A intenção NÃO fica grudada: sem isto, a próxima comanda do dia abriria em modo
+      // orçamento sem ninguém ter pedido — e o erro seria o inverso deste, igualmente calado.
+      setIntencao("VENDA");
     } catch { toast.error("Erro ao gerar orçamento"); } finally { setSaving(false); }
   }
   // 💬 Envia o orçamento pro cliente no WhatsApp (mesmo princípio do inbox: cai na conversa do tutor).
@@ -397,13 +416,13 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
         style={{ width: 720, maxWidth: "96vw", maxHeight: "88vh", borderColor: "#E8DFC8" }}
         onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
-        <b style={{ color: "#014D5E", fontSize: 15 }}>🛒 Venda — {petNome || "pet"}{tutorNome ? ` · ${tutorNome}` : ""}</b>
+        <b style={{ color: "#014D5E", fontSize: 15 }}>{orcando ? "📄 Orçamento" : "🛒 Venda"} — {petNome || "pet"}{tutorNome ? ` · ${tutorNome}` : ""}</b>
         <button onClick={() => setAberto(false)} className="text-[#94a3b8]" title="Fechar"><LuX size={18} /></button>
       </div>
       <div className="flex" style={{ borderBottom: "1px solid #F0EBE0" }}>
         {(["VENDA", "ORC"] as const).map((k) => (
           <button key={k} onClick={() => setSub(k)} className="flex-1 text-[12.5px] font-semibold py-2" style={{ color: sub === k ? "#009AAC" : "#8A857A", borderBottom: sub === k ? "2px solid #009AAC" : "2px solid transparent" }}>
-            {k === "VENDA" ? `🛒 Venda${nItens ? ` (${nItens})` : ""}` : "📄 Orçamentos"}
+            {k === "VENDA" ? `${orcando ? "📄 Montando" : "🛒 Venda"}${nItens ? ` (${nItens})` : ""}` : "📄 Orçamentos"}
           </button>
         ))}
       </div>
@@ -516,12 +535,36 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                   que e onde se recebe — a comanda lanca, o PDV cobra. */}
               <BotaoAbrirNoPDV vendaId={apptId} rotulo="Receber no PDV" />
             </div>
+            {/* O QUE VAI ACONTECER AO SALVAR, dito antes do clique. Orçamento não cobra ninguém;
+                venda entra em "A receber" e vira cobrança. A diferença precisa estar na cara. */}
+            <div className="mb-2 rounded-lg px-2.5 py-1.5 text-[11px] flex items-center gap-2 flex-wrap"
+                 style={orcando
+                   ? { background: "#F0FBFC", border: "1px solid #B7E3E8", color: "#0E5560" }
+                   : { background: "#FFF7E8", border: "1px solid #F0DCAE", color: "#8A5A0B" }}>
+              <b>{orcando ? "📄 Montando um ORÇAMENTO" : "🛒 Montando uma VENDA"}</b>
+              <span>{orcando ? "— não cobra o cliente." : "— entra em “A receber” e vira cobrança."}</span>
+              <button
+                onClick={() => setIntencao(orcando ? "VENDA" : "ORCAMENTO")}
+                className="ml-auto underline font-semibold"
+                style={{ color: "inherit" }}
+              >mudar para {orcando ? "venda" : "orçamento"}</button>
+            </div>
             <div className="flex gap-2">
               <button onClick={imprimirComanda} disabled={!itens.length} className="flex-1 border-2 rounded-lg py-2 text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={13} /> Imprimir</button>
-              <button onClick={salvarVenda} disabled={!itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salva a venda (vai pra ‘A receber’ no Caixa) e limpa a tela pra iniciar outra.">💰 Salvar a venda</button>
+              {/* O BOTÃO GRANDE É O DA INTENÇÃO. Era sempre "Salvar a venda", e quem tinha
+                  entrado para orçar clicava nele — criando cobrança sem querer. */}
+              {orcando ? (
+                <button onClick={gerarOrcamento} disabled={saving || !itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salva o orçamento. Não cobra o cliente.">📄 Salvar orçamento</button>
+              ) : (
+                <button onClick={salvarVenda} disabled={!itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }} title="Salva a venda (vai pra ‘A receber’ no Caixa) e limpa a tela pra iniciar outra.">💰 Salvar a venda</button>
+              )}
             </div>
             <div className="flex gap-2 mt-2">
-              <button onClick={gerarOrcamento} disabled={saving || !itens.length} className="flex-1 border-2 rounded-lg py-1.5 text-[12px] font-semibold disabled:opacity-50" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#F0FBFC" }}>📄 Salvar como orçamento</button>
+              {orcando ? (
+                <button onClick={salvarVenda} disabled={saving || !itens.length} className="flex-1 border-2 rounded-lg py-1.5 text-[12px] font-semibold disabled:opacity-50" style={{ borderColor: "#B48A3A", color: "#8A5A0B", background: "#FFF7E8" }}>💰 Salvar como venda</button>
+              ) : (
+                <button onClick={gerarOrcamento} disabled={saving || !itens.length} className="flex-1 border-2 rounded-lg py-1.5 text-[12px] font-semibold disabled:opacity-50" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#F0FBFC" }}>📄 Salvar como orçamento</button>
+              )}
               <button onClick={enviarOrcamentoWhats} disabled={enviandoWhats || !itens.length || !tutorId} title="Envia o orçamento pro cliente no WhatsApp" className="flex-1 rounded-lg py-1.5 text-[12px] font-semibold text-white disabled:opacity-50" style={{ background: "#25D366" }}>{enviandoWhats ? "Enviando…" : "💬 Enviar no WhatsApp"}</button>
             </div>
             {itens.length > 0 && <button onClick={limpar} className="w-full text-[11px] text-gray-400 mt-2">limpar</button>}
@@ -529,8 +572,8 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
         </>
       ) : (
         <div className="flex-1 overflow-auto px-3 py-3">
-          <button onClick={() => { setSub("VENDA"); setAddOpen(true); }} className="w-full text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#009AAC" }}>➕ Montar novo orçamento</button>
-          <p className="text-[10.5px] text-gray-400 mb-3 mt-1 text-center">Adicione os itens na aba <b>🛒 Comanda</b> e clique <b>“📄 Salvar como orçamento”</b>.</p>
+          <button onClick={() => { setIntencao("ORCAMENTO"); setSub("VENDA"); setAddOpen(true); }} className="w-full text-white text-[12.5px] font-semibold py-2 rounded-lg" style={{ background: "#009AAC" }}>➕ Montar novo orçamento</button>
+          <p className="text-[10.5px] text-gray-400 mb-3 mt-1 text-center">Os itens são adicionados na outra aba — ela abre já em modo <b>orçamento</b>.</p>
           {orcs.length === 0 ? <div className="text-center text-[12px] text-gray-400 py-8">Nenhum orçamento deste pet.</div> :
             orcs.map((o) => {
               const st = ST[o.status] || ST.RASCUNHO; const conv = !!o.appointmentId;
