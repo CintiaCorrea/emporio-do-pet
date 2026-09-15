@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { ExamesService } from './exames.service';
 import { CronHealthService } from '../../common/cron-health.service';
+import { ErrosTelaService } from '../erros-tela/erros-tela.service';
 
 /**
  * Dois relógios diferentes, com donos diferentes:
@@ -12,7 +13,11 @@ import { CronHealthService } from '../../common/cron-health.service';
 export class ExamesScheduler {
   private readonly logger = new Logger(ExamesScheduler.name);
 
-  constructor(private readonly exames: ExamesService, private readonly cronHealth: CronHealthService) {}
+  constructor(
+    private readonly exames: ExamesService,
+    private readonly cronHealth: CronHealthService,
+    private readonly errosTela: ErrosTelaService,
+  ) {}
 
   // COLETA: de meia em meia hora, das 7h às 19h — mas cada laboratório só é avisado NO HORÁRIO
   // DELE (Cintia, 12/09/2026: "nos horários já estipulados, conforme o laboratório do exame
@@ -78,6 +83,10 @@ export class ExamesScheduler {
     try {
       const r = await this.exames.expurgarArquivados();
       if (r.apagados) this.logger.log(`Arquivo de exames: ${r.apagados} card(s) passaram dos 45 dias e foram apagados.`);
+      // Pega carona na mesma madrugada: o registro de erros de tela também tem prazo (14 dias).
+      // Uma cron a mais para apagar meia dúzia de linhas seria cerimônia sem ganho.
+      const erros = await this.errosTela.expurgar();
+      if (erros.apagados) this.logger.log(`Erros de tela: ${erros.apagados} registro(s) passaram dos 14 dias.`);
     } catch (e) { this.logger.error(`Expurgo do arquivo falhou: ${String((e as any)?.message || e)}`); }
   }
 }

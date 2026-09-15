@@ -146,6 +146,7 @@ export const PERM_SECTIONS: PermSection[] = [
         ],
       },
       { key: "/dashboard/erp/logs", label: "Log de auditoria", emoji: "🔎" },
+      { key: "/dashboard/erros", label: "Erros de tela", emoji: "🐞" },
       { key: "/dashboard/erp/dados-clinica", label: "Dados da clínica", emoji: "🏢" },
     ],
   },

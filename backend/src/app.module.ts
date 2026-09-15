@@ -48,6 +48,7 @@ import { ServicosModule } from './modules/servicos/servicos.module';
 import { OrcamentosModule } from './modules/orcamentos/orcamentos.module';
 import { CaixaModule } from './modules/caixa/caixa.module';
 import { PermissoesModule } from './modules/permissoes/permissoes.module';
+import { ErrosTelaModule } from './modules/erros-tela/erros-tela.module';
 import { PacotesModule } from './modules/pacotes/pacotes.module';
 import { CatalogoModule } from './modules/catalogo/catalogo.module';
 import { CreditoModule } from './modules/credito/credito.module';
@@ -206,6 +207,7 @@ import configuration from './config/configuration';
     ServicosModule,
     OrcamentosModule,
     PermissoesModule,
+    ErrosTelaModule,
     CaixaModule,
     PacotesModule,
     CatalogoModule,

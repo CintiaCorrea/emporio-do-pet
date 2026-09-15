@@ -25,6 +25,7 @@
    ───────────────────────────────────────────────────────────────────────────────────────── */
 
 import { useEffect } from "react";
+import { avisarErro } from "@/lib/avisarErro";
 
 /** O navegador não tem um tipo para isso: é o erro de pedaço de código que não existe mais. */
 function ehPedacoVelho(erro: Error & { digest?: string }): boolean {
@@ -38,6 +39,10 @@ export default function Erro({ error, reset }: { error: Error & { digest?: strin
   useEffect(() => {
     // O console é onde eu vou procurar quando ela me mandar o print.
     console.error("[Empório do Pet] a tela quebrou:", error);
+    // E o sistema REGISTRA, para a Cintia não depender de alguém contar (15/09/2026: "às vezes,
+    // como não acontecem comigo, não sei nem como nem porque estão acontecendo"). Este é o erro
+    // mais grave que existe — a tela inteira caiu — e era justamente o que não deixava rastro.
+    avisarErro(error, error?.stack || error?.digest);
     if (!ehPedacoVelho(error)) return;
     try {
       if (sessionStorage.getItem(MARCA)) return;   // já tentamos: não entra em laço
