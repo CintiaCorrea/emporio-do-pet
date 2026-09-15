@@ -25,6 +25,7 @@ import {
 } from 'react-icons/lu';
 import MovimentoCaixaModal, { TipoMovimento } from '@/components/caixa/MovimentoCaixaModal';
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
+import CampoValor from '@/components/comum/CampoValor';
 
 const TEAL = '#009AAC';
 const TEAL_DARK = '#014D5E';
@@ -181,6 +182,13 @@ export default function CaixaPage() {
   const [credOpen, setCredOpen] = useState(false);
   const [credForm, setCredForm] = useState({ appointmentId: '', tipo: 'RECARGA', valor: '', descricao: '', forma: 'Dinheiro' });
   const [prevCred, setPrevCred] = useState<{ totalCentavos: number; porData: { data: string; liquidoCentavos: number }[] } | null>(null); // item 10 — previsão de crédito das maquininhas (D+1)
+  // PASSAR A GAVETA PARA OUTRA PESSOA (Cintia, 15/09/2026: "a Gabriela nao consegue fechar o
+  // caixa dela e transferir o saldo em dinheiro para o caixa da Vitoria"). E o que acontece de
+  // verdade no fim do turno, e nao existia: o botao "Transferencia" que havia move dinheiro
+  // entre CONTAS (banco, cofre), nao entre gavetas.
+  const [transfOpen, setTransfOpen] = useState(false);
+  const [transfForm, setTransfForm] = useState({ destino: '', valor: 0, observacao: '' });
+  const [transferindo, setTransferindo] = useState(false);
   const [fecharOpen, setFecharOpen] = useState(false);
   const [fecharForm, setFecharForm] = useState({ valorContado: '', observacao: '' });
   const [formasCfg, setFormasCfg] = useState<string[]>([]); // formas cadastradas (fonte única — igual PDV)
@@ -308,6 +316,37 @@ export default function CaixaPage() {
     const sai = movs.filter((m) => m.tipo !== 'SUPRIMENTO').reduce((s, m) => s + Number(m.valor || 0), 0);
     return Number(detail.suprimento || 0) + cash + ent - sai;
   }, [detail]);
+
+  // Os OUTROS caixas abertos — para onde o dinheiro pode ir. O proprio nao entra: transferir
+  // para si mesmo nao move nada, e oferecer a opcao so convida ao erro.
+  const destinosPossiveis = useMemo(
+    () => (caixas || []).filter((c) => c.id !== detail?.id && String(c.status).toUpperCase() === 'ABERTO'),
+    [caixas, detail],
+  );
+
+  const transferir = async () => {
+    if (transferindo) return;
+    const destino = destinosPossiveis.find((c) => c.id === transfForm.destino);
+    if (!destino) { toast.error('Escolha o caixa de destino.'); return; }
+    if (!(transfForm.valor > 0)) { toast.error('Informe o valor.'); return; }
+    const quem = (destino as any).user?.name || `caixa ${destino.numero}`;
+    if (!window.confirm(`Passar ${brl(transfForm.valor)} em dinheiro para o caixa de ${quem}?
+
+Sai deste caixa e entra no dele, numa operacao so.`)) return;
+    setTransferindo(true);
+    try {
+      const r = await fetch(`/api/caixa/${detail!.id}/transferir`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ caixaDestinoId: transfForm.destino, valor: transfForm.valor, observacao: transfForm.observacao || undefined }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d?.ok === false) throw new Error(d?.message || d?.erro || 'Nao consegui transferir.');
+      toast.success(`${brl(d.valor)} transferido para ${d.destinoDono}.`);
+      setTransfOpen(false); setTransfForm({ destino: '', valor: 0, observacao: '' });
+      await fetchDetail(detail!.id); await fetchCaixas();
+    } catch (e: any) { toast.error(String(e?.message || 'Nao consegui transferir.').slice(0, 160)); }
+    finally { setTransferindo(false); }
+  };
 
   const pagoPorAppt = useMemo(() => { const m = new Map<string, number>(); (detail?.recebimentos || []).forEach((r) => { if (r.appointmentId) m.set(r.appointmentId, (m.get(r.appointmentId) || 0) + Number(r.valorTotal || 0)); }); return m; }, [detail]);
 
@@ -920,6 +959,11 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
               {podeEditar && <button onClick={() => abrirMov('SUPRIMENTO')} disabled={!aberto} style={{ border: `1px solid ${GREEN}`, background: '#fff', color: GREEN, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Suprimento</button>}
               {podeEditar && <button onClick={() => abrirMov('SANGRIA')} disabled={!aberto} style={{ border: `1px solid ${ORANGE}`, background: '#fff', color: ORANGE, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Sangria</button>}
               <button onClick={() => abrirMov('DESPESA')} disabled={!aberto} style={{ border: '1px solid #B03A2E', background: '#fff', color: '#B03A2E', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Despesa</button>
+              {/* PASSAR A GAVETA - so aparece quando ha outro caixa aberto para receber.
+                  Botao que abre um formulario sem destino possivel e promessa nao cumprida. */}
+              {podeEditar && destinosPossiveis.length > 0 && (
+                <button onClick={() => { setTransfOpen(true); setTransfForm({ destino: destinosPossiveis[0].id, valor: 0, observacao: '' }); }} disabled={!aberto} style={{ border: `1px solid ${TEAL}`, background: TEAL, color: '#fff', fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>🤝 Passar para outro caixa</button>
+              )}
               <button onClick={() => abrirMov('TRANSFERENCIA')} disabled={!aberto} style={{ border: `1px solid ${TEAL}`, background: '#fff', color: TEAL, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4 }}>Transferência</button>
               <button onClick={abrirCredito} disabled={!aberto} style={{ border: `1px solid ${LINE}`, background: '#fff', color: INK2, fontSize: 12.5, fontWeight: 600, padding: '8px 13px', borderRadius: 9, cursor: 'pointer', opacity: aberto ? 1 : .4, display: 'inline-flex', alignItems: 'center', gap: 6 }}><LuGift size={14} /> Crédito do pet</button>
 
@@ -1008,6 +1052,61 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
 
       {movOpen && detail && (
         <MovimentoCaixaModal caixaId={detail.id} tipo={movTipo} onClose={() => setMovOpen(false)} onFeito={() => fetchDetail(detail.id)} />
+      )}
+
+      {transfOpen && detail && (
+        <div {...fundoDeModal(() => setTransfOpen(false))} style={{ position: 'fixed', inset: 0, background: 'rgba(1,43,46,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, zIndex: 95 }}>
+          <div style={{ background: '#fff', borderRadius: 14, width: '100%', maxWidth: 430, maxHeight: '92vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '15px 18px', borderBottom: '1px solid #F0EBE0' }}>
+              <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, color: '#1F2A2E' }}>🤝 Passar dinheiro para outro caixa</h3>
+              <button onClick={() => setTransfOpen(false)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 17, color: '#374151' }} aria-label="Fechar">x</button>
+            </div>
+
+            <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* O SALDO EM DINHEIRO A VISTA. O servidor NAO calcula este numero - ele e montado
+                  aqui, somando suprimento, recebimentos em especie e tirando sangrias e despesas.
+                  Recriar a conta no servidor seria uma segunda verdade sobre o mesmo dinheiro, e
+                  duas contas divergentes sao piores do que uma so. Por isso o aviso abaixo e
+                  aviso, e nao trava: quem fecha a conta e a conferencia da gaveta. */}
+              <div style={{ fontSize: 12.5, color: '#5C6B70' }}>
+                Em dinheiro neste caixa: <b style={{ color: '#014D5E' }}>{brl(saldoDinheiro)}</b>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 11.5, color: '#5C6B70', marginBottom: 4 }}>Para qual caixa</label>
+                <select value={transfForm.destino} onChange={(e) => setTransfForm({ ...transfForm, destino: e.target.value })} style={{ width: '100%', border: '1px solid #E8E2D6', borderRadius: 9, padding: '9px 11px', fontSize: 13.5, background: '#fff', color: '#1F2A2E' }}>
+                  {destinosPossiveis.map((c: any) => (
+                    <option key={c.id} value={c.id}>Caixa {c.numero} - {c.user?.name || 'sem dono'}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 11.5, color: '#5C6B70', marginBottom: 4 }}>Valor</label>
+                <CampoValor valor={transfForm.valor} onValor={(v) => setTransfForm({ ...transfForm, valor: v })} style={{ width: '100%', border: '1px solid #E8E2D6', borderRadius: 9, padding: '9px 11px', fontSize: 13.5, background: '#fff', color: '#1F2A2E' }} />
+                {transfForm.valor > saldoDinheiro + 0.009 && (
+                  <div style={{ fontSize: 11.5, marginTop: 4, color: '#b23b3b' }}>
+                    Passa do que esta em dinheiro aqui ({brl(saldoDinheiro)}). Confira a gaveta antes de continuar.
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 11.5, color: '#5C6B70', marginBottom: 4 }}>Observacao (opcional)</label>
+                <input value={transfForm.observacao} onChange={(e) => setTransfForm({ ...transfForm, observacao: e.target.value })} placeholder="ex.: fechamento do turno" style={{ width: '100%', border: '1px solid #E8E2D6', borderRadius: 9, padding: '9px 11px', fontSize: 13.5 }} />
+              </div>
+
+              <div style={{ fontSize: 11.5, color: '#5C6B70', background: '#F7F4EC', borderRadius: 8, padding: '8px 10px' }}>
+                Sai deste caixa e entra no outro <b>numa operacao so</b>. Nao passa por conta
+                bancaria nenhuma: o dinheiro continua em especie, so muda de gaveta.
+              </div>
+
+              <button onClick={transferir} disabled={transferindo || !(transfForm.valor > 0)} style={{ border: 'none', borderRadius: 9, background: (transfForm.valor > 0 && !transferindo) ? TEAL : '#cfd8d9', color: '#fff', padding: '11px 18px', fontSize: 13.5, fontWeight: 600, cursor: (transfForm.valor > 0 && !transferindo) ? 'pointer' : 'not-allowed' }}>
+                {transferindo ? 'Transferindo...' : 'Transferir'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {credOpen && (

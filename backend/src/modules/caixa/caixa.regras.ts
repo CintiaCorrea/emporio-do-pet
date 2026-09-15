@@ -356,3 +356,50 @@ export function podeReabrirVenda(
   }
   return { ok: true };
 }
+
+// ── DINHEIRO PASSANDO DE UMA GAVETA PARA OUTRA ────────────────────────────────────────────
+//
+// Cintia, 15/09/2026: "a Gabriela não consegue fechar o caixa dela e transferir o saldo em
+// dinheiro para o caixa da Vitória".
+//
+// Não conseguia porque isto não existia. O botão "Transferência" que havia move dinheiro entre
+// CONTAS (banco, cofre) — e o que acontece de verdade no fim do turno é outra coisa: a gaveta
+// passa de mão em mão. Fazer isso por sangria numa ponta e suprimento na outra obrigava duas
+// operações e contava uma história falsa, como se o dinheiro tivesse ido ao banco e voltado.
+//
+// O QUE ESTA REGRA NÃO FAZ, e é decisão: não confere se há saldo suficiente. O servidor não
+// calcula o dinheiro em caixa — esse número é montado na tela, somando suprimento, recebimentos
+// em espécie e tirando sangrias e despesas. Recriar a conta aqui seria uma segunda verdade sobre
+// o mesmo dinheiro, e duas contas divergentes são piores do que uma só. A tela avisa quando o
+// valor passa do que ela mostra, e a conferência de fechamento é quem fecha a conta.
+
+export type Transferencia = {
+  origemId?: string | null;
+  destinoId?: string | null;
+  origemAberto?: boolean;
+  destinoAberto?: boolean;
+  destinoDono?: string | null;
+  valor?: number | null;
+};
+
+export function podeTransferirEntreCaixas(t: Transferencia): Liberado | MotivoRecusa {
+  const origem = String(t?.origemId || '').trim();
+  const destino = String(t?.destinoId || '').trim();
+  if (!origem || !destino) return { ok: false, erro: 'Escolha o caixa de destino.' };
+  if (origem === destino) return { ok: false, erro: 'O caixa de origem e o de destino são o mesmo — o dinheiro não sairia do lugar.' };
+
+  const valor = Number(t?.valor);
+  if (!Number.isFinite(valor) || valor <= 0) return { ok: false, erro: 'Informe o valor a transferir.' };
+
+  // OS DOIS PRECISAM ESTAR ABERTOS. Lançar em caixa fechado mudaria o total de um dia que
+  // alguém já conferiu e assinou — a mesma razão pela qual reabrir uma venda não mexe em caixa
+  // fechado. E se a origem já fechou, o dinheiro dela já foi contado: o acerto é outro.
+  if (!t.origemAberto) return { ok: false, erro: 'Este caixa já está fechado. Transfira antes de fechar, ou reabra o caixa.' };
+  if (!t.destinoAberto) {
+    return {
+      ok: false,
+      erro: `O caixa de destino${t.destinoDono ? ` (${t.destinoDono})` : ''} está fechado. Ele precisa estar aberto para receber o dinheiro.`,
+    };
+  }
+  return { ok: true };
+}

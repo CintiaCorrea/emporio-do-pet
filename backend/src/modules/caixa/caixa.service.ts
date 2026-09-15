@@ -7,7 +7,7 @@ import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
 import { PermissoesService } from '../permissoes/permissoes.service';
-import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa, contaQueFaltaNoMovimento, podeReabrirVenda } from './caixa.regras';
+import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa, contaQueFaltaNoMovimento, podeReabrirVenda, podeTransferirEntreCaixas } from './caixa.regras';
 import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
@@ -1480,6 +1480,77 @@ export class CaixaService {
       await this.transferenciaCaixaFinanceiro(mov, dto).catch(() => undefined); // dinheiro muda de conta → saldo
     }
     return mov;
+  }
+
+  /**
+   * O DINHEIRO PASSANDO DE UMA GAVETA PARA OUTRA.
+   *
+   * Cintia, 15/09/2026: "a Gabriela nao consegue fechar o caixa dela e transferir o saldo em
+   * dinheiro para o caixa da Vitoria". Nao conseguia porque isto nao existia.
+   *
+   * DUAS LINHAS, UMA OPERACAO. Sangria na origem e suprimento no destino, gravadas na mesma
+   * transacao e amarradas pelo mesmo `ref`. Se fossem duas operacoes separadas, uma podia dar
+   * certo e a outra falhar — e o dinheiro sumiria de um caixa sem aparecer no outro, que e
+   * exatamente o buraco que estas duas semanas passaram consertando.
+   *
+   * NAO GERA LANCAMENTO FINANCEIRO, e isso e deliberado: o dinheiro nao saiu da casa nem mudou
+   * de conta. Continua em especie, no mesmo cofre, so que em outra gaveta. Lancar uma
+   * transferencia Especie -> Especie seria registrar um movimento que nao aconteceu.
+   */
+  async transferirEntreCaixas(
+    origemId: string,
+    dto: { caixaDestinoId?: string; valor?: number; observacao?: string },
+    userId: string,
+    papel?: string,
+  ) {
+    await this.exigirDonoDoCaixa(origemId, userId, papel);
+
+    const [origem, destino] = await Promise.all([
+      this.prisma.caixaSessao.findUnique({ where: { id: origemId }, select: { id: true, numero: true, status: true, user: { select: { name: true } } } }),
+      dto?.caixaDestinoId
+        ? this.prisma.caixaSessao.findUnique({ where: { id: String(dto.caixaDestinoId) }, select: { id: true, numero: true, status: true, user: { select: { name: true } } } })
+        : Promise.resolve(null),
+    ]);
+    if (!origem) throw new NotFoundException('Caixa de origem nao encontrado');
+    if (!destino) throw new BadRequestException('Escolha o caixa de destino.');
+
+    const r = podeTransferirEntreCaixas({
+      origemId: origem.id,
+      destinoId: destino.id,
+      origemAberto: String(origem.status).toUpperCase() === 'ABERTO',
+      destinoAberto: String(destino.status).toUpperCase() === 'ABERTO',
+      destinoDono: destino.user?.name || null,
+      valor: Number(dto?.valor),
+    });
+    if (!r.ok) throw new BadRequestException(r.erro);
+
+    const valor = Number(dto.valor);
+    const ref = `transf:${Date.now()}:${origem.id.slice(0, 8)}`;
+    const obs = String(dto?.observacao || '').trim() || null;
+    const quemOrigem = origem.user?.name || `caixa ${origem.numero}`;
+    const quemDestino = destino.user?.name || `caixa ${destino.numero}`;
+
+    // Na MESMA transacao: ou as duas linhas existem, ou nenhuma existe.
+    await this.prisma.$transaction([
+      this.prisma.caixaMovimento.create({
+        data: {
+          caixaSessaoId: origem.id, tipo: 'SANGRIA', valor,
+          forma: 'Dinheiro', conta: `Caixa ${destino.numero} (${quemDestino})`,
+          descricao: `Transferencia para o caixa ${destino.numero} - ${quemDestino}`,
+          observacao: obs, createdById: userId, data: new Date(),
+        },
+      }),
+      this.prisma.caixaMovimento.create({
+        data: {
+          caixaSessaoId: destino.id, tipo: 'SUPRIMENTO', valor,
+          forma: 'Dinheiro', conta: `Caixa ${origem.numero} (${quemOrigem})`,
+          descricao: `Transferencia recebida do caixa ${origem.numero} - ${quemOrigem}`,
+          observacao: obs, createdById: userId, data: new Date(),
+        },
+      }),
+    ]);
+
+    return { ok: true, valor, de: origem.numero, para: destino.numero, destinoDono: quemDestino, ref };
   }
 
   /** Sangria/Suprimento/Transferência = dinheiro mudando de conta → TRANSFERENCIA (neutra no DRE, mexe no saldo). */

@@ -155,6 +155,17 @@ export class CaixaController {
     return this.service.registrarRecebimentoLote(id, dto, userId, papel);
   }
 
+  /** Passa dinheiro em especie de um caixa para outro. Duas linhas, uma operacao. */
+  @Post(':id/transferir')
+  transferir(
+    @Param('id') id: string,
+    @Body() dto: any,
+    @CurrentUser('id') userId: string,
+    @CurrentUser('role') papel: string,
+  ) {
+    return this.service.transferirEntreCaixas(id, dto, userId, papel);
+  }
+
   @Post(':id/movimento')
   movimento(
     @Param('id') id: string,
