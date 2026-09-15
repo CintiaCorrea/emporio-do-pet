@@ -74,7 +74,12 @@ export class ExamesService {
   private async enviar(fornecedor: { nome?: string; telefone?: string | null }, _petNome: string, _exameNome: string): Promise<{ ok: boolean; messageId?: string; erro?: string }> {
     if (!fornecedor?.telefone) return { ok: false, erro: 'Laboratório sem WhatsApp' };
     try {
-      const res: any = await this.whatsapp.sendTemplateMessage(fornecedor.telefone, this.TEMPLATE, []);
+      // Registrando: a solicitação ao laboratório também precisa de rastro. Antes o pedido saía
+      // e ninguém conseguia conferir depois se tinha saído mesmo.
+      const res: any = await this.whatsapp.enviarTemplateRegistrando(
+        fornecedor.telefone, this.TEMPLATE, [],
+        `🔬 Solicitação de coleta enviada a ${fornecedor.nome || 'laboratório'}.`, true,
+      );
       return { ok: !!res?.success, messageId: res?.messageId, erro: res?.error };
     } catch (e) {
       const erro = String((e as any)?.message || e);
@@ -87,7 +92,10 @@ export class ExamesService {
   private async enviarLote(fornecedor: { nome?: string; telefone?: string | null }): Promise<{ ok: boolean; messageId?: string; erro?: string }> {
     if (!fornecedor?.telefone) return { ok: false, erro: 'Laboratório sem WhatsApp' };
     try {
-      const res: any = await this.whatsapp.sendTemplateMessage(fornecedor.telefone, this.TEMPLATE_LOTE, []);
+      const res: any = await this.whatsapp.enviarTemplateRegistrando(
+        fornecedor.telefone, this.TEMPLATE_LOTE, [],
+        `🔬 Lote de coleta solicitado a ${fornecedor.nome || 'laboratório'}.`, true,
+      );
       return { ok: !!res?.success, messageId: res?.messageId, erro: res?.error };
     } catch (e) {
       const erro = String((e as any)?.message || e);
@@ -139,12 +147,21 @@ export class ExamesService {
       vet: d.resultadoPorEhVet && d.resultadoPor ? d.resultadoPor : 'Nossa equipe',
     });
 
+    // REGISTRANDO, e não o envio cru. Até 15/09/2026 este aviso usava `sendTemplateMessage`
+    // direto: a mensagem chegava no celular do tutor e NÃO deixava rastro nenhum no inbox.
+    //
+    // Cintia, no mesmo dia: "muitas vezes as pessoas ficam com dúvidas, como no caso dos exames
+    // se o cliente realmente foi avisado". Não estava escondido — nunca esteve lá. Agora entra na
+    // conversa do cliente, marcado como automático, e a conversa fecha sozinha se ele não
+    // responder, para não encher a fila do dia.
     let res: any = null;
     try {
-      res = await this.whatsapp.sendTemplateMessage(
+      res = await this.whatsapp.enviarTemplateRegistrando(
         wa.number,
         nomeTemplate,
         partes.map((text) => ({ type: 'text', text })),
+        `📄 Aviso de resultado enviado: ${d.nome || 'exame'} do(a) ${pet?.name || 'pet'}.`,
+        true,
       );
     } catch (e) {
       const erro = String((e as any)?.message || e);

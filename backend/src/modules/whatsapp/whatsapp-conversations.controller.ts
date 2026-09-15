@@ -659,4 +659,10 @@ export class WhatsAppConversationsController {
     const config = await this.whatsAppService.getUserWhatsAppConfig(user.id);
     return this.whatsAppService.getTemplates(config || undefined);
   }
+
+  /** O que o sistema mandou sozinho no dia (padrão: hoje, no fuso da clínica). */
+  @Get('automaticas')
+  async automaticas(@Query('dia') dia?: string) {
+    return this.whatsAppService.automaticasDoDia(dia);
+  }
 }

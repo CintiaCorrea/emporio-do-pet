@@ -27,6 +27,7 @@ export const PERM_SECTIONS: PermSection[] = [
     titulo: "Dia a dia", emoji: "🗂️", itens: [
       { key: "/dashboard/hoje", label: "Meu painel", emoji: "🏠" },
       { key: "/dashboard/inbox-nativo", label: "Inbox Meta", emoji: "📲" },
+      { key: "/dashboard/inbox-nativo/automaticas", label: "Mensagens automáticas", emoji: "🤖" },
       { key: "/dashboard/comercial", label: "Comercial", emoji: "🎯" },
       { key: "/dashboard/erp/tutores", label: "Clientes", emoji: "👥" },
       {

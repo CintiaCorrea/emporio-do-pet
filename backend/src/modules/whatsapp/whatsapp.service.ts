@@ -1976,13 +1976,71 @@ export class WhatsAppService {
     return this.createOrGetConversation(dono, formatted);
   }
 
+  /**
+   * O QUE O SISTEMA MANDOU SOZINHO HOJE.
+   *
+   * Cintia, 15/09/2026: "tem como abrirmos uma aba no whatsapp para TODAS as mensagens que são
+   * enviadas automaticamente todos os dias, para acompanharmos, sem que isso encha o nosso fluxo
+   * diário? Pois hoje só quem tem controle sobre essas mensagens sou eu e muitas vezes as pessoas
+   * ficam com dúvidas, como no caso dos exames se o cliente realmente foi avisado."
+   *
+   * NÃO APAGA NADA, e isso é deliberado: ela pediu que "seja apagado todos os dias à meia-noite",
+   * mas essas linhas SÃO as mensagens da conversa do cliente. Apagá-las destruiria o histórico
+   * dele — a conversa ficaria com a resposta e sem a pergunta. O que zera à meia-noite é a
+   * JANELA: esta lista mostra o dia corrente e amanhã começa vazia de novo.
+   *
+   * O dia é o da clínica (America/Fortaleza), não o do servidor, que roda em UTC — três horas de
+   * diferença fariam a lista virar às 21h.
+   */
+  async automaticasDoDia(diaISO?: string): Promise<any[]> {
+    const base = diaISO ? new Date(`${diaISO}T12:00:00-03:00`) : new Date();
+    const dia = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Fortaleza', year: 'numeric', month: '2-digit', day: '2-digit' }).format(base);
+    const inicio = new Date(`${dia}T00:00:00-03:00`);
+    const fim = new Date(`${dia}T23:59:59.999-03:00`);
+
+    const msgs = await this.prisma.whatsAppMessage.findMany({
+      where: { direction: 'OUTBOUND', createdAt: { gte: inicio, lte: fim } },
+      select: {
+        id: true, content: true, type: true, status: true, createdAt: true,
+        deliveredAt: true, readAt: true, failedReason: true, metadata: true,
+        conversation: { select: { id: true, contactName: true, contactPhone: true, tutor: { select: { id: true, name: true } } } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
+    }).catch(() => [] as any[]);
+
+    // AUTOMÁTICA = o que o sistema mandou sozinho. Mensagem escrita por uma pessoa (HUMAN) ou
+    // pela IA no atendimento não entra: a aba existe para acompanhar o que ninguém digitou.
+    return msgs
+      .filter((m: any) => {
+        const meta = (m.metadata || {}) as any;
+        return meta.senderType === 'SYSTEM' || meta.fromSystem === true;
+      })
+      .map((m: any) => {
+        const meta = (m.metadata || {}) as any;
+        return {
+          id: m.id,
+          hora: m.createdAt,
+          texto: m.content,
+          template: meta.template || null,
+          origem: meta.senderName || 'Sistema',
+          para: m.conversation?.tutor?.name || m.conversation?.contactName || m.conversation?.contactPhone || '—',
+          telefone: m.conversation?.contactPhone || null,
+          conversaId: m.conversation?.id || null,
+          tutorId: m.conversation?.tutor?.id || null,
+          status: String(m.status || '').toLowerCase(),
+          entregueEm: m.deliveredAt, lidaEm: m.readAt, erro: m.failedReason || null,
+        };
+      });
+  }
+
   async enviarTemplateRegistrando(
     phone: string,
     templateName: string,
     params: Array<{ type: 'text'; text: string }>,
     textoLegivel?: string,
     autoClose = false,
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; error?: string; messageId?: string }> {
     const res = await this.sendTemplateMessage(phone, templateName, params);
     if (!res.success) return { success: false, error: res.error };
     try {
@@ -1995,7 +2053,9 @@ export class WhatsAppService {
         if (autoClose) await this.fecharSeSemInteracao(conv.id);
       }
     } catch { /* registrar é best-effort — nunca trava o envio */ }
-    return { success: true };
+    // O id da mensagem volta para quem chamou: é por ele que o status de entrega da Meta
+    // (enviada / entregue / lida / falhou) é casado depois, no webhook.
+    return { success: true, messageId: res.messageId };
   }
 
   /**

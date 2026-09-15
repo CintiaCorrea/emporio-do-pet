@@ -1540,6 +1540,13 @@ export default function InboxUnificadoPage() {
           Conversas
           <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${tab === "conversas" ? "bg-[#E1F5EE] text-[#0F6E56]" : "bg-[#f0e8d4] text-[#5F5E5A]"}`}>{counts.total}</span>
         </button>
+        {/* AUTOMÁTICAS — aba que LEVA para outra tela, e não muda o estado desta.
+            A Cintia pediu para acompanhar o que o sistema manda sozinho "sem que isso encha o
+            nosso fluxo diário" (15/09/2026): quem está atendendo não tropeça nisto, e quem quer
+            conferir abre e vê o dia inteiro. */}
+        <Link href="/dashboard/inbox-nativo/automaticas" className="py-2.5 text-xs font-medium border-b-2 border-transparent text-[#888780] flex items-center gap-1.5 shrink-0 hover:text-[#0E2244]">
+          🤖 Automáticas
+        </Link>
         <button onClick={() => setTab("internas")} className={`py-2.5 text-xs font-medium border-b-2 flex items-center gap-1.5 px-2 -mx-2 rounded-t-md ${tab === "internas" ? "border-[#009AAC] text-[#0E2244]" : internasNaoLidas > 0 ? "border-[#0F6E56] text-[#0F6E56] bg-[#E1F5EE]" : "border-transparent text-[#888780]"}`}>
           {internasNaoLidas > 0 && tab !== "internas" && <span className="w-2 h-2 rounded-full bg-[#0F6E56] animate-pulse" />}
           Internas

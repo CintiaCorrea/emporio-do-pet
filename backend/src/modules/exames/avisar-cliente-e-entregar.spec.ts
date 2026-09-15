@@ -92,7 +92,7 @@ describe('avisar o cliente e considerar entregue', () => {
         },
         pet: { findUnique: async () => ({ name: 'Madona', tutor: { id: 't1', name: 'Juliana', contacts: [{ number: '5585999990000', isWhatsApp: true }] } }) },
       };
-      const whatsapp = { sendTemplateMessage: async () => ({ success: true, messageId: 'wamid.1' }) };
+      const whatsapp = { enviarTemplateRegistrando: async () => ({ success: true, messageId: 'wamid.1' }) };
       const r = await svcCom(prisma, whatsapp).avisarClienteDoResultado('c1');
 
       expect(r.ok).toBe(true);
@@ -112,7 +112,7 @@ describe('avisar o cliente e considerar entregue', () => {
           pet: { findUnique: async () => ({ name: 'Madona', tutor: { id: 't1', name: 'Juliana', contacts: [{ number: '5585999990000', isWhatsApp: true }] } }) },
         };
         const whatsapp = {
-          sendTemplateMessage: async (_tel: string, nome: string, partes: any[]) => {
+          enviarTemplateRegistrando: async (_tel: string, nome: string, partes: any[]) => {
             visto.nome = nome; visto.partes = partes.map((p) => p.text);
             return { success: true, messageId: 'w1' };
           },
@@ -193,7 +193,7 @@ describe('avisar o cliente e considerar entregue', () => {
         },
         pet: { findUnique: async () => ({ name: 'Madona', tutor: { id: 't1', contacts: [{ number: '5585999990000', isWhatsApp: true }] } }) },
       };
-      const whatsapp = { sendTemplateMessage: async () => ({ success: false, error: 'template em aprovação' }) };
+      const whatsapp = { enviarTemplateRegistrando: async () => ({ success: false, error: 'template em aprovação' }) };
       const r = await svcCom(prisma, whatsapp).avisarClienteDoResultado('c1');
 
       expect(r.ok).toBe(false);
