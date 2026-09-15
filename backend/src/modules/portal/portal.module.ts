@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MediaModule } from '../media/media.module';
 import { PortalAdminController } from './portal-admin.controller';
+import { PortalUsoController } from './portal-uso.controller';
+import { PortalUsoService } from './portal-uso.service';
 import { PortalAgendaHorariosService } from './portal-agenda-horarios.service';
 import { PortalAgendarService } from './portal-agendar.service';
 import { PortalAgendaRegrasService } from './portal-agenda-regras.service';
@@ -31,8 +33,9 @@ import { PortalTutorGuard } from './portal-tutor.guard';
  */
 @Module({
   imports: [MediaModule],
-  controllers: [PortalAuthController, PortalMeController, PortalAdminController],
+  controllers: [PortalAuthController, PortalMeController, PortalAdminController, PortalUsoController],
   providers: [
+    PortalUsoService,
     PortalAuthService,
     PortalEscopoService,
     PortalInicioService,

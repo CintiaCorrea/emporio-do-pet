@@ -33,6 +33,7 @@ export const PERM_SECTIONS: PermSection[] = [
       // Saiu de Configurações em 15/09/2026, a pedido da Cintia: "para que as recepcionistas
       // possam verificar independente de mim". Fica ao lado de Clientes, que é onde se trabalha.
       { key: "/dashboard/erp/cadastros-recebidos", label: "Cadastros recebidos", emoji: "📝" },
+      { key: "/dashboard/erp/portal-tutores", label: "Portal do tutor", emoji: "📱" },
       {
         key: "agenda", label: "Agenda", emoji: "📅", children: [
           { key: "/dashboard/erp/agendamentos/agenda", label: "Agenda", emoji: "📅" },
