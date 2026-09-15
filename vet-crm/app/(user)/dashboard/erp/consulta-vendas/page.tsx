@@ -343,7 +343,7 @@ function Td({ children, dir, forte, sub, cor }: { children: React.ReactNode; dir
 }
 
 /* ---------------- linha expansível ---------------- */
-function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin }: { v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null; isAdmin: boolean }) {
+function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber }: { v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null; isAdmin: boolean; onReceber?: (v: Venda) => void }) {
   const [open, setOpen] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   return (
@@ -408,6 +408,18 @@ function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin }: { v: Ven
                       balcao; mudar o que ja foi cobrado, nao. E o botao NAO some calado pra quem
                       nao pode: quem nao tem a permissao precisa saber que ela existe e de quem
                       pedir, senao vira "o sistema nao deixa" sem explicacao. */}
+                  {/* 💰 RECEBER — a porta que faltava (Cintia, 15/09/2026, com os prints do
+                      SimplesVet). O recebimento em lote ja existia, mas so aparecia depois de
+                      filtrar a tela ate sobrar um cliente so: quem estava OLHANDO UMA VENDA nao
+                      tinha como saber que o cliente tinha outras nove em aberto. */}
+                  {onReceber && (v.aberto ?? 0) > 0.009 ? (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onReceber(v); }}
+                      title="Receber esta venda — e ver as outras em aberto deste cliente"
+                      className="inline-flex items-center gap-1.5"
+                      style={{ border: `1px solid ${GREEN}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: '#fff', background: GREEN, cursor: 'pointer' }}
+                    >💰 Receber</button>
+                  ) : null}
                   {isAdmin ? (
                     <Link
                       href={`/dashboard/erp/ponto-de-venda?editar=${v.id}`}
@@ -481,7 +493,29 @@ export default function ConsultaVendasPage() {
   const [abertasPorCliente, setAbertasPorCliente] = useState<Record<string, ComandaParaReceber[]>>({});
   // Muda de valor depois de um recebimento, e com isso o efeito recarrega as abertas.
   const [recarregarAbertas, setRecarregarAbertas] = useState(0);
-  const [receberDe, setReceberDe] = useState<{ nome: string; comandas: ComandaParaReceber[] } | null>(null);
+  const [receberDe, setReceberDe] = useState<{ nome: string; comandas: ComandaParaReceber[]; preSelecionadas?: string[] } | null>(null);
+
+  /**
+   * RECEBER A PARTIR DE UMA VENDA — com as outras do cliente à vista.
+   *
+   * Cintia, 15/09/2026, com os prints do SimplesVet: "Você está em uma venda de 10/08/2026 com
+   * valor de R$ 150,00, mas este cliente tem outras vendas em aberto. O que você deseja baixar?"
+   *
+   * O caso real que trouxe isto: Lucas Andrade Mendes, pet Chico — 10 vendas em aberto, uma por
+   * dia, R$ 3.842,25. Quem abria uma delas não tinha como saber das outras nove.
+   *
+   * A venda clicada nasce MARCADA e as outras aparecem desmarcadas. Assim o aviso e a escolha
+   * ficam na mesma tela: ninguém baixa o que não quis, e ninguém deixa de ver o que existe.
+   */
+  const abrirRecebimentoDaVenda = (v: Venda) => {
+    const doCliente = abertasPorCliente[v.clienteId] || [];
+    // A venda clicada pode não estar na lista carregada (período diferente do filtro) — então
+    // ela entra na mão, senão o botão abriria um modal sem a própria venda dentro.
+    const comandas = doCliente.some((c) => c.id === v.id)
+      ? doCliente
+      : [{ id: v.id, date: v.date, pet: v.pet, numeroVenda: v.numeroVenda, aberto: v.aberto, valor: v.valor }, ...doCliente];
+    setReceberDe({ nome: v.cliente || 'Cliente', comandas, preSelecionadas: [v.id] });
+  };
   const [excluindo, setExcluindo] = useState<string | null>(null);
   const [pagina, setPagina] = useState(1);
   const POR_PAGINA = 30;
@@ -1130,7 +1164,7 @@ export default function ConsultaVendasPage() {
               </tr>
             </thead>
             <tbody>
-              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} isAdmin={isAdmin} />)}
+              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} isAdmin={isAdmin} onReceber={abrirRecebimentoDaVenda} />)}
             </tbody>
           </table>
         )}
@@ -1157,6 +1191,7 @@ export default function ConsultaVendasPage() {
         <ReceberEmLoteModal
           tutor={receberDe.nome}
           comandas={receberDe.comandas}
+          preSelecionadas={receberDe.preSelecionadas}
           onFechar={() => setReceberDe(null)}
           onRecebido={() => { setRecarregarAbertas((n) => n + 1); load(); }}
         />

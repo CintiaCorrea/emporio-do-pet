@@ -51,6 +51,7 @@ export default function ReceberEmLoteModal({
   onFechar,
   onRecebido,
   ocultarValores,
+  preSelecionadas,
 }: {
   tutor: string;
   /** O bichinho da espécie, quando quem chama já sabe. Só enfeite do título. */
@@ -61,14 +62,33 @@ export default function ReceberEmLoteModal({
   onRecebido: () => void;
   /** Respeita o 👁️ da tela que chamou: na lista de comandas os valores ficam escondidos. */
   ocultarValores?: boolean;
+  /**
+   * Quais já nascem marcadas. Quem abre a partir de UMA venda manda só ela: as outras aparecem
+   * na lista, desmarcadas, e a pessoa vê que existem sem que ninguém baixe nada sem querer.
+   * Sem isto, todas vêm marcadas (que é o certo para quem abriu pelo extrato do cliente).
+   */
+  preSelecionadas?: string[];
 }) {
   const { data: session } = useSession();
   const meId = (session?.user as any)?.id || "";
 
-  const total = useMemo(
-    () => comandas.reduce((s, c) => s + Number(c.aberto ?? c.valor ?? 0), 0),
-    [comandas],
+  // ESCOLHER O QUE BAIXAR (Cintia, 15/09/2026, com os prints do SimplesVet: "Selecione as vendas
+  // que serão baixadas"). O Lucas tem 10 vendas do Chico em aberto, R$ 3.842,25 — receber tudo
+  // ou nada não é como o dinheiro entra na clínica.
+  const [marcadas, setMarcadas] = useState<Set<string>>(
+    () => new Set(preSelecionadas?.length ? preSelecionadas : comandas.map((c) => c.id)),
   );
+  const abertoDe = (c: ComandaParaReceber) => Number(c.aberto ?? c.valor ?? 0);
+  const escolhidas = useMemo(() => comandas.filter((c) => marcadas.has(c.id)), [comandas, marcadas]);
+  const total = useMemo(() => escolhidas.reduce((s, c) => s + abertoDe(c), 0), [escolhidas]);
+  const totalGeral = useMemo(() => comandas.reduce((s, c) => s + abertoDe(c), 0), [comandas]);
+  const forasSelecao = comandas.length - escolhidas.length;
+
+  const alternar = (id: string) => setMarcadas((s) => {
+    const n = new Set(s);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
   const money = (v: number) => (ocultarValores ? "R$ •••" : fmtBRL(v));
 
   const [caixaAberto, setCaixaAberto] = useState<string | null>(null);
@@ -83,6 +103,13 @@ export default function ReceberEmLoteModal({
   // Abre com o total no dinheiro: é o caso mais comum e poupa digitar o valor de novo.
   const [formasLote, setFormasLote] = useState<PagForma[]>([{ forma: "Dinheiro", valor: Number(total.toFixed(2)) }]);
   const [baixando, setBaixando] = useState(false);
+
+  // Marcar ou desmarcar uma venda REFAZ o valor sozinho — senão a pessoa escolhe 3 de 10 e o
+  // campo continua com o total das 10, que é o jeito mais fácil de receber o valor errado.
+  // Só quando há UMA forma de pagamento: com o valor repartido à mão, mexer seria atropelar.
+  useEffect(() => {
+    setFormasLote((fs) => (fs.length === 1 ? [{ ...fs[0], valor: Number(total.toFixed(2)) }] : fs));
+  }, [total]);
 
   useEffect(() => {
     if (!meId) return;
@@ -113,7 +140,8 @@ export default function ReceberEmLoteModal({
     if (baixando) return;   // trava no primeiro clique: dinheiro não se lança duas vezes
     if (!meId) { alert("Só um instante — ainda estou identificando o seu usuário. Tente de novo em 2 segundos."); return; }
     if (!caixaAberto) { setAbrirCaixaMotivo(`Para receber as vendas de ${tutor || "o cliente"}`); return; }
-    if (!confirm(`Receber ${comandas.length} venda(s) de ${tutor} num pagamento só? (${fmtBRL(total)})`)) return;
+    if (!escolhidas.length) { alert("Marque pelo menos uma venda para receber."); return; }
+    if (!confirm(`Receber ${escolhidas.length} venda(s) de ${tutor} num pagamento só? (${fmtBRL(total)})`)) return;
     setBaixando(true);
     try {
       // Cartão exige operadora + NSU + AUT: é o que casa a venda com a linha do extrato.
@@ -124,7 +152,7 @@ export default function ReceberEmLoteModal({
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          appointmentIds: comandas.map((c) => c.id),
+          appointmentIds: escolhidas.map((c) => c.id),
           formas: formasLote.filter((f) => Number(f.valor) > 0),
         }),
       });
@@ -154,21 +182,47 @@ export default function ReceberEmLoteModal({
           <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
             <div>
               <h3 className="text-base font-medium text-[#014D5E]">{emoji ? `${emoji} ` : ""}{tutor}</h3>
-              <div className="text-[11px] text-[#374151] mt-0.5">{comandas.length} venda(s) em aberto · receber tudo junto</div>
+              <div className="text-[11px] text-[#374151] mt-0.5">
+                {comandas.length} venda(s) em aberto · {money(totalGeral)} no total
+              </div>
             </div>
             <button onClick={onFechar} aria-label="Fechar" className="text-[#374151] text-lg leading-none">✕</button>
           </div>
 
+          {/* O AVISO DIZ QUANTO O CLIENTE DEVE, e não só que existem outras vendas. No caso que
+              motivou isto — 10 vendas do Chico, R$ 3.842,25 — "existem outras vendas" e "o
+              cliente deve R$ 3.842,25" são conversas diferentes com quem está no balcão. */}
+          {forasSelecao > 0 ? (
+            <div className="mx-5 mt-3 rounded-lg px-3 py-2 text-[11.5px]" style={{ background: "#FDF3F2", border: "1px solid #F0C9C7", color: "#8A4A45" }}>
+              ⚠️ Este cliente tem <b>{comandas.length} venda(s) em aberto</b>, somando <b>{money(totalGeral)}</b>.
+              Marque abaixo as que vão ser baixadas agora.
+            </div>
+          ) : null}
+
           <div className="px-5 py-3">
-            {comandas.map((c) => (
-              <div key={c.id} className="flex items-center justify-between py-1.5 border-b last:border-b-0 text-[12.5px]" style={{ borderColor: "#F0EBE0" }}>
-                <span className="text-[#5C6B70] truncate">
-                  {c.numeroVenda != null && c.numeroVenda !== "" ? `#${c.numeroVenda} · ` : ""}
-                  {ORIGEM_LBL[String(c.origem || "")] || ORIGEM_LBL.VENDA} · {c.pet || "—"}
-                </span>
-                <span className="text-[#1F2A2E] tabular-nums flex-shrink-0 ml-2">{money(Number(c.aberto ?? c.valor ?? 0))}</span>
-              </div>
-            ))}
+            <div className="flex items-center gap-3 pb-1.5 text-[11px]" style={{ color: "#5C6B70" }}>
+              <button onClick={() => setMarcadas(new Set(comandas.map((c) => c.id)))} className="underline">Todas</button>
+              <button onClick={() => setMarcadas(new Set())} className="underline">Nenhuma</button>
+              <span className="ml-auto">{escolhidas.length} de {comandas.length} selecionada(s)</span>
+            </div>
+            {comandas.map((c) => {
+              const on = marcadas.has(c.id);
+              return (
+                <label
+                  key={c.id}
+                  className="flex items-center gap-2.5 py-1.5 border-b last:border-b-0 text-[12.5px] cursor-pointer"
+                  style={{ borderColor: "#F0EBE0", opacity: on ? 1 : 0.5 }}
+                >
+                  <input type="checkbox" checked={on} onChange={() => alternar(c.id)} className="flex-shrink-0" />
+                  <span className="text-[#5C6B70] truncate flex-1">
+                    {c.numeroVenda != null && c.numeroVenda !== "" ? `#${c.numeroVenda} · ` : ""}
+                    {c.date ? `${new Date(c.date).toLocaleDateString("pt-BR")} · ` : ""}
+                    {ORIGEM_LBL[String(c.origem || "")] || ORIGEM_LBL.VENDA} · {c.pet || "—"}
+                  </span>
+                  <span className="text-[#1F2A2E] tabular-nums flex-shrink-0">{money(abertoDe(c))}</span>
+                </label>
+              );
+            })}
           </div>
 
           <div className="flex justify-between items-center px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
