@@ -4,6 +4,7 @@
 // calculados nos bastidores (backend) pela tabela TaxaContratada e ficam só no Financeiro (admin).
 
 import React, { useState } from "react";
+import CampoValor from "@/components/comum/CampoValor";
 // Fonte única: tipos + modalidades + helpers vêm de lib/formasPagamento (re-exportados aqui p/ compat).
 import { PagForma, FormaCfg, TaxaRow, MODALIDADES, PARC, BANDEIRAS_PADRAO, modalidadeToTaxaForma, ehMaquininha, ehCartao, ehLinkPagamento, adquirenteDe, adquirenteDaLinha } from "@/lib/formasPagamento";
 export type { PagForma, FormaCfg, TaxaRow };
@@ -24,6 +25,7 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
   taxas: TaxaRow[];
 }) {
   const [focusIdx, setFocusIdx] = useState<number | null>(null); // p/ mostrar 2 casas quando não está digitando
+  // O campo de dinheiro mora em components/comum/CampoValor — um so para toda a casa.
   const cfgByNome = new Map(formasConfig.map((c) => [c.nome, c]));
   const set = (i: number, patch: Partial<PagForma>) => onChange(formas.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const fmtValor = (v: number) => (v ? v.toFixed(2).replace(".", ",") : "");
@@ -77,7 +79,7 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
               </div>
               <div style={{ flex: 1, minWidth: 78 }}>
                 <label style={lbl}>Valor</label>
-                <input value={focusIdx === i ? (f.valor || "") : fmtValor(f.valor)} inputMode="decimal" placeholder="R$ 0,00" onFocus={() => setFocusIdx(i)} onBlur={() => setFocusIdx(null)} onChange={(e) => set(i, { valor: Number(String(e.target.value).replace(",", ".")) || 0 })} style={inp} />
+                <CampoValor valor={f.valor} onValor={(v) => set(i, { valor: v })} placeholder="R$ 0,00" style={inp} />
               </div>
               {formas.length > 1 && <button onClick={() => onChange(formas.filter((_, j) => j !== i))} title="Remover" style={{ border: "none", background: "none", cursor: "pointer", fontSize: 14, padding: "8px 2px" }}>🗑️</button>}
             </div>
