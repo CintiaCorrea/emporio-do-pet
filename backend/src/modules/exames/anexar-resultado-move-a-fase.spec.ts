@@ -78,6 +78,61 @@ describe('anexar resultado move a fase', () => {
     expect(gravado.valor.historico.Retirado.at).toBe('2026-09-02');   // o passado não é reescrito
   });
 
+  describe('mais de um laudo no mesmo exame', () => {
+    // Cintia, 15/09/2026: "em alguns momentos eu preciso adicionar mais de um laudo". Uma
+    // citologia de 5 lâminas volta em partes; um histopatológico vem com laudo e adendo.
+    //
+    // O campo era UM só e o segundo anexo apagava o primeiro, sem avisar: o laudo sumia da ficha
+    // do pet e ninguém tinha como saber que existiu.
+    it('o segundo laudo SOMA, não substitui', async () => {
+      const comUm = {
+        ...CARD,
+        valor: JSON.stringify({
+          nome: 'Citologia', status: 'Resultado',
+          resultadoUrl: 'https://x/lamina1.pdf', resultadoArquivo: 'lamina1.pdf',
+          resultadoEm: '2026-09-15T10:00:00-03:00', resultadoPor: 'Dra. Vivian',
+        }),
+      };
+      const { prisma, gravado } = prismaCom(comUm);
+      await new ExamesService(prisma, {} as any, {} as any)
+        .anexarResultado('c1', 'https://x/lamina2.pdf', 'lamina2.pdf', 'Dra. Vivian');
+
+      expect(gravado.valor.laudos.map((l: any) => l.arquivo)).toEqual(['lamina1.pdf', 'lamina2.pdf']);
+      // O campo antigo continua existindo, apontando para o mais recente: a ficha do pet, a
+      // inbox e a linha do tempo leem ele, e mudá-lo obrigaria a mexer em todas.
+      expect(gravado.valor.resultadoUrl).toBe('https://x/lamina2.pdf');
+    });
+
+    it('card que nunca teve laudo começa a lista com o primeiro', async () => {
+      const { prisma, gravado } = prismaCom(CARD);
+      await new ExamesService(prisma, {} as any, {} as any).anexarResultado('c1', 'https://x/l.pdf', 'l.pdf');
+      expect(gravado.valor.laudos.length).toBe(1);
+      expect(gravado.valor.laudos[0].url).toBe('https://x/l.pdf');
+    });
+
+    it('o MESMO arquivo de novo não duplica', async () => {
+      // Clique duplo, ou a pessoa em dúvida se subiu. Duas linhas iguais no card fariam o vet
+      // abrir os dois para descobrir que são o mesmo.
+      const comUm = {
+        ...CARD,
+        valor: JSON.stringify({ nome: 'Citologia', laudos: [{ url: 'https://x/l.pdf', arquivo: 'l.pdf' }] }),
+      };
+      const { prisma, gravado } = prismaCom(comUm);
+      const r = await new ExamesService(prisma, {} as any, {} as any).anexarResultado('c1', 'https://x/l.pdf', 'l.pdf');
+      expect(r.ok).toBe(true);
+      expect(r.jaAnexado).toBe(true);
+      expect(gravado.valor).toBeNull();   // nem grava
+    });
+
+    it('o cliente NÃO é avisado de novo a cada laudo', async () => {
+      // A regra já existia (`podeAvisarCliente` recusa quem tem `clienteAvisadoAt`), e este
+      // teste a prende ao caso novo: três lâminas não são três mensagens ao tutor.
+      const { podeAvisarCliente } = require('./exames.regras');
+      const jaAvisado = { resultadoUrl: 'https://x/l2.pdf', clienteAvisadoAt: '2026-09-15T10:35:46-03:00' };
+      expect(podeAvisarCliente(jaAvisado)).toBe(false);
+    });
+  });
+
   it('recusa laudo sem arquivo, e não toca no card', async () => {
     const { prisma, gravado } = prismaCom(CARD);
     const svc = new ExamesService(prisma, {} as any, {} as any);

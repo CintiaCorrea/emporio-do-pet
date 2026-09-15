@@ -133,7 +133,7 @@ export default function ExamesKanbanPage() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d?.ok === false) throw new Error(d?.erro || "não consegui salvar o laudo");
-      toast.success("Laudo anexado e salvo na ficha do pet");
+      toast.success(d?.jaAnexado ? "Este laudo já estava anexado." : "Laudo anexado e salvo na ficha do pet");
       await load();
     } catch (err: any) {
       toast.error(String(err?.message || "Não consegui anexar o laudo").slice(0, 120));
@@ -351,27 +351,35 @@ export default function ExamesKanbanPage() {
           ) : null}
           {/* O laudo já anexado vira um link, no lugar do botão: o vet precisa CONFERIR o que
               subiu antes de avisar o cliente, e sem isto ele teria de abrir a ficha para ver. */}
-          {e.resultadoUrl ? (
-            <>
-              <a href={`/api/media/ver?u=${encodeURIComponent(e.resultadoUrl)}`} target="_blank" rel="noopener" className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>📄 ver laudo</a>
-              {e.podeAvisarCliente ? (
-                <button onClick={() => avisarCliente(e)} disabled={mexendo === e.itemId} title="O aviso automático não saiu — mandar agora" className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#6A4FB0", color: "#6A4FB0", background: "#F3EFFB" }}>
-                  {mexendo === e.itemId ? "enviando…" : "📲 Avisar cliente"}
-                </button>
-              ) : null}
-            </>
-          ) : (
-            <label title="Subir o PDF/foto do laudo — salva na ficha do pet e move para Resultado" className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md border cursor-pointer ${mexendo === e.itemId ? "opacity-60" : ""}`} style={{ borderColor: "#009AAC", color: "#fff", background: "#009AAC" }}>
-              {mexendo === e.itemId ? "enviando…" : "📎 Anexar laudo"}
-              <input
-                type="file"
-                className="hidden"
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx"
-                disabled={mexendo === e.itemId}
-                onChange={(ev) => { const f = ev.target.files?.[0]; ev.target.value = ""; if (f) anexarLaudo(e, f); }}
-              />
-            </label>
-          )}
+          {/* CADA LAUDO É UM LINK, e o botão de anexar NUNCA some (Cintia, 15/09/2026: "em alguns
+              momentos eu preciso adicionar mais de um laudo"). Antes, o primeiro anexo trocava o
+              botão por um link — e não havia por onde subir o segundo. */}
+          {(e.laudos || []).map((l: any, i: number) => (
+            <a
+              key={l.url || i}
+              href={`/api/media/ver?u=${encodeURIComponent(l.url)}`}
+              target="_blank"
+              rel="noopener"
+              title={l.arquivo || "laudo"}
+              className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border"
+              style={{ borderColor: "#0F6E56", color: "#0F6E56" }}
+            >📄 laudo{(e.laudos || []).length > 1 ? ` ${i + 1}` : ""}</a>
+          ))}
+          <label title="Subir o PDF/foto do laudo — salva na ficha do pet e move para Resultado" className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md border cursor-pointer ${mexendo === e.itemId ? "opacity-60" : ""}`} style={{ borderColor: "#009AAC", color: "#fff", background: "#009AAC" }}>
+            {mexendo === e.itemId ? "enviando…" : (e.laudos || []).length ? "📎 + laudo" : "📎 Anexar laudo"}
+            <input
+              type="file"
+              className="hidden"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.doc,.docx"
+              disabled={mexendo === e.itemId}
+              onChange={(ev) => { const f = ev.target.files?.[0]; ev.target.value = ""; if (f) anexarLaudo(e, f); }}
+            />
+          </label>
+          {e.podeAvisarCliente ? (
+            <button onClick={() => avisarCliente(e)} disabled={mexendo === e.itemId} title="O aviso automático não saiu — mandar agora" className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#6A4FB0", color: "#6A4FB0", background: "#F3EFFB" }}>
+              {mexendo === e.itemId ? "enviando…" : "📲 Avisar cliente"}
+            </button>
+          ) : null}
           {ultima ? <button onClick={() => mover(e.itemId, lastFase)} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md border" style={{ borderColor: "#0F6E56", color: "#0F6E56" }}>✓ {lastFase}</button> : null}
           <button onClick={() => arquivar(e)} title="Tirar do quadro (fica arquivado 45 dias)" className="ml-auto text-[11px] px-1.5 py-0.5 rounded-md border" style={{ borderColor: LINE, color: MUT }}>🗃️</button>
         </div>

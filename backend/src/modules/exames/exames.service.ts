@@ -306,6 +306,11 @@ export class ExamesService {
         fornecedorId: d.fornecedorId || null, externo: !!d.externo,
         labAvisadoAt: d.labAvisadoAt || null, date: d.date || null,
         resultadoUrl: d.resultadoUrl || null,
+        // A lista inteira vai para o quadro: ele é a tela em que se anexa, e precisa mostrar o
+        // que já está lá para ninguém subir o mesmo laudo duas vezes.
+        laudos: Array.isArray(d.laudos)
+          ? d.laudos
+          : (d.resultadoUrl ? [{ url: d.resultadoUrl, arquivo: d.resultadoArquivo || null, em: d.resultadoEm || null, por: d.resultadoPor || null }] : []),
         prazoDias: d.prazoDias ?? null, historico: d.historico || null,
         entregueAt: d.entregueAt || null,
         clienteAvisadoAt: d.clienteAvisadoAt || null,
@@ -408,7 +413,7 @@ export class ExamesService {
     arquivo?: string,
     porQuem?: string,
     papelDeQuem?: string,
-  ): Promise<{ ok: boolean; erro?: string; status?: string; clienteAvisado?: boolean }> {
+  ): Promise<{ ok: boolean; erro?: string; status?: string; clienteAvisado?: boolean; jaAnexado?: boolean }> {
     const limpa = String(url || '').trim();
     if (!limpa) return { ok: false, erro: 'Laudo sem arquivo' };
     const it = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true, valor: true } });
@@ -426,11 +431,31 @@ export class ExamesService {
       historico[faseResultado] = { at: new Date().toISOString(), por: porQuem || null };
     }
 
+    // MAIS DE UM LAUDO NO MESMO EXAME (Cintia, 15/09/2026: "em alguns momentos eu preciso
+    // adicionar mais de um laudo").
+    //
+    // Uma citologia de 5 lâminas volta em partes; um histopatológico vem com laudo e adendo. O
+    // campo era um só e o segundo anexo APAGAVA o primeiro, sem avisar — o laudo sumia da ficha
+    // do pet e ninguém tinha como saber que existiu.
+    //
+    // `resultadoUrl` continua existindo e apontando para o mais recente: a ficha do pet, a inbox
+    // e a linha do tempo leem esse campo, e mudá-lo obrigaria a mexer em todas. A lista completa
+    // vai em `laudos`, e quem souber ler mostra todos.
+    const anteriores: any[] = Array.isArray(d.laudos)
+      ? d.laudos
+      : (d.resultadoUrl ? [{ url: d.resultadoUrl, arquivo: d.resultadoArquivo || null, em: d.resultadoEm || null, por: d.resultadoPor || null }] : []);
+    if (anteriores.some((l) => String(l?.url || '') === limpa)) {
+      return { ok: true, status: d.status, jaAnexado: true };   // mesmo arquivo de novo: nada a fazer
+    }
+    const agora = new Date().toISOString();
+    const laudos = [...anteriores, { url: limpa, arquivo: arquivo || null, em: agora, por: porQuem || null }];
+
     await this.prisma.listaItem.update({
       where: { id: itemId },
       data: {
         valor: JSON.stringify({
           ...d,
+          laudos,
           resultadoUrl: limpa,
           resultadoArquivo: arquivo || d.resultadoArquivo || null,
           resultadoEm: new Date().toISOString(),
