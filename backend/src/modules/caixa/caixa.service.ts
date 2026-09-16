@@ -13,10 +13,29 @@ import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
 import { distribuirPagamento, repartirFormas, totalEmAberto } from './recebimento-lote.regras';
 import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
+import { nomeNormalizado, percentualClassificado, sugerirVinculo } from './vinculo-itens.regras';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
 // Ver caixa.regras.faixaDoDia: caixa aberto as 21h30 nascia no dia seguinte e sumia da
 // lista — a Victoria abriu tres caixas em 05/09 porque nao via nenhum deles.
+/**
+ * O periodo de um pedido (`de`/`ate`, YYYY-MM-DD), em horario de Fortaleza.
+ *
+ * Sem `de`, comeca no primeiro dia do mes corrente — e nao "tudo desde sempre": a lista de itens
+ * sem vinculo com o historico inteiro tem milhares de linhas, e a pessoa desiste antes de achar
+ * o que importa. Sem `ate`, vai ate agora.
+ */
+function periodoDoQuery(q: any = {}): { gte: Date; lte: Date } {
+  const OFF = '-03:00';
+  const de = String(q?.de || '').trim();
+  const ate = String(q?.ate || '').trim();
+  const agora = new Date();
+  const primeiroDoMes = `${agora.getUTCFullYear()}-${String(agora.getUTCMonth() + 1).padStart(2, '0')}-01`;
+  const gte = new Date(`${/^\d{4}-\d{2}-\d{2}$/.test(de) ? de : primeiroDoMes}T00:00:00${OFF}`);
+  const lte = /^\d{4}-\d{2}-\d{2}$/.test(ate) ? new Date(`${ate}T23:59:59${OFF}`) : agora;
+  return { gte, lte };
+}
+
 function dayRange(dateStr?: string) {
   const { ini, fim } = faixaDoDia(dateStr);
   return { ini, fim };
@@ -104,6 +123,90 @@ export class CaixaService {
     return grp
       .map((g) => { const it: any = byId.get(g.catalogoItemId as string); return it ? { id: it.id, nome: it.nome, valorPadrao: Number(it.preco) || 0, custoPadrao: Number(it.custo) || 0, qtd: g._count.catalogoItemId } : null; })
       .filter(Boolean);
+  }
+
+  // ── ITENS VENDIDOS SEM VÍNCULO COM O CATÁLOGO ───────────────────────────────────────────
+  //
+  // Cintia, 15/09/2026: "organize tudo de uma forma que eu possa arrumar sem perder tudo, e sem
+  // bagunçar o caixa, as vendas, orçamentos e os recebimentos".
+  //
+  // A lista é por NOME, e não linha a linha, porque é assim que o trabalho acontece: "Diária de
+  // internação" aparece 33 vezes; ela decide uma vez e as 33 são ligadas. Linha a linha seriam
+  // 260 decisões idênticas, e ninguém termina isso.
+  async itensSemVinculo(query: any = {}) {
+    const { gte, lte } = periodoDoQuery(query);
+    const linhas = await this.prisma.appointmentItem.findMany({
+      where: { catalogoItemId: null, appointment: { date: { gte, lte } } },
+      select: { id: true, descricao: true, valorTotal: true, quantidade: true, grupo: true, appointment: { select: { type: true } } },
+    });
+    const catalogo = await this.prisma.itemCatalogo.findMany({
+      where: { arquivado: false, ativo: true },
+      select: { id: true, nome: true, tipo: true, grupo: { select: { nome: true } } },
+      orderBy: { nome: 'asc' },
+    });
+
+    const porNome = new Map<string, any>();
+    for (const l of linhas) {
+      const nome = String(l.descricao || '').trim() || '(sem descrição)';
+      const k = nomeNormalizado(nome);
+      const cur = porNome.get(k) || { chave: k, nome, linhas: 0, valor: 0, origens: new Set<string>() };
+      cur.linhas += 1;
+      cur.valor += Number(l.valorTotal || 0);
+      cur.origens.add(String(l.appointment?.type || '—'));
+      porNome.set(k, cur);
+    }
+    const itens = [...porNome.values()]
+      .map((x) => {
+        const sug = sugerirVinculo(x.nome, catalogo);
+        return { ...x, origens: [...x.origens], sugestao: sug };
+      })
+      .sort((a, b) => b.valor - a.valor);
+
+    // O mesmo número que a tela de vendas mostra, calculado aqui para não haver duas contas.
+    const todas = await this.prisma.appointmentItem.findMany({
+      where: { appointment: { date: { gte, lte } } },
+      select: { catalogoItemId: true, valorTotal: true },
+    });
+    return {
+      itens,
+      catalogo: catalogo.map((c) => ({ id: c.id, nome: c.nome, tipo: c.tipo, grupo: c.grupo?.nome ?? null })),
+      percentualClassificado: percentualClassificado(todas),
+      totalSemVinculo: itens.reduce((s, x) => s + x.valor, 0),
+      linhasSemVinculo: itens.reduce((s, x) => s + x.linhas, 0),
+    };
+  }
+
+  /**
+   * LIGAR TODAS AS LINHAS DE UM NOME A UM ITEM DO CATÁLOGO.
+   *
+   * A única coisa escrita é `catalogoItemId` (ver CAMPOS_QUE_LIGAR_PODE_ESCREVER). Valor,
+   * quantidade, desconto, data, recebimento e caixa não são tocados — nem lidos para recalcular.
+   * É isso que torna seguro rodar isto em produção com o mês em andamento: o total de nenhuma
+   * venda muda, então nenhuma conferência de caixa passa a divergir por causa desta operação.
+   */
+  async ligarItensAoCatalogo(dto: any, papel?: string) {
+    if (String(papel || '').toUpperCase() !== 'ADMIN') {
+      throw new BadRequestException('Ligar itens ao catálogo em massa é do administrativo.');
+    }
+    const catalogoItemId = String(dto?.catalogoItemId || '').trim();
+    const chave = nomeNormalizado(dto?.nome);
+    if (!catalogoItemId || !chave) throw new BadRequestException('Informe o nome e o item do catálogo.');
+    const item = await this.prisma.itemCatalogo.findUnique({ where: { id: catalogoItemId }, select: { id: true, nome: true } });
+    if (!item) throw new NotFoundException('Item do catálogo não encontrado.');
+
+    const { gte, lte } = periodoDoQuery(dto);
+    const candidatas = await this.prisma.appointmentItem.findMany({
+      where: { catalogoItemId: null, appointment: { date: { gte, lte } } },
+      select: { id: true, descricao: true },
+    });
+    // O filtro por nome é feito AQUI e não no banco: o casamento é por nome normalizado (sem
+    // acento, sem caixa, sem espaço dobrado), e isso o Prisma não sabe fazer no `where`.
+    const alvos = candidatas.filter((c) => nomeNormalizado(c.descricao) === chave).map((c) => c.id);
+    if (!alvos.length) return { ok: true, ligadas: 0, item: item.nome };
+
+    await this.prisma.appointmentItem.updateMany({ where: { id: { in: alvos } }, data: { catalogoItemId } });
+    this.logger.log(`Vinculo: ${alvos.length} linha(s) "${dto?.nome}" -> ${item.nome}`);
+    return { ok: true, ligadas: alvos.length, item: item.nome };
   }
 
   async listVendas(query: any = {}) {

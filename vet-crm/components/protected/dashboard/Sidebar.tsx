@@ -157,6 +157,9 @@ const NAV: Entry[] = [
     group: true, key: "estoque", label: "Estoque e serviços", emoji: "📦", roles: ALL, section: "GESTAO",
     children: [
       { href: "/dashboard/erp/catalogo-novo", label: "Produtos e Serviços", emoji: "🗂️", roles: ALL },
+      // Fica LOGO ABAIXO do catalogo de proposito: a arrumacao do vinculo so' termina no
+      // catalogo — o nome que nao existe la' precisa ser cadastrado antes de poder ser ligado.
+      { href: "/dashboard/erp/itens-sem-vinculo", label: "Itens sem vínculo", emoji: "🔗", roles: ["ADMIN"] },
       { href: "/dashboard/erp/estoque", label: "Estoque", emoji: "📊", roles: ALL },
       { href: "/dashboard/erp/estoque/compras", label: "Compras", emoji: "🛒", roles: ALL },
       { href: "/dashboard/erp/estoque/saidas", label: "Outras saídas de estoque", emoji: "📤", roles: ALL },

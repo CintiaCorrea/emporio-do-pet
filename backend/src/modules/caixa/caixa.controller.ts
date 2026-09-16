@@ -77,6 +77,18 @@ export class CaixaController {
     return this.service.estoqueComprometido();
   }
 
+  // Itens vendidos que nao dizem de que item do catalogo sao — a lista de arrumacao.
+  @Get('itens-sem-vinculo')
+  itensSemVinculo(@Query() query: any) {
+    return this.service.itensSemVinculo(query);
+  }
+
+  /** Liga TODAS as linhas de um nome a um item do catalogo. So escreve o vinculo. */
+  @Post('itens-sem-vinculo/ligar')
+  ligarItens(@Body() dto: any, @CurrentUser('role') papel: string) {
+    return this.service.ligarItensAoCatalogo(dto, papel);
+  }
+
   @Get('vendas-resumo')
   vendasResumo(@Query() query: any) {
     return this.service.vendasResumo(query);

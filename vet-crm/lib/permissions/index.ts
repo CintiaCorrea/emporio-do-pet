@@ -90,6 +90,9 @@ export const PERM_SECTIONS: PermSection[] = [
       },
       {
         key: "estoque", label: "Estoque e serviços", emoji: "📦", children: [
+          // Arrumar o vinculo nao mexe em dinheiro, mas manda no que os relatorios mostram —
+          // por isso mora junto do catalogo, e nao junto do caixa.
+          { key: "/dashboard/erp/itens-sem-vinculo", label: "Itens sem vínculo", emoji: "🔗" },
           { key: "/dashboard/erp/catalogo-novo", label: "Produtos e Serviços", emoji: "🗂️" },
           { key: "/dashboard/erp/estoque", label: "Estoque", emoji: "📊" },
           { key: "/dashboard/erp/estoque/compras", label: "Compras", emoji: "🛒" },
