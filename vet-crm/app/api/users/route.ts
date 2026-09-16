@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { proxyToBackend } from '@/lib/backend-proxy';
 
 function getBackendBaseUrl() {
   return (
@@ -25,16 +26,15 @@ async function authHeader(request: NextRequest) {
   return {};
 }
 
+// A LISTA DE PROFISSIONAIS PASSA PELO REPASSADOR COMUM, QUE RENOVA O ACESSO (16/09/2026).
+//
+// Cintia: "a assinatura automática não está funcionando" — receita do Kiss, do Dr. Gabriel, saiu
+// sem o bloco de assinatura. Esta rota tinha autenticação própria e NÃO renovava o acesso: 7 dias
+// depois do login ele vence, as outras telas renovam sozinhas e seguem funcionando, e só esta
+// passava a responder 401. A ficha recebia a lista vazia, não achava o veterinário, e a receita
+// saía sem imagem, sem linha e sem CRMV — "do nada", uma semana depois de cada login.
 export async function GET(request: NextRequest) {
-  const base = getBackendBaseUrl();
-  if (!base) return NextResponse.json({ error: 'Backend não configurado' }, { status: 500 });
-  const res = await fetch(`${buildApiBase(base)}/users`, { headers: await authHeader(request) });
-  const text = await res.text();
-  try {
-    return NextResponse.json(text ? JSON.parse(text) : null, { status: res.status });
-  } catch {
-    return new NextResponse(text, { status: res.status });
-  }
+  return proxyToBackend(request, '/users', { method: 'GET' });
 }
 
 export async function POST(request: NextRequest) {
