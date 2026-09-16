@@ -136,7 +136,14 @@ export function itemParaVenda(l: { descricao?: string; valorUnitario?: number; c
   // exame antigo (catalogoExameId/petexa_).
   // Catálogo NOVO: se for EXAME, manda tipoItem:"EXAME" + catalogoItemId (o backend resolve o lab pela
   // fonte nova cat_item_exame) — assim o exame entra no Kanban. Item novo comum vai sem tipoItem.
-  if (l._novo) return { ...base, ...(l._exame ? { tipoItem: "EXAME" } : {}), ...(l.fornecedorId ? { fornecedorId: l.fornecedorId } : {}), ...(l.catalogoItemId ? { catalogoItemId: l.catalogoItemId } : {}) };
+  // `_novo` OU o proprio id: se a linha sabe de que item do catalogo ela e', esse id VIAJA.
+  //
+  // Antes so' `_novo` abria esta porta, e `_novo` e' uma marca de tela — some assim que a linha
+  // e' gravada numa lista e lida de volta (a conta da internacao faz exatamente isso). O id
+  // sobrevivia e mesmo assim era descartado aqui, e a venda nascia como texto livre: sem tipo,
+  // sem grupo, fora de todo relatorio. Em setembro/2026 isso deixou R$ 37.991,52 em 260 linhas
+  // sem classificacao nenhuma.
+  if (l._novo || l.catalogoItemId) return { ...base, ...(l._exame ? { tipoItem: "EXAME" } : {}), ...(l.fornecedorId ? { fornecedorId: l.fornecedorId } : {}), ...(l.catalogoItemId ? { catalogoItemId: l.catalogoItemId } : {}) };
   if (l._exame) return { ...base, tipoItem: "EXAME", catalogoExameId: l.catalogoExameId, fornecedorId: l.fornecedorId ?? undefined };
   return { ...base, ...(l.servicoId ? { servicoId: l.servicoId, productId: l.productId ?? l.servicoId } : {}) };
 }

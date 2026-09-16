@@ -536,6 +536,7 @@ export default function FichaInternacaoPage() {
             valorUnitario: precoAtualCobranca(slot.p),
             servicoId: slot.p.cobrarTipo === "servico" ? slot.p.cobrarId : "",
             productId: slot.p.cobrarTipo === "produto" ? slot.p.cobrarId : "",
+            ...(slot.p.cobrarCatalogoItemId ? { catalogoItemId: slot.p.cobrarCatalogoItemId } : {}),
             baixado: false,
             medLogId: logId,
             auto: true,
@@ -658,8 +659,29 @@ export default function FichaInternacaoPage() {
   };
   // Vínculo da PRESCRIÇÃO com o catálogo (serviço OU produto) p/ cobrança automática ao aplicar.
   // val = "" | "s:<id>" (serviço) | "p:<id>" (produto).
-  const pickPrescCobranca = (val: string) => {
-    if (!val) { setPrescForm((f: any) => ({ ...f, cobrarTipo: "", cobrarId: "", cobrarNome: "", cobrarValor: 0 })); return; }
+  /**
+   * O item que a aplicacao vai cobrar.
+   *
+   * `item` e' a linha do catalogo que a pessoa escolheu. Quando ele vem, quem resolve o vinculo
+   * e' o NUCLEO (`linhaDoItem`), e nao esta tela — e' assim que o id do catalogo novo chega ate'
+   * a conta e, dali, ate' a venda. Sem ele a cobranca automatica nascia como texto puro, com o
+   * horario colado no nome ("MELOXICAM - ATE 10KG - aplicacao 08:40"), e nenhum relatorio
+   * conseguia dizer que aquilo era medicacao.
+   */
+  const pickPrescCobranca = (val: string, item?: any) => {
+    if (!val) { setPrescForm((f: any) => ({ ...f, cobrarTipo: "", cobrarId: "", cobrarNome: "", cobrarValor: 0, cobrarCatalogoItemId: "" })); return; }
+    if (item) {
+      const l = linhaDoItem(item, pesoPet);
+      setPrescForm((f: any) => ({
+        ...f,
+        cobrarTipo: l.servicoId ? "servico" : "produto",
+        cobrarId: l.servicoId || l.productId || item.id,
+        cobrarCatalogoItemId: l.catalogoItemId || "",
+        cobrarNome: l.descricao, cobrarValor: Number(l.valorUnitario) || 0,
+        medicamento: String(f.medicamento || "").trim() ? f.medicamento : l.descricao,
+      }));
+      return;
+    }
     const tipo = val[0] === "s" ? "servico" : "produto";
     const cid = val.slice(2);
     if (tipo === "servico") {
@@ -697,7 +719,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
       const origItem = itemForm.id ? conta.find((x: any) => x.id === itemForm.id) : null;
       const quandoI = itemForm.quando ? new Date(itemForm.quando) : new Date();
       const emQueI = Number.isNaN(quandoI.getTime()) ? new Date() : quandoI;
-      const payload = { descricao: itemForm.descricao.trim(), categoria: itemForm.categoria, quantidade: Number(itemForm.quantidade) || 1, valorUnitario: insumo ? 0 : (Number(itemForm.valorUnitario) || 0), servicoId: itemForm.servicoId || "", productId: itemForm.productId || "", at: emQueI.toISOString(), baixado: !!origItem?.baixado, ...(origItem?.comandaId ? { comandaId: origItem.comandaId, faturadoEm: origItem.faturadoEm } : {}), ...(itemForm.custoUnitario != null ? { custoUnitario: Number(itemForm.custoUnitario) } : {}), ...(itemForm.fornecedorId ? { fornecedorId: itemForm.fornecedorId } : {}), ...(itemForm._exame ? { _exame: true, catalogoExameId: itemForm.catalogoExameId } : {}) };
+      const payload = { descricao: itemForm.descricao.trim(), categoria: itemForm.categoria, quantidade: Number(itemForm.quantidade) || 1, valorUnitario: insumo ? 0 : (Number(itemForm.valorUnitario) || 0), servicoId: itemForm.servicoId || "", productId: itemForm.productId || "", at: emQueI.toISOString(), baixado: !!origItem?.baixado, ...(origItem?.comandaId ? { comandaId: origItem.comandaId, faturadoEm: origItem.faturadoEm } : {}), ...(itemForm.custoUnitario != null ? { custoUnitario: Number(itemForm.custoUnitario) } : {}), ...(itemForm.fornecedorId ? { fornecedorId: itemForm.fornecedorId } : {}), ...(itemForm._exame ? { _exame: true, catalogoExameId: itemForm.catalogoExameId } : {}), ...(itemForm.catalogoItemId ? { catalogoItemId: itemForm.catalogoItemId } : {}) };
       if (itemForm.id) await fetch(`/api/listas/${itemForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
       else {
         await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(payload) }) });
@@ -1436,6 +1458,12 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
           baixado: !!l.baixado, ...(l.comandaId ? { comandaId: l.comandaId, faturadoEm: l.faturadoEm } : {}),
           ...(l.custoUnitario != null ? { custoUnitario: Number(l.custoUnitario) } : {}),
           ...(l.medLogId ? { medLogId: l.medLogId, auto: true } : {}),
+          // O VINCULO TEM DE SOBREVIVER AO SALVAR. `pickLinhaDoDia` ja punha estes campos na
+          // linha; este payload nao os copiava, e a conta guardava so' descricao e valor. Na
+          // hora de faturar nao havia mais de que item do catalogo aquilo era.
+          ...(l.catalogoItemId ? { catalogoItemId: l.catalogoItemId } : {}),
+          ...(l.fornecedorId ? { fornecedorId: l.fornecedorId } : {}),
+          ...(l._exame ? { _exame: true, catalogoExameId: l.catalogoExameId } : {}),
         };
         if (l._apagar && l.id) await fetch("/api/listas/" + l.id, { method: "DELETE", credentials: "include" }).catch(() => undefined);
         else if (l._novo) await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: "intconta_" + id, valor: JSON.stringify(payload) }) });
@@ -2605,7 +2633,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                       className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]"
                       inpStyle={{ borderColor: "#E8E2D6" }}
                       onType={setCobrancaBusca}
-                      onPick={(i: any) => { pickPrescCobranca(`${ehServicoDoCatalogo(i) ? "s" : "p"}:${i.id}`); setCobrancaBusca(""); }}
+                      onPick={(i: any) => { pickPrescCobranca(`${ehServicoDoCatalogo(i) ? "s" : "p"}:${i.id}`, i); setCobrancaBusca(""); }}
                     />
                     </div>
                 )}
