@@ -2,6 +2,8 @@
 import { useMemo, useState } from "react";
 import { LuPencil, LuTrash2, LuCalendar, LuRotateCcw, LuStethoscope, LuActivity, LuSyringe, LuFileText, LuFlaskConical, LuVideo, LuPrinter } from "react-icons/lu";
 import { imprimirDocumento } from "@/lib/print";
+import toast from "react-hot-toast";
+import { carregarParaAssinar, receitaAssinada } from "@/lib/documentos/assinaturaDaReceita";
 import { corDoTipo } from "@/lib/coresProntuario";
 import { entraNaLinhaDoTempo } from "@/lib/timelineClinica";
 
@@ -29,9 +31,23 @@ const htmlReceitaDe = (it: any): string => {
 };
 // Imprime a receita no PAPEL TIMBRADO da clínica (cabeçalho + QUADRO do pet/tutor),
 // mesmo motor dos documentos do sistema.
-function imprimirReceita(it: any, pet?: any, tutor?: any) {
+//
+// A RECEITA DA LINHA DO TEMPO SAI ASSINADA (Cintia, 16/09/2026: "a assinatura ... já estava pronta
+// e funcionando"). Este ícone NUNCA assinou — só o Imprimir de dentro da receita assinava. A receita
+// do Kiss saiu por aqui, sem assinatura. Agora usa o mesmo bloco único (assinaturaDaReceita), com o
+// veterinário DA RECEITA (quem a fez), não quem está logado.
+async function imprimirReceita(it: any, pet?: any, tutor?: any) {
   const dt = new Date(it.date).toLocaleDateString("pt-BR");
-  const corpo = `<h3 style="margin-top:14px">Receita</h3><div style="color:#6b7280;font-size:12px;margin:-2px 0 12px">${dt}</div>${htmlReceitaDe(it)}`;
+  let html = htmlReceitaDe(it);
+  const vetId = it?.raw?.userId || it?.raw?.user?.id || it?.raw?.appointment?.userId || null;
+  const { vet, cidade, uf } = await carregarParaAssinar(vetId);
+  if (vet) {
+    html = receitaAssinada(html, vet, cidade, uf, new Date(it.date));
+    if (!vet.signatureUrl) toast("Este veterinário não tem imagem de assinatura no perfil — sai só o nome e o CRMV. (Meu perfil › Minha assinatura)", { icon: "🖋️" });
+  } else {
+    toast.error("Não consegui carregar o veterinário — a receita vai sair SEM assinatura. Aperte F5 e imprima de novo.");
+  }
+  const corpo = `<h3 style="margin-top:14px">Receita</h3><div style="color:#6b7280;font-size:12px;margin:-2px 0 12px">${dt}</div>${html}`;
   void imprimirDocumento("Receita", corpo, undefined, { pet, tutor: tutor || pet?.tutor });
 }
 const INITIALS = (n?: string) => ((n || "").split(" ").filter(Boolean).slice(0, 2).map((x: string) => x[0]).join("").toUpperCase() || "—");

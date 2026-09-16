@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { imprimirDocumento } from '@/lib/print';
+import { carregarParaAssinar, receitaAssinada } from '@/lib/documentos/assinaturaDaReceita';
 import {
   LuFileText,
   LuDownload,
@@ -96,18 +97,28 @@ export default function DocumentViewer({ document: doc, onBack, onUpdate }: Docu
   const tituloDoc = (doc as any).title || (doc as any).name || 'Documento';
 
   // Print document — com o papel timbrado da clínica de fundo.
-  const printDocument = () => {
+  // Receita sai assinada pelo veterinário que a fez — o mesmo bloco único do resto do sistema.
+  const corpoParaImprimir = async (): Promise<string> => {
+    const html = doc.htmlContent || '';
+    if (doc.type !== 'PRESCRIPTION') return html;
+    const { vet, cidade, uf } = await carregarParaAssinar((doc as any).userId || doc.user?.id || null);
+    if (!vet) { toast.error("Não consegui carregar o veterinário — a receita vai sair SEM assinatura. Aperte F5 e imprima de novo."); return html; }
+    if (!vet.signatureUrl) toast("Este veterinário não tem imagem de assinatura no perfil — sai só o nome e o CRMV. (Meu perfil › Minha assinatura)", { icon: '🖋️' });
+    return receitaAssinada(html, vet, cidade, uf);
+  };
+
+  const printDocument = async () => {
     if (doc.htmlContent) {
-      void imprimirDocumento(tituloDoc, doc.htmlContent, undefined, { pet: doc.pet, tutor: doc.tutor });
+      void imprimirDocumento(tituloDoc, await corpoParaImprimir(), undefined, { pet: doc.pet, tutor: doc.tutor });
     } else {
       window.print();
     }
   };
 
   // Download as PDF (usa a mesma impressão com timbrado; o usuário escolhe "Salvar como PDF").
-  const downloadPdf = () => {
+  const downloadPdf = async () => {
     if (doc.htmlContent) {
-      void imprimirDocumento(tituloDoc, doc.htmlContent, undefined, { pet: doc.pet, tutor: doc.tutor });
+      void imprimirDocumento(tituloDoc, await corpoParaImprimir(), undefined, { pet: doc.pet, tutor: doc.tutor });
       toast.success('Use "Salvar como PDF" na janela de impressão');
     }
   };

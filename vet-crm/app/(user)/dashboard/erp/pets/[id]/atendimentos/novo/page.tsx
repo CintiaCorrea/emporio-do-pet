@@ -21,6 +21,7 @@ import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import { imprimirDocumento } from "@/lib/print";
 import { erroDoPeso } from '@/lib/peso';
 import { agoraNaClinicaISO, campoDataHoraNaClinica } from "@/lib/datas";
+import { carregarParaAssinar, receitaAssinada } from "@/lib/documentos/assinaturaDaReceita";
 
 interface Pet {
   id: string; name: string; species: string; breed?: string | null;
@@ -283,19 +284,21 @@ export default function NovoAtendimentoPage() {
 
   // Receita / Solicitação de exames — TIMBRADO OFICIAL (o mesmo dos documentos/orçamentos/vendas)
   // via imprimirDocumento; mantém a assinatura-imagem + nome/CRMV do profissional no rodapé.
-  function imprimirFolha(titulo: string, corpo: string) {
+  async function imprimirFolha(titulo: string, corpo: string) {
     const esc = (t: string) => String(t || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const vetObj: any = vets.find((u) => u.id === form.userId);
-    const vetNome = vetObj?.name || "";
-    const vsig = vetObj?.signatureUrl || "";
-    const vcrmv = vetObj?.crmv || vetObj?.profissional?.crmv || "";
-    const sigBlock = (vetNome && /receita/i.test(titulo)) // assinatura SÓ na receita (não na solicitação de exames)
-      ? '<div style="margin-top:' + (vsig ? 40 : 56) + 'px;text-align:left">'
-        + (vsig ? '<div><img src="' + vsig + '" alt="assinatura" style="max-height:72px;max-width:260px;object-fit:contain;mix-blend-mode:multiply" /></div>' : '')
-        + '<div style="display:inline-block;min-width:240px;border-top:1px solid #14253a;padding-top:6px;font-size:13px"><b>' + esc(vetNome) + '</b>'
-        + (vcrmv ? '<div style="font-size:12px;color:#475569;margin-top:2px">' + esc(vcrmv) + '</div>' : '') + '</div></div>'
-      : '';
-    const body = '<div style="white-space:pre-wrap;font-size:14px;line-height:1.6">' + esc(corpo) + '</div>' + sigBlock;
+    let body = '<div style="white-space:pre-wrap;font-size:14px;line-height:1.6">' + esc(corpo) + '</div>';
+    // Assinatura SÓ na receita (não na solicitação de exames). Era montada aqui com o LINK DIRETO da
+    // imagem — o armazenamento é privado e dá 403, então a imagem nunca aparecia. Agora é o bloco
+    // único do sistema (lib/documentos/assinaturaDaReceita), que busca a imagem pelo proxy.
+    if (/receita/i.test(titulo)) {
+      const { vet, cidade, uf } = await carregarParaAssinar(form.userId || null);
+      if (vet) {
+        body = receitaAssinada(body, vet, cidade, uf);
+        if (!vet.signatureUrl) toast("Este veterinário não tem imagem de assinatura no perfil — sai só o nome e o CRMV. (Meu perfil › Minha assinatura)", { icon: "🖋️" });
+      } else {
+        toast.error("Não consegui carregar o veterinário — a receita vai sair SEM assinatura. Aperte F5 e imprima de novo.");
+      }
+    }
     imprimirDocumento(titulo, body, undefined, { pet, tutor: (pet as any)?.tutor });
   }
   function imprimirReceita() { const t = prescricaoTexto(); if (!t) { toast.error("Escreva a prescrição primeiro"); return; } imprimirFolha("Receita", t); }
