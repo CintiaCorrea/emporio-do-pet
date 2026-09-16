@@ -6,6 +6,7 @@
 import React, { useState } from "react";
 import CampoValor from "@/components/comum/CampoValor";
 import { useRolePreview } from "@/lib/ui/RolePreview";
+import { useSession } from "next-auth/react";
 // Fonte única: tipos + modalidades + helpers vêm de lib/formasPagamento (re-exportados aqui p/ compat).
 import { PagForma, FormaCfg, TaxaRow, MODALIDADES, PARC, BANDEIRAS_PADRAO, modalidadeToTaxaForma, ehMaquininha, ehCartao, ehLinkPagamento, adquirenteDe, adquirenteDaLinha } from "@/lib/formasPagamento";
 export type { PagForma, FormaCfg, TaxaRow };
@@ -37,7 +38,14 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
   // recebe precisa de forma, bandeira, parcelas e AUT — a taxa continua sendo calculada e lançada
   // no Financeiro do mesmo jeito; só deixa de aparecer para quem não é adm. Usa o papel EFETIVO:
   // a Cintia, pré-visualizando como Recepção, vê exatamente o que a recepção vê.
-  const verTaxa = useRolePreview().effectiveRole === "ADMIN";
+  // SÓ DEPOIS QUE A SESSÃO CHEGA. Enquanto ela carrega, o papel vem vazio e o sistema o trata
+  // como ADMIN (lib/ui/role: "não esconde nada de quem não classificou") — a taxa piscava na
+  // tela da recepção. Cintia, 16/09/2026: "ela está aparecendo no caixa da recepção".
+  const sessaoPronta = useSession().status === "authenticated";
+  // Os dois hooks são chamados SEMPRE, e só depois combinados: hook dentro de `&&` muda a ordem
+  // das chamadas entre renderizações e o React quebra a tela.
+  const papelEfetivo = useRolePreview().effectiveRole;
+  const verTaxa = sessaoPronta && papelEfetivo === "ADMIN";
   // Bandeiras da operadora, pela tabela de taxas. Operadora SEM taxa cadastrada cai na lista
   // padrão — antes ficava vazia e a recepção não tinha o que escolher (era o caso do Nubank).
   const bandeirasDe = (adq: string) => {

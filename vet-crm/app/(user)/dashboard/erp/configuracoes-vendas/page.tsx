@@ -110,7 +110,7 @@ export default function ConfigVendasPage() {
       </Card>
 
       <Card titulo="🏷️ Desconto">
-        <Row lab="Limite de desconto por venda" desc="Desconto máximo permitido (0 = sem limite)."><NumIn k="limiteDesconto" un="%" /></Row>
+        <Row lab="Limite geral de desconto" desc="Vale para a forma de recebimento que não tem desconto próprio (Vendas › Formas de recebimento). 0 = sem limite."><NumIn k="limiteDesconto" un="%" /></Row>
       </Card>
 
       <Card titulo="📄 Orçamento">

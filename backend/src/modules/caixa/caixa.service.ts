@@ -14,6 +14,7 @@ import { ehVendaDeVerdade } from './lista-de-vendas.regras';
 import { distribuirPagamento, repartirFormas, totalEmAberto } from './recebimento-lote.regras';
 import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
 import { nomeNormalizado, percentualClassificado, sugerirVinculo } from './vinculo-itens.regras';
+import { avaliarDesconto } from './desconto.regras';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
 // Ver caixa.regras.faixaDoDia: caixa aberto as 21h30 nascia no dia seguinte e sumia da
@@ -1148,6 +1149,68 @@ export class CaixaService {
     });
   }
 
+  /**
+   * O DESCONTO CABE NO QUE A FORMA DE PAGAMENTO PERMITE? — a conferência única.
+   *
+   * Cintia, 16/09/2026: "o caixa tem autorização de dar 5% de desconto nas vendas à vista e no
+   * PIX". A conta mora em desconto.regras (com teste); aqui só entra quem pode passar por cima:
+   *
+   *   · matriz FECHADA de propósito para o perfil → nenhum desconto, nem dentro do permitido;
+   *   · administrativo, ou perfil LIBERADO na matriz → sem limite;
+   *   · o resto → o permitido pela forma, ou a liberação de um gerente (e-mail e senha de admin).
+   *
+   * O papel vem do BANCO, e não só da requisição: o Baixar várias chama o recebimento por dentro,
+   * sem papel, e o gerente não pode virar recepção no meio do caminho.
+   */
+  private async conferirDesconto(p: {
+    userId: string; papel?: string; bruto: number; desconto: number;
+    formas: any[]; liberacaoEmail?: string; liberacaoSenha?: string; rotulo?: string;
+  }): Promise<void> {
+    if (!(Number(p.desconto) > 0.009)) return;
+    if (await this.permissoes.negada(p.userId, p.papel, 'acao:venda.conceder_desconto')) {
+      throw new BadRequestException('SEM_PERMISSAO: Seu perfil nao concede desconto. Chame o administrativo para liberar esta venda.');
+    }
+    const operador = await this.prisma.user.findUnique({ where: { id: p.userId }, select: { role: true } });
+    const papelReal = String(operador?.role || p.papel || '').toUpperCase();
+    if (papelReal === 'ADMIN') return;
+    if (await this.permissoes.pode(p.userId, papelReal, 'acao:venda.conceder_desconto')) return;
+
+    const cfg = await this.getConfigVendas();
+    const formasCadastradas = (await this.prisma.listaItem.findMany({ where: { lista: 'formasrecebimento' }, select: { valor: true } }))
+      .map((i) => { try { return JSON.parse(i.valor); } catch { return null; } })
+      .filter(Boolean);
+    const formas = (Array.isArray(p.formas) ? p.formas.flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
+    const r = avaliarDesconto({ bruto: p.bruto, desconto: p.desconto, formas, formasCadastradas, limiteGeral: cfg.limiteDesconto });
+    if (r.ok) return;
+
+    if (p.liberacaoEmail && p.liberacaoSenha) {
+      const g = await this.prisma.user.findUnique({ where: { email: String(p.liberacaoEmail).toLowerCase().trim() }, select: { password: true, role: true } });
+      if (g?.password && String(g.role || '').toUpperCase() === 'ADMIN' && await bcrypt.compare(String(p.liberacaoSenha), g.password)) return;
+      throw new BadRequestException('Liberação recusada: e-mail ou senha do gerente não conferem. ' + r.mensagem);
+    }
+    throw new BadRequestException((p.rotulo ? p.rotulo + ': ' : '') + r.mensagem);
+  }
+
+  /** O bruto e o desconto já abatido de uma venda — itens do tutor, fora os do convênio. */
+  private async descontoDaVenda(appointmentId: string): Promise<{ bruto: number; desconto: number; importada: boolean; numero: number | null }> {
+    const ap = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        value: true, numeroVenda: true, codigoExterno: true,
+        items: { select: { quantidade: true, valorUnitario: true, desconto: true, convenioId: true } },
+        recebimentos: { select: { desconto: true } },
+      },
+    });
+    if (!ap) return { bruto: 0, desconto: 0, importada: false, numero: null };
+    const itens = (ap.items || []).filter((it) => !it.convenioId);
+    const descItens = itens.reduce((s, it) => s + Number(it.desconto || 0), 0);
+    const descRecebido = (ap.recebimentos || []).reduce((s, r) => s + Number(r.desconto || 0), 0);
+    const bruto = itens.length
+      ? itens.reduce((s, it) => s + Number(it.quantidade || 0) * Number(it.valorUnitario || 0), 0)
+      : Number(ap.value || 0) + descItens + descRecebido;
+    return { bruto, desconto: descItens + descRecebido, importada: !!ap.codigoExterno, numero: ap.numeroVenda ?? null };
+  }
+
   // Lê as regras do módulo de vendas (lista `configvendas`, 1 item JSON).
   private async getConfigVendas(): Promise<any> {
     try { const it = await this.prisma.listaItem.findFirst({ where: { lista: 'configvendas' } }); if (it?.valor) return JSON.parse(it.valor); } catch { /* usa vazio */ }
@@ -1248,6 +1311,19 @@ export class CaixaService {
       if (saldo < creditoUsado - 0.001) throw new BadRequestException('Credito insuficiente do cliente.');
     }
 
+    // DESCONTO: conferido para CADA venda, com as formas do pagamento, ANTES de gravar qualquer
+    // uma. Uma venda salva com 5% e paga agora no cartão (0%) não pode passar só porque veio
+    // junto com outras — e recusar no meio deixaria metade baixada.
+    for (const a of aps) {
+      const dv = await this.descontoDaVenda(a.id);
+      if (dv.importada || dv.desconto <= 0.009) continue;
+      await this.conferirDesconto({
+        userId, papel, bruto: dv.bruto, desconto: dv.desconto, formas,
+        liberacaoEmail: dto?.liberacaoEmail, liberacaoSenha: dto?.liberacaoSenha,
+        rotulo: dv.numero != null ? `Venda #${dv.numero}` : 'Uma das vendas',
+      });
+    }
+
     const { partes, sobra } = distribuirPagamento(comandas, Math.min(valorPago, devido));
     const comFormas = repartirFormas(formas, partes);
     const troco = Number(Math.max(0, valorPago - devido).toFixed(2)) + sobra;
@@ -1270,7 +1346,7 @@ export class CaixaService {
           troco: i === comFormas.length - 1 ? troco : 0,
           formas: p.formas,
           observacao: obs,
-        }, userId);
+        }, userId, papel, { descontoJaConferido: true });
         quitadas.push(p.appointmentId);
       } catch (e: any) {
         falhou.push({ appointmentId: p.appointmentId, erro: String(e?.message || e) });
@@ -1288,11 +1364,26 @@ export class CaixaService {
     };
   }
 
-  async registrarRecebimento(caixaId: string, dto: any, userId: string, papel?: string) {
+  async registrarRecebimento(caixaId: string, dto: any, userId: string, papel?: string, opts?: { descontoJaConferido?: boolean }) {
     await this.exigirDonoDoCaixa(caixaId, userId, papel);
     const appointmentId = dto.appointmentId || null;
     // Normaliza: achata malformado (ex.: [[]] de baixa sem forma) e mantém só objetos {forma,valor} válidos.
     const formas = (Array.isArray(dto.formas) ? (dto.formas as any[]).flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
+
+    // O DESCONTO SE CONFERE NA HORA DE PAGAR — é só aí que se sabe a forma. Conta o desconto que
+    // já está nos itens (dado quando a venda foi salva) e o que se dá agora no Caixa. Até 16/09
+    // este caminho não conferia nada: o campo Desconto do Caixa aceitava qualquer valor.
+    // Venda IMPORTADA do SimplesVet não é julgada pelo desconto que já trazia de lá.
+    if (appointmentId && !opts?.descontoJaConferido) {
+      const dv = await this.descontoDaVenda(appointmentId);
+      const agora = Number(dto.desconto || 0);
+      if (agora > 0.009 || (!dv.importada && dv.desconto > 0.009)) {
+        await this.conferirDesconto({
+          userId, papel, bruto: dv.bruto, desconto: dv.desconto + agora, formas,
+          liberacaoEmail: dto.liberacaoEmail, liberacaoSenha: dto.liberacaoSenha,
+        });
+      }
+    }
     // Config de vendas: obrigar NSU do cartão (maquininha/cartão)
     const cfgRec = await this.getConfigVendas();
     if (cfgRec.obrigarNsu && formas.some((f: any) => /cart|maquin/i.test(f.forma || '') && !String(f.nsu || '').trim())) {
@@ -1732,43 +1823,17 @@ export class CaixaService {
     // Total do TUTOR = só os itens que NÃO são do convênio (os do convênio viram a-receber mensal).
     const itensTotal = items.reduce((s: number, it: any) => s + (it.convenioId ? 0 : it.valorTotal), 0);
     const descontoGlobal = Number(dto.desconto || 0);
-    // 🚫 Trava de desconto POR PERFIL: ADMIN (gerente) não tem limite; os demais respeitam o limite %
-    // da config, mas podem exceder com LIBERAÇÃO de um gerente (e-mail + senha de um ADMIN).
-    // 🚫 ANTES DO LIMITE, A MATRIZ: este perfil pode dar desconto?
-    //
-    // Sao tres respostas, nao duas, e a do meio e' que evita quebrar o balcao (ver `acaoNegada`
-    // em permissoes.regras):
-    //   · fechada de proposito → nao da' desconto nenhum, nem dentro do limite;
-    //   · liberada (EDITA)     → nao passa pelo limite, igual gerente;
-    //   · nao configurada      → segue o limite de sempre, que e' o comportamento de hoje.
-    //
-    // Desconto e' a unica acao de dinheiro que acontece o dia inteiro. Se o silencio da matriz
-    // virasse bloqueio aqui, ninguem daria 5% num banho na manha seguinte.
-    const descontoPedido = descontoGlobal > 0.009 || items.some((it: any) => Number(it.desconto || 0) > 0.009);
-    if (descontoPedido && (await this.permissoes.negada(userId, papel, 'acao:venda.conceder_desconto'))) {
-      throw new BadRequestException(
-        'SEM_PERMISSAO: Seu perfil nao concede desconto. Chame o administrativo para liberar esta venda.',
-      );
-    }
-    const limitePct = Number(cfgVenda.limiteDesconto) || 0;
-    if (limitePct > 0 && descontoPedido) {
-      const operador = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-      const ehGerente =
-        String(operador?.role || '').toUpperCase() === 'ADMIN' ||
-        (await this.permissoes.pode(userId, papel, 'acao:venda.conceder_desconto'));
-      if (!ehGerente) {
-        const bruto = items.reduce((s: number, it: any) => s + (it.convenioId ? 0 : Number(it.quantidade) * Number(it.valorUnitario)), 0);
-        const descItens = items.reduce((s: number, it: any) => s + (it.convenioId ? 0 : Number(it.desconto || 0)), 0);
-        const pct = bruto > 0 ? ((descItens + descontoGlobal) / bruto) * 100 : 0;
-        if (pct > limitePct + 0.01) {
-          let liberado = false;
-          if (dto.liberacaoEmail && dto.liberacaoSenha) {
-            const g = await this.prisma.user.findUnique({ where: { email: String(dto.liberacaoEmail).toLowerCase().trim() }, select: { password: true, role: true } });
-            if (g?.password && String(g.role || '').toUpperCase() === 'ADMIN' && await bcrypt.compare(String(dto.liberacaoSenha), g.password)) liberado = true;
-          }
-          if (!liberado) throw new BadRequestException(`Desconto de ${pct.toFixed(1)}% passa do limite (${limitePct}%). Precisa de liberação de um gerente (e-mail e senha de um admin).`);
-        }
-      }
+    // O DESCONTO É CONFERIDO EM UM LUGAR SÓ (conferirDesconto), igual para a venda nova, o
+    // recebimento do Caixa e o Baixar várias. Antes esta era a ÚNICA porta com limite, e o limite
+    // era um só para qualquer forma — cartão incluído.
+    {
+      const bruto = items.reduce((s: number, it: any) => s + (it.convenioId ? 0 : Number(it.quantidade) * Number(it.valorUnitario)), 0);
+      const descItens = items.reduce((s: number, it: any) => s + (it.convenioId ? 0 : Number(it.desconto || 0)), 0);
+      await this.conferirDesconto({
+        userId, papel, bruto, desconto: descItens + descontoGlobal,
+        formas: Array.isArray(dto.formas) ? dto.formas : [],
+        liberacaoEmail: dto.liberacaoEmail, liberacaoSenha: dto.liberacaoSenha,
+      });
     }
     const valorVenda = Math.max(0, Number((itensTotal - descontoGlobal).toFixed(2)));
 

@@ -24,4 +24,8 @@ export class RecebimentoDto {
   @Transform(({ obj }) => obj?.formas)
   formas?: any[];
   @IsOptional() @IsString() observacao?: string;
+  // Liberação do gerente para desconto acima do permitido pela forma (desconto.regras). Sem
+  // declarar aqui, o ValidationPipe (forbidNonWhitelisted) recusaria o pedido inteiro.
+  @IsOptional() @IsString() liberacaoEmail?: string;
+  @IsOptional() @IsString() liberacaoSenha?: string;
 }

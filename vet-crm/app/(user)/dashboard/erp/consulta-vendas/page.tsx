@@ -8,6 +8,7 @@ import OrcamentosBusca from '@/components/vendas/OrcamentosBusca';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { resumoDeVendas } from '@/lib/resumoDeVendas';
 import { useRolePreview } from '@/lib/ui/RolePreview';
+import { useSession } from 'next-auth/react';
 import EnviarPorWhatsApp from '@/components/comum/EnviarPorWhatsApp';
 import { textoDoRelatorioVendas } from '@/lib/textoDoRelatorioVendas';
 import { gerarPdfDoExtrato } from '@/lib/documentos/relatorio-vendas-pdf';
@@ -155,7 +156,12 @@ function DevolucaoModal({ vendaId, onClose }: { vendaId: string; onClose: () => 
   // no Financeiro do mesmo jeito; só deixa de aparecer para quem não é adm. Usa o papel EFETIVO:
   // a Cintia, pré-visualizando como Recepção, vê exatamente o que a recepção vê.
   // Na devolução, quem devolve continua vendo QUANTO devolver — só não vê a taxa descontada.
-  const verTaxa = useRolePreview().effectiveRole === 'ADMIN';
+  // SÓ DEPOIS QUE A SESSÃO CHEGA. Enquanto ela carrega, o papel vem vazio e o sistema o trata
+  // como ADMIN (lib/ui/role: "não esconde nada de quem não classificou") — a taxa piscava na
+  // tela da recepção. Cintia, 16/09/2026: "ela está aparecendo no caixa da recepção".
+  const sessaoPronta = useSession().status === 'authenticated';
+  const papelEfetivo = useRolePreview().effectiveRole;
+  const verTaxa = sessaoPronta && papelEfetivo === 'ADMIN';
   const [pv, setPv] = useState<DevPreview | null>(null);
   const [erro, setErro] = useState('');
   const [escopo, setEscopo] = useState<'total' | 'item'>('total');

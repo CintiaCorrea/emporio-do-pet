@@ -19,7 +19,7 @@ const ler = (...p: string[]) => readFileSync(join(RAIZ, ...p), "utf8");
 describe("onde a taxa do cartão aparece, ela pergunta quem está vendo", () => {
   it("nas formas de pagamento — PDV, Caixa e baixar várias usam este mesmo componente", () => {
     const src = ler("components", "financeiro", "PagamentoFormas.tsx");
-    expect(src).toContain('const verTaxa = useRolePreview().effectiveRole === "ADMIN";');
+    expect(src).toContain('const verTaxa = sessaoPronta && papelEfetivo === "ADMIN";');
     expect(src).toContain("{verTaxa && (() => { const bps = taxaBpsDe(f, cfg);");
     expect(src).toContain("{verTaxa && taxaTotal > 0.001 && (");
   });
@@ -41,6 +41,23 @@ describe("onde a taxa do cartão aparece, ela pergunta quem está vendo", () => 
     for (const p of [
       ["components", "financeiro", "PagamentoFormas.tsx"],
       ["app", "(user)", "dashboard", "erp", "caixa", "page.tsx"],
-    ]) expect(ler(...p)).toContain("useRolePreview().effectiveRole");
+      ["app", "(user)", "dashboard", "erp", "consulta-vendas", "page.tsx"],
+    ]) expect(ler(...p)).toContain("const papelEfetivo = useRolePreview().effectiveRole;");
+  });
+
+  it("e só depois que a sessão chegou — sem papel, o sistema trata a pessoa como ADMIN", () => {
+    // Cintia, 16/09/2026: "ela está aparecendo no caixa da recepção". Enquanto a sessão carrega o
+    // papel vem vazio, e lib/ui/role o transforma em ADMIN: a taxa piscava para a recepção.
+    for (const p of [
+      ["components", "financeiro", "PagamentoFormas.tsx"],
+      ["app", "(user)", "dashboard", "erp", "caixa", "page.tsx"],
+      ["app", "(user)", "dashboard", "erp", "consulta-vendas", "page.tsx"],
+    ]) {
+      const src = ler(...p);
+      expect(src).toMatch(/const sessaoPronta = useSession\(\)\.status === ['"]authenticated['"];/);
+      expect(src).toMatch(/const verTaxa = sessaoPronta && papelEfetivo === ['"]ADMIN['"];/);
+      // Hook dentro de && muda a ordem das chamadas e quebra a tela.
+      expect(src).not.toMatch(/&&\s*useRolePreview\(/);
+    }
   });
 });

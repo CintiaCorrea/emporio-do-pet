@@ -17,7 +17,7 @@ const PADROES = [
   { nome: "Pix", tipo: "Pix", conta: "" },
   { nome: "Crédito do cliente", tipo: "Crédito do cliente", conta: "" },
 ];
-const novaForma = () => ({ id: "", nome: "", tipo: "Dinheiro", conta: "", contaId: "", adquirente: "", ativo: true, prazoCredito: "", prazoDebito: "", taxas: {} as Record<string, string> });
+const novaForma = () => ({ id: "", nome: "", tipo: "Dinheiro", conta: "", contaId: "", adquirente: "", ativo: true, prazoCredito: "", prazoDebito: "", descontoMax: "", taxas: {} as Record<string, string> });
 
 export default function FormasRecebimentoPage() {
   usePageTitle("Formas de recebimento", "Configurar formas de pagamento e taxas");
@@ -51,7 +51,7 @@ export default function FormasRecebimentoPage() {
   const abrir = (f?: any) => {
     // recarrega as contas na hora — pega contas criadas depois que a página abriu
     fetch("/api/financeiro/contas").then((r) => r.json()).then((cs) => setContas(Array.isArray(cs) ? cs : (cs.itens || cs.data || []))).catch(() => {});
-    setForm(f ? { id: f.id, nome: f.nome || "", tipo: f.tipo || "Dinheiro", conta: f.conta || "", contaId: f.contaId || "", adquirente: f.adquirente || "", ativo: f.ativo !== false, prazoCredito: f.prazoCredito ?? "", prazoDebito: f.prazoDebito ?? "", taxas: { ...(f.taxas || {}) } } : novaForma());
+    setForm(f ? { id: f.id, nome: f.nome || "", tipo: f.tipo || "Dinheiro", conta: f.conta || "", contaId: f.contaId || "", adquirente: f.adquirente || "", ativo: f.ativo !== false, prazoCredito: f.prazoCredito ?? "", prazoDebito: f.prazoDebito ?? "", descontoMax: f.descontoMax ?? "", taxas: { ...(f.taxas || {}) } } : novaForma());
     setOpen(true);
   };
   const salvar = async () => {
@@ -59,7 +59,7 @@ export default function FormasRecebimentoPage() {
     setSaving(true);
     try {
       const isCartao = tipoEhCartao(form.tipo);
-      const payload: any = { nome: form.nome.trim(), tipo: form.tipo, conta: form.conta.trim(), contaId: form.contaId || "", ativo: !!form.ativo };
+      const payload: any = { nome: form.nome.trim(), tipo: form.tipo, conta: form.conta.trim(), contaId: form.contaId || "", ativo: !!form.ativo, descontoMax: String(form.descontoMax ?? "").trim().replace(",", ".") };
       if (isCartao) { payload.prazoCredito = form.prazoCredito; payload.prazoDebito = form.prazoDebito; payload.adquirente = form.adquirente || ""; } // taxa vem da tabela por bandeira, não da forma
       const url = form.id ? `/api/listas/${form.id}` : "/api/listas";
       const res = await fetch(url, { method: form.id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(form.id ? { valor: JSON.stringify(payload) } : { lista: "formasrecebimento", valor: JSON.stringify(payload) }) });
@@ -116,7 +116,7 @@ export default function FormasRecebimentoPage() {
                   <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: "#E0F4F6" }}>{TIPO_EMOJI[f.tipo] || "💠"}</span>
                   <div className="flex-1 min-w-0">
                     <div className="text-[14px] font-medium text-[#014D5E] truncate">{f.nome}</div>
-                    <div className="text-[11px] text-[#374151] truncate">{resumo(f)}{cartao && !aberto ? " · toque p/ ver" : ""}</div>
+                    <div className="text-[11px] text-[#374151] truncate">{resumo(f)}{String(f.descontoMax ?? "").trim() !== "" ? ` · desconto até ${String(f.descontoMax).replace(".", ",")}%` : ""}{cartao && !aberto ? " · toque p/ ver" : ""}</div>
                   </div>
                   <div className="flex items-center gap-2.5 flex-shrink-0">
                     <span className="text-[10px] font-medium px-2 py-0.5 rounded-full" style={f.ativo !== false ? { background: "#E1F5EE", color: "#0F6E56" } : { background: "#F0EBE0", color: "#374151" }}>{f.ativo !== false ? "Ativa" : "Inativa"}</span>
@@ -164,6 +164,13 @@ export default function FormasRecebimentoPage() {
                   </select>
                   {!form.contaId && form.conta ? <div className="text-[10.5px] text-[#B45309] mt-1">Texto antigo: "{form.conta}" — selecione a conta real acima.</div> : null}
                   {contas.length === 0 ? <div className="text-[10.5px] text-[#374151] mt-1">Nenhuma conta ainda. Cadastre em Financeiro › Contas.</div> : null}
+                </div>
+                {/* DESCONTO PERMITIDO NESTA FORMA (Cintia, 16/09/2026: "o caixa tem autorização de dar
+                    5% de desconto nas vendas à vista e no PIX"). Vazio = segue o limite geral da
+                    Configuração de vendas; 0 = nenhum desconto (é assim que o cartão fica sem). */}
+                <div className="col-span-2"><label className="text-[11px] text-[#374151] block mb-1">Desconto permitido (%)</label>
+                  <input value={form.descontoMax ?? ""} onChange={(e) => setForm({ ...form, descontoMax: e.target.value.replace(/[^0-9.,]/g, "") })} inputMode="decimal" placeholder="vazio = limite geral" className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} />
+                  <div className="text-[10.5px] text-[#374151] mt-1">Quanto o caixa pode dar de desconto quando o cliente paga nesta forma. <b>0</b> = nenhum. Vazio = segue o limite geral (Vendas › Configuração de vendas). Acima disso, só com liberação do gerente.</div>
                 </div>
               </div>
 

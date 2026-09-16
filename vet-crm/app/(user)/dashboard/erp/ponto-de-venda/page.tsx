@@ -28,6 +28,7 @@ import { hojeNaClinicaISO } from "@/lib/datas";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import CampoValor from '@/components/comum/CampoValor';
 import SaldoDevedorTag from '@/components/comum/SaldoDevedorTag';
+import { useLiberacaoGerente, precisaDeLiberacao } from '@/components/caixa/LiberacaoGerente';
 import ReceberEmLoteModal, { type ComandaParaReceber } from '@/components/caixa/ReceberEmLoteModal';
 
 const TEAL = '#009AAC';
@@ -158,16 +159,9 @@ export default function PDVPage() {
   const [recFormas, setRecFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]);
   const [recSaving, setRecSaving] = useState(false);
   // 🔓 Liberação de gerente (desconto acima do limite) — modal com senha mascarada
-  const [libOpen, setLibOpen] = useState(false);
-  const [libEmail, setLibEmail] = useState('');
-  const [libSenha, setLibSenha] = useState('');
-  const libResolver = useRef<((v: { email: string; senha: string } | null) => void) | null>(null);
-  const pedirLiberacao = () => new Promise<{ email: string; senha: string } | null>((resolve) => {
-    libResolver.current = resolve; setLibEmail(''); setLibSenha(''); setLibOpen(true);
-  });
-  const fecharLiberacao = (v: { email: string; senha: string } | null) => {
-    setLibOpen(false); const r = libResolver.current; libResolver.current = null; if (r) r(v);
-  };
+  // A liberação do gerente virou peça única (components/caixa/LiberacaoGerente) em 16/09/2026,
+  // quando o Caixa e o Baixar várias também passaram a conferir desconto.
+  const { pedirLiberacao, modalLiberacao } = useLiberacaoGerente();
 
   // Duas leituras, dois propósitos: o DIA alimenta o resumo e o relatório de comandas; as
   // ABERTAS alimentam a lista única — conta em aberto não pertence a um dia só, ela fica em pé
@@ -656,8 +650,8 @@ export default function PDVPage() {
       let r = await fetch('/api/caixa/pdv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       let d = await r.json().catch(() => ({}));
       // 🔓 Desconto acima do limite → pede LIBERAÇÃO de um gerente (admin) e reenvia 1 vez.
-      if (!r.ok && /liberação de um gerente|passa do limite/i.test(String(d?.message || ''))) {
-        const lib = await pedirLiberacao();
+      if (!r.ok && precisaDeLiberacao(d?.message)) {
+        const lib = await pedirLiberacao(d?.message);
         if (lib?.email && lib?.senha) {
           r = await fetch('/api/caixa/pdv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, liberacaoEmail: lib.email, liberacaoSenha: lib.senha }) });
           d = await r.json().catch(() => ({}));
@@ -1845,38 +1839,7 @@ export default function PDVPage() {
         );
       })()}
 
-      {/* 🔓 Liberação de gerente — desconto acima do limite (senha mascarada) */}
-      {libOpen && (
-        <div {...fundoDeModal(() => fecharLiberacao(null))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 90, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <form
-            onClick={(e) => e.stopPropagation()}
-            onSubmit={(e) => { e.preventDefault(); if (libEmail.trim() && libSenha) fecharLiberacao({ email: libEmail.trim(), senha: libSenha }); }}
-            style={{ width: 360, maxWidth: '100%', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden' }}
-          >
-            <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <b style={{ color: NAVY, fontSize: 15 }}>🔓 Liberação do gerente</b>
-              <button type="button" onClick={() => fecharLiberacao(null)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
-            </div>
-            <div style={{ padding: 18 }}>
-              <p style={{ margin: '0 0 14px', fontSize: 13, color: INK2, lineHeight: 1.5 }}>O desconto passa do limite. Um gerente (admin) precisa autorizar com e-mail e senha.</p>
-              <label style={{ display: 'block', fontSize: 12, color: MUT, marginBottom: 4 }}>E-mail do gerente</label>
-              <input
-                type="email" value={libEmail} onChange={(e) => setLibEmail(e.target.value)} autoFocus autoComplete="off"
-                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 14, background: '#fff', color: INK, marginBottom: 12 }}
-              />
-              <label style={{ display: 'block', fontSize: 12, color: MUT, marginBottom: 4 }}>Senha</label>
-              <input
-                type="password" value={libSenha} onChange={(e) => setLibSenha(e.target.value)} autoComplete="off"
-                style={{ width: '100%', padding: '10px 12px', border: `1px solid ${LINE}`, borderRadius: 9, fontSize: 14, background: '#fff', color: INK }}
-              />
-              <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
-                <button type="button" onClick={() => fecharLiberacao(null)} style={{ flex: 1, background: '#fff', color: MUT, border: `1px solid ${LINE}`, fontSize: 14, fontWeight: 500, padding: 11, borderRadius: 9, cursor: 'pointer' }}>Cancelar</button>
-                <button type="submit" disabled={!libEmail.trim() || !libSenha} style={{ flex: 1, background: NAVY, color: '#fff', border: 'none', fontSize: 14, fontWeight: 500, padding: 11, borderRadius: 9, cursor: (!libEmail.trim() || !libSenha) ? 'not-allowed' : 'pointer', opacity: (!libEmail.trim() || !libSenha) ? .6 : 1 }}>Autorizar</button>
-              </div>
-            </div>
-          </form>
-        </div>
-      )}
+      {modalLiberacao}
     </div>
   );
 }
