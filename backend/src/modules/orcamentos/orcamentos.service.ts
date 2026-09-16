@@ -5,6 +5,7 @@ import { UpdateOrcamentoDto } from './dto/update-orcamento.dto';
 import { AppointmentsService } from '../appointments/appointments.service';
 import { ExamesService } from '../exames/exames.service';
 import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
+import { dentroDaJanelaDeAjuste } from '../../common/janela-de-ajuste';
 
 function calcItemTotal(it: any): number {
   const q = Number(it.quantidade ?? 1);
@@ -172,8 +173,25 @@ export class OrcamentosService {
     });
   }
 
+  /**
+   * EXCLUIR UM ORÇAMENTO.
+   *
+   * O que ainda é proposta, sempre. O que JÁ VIROU VENDA, só dentro da janela de ajuste (Cintia,
+   * 16/09/2026: "preciso poder deletar orçamentos que viraram vendas e ainda constam os orçamentos.
+   * Pode liberar também até dia 19?").
+   *
+   * Apagar o orçamento convertido NÃO mexe na venda: a ligação é do lado do orçamento
+   * (`appointmentId`, onDelete SetNull na venda), então a venda, os itens, os recebimentos e o
+   * caixa ficam exatamente como estão. Some só a proposta duplicada que a ficha mostrava.
+   *
+   * Por que prazo: depois da arrumação de setembro, o orçamento convertido é o rastro de "de onde
+   * esta venda veio" — apagar vira exceção de novo, e a janela fecha sozinha.
+   */
   async remove(id: string) {
-    await this.findOne(id);
+    const orc = await this.findOne(id);
+    if ((orc as any)?.appointmentId && !dentroDaJanelaDeAjuste()) {
+      throw new BadRequestException('Este orçamento já virou venda. Excluir orçamento convertido ficou liberado só até 19/09.');
+    }
     await this.prisma.orcamento.delete({ where: { id } });
     return { ok: true };
   }

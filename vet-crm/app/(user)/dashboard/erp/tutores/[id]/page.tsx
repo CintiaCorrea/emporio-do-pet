@@ -33,6 +33,7 @@ import SaldoDevedorTag from "@/components/comum/SaldoDevedorTag";
 import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
   LuTrash, LuPhone, LuCalendar, LuUser, LuPlus, LuCheck, LuX} from "react-icons/lu";
+import { dentroDaJanelaDeAjuste } from "@/lib/janelaDeAjuste";
 
 // O servidor responde em inglês ("email must be an email"). Quem usa a tela não tem
 // que decifrar isso — mas também não dá pra esconder o motivo, senão vira "Erro ao
@@ -1333,6 +1334,24 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
                     ))}
                     {o.observacao ? <div className="text-[11px] text-[#374151] mt-1"><b>Obs:</b> {o.observacao}</div> : null}
                     {convertido && <div className="text-[11px] mt-1" style={{ color: "#185FA5" }}>Já virou venda — não cobre de novo.</div>}
+                    {/* EXCLUIR O ORÇAMENTO QUE JÁ VIROU VENDA — só até 19/09 (Cintia, 16/09/2026: "preciso
+                    poder deletar orçamentos que viraram vendas e ainda constam"). A venda não é
+                    tocada; some só a proposta duplicada. O servidor confere o prazo também. */}
+                    {convertido && dentroDaJanelaDeAjuste() && (
+                      <button
+                        onClick={async () => {
+                          if (!confirm("Excluir este orçamento? Ele já virou venda — a VENDA continua exatamente como está, some só o orçamento.")) return;
+                          try {
+                            const r = await fetch(`/api/orcamentos/${o.id}`, { method: "DELETE" });
+                            if (!r.ok) { const e = await r.json().catch(() => ({} as any)); throw new Error(e?.message || "Não consegui excluir."); }
+                            toast.success("Orçamento excluído — a venda continua.");
+                            setOrcamentos((lista: any[]) => lista.filter((x: any) => x.id !== o.id));
+                          } catch (e: any) { toast.error(e?.message || "Não consegui excluir o orçamento."); }
+                        }}
+                        className="mt-1.5 text-[11px] font-medium px-2 py-1 rounded-lg"
+                        style={{ background: "#FBE4E2", color: "#A32D2D" }}
+                      >🗑 Excluir orçamento (a venda continua)</button>
+                    )}
                   </div>
                 )}
               </div>

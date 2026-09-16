@@ -513,6 +513,15 @@ export default function PetDetailPage() {
     } catch { setOrcamentos([]); }
   }, [petId]);
   useEffect(() => { carregarOrcamentos(); }, [carregarOrcamentos]);
+  const excluirOrcamentoConvertido = async (o: any) => {
+    if (!confirm("Excluir este orçamento? Ele já virou venda — a VENDA continua exatamente como está, some só o orçamento.")) return;
+    try {
+      const r = await fetch(`/api/orcamentos/${o.id}`, { method: "DELETE" });
+      if (!r.ok) { const e = await r.json().catch(() => ({} as any)); throw new Error(e?.message || "Não consegui excluir."); }
+      toast.success("Orçamento excluído — a venda continua.");
+      carregarOrcamentos();
+    } catch (e: any) { toast.error(e?.message || "Não consegui excluir o orçamento."); }
+  };
 
   // 💳 Crédito do tutor (Fig 3a) — saldo mostrado na Visão geral
   useEffect(() => {
@@ -2887,6 +2896,17 @@ export default function PetDetailPage() {
                           <span className="ml-1.5 text-[11px] text-[#9aa0a8]">{o.itens.length} item(ns)</span>
                         )}
                       </span>
+                      {/* EXCLUIR O ORÇAMENTO QUE JÁ VIROU VENDA — só até 19/09 (Cintia, 16/09/2026: "preciso
+                    poder deletar orçamentos que viraram vendas e ainda constam"). A venda não é
+                    tocada; some só a proposta duplicada. O servidor confere o prazo também. */}
+                      {convertido && dentroDaJanelaDeAjuste() && (
+                        <button
+                          onClick={() => excluirOrcamentoConvertido(o)}
+                          title="Excluir este orçamento (a venda continua)"
+                          className="text-[11px] font-medium px-2 py-1 rounded-lg shrink-0"
+                          style={{ background: "#FBE4E2", color: "#A32D2D" }}
+                        >🗑 Excluir</button>
+                      )}
                       {!convertido && (
                         <button
                           onClick={() => setOrcEditando(o)}
