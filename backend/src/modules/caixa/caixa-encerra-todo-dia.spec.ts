@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { caixasQueAMeiaNoiteFecha, diaQueTerminou } from './caixa.regras';
 
 // 🛡️ O CAIXA ENCERRA TODO DIA À MEIA-NOITE — e isso não é configurável.
 //
@@ -30,9 +31,13 @@ describe('o encerramento da meia-noite é regra, não opção', () => {
     expect(src).toContain("@Cron('0 0 * * *', { timeZone: 'America/Fortaleza' })");
   });
 
-  it('fecha TODOS os caixas abertos, não só os de hoje', () => {
+  it('busca TODOS os caixas abertos, não só os de hoje', () => {
     // Sem isso, um caixa esquecido em agosto ficaria aberto para sempre.
     expect(src).toContain("where: { status: 'ABERTO' }");
+  });
+
+  it('e quem decide quais fecham é a regra (caixa.regras), com a exceção da janela de ajuste', () => {
+    expect(src).toContain('caixasQueAMeiaNoiteFecha(todos)');
   });
 
   it('o caixa fechado sozinho diz que não teve conferência de gaveta', () => {
@@ -68,5 +73,41 @@ describe('abrir caixa: a trava do duplicado olha só o dia de hoje', () => {
     // Aqui, em abrir(), ela criava o beco sem saída.
     const trecho = src.slice(src.indexOf('async abrir('), src.indexOf('async fechar('));
     expect(trecho).toContain('abertura: { gte: ini, lte: fim }');
+  });
+});
+
+
+// ── A EXCEÇÃO COM PRAZO ─────────────────────────────────────────────────────────────────────
+// Cintia, 16/09/2026: "pode reabrir todos os caixas desse mês para podermos fazer os lançamentos
+// que não foram possíveis". Reabrir não serviria de nada se a meia-noite fechasse tudo de novo.
+describe('a meia-noite durante a janela de ajuste', () => {
+  // 00:00:05 de 17/09 em Fortaleza.
+  const meiaNoite = new Date('2026-09-17T00:00:05-03:00');
+  const doDia = { id: 'hoje', abertura: new Date('2026-09-16T08:10:00-03:00') };
+  const retroativo = { id: 'dia12', abertura: new Date('2026-09-12T12:00:00-03:00') };
+  const doInicioDoMes = { id: 'dia02', abertura: new Date('2026-09-02T09:00:00-03:00') };
+
+  it('o dia que terminou é o de ontem, mesmo com o cron atrasando alguns segundos', () => {
+    expect(diaQueTerminou(meiaNoite)).toBe('2026-09-16');
+  });
+
+  it('dentro da janela: fecha o caixa do dia que terminou — a operação do dia segue a regra da casa', () => {
+    const r = caixasQueAMeiaNoiteFecha([doDia, retroativo, doInicioDoMes], meiaNoite, true);
+    expect(r.map((c) => c.id)).toEqual(['hoje']);
+  });
+
+  it('dentro da janela: caixa de dia passado continua aberto para a conciliação', () => {
+    const r = caixasQueAMeiaNoiteFecha([retroativo, doInicioDoMes], meiaNoite, true);
+    expect(r).toEqual([]);
+  });
+
+  it('fora da janela: fecha TODOS, como sempre — a exceção acaba sozinha', () => {
+    const r = caixasQueAMeiaNoiteFecha([doDia, retroativo, doInicioDoMes], meiaNoite, false);
+    expect(r).toHaveLength(3);
+  });
+
+  it('sem informar, a janela é a de verdade: depois de 19/09 fecha tudo', () => {
+    const depois = new Date('2026-09-20T00:00:05-03:00');
+    expect(caixasQueAMeiaNoiteFecha([retroativo], depois)).toHaveLength(1);
   });
 });

@@ -403,3 +403,34 @@ export function podeTransferirEntreCaixas(t: Transferencia): Liberado | MotivoRe
   }
   return { ok: true };
 }
+
+
+// ── QUAIS CAIXAS A MEIA-NOITE FECHA ─────────────────────────────────────────────────────────
+//
+// A regra da casa (Cintia, 08/09/2026): "os caixas DEVEM ser encerrados às 00:00 TODOS OS DIAS".
+//
+// A EXCEÇÃO COM PRAZO (Cintia, 16/09/2026): "pode reabrir todos os caixas desse mês para podermos
+// fazer os lançamentos que não foram possíveis, pois estávamos construindo muitas coisas ao mesmo
+// tempo e estava bugando o caixa".
+//
+// Reabrir sem isto não serviria de nada: à meia-noite todos voltariam a fechar, no meio dos
+// lançamentos. Então, SÓ DENTRO da janela de ajuste (common/janela-de-ajuste), a meia-noite fecha
+// o caixa do DIA QUE TERMINOU — a operação do dia segue a regra da casa — e deixa aberto o caixa
+// de dia passado, que está aberto de propósito para a conciliação. Quando a janela passa, a
+// primeira meia-noite fecha tudo, sem ninguém precisar lembrar.
+
+/** O dia (AAAA-MM-DD, Fortaleza) que acabou de terminar quando a meia-noite roda. */
+export function diaQueTerminou(agora: Date = new Date()): string {
+  // Uma hora para trás cai com folga no dia anterior, mesmo que o cron atrase alguns segundos.
+  return new Date(agora.getTime() - 3600_000).toLocaleDateString('en-CA', { timeZone: 'America/Fortaleza' });
+}
+
+export function caixasQueAMeiaNoiteFecha<T extends { abertura: Date | string }>(
+  abertos: T[],
+  agora: Date = new Date(),
+  dentroDaJanela: boolean = dentroDaJanelaDeAjuste(agora),
+): T[] {
+  if (!dentroDaJanela) return abertos || [];
+  const inicio = faixaDoDia(diaQueTerminou(agora)).ini.getTime();
+  return (abertos || []).filter((c) => new Date(c.abertura).getTime() >= inicio);
+}

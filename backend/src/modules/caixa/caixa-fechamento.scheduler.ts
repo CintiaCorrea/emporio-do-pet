@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../prisma/prisma.service';
 import { CaixaService } from './caixa.service';
 import { CronHealthService } from '../../common/cron-health.service';
+import { caixasQueAMeiaNoiteFecha } from './caixa.regras';
 
 /**
  * O CAIXA ENCERRA TODO DIA À MEIA-NOITE. NÃO É OPÇÃO.
@@ -35,10 +36,15 @@ export class CaixaFechamentoScheduler {
   async fecharCaixasMeiaNoite() {
     this.cronHealth.registrar('fechamento_caixa').catch(() => undefined);
     try {
-      const abertos = await this.prisma.caixaSessao.findMany({
+      const todos = await this.prisma.caixaSessao.findMany({
         where: { status: 'ABERTO' },
-        select: { id: true, numero: true },
+        select: { id: true, numero: true, abertura: true },
       });
+      // Fora da janela de ajuste: todos. Dentro: só o do dia que terminou (ver caixa.regras).
+      const abertos = caixasQueAMeiaNoiteFecha(todos);
+      if (todos.length > abertos.length) {
+        this.logger.log(`Janela de ajuste: ${todos.length - abertos.length} caixa(s) de dia passado ficam abertos para conciliação.`);
+      }
       if (!abertos.length) return;
       let ok = 0;
       for (const c of abertos) {
