@@ -22,6 +22,7 @@ import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
 import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from '@/lib/catalogoVendavel';
 import { rotuloDaFaixa, ordenarFaixas, aplicarFaixa, type FaixaPorte } from '@/lib/porte';
+import { excluirVenda as excluirVendaComum } from '@/lib/vendas/excluirVenda';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma } from '@/lib/formasPagamento';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import { hojeNaClinicaISO } from "@/lib/datas";
@@ -360,31 +361,19 @@ export default function PDVPage() {
     return { pode: true, motivo: '' };
   }, [detVenda, isAdmin, caixaAbertoId, caixaAberturaTs]);
 
-  // Exclui a venda (appointment) com confirmação.
+  // Exclui a venda. A regra é a de lib/vendas/excluirVenda — a mesma da Consulta de vendas e da
+  // ficha do pet. Esta tela tinha a sua própria cópia, que não conhecia o aviso de dinheiro
+  // recebido (16/09/2026).
   async function excluirVenda() {
     if (!detVenda) return;
-    if (!window.confirm(`Excluir a venda de ${detVenda.tutor}${detVenda.pet ? ' · ' + detVenda.pet : ''} (${brl(detVenda.valor)})? Não dá pra desfazer.`)) return;
     setDetExcluindo(true);
-    try {
-      let r = await fetch(`/api/appointments/${detVenda.id}`, { method: 'DELETE' });
-      if (!r.ok) {
-        const e = await r.json().catch(() => ({} as any));
-        const msg = String(e?.message || '');
-        // Atendimento com gravação de áudio: o backend pede confirmação explícita (só ADM).
-        if (msg.startsWith('TEM_GRAVACAO') && isAdmin) {
-          if (!window.confirm('Esse atendimento tem uma gravação de áudio salva. Excluir apaga a gravação junto. Apagar mesmo assim?')) { setDetExcluindo(false); return; }
-          r = await fetch(`/api/appointments/${detVenda.id}?force=true`, { method: 'DELETE' });
-          if (!r.ok) { const e2 = await r.json().catch(() => ({} as any)); throw new Error(String(e2?.message || '').replace(/^[A-Z_]+:\s*/, '') || 'Não consegui excluir.'); }
-        } else {
-          // Tira o código técnico (VENDA_PAGA:, CAIXA_FECHADO:) e mostra o motivo de verdade.
-          throw new Error(msg.replace(/^[A-Z_]+:\s*/, '') || 'Não consegui excluir. Tente de novo.');
-        }
-      }
-      toast.success('Venda excluída.');
-      setDetVenda(null);
-      await loadVendas();
-    } catch (e: any) { toast.error(e?.message || 'Não consegui excluir. Tente de novo.'); }
+    const r = await excluirVendaComum(
+      { id: detVenda.id, numeroVenda: (detVenda as any).numeroVenda, tutor: detVenda.tutor, pet: detVenda.pet, valor: detVenda.valor, pago: detVenda.pago },
+      { isAdmin, confirmar: (m) => window.confirm(m) },
+    );
     setDetExcluindo(false);
+    if (r.ok) { toast.success('Venda excluída.'); setDetVenda(null); await loadVendas(); return; }
+    if (!('cancelado' in r && r.cancelado)) toast.error(r.erro || 'Não consegui excluir. Tente de novo.');
   }
 
   useEffect(() => {

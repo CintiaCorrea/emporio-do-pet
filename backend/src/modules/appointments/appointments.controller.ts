@@ -138,10 +138,11 @@ export class AppointmentsController {
     @CurrentUser('role') role: string,
     @CurrentUser('id') userId: string,
     @Query('force') force?: string,
+    @Query('comRecebimento') comRecebimento?: string,
   ) {
     // O userId nao e' decoracao: a matriz de permissoes resolve o perfil pela PESSOA primeiro
     // (a Cintia atribui perfil a usuario na tela) e so' depois cai no cargo. Sem ele, quem
     // recebeu um perfil sob medida seria julgado pelo cargo generico.
-    return this.appointmentsService.remove(id, force === 'true' || force === '1', { role, userId });
+    return this.appointmentsService.remove(id, force === 'true' || force === '1', { role, userId }, comRecebimento === 'true' || comRecebimento === '1');
   }
 }

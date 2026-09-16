@@ -5,6 +5,7 @@ import { EventsService } from '../events/events.service';
 import { BoardsService } from '../boards/boards.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { avisoDeRecebimentoNaExclusao } from './exclusao-com-recebimento.regras';
 import { ensureNumeroVenda } from '../../common/venda-numero';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -1188,7 +1189,7 @@ export class AppointmentsService {
     }
   }
 
-  async remove(id: string, force = false, autor?: { role?: string; userId?: string }) {
+  async remove(id: string, force = false, autor?: { role?: string; userId?: string }, comRecebimento = false) {
     await this.findById(id);
 
     const venda = await this.prisma.appointment.findUnique({
@@ -1210,6 +1211,19 @@ export class AppointmentsService {
           'TEM_GRAVACAO: Este atendimento tem uma gravação de áudio salva. Apagar o atendimento apagaria a gravação junto. Confirme se quer mesmo apagar tudo.',
         );
       }
+    }
+
+    // 💵 DINHEIRO RECEBIDO NÃO SAI SEM AVISO (exclusao-com-recebimento.regras). Os outros perfis
+    // já foram barrados acima; aqui é o administrativo, que pode — mas só repetindo o pedido
+    // com `comRecebimento`, depois de ver quanto, em que caixa e de quem. A #1177 (16/09/2026)
+    // foi apagada numa sequência de oito exclusões e levou R$ 468,35 do caixa sem ninguém notar.
+    if (!comRecebimento) {
+      const recs = await this.prisma.recebimento.findMany({
+        where: { appointmentId: id },
+        select: { valorTotal: true, caixaSessao: { select: { numero: true, abertura: true, user: { select: { name: true } } } } },
+      });
+      const aviso = avisoDeRecebimentoNaExclusao(recs as any);
+      if (aviso) throw new ConflictException(`TEM_RECEBIMENTO: ${aviso}`);
     }
 
     // 🔗 APAGAR A VENDA SOLTA OS ITENS DA INTERNACAO QUE APONTAVAM PRA ELA.

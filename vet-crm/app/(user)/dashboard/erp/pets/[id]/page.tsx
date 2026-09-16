@@ -21,6 +21,7 @@ import {
 import toast from "react-hot-toast";
 import EditorDeItens from "@/components/vendas/EditorDeItens";
 import { ehCompra } from "@/lib/tipoDeVenda";
+import { apagarAtendimento } from "@/lib/vendas/excluirVenda";
 import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
 import { LinhaEditavel, totalDasLinhas, linhasParaGravar } from "@/lib/linhasDeVenda";
 import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
@@ -1525,24 +1526,15 @@ export default function PetDetailPage() {
     finally { setWaSending(false); }
   }
   async function abrirAtd(id: string) { try { const a = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then(r => r.json()); setVerAtd(a); setEditAtd(false); } catch { toast.error("Erro ao abrir atendimento"); } }
-  async function excluirAtendimento(id: string, force = false) {
-    if (!force && !(await confirmDelete({ entityLabel: "atendimento", itemName: "este atendimento" }))) return;
-    try {
-      const r = await fetch(`/api/appointments/${id}${force ? "?force=true" : ""}`, { method: "DELETE" });
-      if (!r.ok) {
-        const corpo = await r.json().catch(() => null);
-        const msg = String(corpo?.message || corpo?.error || "");
-        // Backend bloqueia quando o atendimento tem gravação de áudio (pra não apagar o áudio junto).
-        if (!force && (r.status === 409 || msg.includes("TEM_GRAVACAO"))) {
-          if (window.confirm("⚠️ Este atendimento tem uma GRAVAÇÃO DE ÁUDIO salva.\n\nApagar o atendimento vai apagar a gravação junto, de vez. Tem certeza que quer apagar tudo?")) {
-            return excluirAtendimento(id, true);
-          }
-          return;
-        }
-        throw new Error(msg || "erro");
-      }
-      toast.success("Atendimento excluído"); setVerAtd(null); await loadAtendimentos();
-    } catch { toast.error("Erro ao excluir"); }
+  async function excluirAtendimento(id: string) {
+    if (!(await confirmDelete({ entityLabel: "atendimento", itemName: "este atendimento" }))) return;
+    // lib/vendas/excluirVenda.apagarAtendimento — o mesmo caminho do ponto de venda e da
+    // Consulta de vendas. A cópia que morava aqui tratava QUALQUER recusa do servidor como
+    // "tem gravação de áudio"; com o aviso de dinheiro recebido (16/09/2026) ela mostraria a
+    // pergunta errada.
+    const r = await apagarAtendimento(id, { confirmar: (m) => window.confirm(m) });
+    if (r.ok) { toast.success("Atendimento excluído"); setVerAtd(null); await loadAtendimentos(); return; }
+    if (!("cancelado" in r && r.cancelado)) toast.error(r.erro || "Erro ao excluir");
   }
   // OS ITENS DO ATENDIMENTO, EDITAVEIS (Cintia, 08/09/2026: "preciso poder editar a venda na
   // ficha do pet tambem"). Ate aqui o modal deixava mudar tipo, status, data e observacao — mas

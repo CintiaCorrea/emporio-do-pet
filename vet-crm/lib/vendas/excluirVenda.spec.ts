@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { excluirVenda, semPrefixo } from "./excluirVenda";
+import { excluirVenda, apagarAtendimento, semPrefixo } from "./excluirVenda";
 
 /**
  * A regra de excluir venda saiu da tela "Todas as vendas" em 12/09/2026, quando a Consulta de
@@ -86,9 +86,9 @@ describe("excluirVenda", () => {
   });
 
   it("o codigo do servidor nao aparece pra quem le", async () => {
-    fetchMock.mockResolvedValueOnce(erro("TEM_RECEBIMENTO: apague o recebimento no caixa"));
+    fetchMock.mockResolvedValueOnce(erro("CAIXA_FECHADO: venda de caixa fechado so o adm exclui"));
     const r = await excluirVenda(venda, { isAdmin: true, confirmar: simAoTudo });
-    expect((r as any).erro).toBe("apague o recebimento no caixa");
+    expect((r as any).erro).toBe("venda de caixa fechado so o adm exclui");
   });
 
   it("rede caida vira mensagem, nao tela branca", async () => {
@@ -104,3 +104,61 @@ describe("excluirVenda", () => {
     expect(semPrefixo("")).toBe("");
   });
 });
+
+// O CASO DA #1177 (16/09/2026): apagada pelo administrativo numa sequência de oito exclusões,
+// levou junto R$ 468,35 recebidos no caixa nº 11 — sem nenhum aviso.
+describe("dinheiro recebido não sai sem aviso", () => {
+  const AVISO = "TEM_RECEBIMENTO: Esta venda tem R$ 468,35 recebido (R$ 468,35 no caixa nº 11 de Maria Gabriela 10/09). Apagar a venda apaga o recebimento junto, e o caixa fica R$ 468,35 menor. Apagar mesmo assim?";
+
+  it("mostra a frase do servidor, sem o código, e só repete com comRecebimento se a pessoa aceitar", async () => {
+    fetchMock.mockResolvedValueOnce(erro(AVISO)).mockResolvedValueOnce(ok());
+    const perguntas: string[] = [];
+    const r = await excluirVenda(venda, { isAdmin: true, confirmar: (m) => { perguntas.push(m); return true; } });
+    expect(r.ok).toBe(true);
+    expect(perguntas[1]).toContain("R$ 468,35 no caixa nº 11 de Maria Gabriela");
+    expect(perguntas[1]).not.toContain("TEM_RECEBIMENTO");
+    expect(String(fetchMock.mock.calls[1][0])).toContain("comRecebimento=true");
+  });
+
+  it("recusar deixa a venda e o dinheiro no lugar", async () => {
+    fetchMock.mockResolvedValueOnce(erro(AVISO));
+    let n = 0;
+    const r = await excluirVenda(venda, { isAdmin: true, confirmar: () => ++n === 1 });
+    expect(r.ok).toBe(false);
+    expect((r as any).cancelado).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("gravação E dinheiro: pergunta as duas coisas e manda os dois 'sim'", async () => {
+    fetchMock
+      .mockResolvedValueOnce(erro("TEM_GRAVACAO: tem audio"))
+      .mockResolvedValueOnce(erro(AVISO))
+      .mockResolvedValueOnce(ok());
+    const r = await apagarAtendimento("v1", { confirmar: simAoTudo });
+    expect(r.ok).toBe(true);
+    const ultima = String(fetchMock.mock.calls[2][0]);
+    expect(ultima).toContain("force=true");
+    expect(ultima).toContain("comRecebimento=true");
+  });
+
+  it("não fica em laço se o servidor insistir", async () => {
+    fetchMock.mockResolvedValue(erro(AVISO));
+    const r = await apagarAtendimento("v1", { confirmar: simAoTudo });
+    expect(r.ok).toBe(false);
+    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(3);
+  });
+});
+
+// 🛡️ Um caminho só para apagar atendimento. Eram três cópias, cada uma entendendo o servidor de
+// um jeito (a da ficha do pet tratava qualquer recusa como gravação de áudio).
+describe("ninguém volta a copiar a exclusão", () => {
+  it("só lib/vendas/excluirVenda trata os avisos do servidor", async () => {
+    const { codigoDoProjeto } = await import("@/lib/testes/varreduraDoProjeto");
+    const copias = codigoDoProjeto()
+      .filter((a) => a.caminho !== "lib/vendas/excluirVenda.ts")
+      .filter((a) => /TEM_GRAVACAO|TEM_RECEBIMENTO/.test(a.src))
+      .map((a) => a.caminho);
+    expect(copias).toEqual([]);
+  });
+}, 30000);
+
