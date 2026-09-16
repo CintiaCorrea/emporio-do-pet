@@ -50,7 +50,11 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   (`appointments/linhas-da-venda.regras.ts`); card de exame so para linha lancada agora;
   porteiro em modo aviso grava em `lista_itens` lista `porteiro_vendas`; pesagem antiga nao
   sobrescreve a mais nova.
-- [ ] A2 bloco 2 — preco pelo cadastro/peso (modo aviso) · bloco 3 — desconto e observacao ·
+- [x] **A2 bloco 1 publicado** em 16/09/2026 (api v849).
+- [x] **A2 bloco 2**: o servidor confere o preco de toda linha lancada ou alterada contra o
+  cadastro e a faixa do peso do pet (`conferirPreco`) e anota em `porteiro_vendas` com o motivo
+  (sem_cadastro, sem_peso, sem_preco, preco_diferente). Caucao e convenio nao sao conferidos.
+- [ ] A2 bloco 3 — desconto e observacao ·
   bloco 4 — apagar venda paga leva os recebimentos.
 - [ ] Ao final: varredura da tela do ponto de venda (recebimento) e revisao da tabela de
   produtos e servicos (a Cintia esta fazendo fora do sistema; reintegrar junto).

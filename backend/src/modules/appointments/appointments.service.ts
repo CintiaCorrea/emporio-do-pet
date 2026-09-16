@@ -7,7 +7,16 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { avisoDeRecebimentoNaExclusao } from './exclusao-com-recebimento.regras';
 import { ensureNumeroVenda } from '../../common/venda-numero';
-import { casarLinhas, linhasSemCadastro } from './linhas-da-venda.regras';
+import { casarLinhas, linhasSemCadastro, conferirPreco } from './linhas-da-venda.regras';
+
+/** Uma linha gravada agora, do jeito que o porteiro precisa para conferir. */
+type LinhaParaConferir = {
+  id: string;
+  descricao: string | null;
+  catalogoItemId: string | null;
+  convenioId: string | null;
+  valorUnitario: number;
+};
 import { ehTipoDeOrcamento } from '../crm/consulta-vendas.regras';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -67,32 +76,58 @@ export class AppointmentsService {
   }
 
   /**
-   * PORTEIRO DAS VENDAS, EM MODO AVISO (ver linhas-da-venda.regras, linhasSemCadastro).
+   * PORTEIRO DAS VENDAS, EM MODO AVISO (ver linhas-da-venda.regras).
    *
-   * Anota cada linha nova de venda que chegou sem ligação ao cadastro — qual venda, qual item, por
-   * qual gravação e quem — na lista `porteiro_vendas`. É essa lista que diz quais telas e quais
-   * itens ainda precisam de conserto antes de o porteiro passar a recusar. Nunca derruba a venda.
+   * Confere cada linha lançada ou alterada nesta gravação e anota na lista `porteiro_vendas` o que
+   * foge da regra da casa — qual venda, qual item, o motivo, por qual gravação e quem:
+   *   sem_cadastro     linha sem ligação ao cadastro de produtos e serviços
+   *   sem_peso         item cobrado por faixa de peso e o pet sem peso registrado
+   *   sem_preco        item do cadastro sem preço (ou sem preço para a faixa do pet)
+   *   preco_diferente  preço cobrado diferente do cadastro para o peso do pet
+   * É essa lista que diz o que ainda precisa de conserto (telas e cadastro) antes de o porteiro
+   * passar a recusar. Roda depois da venda gravada e nunca a derruba.
    */
-  private anotarLinhasSemCadastro(
+  private anotarNoPorteiro(
     appointmentId: string,
-    tipo: string | null | undefined,
-    linhas: { descricao: string | null; catalogoItemId: string | null }[],
+    linhas: LinhaParaConferir[],
     via: 'criar' | 'editar',
     userId?: string | null,
   ): void {
-    const soltas = linhasSemCadastro(linhas);
-    if (!soltas.length || ehTipoDeOrcamento(tipo)) return;
-    const at = new Date().toISOString();
-    Promise.all(
-      soltas.map((l, i) =>
-        this.prisma.listaItem.create({
-          data: {
-            lista: 'porteiro_vendas',
-            valor: JSON.stringify({ at, i, appointmentId, tipo: tipo ?? null, descricao: l.descricao, via, userId: userId ?? null }),
-          },
-        }),
-      ),
-    ).catch(() => undefined);
+    if (!linhas.length) return;
+    (async () => {
+      const venda = await this.prisma.appointment.findUnique({
+        where: { id: appointmentId },
+        select: { type: true, pet: { select: { weight: true } } },
+      });
+      if (!venda || ehTipoDeOrcamento(venda.type)) return;
+      const ids = [...new Set(linhas.map((l) => l.catalogoItemId).filter(Boolean))] as string[];
+      const cadastro = new Map(
+        (ids.length
+          ? await this.prisma.itemCatalogo.findMany({ where: { id: { in: ids } }, select: { id: true, nome: true, preco: true, precosPorte: true, ehCaucao: true } })
+          : []
+        ).map((c) => [c.id, c]),
+      );
+      const avisos: any[] = [];
+      for (const l of linhasSemCadastro(linhas)) avisos.push({ descricao: l.descricao, motivo: 'sem_cadastro' });
+      for (const l of linhas) {
+        // Convênio cobra pela tabela do convênio, não pelo preço do cadastro.
+        if (!l.catalogoItemId || l.convenioId) continue;
+        const aviso = conferirPreco(l.valorUnitario, cadastro.get(l.catalogoItemId), venda.pet?.weight);
+        if (aviso) avisos.push({ descricao: l.descricao, catalogoItemId: l.catalogoItemId, pesoKg: venda.pet?.weight ?? null, ...aviso });
+      }
+      if (!avisos.length) return;
+      const at = new Date().toISOString();
+      await Promise.all(
+        avisos.map((a, i) =>
+          this.prisma.listaItem.create({
+            data: {
+              lista: 'porteiro_vendas',
+              valor: JSON.stringify({ at, i, appointmentId, tipo: venda.type ?? null, via, userId: userId ?? null, ...a }),
+            },
+          }),
+        ),
+      );
+    })().catch(() => undefined);
   }
 
   /** Ids de serviço e produto que existem de verdade — um id inexistente derrubaria a venda (FK). */
@@ -526,7 +561,7 @@ export class AppointmentsService {
       if (agendado) reuseId = agendado.id;
     }
 
-    const linhasCriadas: { id: string; descricao: string | null; catalogoItemId: string | null }[] = [];
+    const linhasCriadas: LinhaParaConferir[] = [];
     const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       let appointment: any;
       if (reuseId) {
@@ -566,7 +601,7 @@ export class AppointmentsService {
         const validos = await this.idsValidosDasLinhas(tx, itemsDto);
         for (const it of itemsDto) {
           const criada = await tx.appointmentItem.create({ data: this.dadosDaLinha(it, appointment.id, validos) });
-          linhasCriadas.push({ id: criada.id, descricao: criada.descricao, catalogoItemId: criada.catalogoItemId });
+          linhasCriadas.push(criada);
         }
       }
 
@@ -593,7 +628,7 @@ export class AppointmentsService {
     // propósito: o ouvinte precisa enxergar os itens já comitados.
     if (result && linhasCriadas.length > 0) {
       this.avisarItensGravados(result.id, linhasCriadas.map((l) => l.id));
-      this.anotarLinhasSemCadastro(result.id, (result as any).type, linhasCriadas, 'criar', createAppointmentDto.userId);
+      this.anotarNoPorteiro(result.id, linhasCriadas, 'criar', createAppointmentDto.userId);
     }
 
     // Emit appointment created event for automations
@@ -981,7 +1016,8 @@ export class AppointmentsService {
       }
     }
 
-    const linhasCriadas: { id: string; descricao: string | null; catalogoItemId: string | null }[] = [];
+    const linhasCriadas: LinhaParaConferir[] = [];
+    const linhasAlteradas: LinhaParaConferir[] = [];
     const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const updatedAppointment = await tx.appointment.update({ where: { id }, data: updateData });
 
@@ -1022,11 +1058,15 @@ export class AppointmentsService {
         for (const m of casamento.manter) {
           const dados = this.dadosDaLinha(m.recebida, id, validos);
           const mudou = (Object.keys(dados) as (keyof typeof dados)[]).some((k) => (m.existente as any)[k] !== dados[k]);
-          if (mudou) await tx.appointmentItem.update({ where: { id: m.id }, data: dados });
+          if (mudou) {
+            const alterada = await tx.appointmentItem.update({ where: { id: m.id }, data: dados });
+            // Preço ou item trocado numa linha que continua: o porteiro confere de novo.
+            if (m.existente.valorUnitario !== dados.valorUnitario || m.existente.catalogoItemId !== dados.catalogoItemId) linhasAlteradas.push(alterada);
+          }
         }
         for (const it of casamento.criar) {
           const criada = await tx.appointmentItem.create({ data: this.dadosDaLinha(it, id, validos) });
-          linhasCriadas.push({ id: criada.id, descricao: criada.descricao, catalogoItemId: criada.catalogoItemId });
+          linhasCriadas.push(criada);
         }
       }
 
@@ -1067,8 +1107,8 @@ export class AppointmentsService {
     // criadas, e é para elas (e só elas) que o card pode nascer ou ser religado.
     if (result && linhasCriadas.length > 0) {
       this.avisarItensGravados(id, linhasCriadas.map((l) => l.id));
-      this.anotarLinhasSemCadastro(id, (result as any).type, linhasCriadas, 'editar', requesterId);
     }
+    if (result) this.anotarNoPorteiro(id, [...linhasCriadas, ...linhasAlteradas], 'editar', requesterId);
 
     // Emit events based on status change
     if (result && updateAppointmentDto.status && updateAppointmentDto.status !== previousStatus) {

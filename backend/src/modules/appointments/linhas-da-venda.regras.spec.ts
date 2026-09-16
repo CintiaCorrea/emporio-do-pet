@@ -1,4 +1,4 @@
-import { casarLinhas, mesclarLinha, linhasSemCadastro } from './linhas-da-venda.regras';
+import { casarLinhas, mesclarLinha, linhasSemCadastro, conferirPreco } from './linhas-da-venda.regras';
 
 // O caso real: a venda #1168 do Reginaldo (08/09/2026) tinha o hemograma ligado ao cadastro e ao
 // laboratório. O ponto de venda, ao salvar uma edição, manda só nome, quantidade e preço — e a
@@ -104,5 +104,77 @@ describe('porteiro (modo aviso): linha de venda sem cadastro', () => {
       { descricao: 'Item', catalogoItemId: '' },
     ];
     expect(linhasSemCadastro(linhas).map((l) => l.descricao)).toEqual(['Cateterização', 'Item']);
+  });
+});
+
+
+// Preço pelo cadastro e pelo peso (A2 bloco 2). Tartarectomia copiada de produção em 16/09/2026;
+// diária com os preços de produção (150/175/200/225/250) na escada padrão da casa (FAIXAS_PADRAO).
+const DIARIA = {
+  id: 'cat-diaria', nome: 'Diária de internação', preco: 150,
+  precosPorte: JSON.stringify([
+    { ate: 10, rotulo: '0 a 10 kg', preco: 150 }, { ate: 20, rotulo: '11 a 20 kg', preco: 175 },
+    { ate: 30, rotulo: '21 a 30 kg', preco: 200 }, { ate: 40, rotulo: '31 a 40 kg', preco: 225 },
+    { ate: null, rotulo: '41 a 50+ kg', preco: 250 },
+  ]),
+};
+const TARTARECTOMIA = {
+  id: 'cat-tartarectomia', nome: 'Tartarectomia', preco: 360,
+  precosPorte: JSON.stringify([
+    { ate: 5, rotulo: '0 a 5 kg', preco: 360 }, { ate: 10, rotulo: '5 a 10 kg', preco: 620 },
+    { ate: null, rotulo: 'acima de 10 kg', preco: null },
+  ]),
+};
+
+describe('preço pelo cadastro e pelo peso (porteiro, modo aviso)', () => {
+  it('a diária do Chico (13,1 kg) cobrada a R$ 150: o cadastro diz R$ 175 na faixa de 11 a 20 kg', () => {
+    expect(conferirPreco(150, DIARIA, 13.1)).toEqual({ motivo: 'preco_diferente', cobrado: 150, cadastro: 175, faixa: '11 a 20 kg' });
+  });
+
+  it('preço certo para a faixa do peso não gera aviso', () => {
+    expect(conferirPreco(150, DIARIA, 8.4)).toBeNull();
+    expect(conferirPreco(175, DIARIA, 13.1)).toBeNull();
+  });
+
+  it('item com faixa e pet sem peso registrado: sem_peso ("peso tem que estar registrado")', () => {
+    expect(conferirPreco(150, DIARIA, null)).toEqual({ motivo: 'sem_peso' });
+    expect(conferirPreco(150, DIARIA, 0)).toEqual({ motivo: 'sem_peso' });
+  });
+
+  it('faixa sem preço no cadastro: a Tartarectomia não tem preço acima de 10 kg', () => {
+    expect(conferirPreco(620, TARTARECTOMIA, 12)).toEqual({ motivo: 'sem_preco', faixa: 'acima de 10 kg' });
+  });
+
+  it('item de preço único: confere o preço do cadastro', () => {
+    const LIMPEZA = { id: 'cat-limpeza', nome: 'Limpeza de ferida', preco: 35, precosPorte: null };
+    expect(conferirPreco(35, LIMPEZA, null)).toBeNull();   // preço único não pede peso
+    expect(conferirPreco(40, LIMPEZA, 9)).toEqual({ motivo: 'preco_diferente', cobrado: 40, cadastro: 35, faixa: null });
+  });
+
+  it('item do cadastro sem preço nenhum (eram 22 em 16/09/2026): sem_preco', () => {
+    expect(conferirPreco(80, { id: 'x', nome: 'Sem preço', preco: null, precosPorte: null }, 10)).toEqual({ motivo: 'sem_preco', faixa: null });
+    expect(conferirPreco(80, { id: 'x', nome: 'Preço zero', preco: 0, precosPorte: null }, 10)).toEqual({ motivo: 'sem_preco', faixa: null });
+  });
+
+  it('caução não tem preço fixo: é o valor que o cliente deixa', () => {
+    expect(conferirPreco(600, { id: 'cat-caucao', nome: 'Caução', preco: 600, precosPorte: null, ehCaucao: true }, null)).toBeNull();
+    expect(conferirPreco(1500, { id: 'cat-caucao', nome: 'Caução', preco: 600, precosPorte: null, ehCaucao: true }, null)).toBeNull();
+  });
+
+  it('diferença de centavo de arredondamento não é aviso', () => {
+    expect(conferirPreco(175.004, DIARIA, 13.1)).toBeNull();
+  });
+});
+
+describe('o porteiro está ligado nas duas gravações de venda', () => {
+  // Se uma das chamadas sumir, a lista porteiro_vendas para de receber aviso em silêncio — e a
+  // decisão de passar a recusar seria tomada olhando uma lista incompleta.
+  const src = require('fs').readFileSync(require('path').join(__dirname, 'appointments.service.ts'), 'utf8');
+  it('criar e editar anotam no porteiro', () => {
+    expect(src).toContain("this.anotarNoPorteiro(result.id, linhasCriadas, 'criar'");
+    expect(src).toContain("this.anotarNoPorteiro(id, [...linhasCriadas, ...linhasAlteradas], 'editar'");
+  });
+  it('e o porteiro confere o preço, não só o cadastro', () => {
+    expect(src).toContain('conferirPreco(l.valorUnitario');
   });
 });

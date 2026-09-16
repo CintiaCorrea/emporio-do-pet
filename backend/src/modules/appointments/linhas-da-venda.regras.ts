@@ -3,14 +3,15 @@
 // Até 16/09/2026, editar uma venda APAGAVA todas as linhas e recriava com o que a tela mandou.
 // A tela do ponto de venda não manda a ligação com o cadastro (catalogoItemId), o fornecedor do
 // exame, o convênio nem a comissão — e tudo isso sumia a cada edição. Medido em produção naquele
-// dia: das 291 linhas de venda de setembro sem ligação ao cadastro, a maior parte tinha sido
-// ligada e perdeu a ligação ao ser gravada de novo. Sem a ligação, o exame não abre card, o
-// estoque não baixa e o faturamento fica "sem vínculo".
+// dia: 291 linhas de venda de setembro sem ligação ao cadastro (a edição é uma das portas por
+// onde a ligação se perde; texto solto na internação e na conversão de orçamento são outras).
+// Sem a ligação, o exame não abre card, o estoque não baixa e o faturamento fica "sem vínculo".
 //
 // A regra agora: a linha que CONTINUA na venda é a mesma linha (mesmo id). Ela recebe o que a
 // tela mudou e HERDA o que a tela não mandou. Só é criada a linha nova, e só é apagada a que saiu.
 // Ter o mesmo id é também o que impede o card de exame de reabrir (ver exames.service,
 // garantirCardsDaVenda): card só nasce para linha lançada agora.
+import { lerFaixas, precoPorPorte } from '../../common/porte';
 
 export type LinhaExistente = {
   id: string;
@@ -125,4 +126,43 @@ export function mesclarLinha(ex: LinhaExistente, rec: LinhaRecebida): LinhaReceb
  */
 export function linhasSemCadastro<T extends { catalogoItemId?: string | null; descricao?: string | null }>(linhas: T[]): T[] {
   return (linhas || []).filter((l) => vazio(l?.catalogoItemId));
+}
+
+// ─── PREÇO PELO CADASTRO E PELO PESO (A2 bloco 2, modo aviso) ────────────────────────────────
+//
+// Cintia, 16/09/2026: "sem preço à mão, peso tem que estar registrado" e "trazer automaticamente,
+// conforme o peso lançado no sistema, a faixa EXATA do produto/serviço". Até aqui só a TELA fazia
+// a conta (lib/catalogoVendavel → porte), e o servidor aceitava qualquer preço. Medido em
+// setembro: nas linhas com faixa, só a diária da internação saiu do preço do cadastro (R$ 150
+// fixos contra R$ 175 da faixa acima de 10 kg — mantidos por decisão dela para Kate e Chico).
+//
+// Por enquanto o servidor CONFERE e ANOTA; a recusa vem depois da revisão do cadastro.
+
+
+export type ItemDoCadastro = {
+  id: string;
+  nome?: string | null;
+  preco?: number | null;
+  precosPorte?: string | null;
+  ehCaucao?: boolean | null;
+};
+
+export type AvisoDePreco =
+  | { motivo: 'preco_diferente'; cobrado: number; cadastro: number; faixa: string | null }
+  | { motivo: 'sem_peso' }
+  | { motivo: 'sem_preco'; faixa: string | null };
+
+/**
+ * O preço desta linha bate com o cadastro, para o peso deste animal? `null` quando bate (ou quando
+ * não há o que conferir). Caução não tem preço fixo — é o valor que o cliente deixa.
+ */
+export function conferirPreco(cobrado: number | null | undefined, item: ItemDoCadastro | null | undefined, pesoKg: number | null | undefined): AvisoDePreco | null {
+  if (!item || item.ehCaucao) return null;
+  const faixas = lerFaixas(item.precosPorte);
+  const r = precoPorPorte({ preco: item.preco ?? null, faixas }, pesoKg);
+  if (faixas.length && !(Number(pesoKg) > 0)) return { motivo: 'sem_peso' };
+  if (r.preco == null || (!faixas.length && !(Number(r.preco) > 0))) return { motivo: 'sem_preco', faixa: r.faixa?.rotulo ?? null };
+  const valor = Number(cobrado ?? 0);
+  if (Math.abs(valor - Number(r.preco)) < 0.01) return null;
+  return { motivo: 'preco_diferente', cobrado: valor, cadastro: Number(r.preco), faixa: r.faixa?.rotulo ?? null };
 }
