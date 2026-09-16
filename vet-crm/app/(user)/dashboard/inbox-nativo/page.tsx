@@ -360,10 +360,18 @@ export default function InboxUnificadoPage() {
     },
   });
   const meNome = ((__session as any)?.user?.name as string | undefined) || ""; // preenche o {{3}} dos modelos
-  // A ASSINATURA SAIU DA TELA (Cintia, 16/09/2026: "para os veterinários. A recepção não precisa
-  // assinar"). Era um botão ✍️ por aba, e quase metade das mensagens da recepção e da gerência
-  // saía sem nome sem ninguém perceber. Agora o SERVIDOR decide pelo cadastro de profissionais
-  // (backend whatsapp/assinatura.regras): veterinário assina sempre, o resto não.
+  // A assinatura pegava a 1ª palavra do nome: com "Dra. Vivian Corrêa" saía só "Dra.".
+  // Aqui o título é separado do nome, e a assinatura vira "Dra. Vivian".
+  const assinaturaNome = (() => {
+    const partes = meNome.trim().split(/\s+/).filter(Boolean);
+    if (!partes.length) return "";
+    const ehTitulo = /^(dr|dra|drª|sr|sra|srª|vet|prof)\.?$/i;
+    const titulo = partes.length > 1 && ehTitulo.test(partes[0]) ? partes[0] : "";
+    const nome = titulo ? partes[1] : partes[0];
+    return (titulo ? `${titulo} ${nome}` : nome).trim();
+  })();
+  const primeiroNome = assinaturaNome;
+  const [assinar, setAssinar] = useState(true); // assina a mensagem com o nome de quem envia
   // Etiquetas de conversa (Fatia 4) — as que têm "Conversa" no aplicaEm, de Configurações › Etiquetas
   const [convEtiquetas, setConvEtiquetas] = useState<{ texto: string; cor: string }[]>([]);
   const [tagsOpen, setTagsOpen] = useState(false);
@@ -1059,6 +1067,10 @@ export default function InboxUnificadoPage() {
     let text = /^\/cadastro$/i.test(raw)
       ? `Vamos confirmar o atendimento do seu pet! 🐾 Para isso, precisamos te conhecer um pouquinho melhor — é rapidinho: ${linkCadastro}\n\nAssim que você preencher, seu agendamento fica confirmado! 💙`
       : raw;
+    // Assinatura: sai o primeiro nome de quem está logado na frente da mensagem
+    // (limpo, sem markup — fica legível tanto no WhatsApp quanto na nossa caixa).
+    // *texto* = negrito no WhatsApp.
+    if (assinar && assinaturaNome) text = `*${assinaturaNome}*:\n${text}`;
     try {
       const r = await fetch(`/api/whatsapp/conversations/${selectedId}/messages`, {
         method: "POST",
@@ -1547,6 +1559,19 @@ export default function InboxUnificadoPage() {
           )}
         </button>
         <div className="ml-auto flex items-center gap-2.5 shrink-0">
+          {/* Assinatura das mensagens — ligar/desligar aqui no cabeçalho (no lugar do "Hoje").
+              Controla o mesmo estado `assinar` do compositor: quando ligado, prefixa o nome de quem envia. */}
+          <button
+            onClick={() => setAssinar((v) => !v)}
+            title={assinar ? `Assinando as mensagens como "${primeiroNome || "você"}" — clique para desligar` : "Mensagens sem assinatura — clique para assinar com seu nome"}
+            className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded-lg border transition"
+            style={{ borderColor: assinar ? "#009AAC" : "#cfd8e0", background: assinar ? "#E0F4F6" : "#fff", color: assinar ? "#00798A" : "#5F5E5A" }}>
+            <span style={{ fontSize: "12px" }}>✍️</span>
+            <span className="hidden sm:inline">Assinar{assinar ? <>: <b>{primeiroNome || "on"}</b></> : ": off"}</span>
+            <span className={`w-7 h-3.5 rounded-full relative transition shrink-0 ${assinar ? "bg-[#009AAC]" : "bg-[#cfd8e0]"}`}>
+              <span className={`absolute top-[2px] w-2.5 h-2.5 rounded-full bg-white transition-all ${assinar ? "left-[15px]" : "left-[2px]"}`} />
+            </span>
+          </button>
           <button onClick={() => setRefreshTick((t) => t + 1)} title="Atualizar" className="bg-white border border-[#cfd8e0] px-3 py-1.5 rounded-lg text-xs text-[#5F5E5A] flex items-center gap-1.5 hover:bg-[#f9f9f9]"><span style={{fontSize:"12px"}}>↻</span>Atualizar</button>
           <button onClick={() => abrirNovaConversa()} className="bg-[#009AAC] text-white px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Nova mensagem</button>
         </div>

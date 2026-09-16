@@ -25,7 +25,6 @@ import type { Request, Response } from 'express';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { WhatsAppService } from './whatsapp.service';
-import { comAssinatura, semAssinaturaDaTela } from './assinatura.regras';
 import { CloudStorageService } from '../media/cloud-storage.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -55,20 +54,6 @@ export class WhatsAppConversationsController {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
   ) {}
-
-  /**
-   * O texto como ele sai: veterinário assina sempre, o resto não (assinatura.regras). Quem é
-   * veterinário vem do CADASTRO de profissionais, lido aqui a cada envio — mudar o cadastro vale
-   * na mensagem seguinte, sem ninguém precisar sair e entrar de novo.
-   */
-  private async textoAssinado(user: { id: string; name?: string | null }, texto: string): Promise<string> {
-    const cadastro = await this.prisma.user.findUnique({
-      where: { id: user.id },
-      select: { name: true, profissional: { select: { tipo: true } } },
-    }).catch(() => null);
-    const nome = cadastro?.name || user.name || '';
-    return comAssinatura(semAssinaturaDaTela(texto, nome), nome, cadastro?.profissional?.tipo ?? null);
-  }
 
   // ============================================
   // Conversations
@@ -548,7 +533,7 @@ export class WhatsAppConversationsController {
     const result = await this.whatsAppService.sendAndSaveMessage(
       conversation.userId,
       conversationId,
-      String(dto.type || 'TEXT').toUpperCase() === 'TEXT' ? await this.textoAssinado(user, dto.content) : dto.content,
+      dto.content,
       dto.type,
       { senderType: 'HUMAN', senderName: user.name || 'Atendente', senderId: user.id },
       dto.replyToWaMessageId,
@@ -582,12 +567,8 @@ export class WhatsAppConversationsController {
   @Post('send')
   async sendDirect(
     @CurrentUser() user: JwtUser,
-    @Body() dto: { to: string; message?: string; content?: string },
+    @Body() dto: { to: string; message: string },
   ) {
-    // AS TELAS MANDAM `content` ("Nova mensagem" da Inbox, Orçamento rápido) e esta rota só lia
-    // `message`: o texto chegava vazio e o envio falhava antes de sair, sem aviso nenhum. Aceita os
-    // dois nomes.
-    const texto = String(dto.message ?? dto.content ?? '');
     this.logger.log(`Direct send to ${dto.to} from user ${user.id}`);
 
     // Get or create conversation
@@ -600,7 +581,7 @@ export class WhatsAppConversationsController {
     const result = await this.whatsAppService.sendAndSaveMessage(
       user.id,
       conversation.id,
-      await this.textoAssinado(user, texto),
+      dto.message,
       'TEXT',
       { senderType: 'HUMAN', senderName: user.name || 'Atendente', senderId: user.id },
     );
