@@ -73,3 +73,59 @@ export function ehTipoDeVenda(tipo?: string | null): boolean {
 export function ehTipoDeOrcamento(tipo?: string | null): boolean {
   return semAcento(String(tipo || '').trim()).toLowerCase() === 'orcamento';
 }
+
+// ── O QUE É UMA VENDA: TER NÚMERO DE VENDA, NÃO O NOME DO ATENDIMENTO ──────────────────────
+//
+// A Cintia, 16/09/2026: "consulta também é uma venda, não estou entendendo porque do nome
+// consulta ou resultado de exames, venda é venda."
+//
+// Até aqui a regra era o `type`. Só que venda e atendimento moram no mesmo registro, e o `type`
+// é o nome do PRONTUÁRIO — diz o que aconteceu com o animal. Quando a veterinária registra a
+// consulta na ficha do pet e lança ali os serviços cobrados, o registro ganha número de venda
+// e continua chamado "CONSULTA". A castração da Cueia (#1130, R$ 1.052,10, paga) foi lançada
+// dentro de um "Resultado de exames". Medido em 16/09: 25 vendas de verdade (24 com itens, 21
+// em aberto, R$ 28.176,92) sumiam da ficha do cliente e da Consulta de vendas por causa do nome.
+//
+// O que decide agora é o NÚMERO DE VENDA, que só nasce quando há cobrança. Medido: as 187
+// vendas chamadas "Venda" — importadas inclusive — têm número; receita e documento não têm.
+//
+// DUAS EXCEÇÕES, e cada uma tem motivo:
+//   · ORÇAMENTO é proposta, não venda.
+//   · o REGISTRO DE INTERNAÇÃO nunca é cobrado: a conta sai em vendas próprias, chamadas
+//     "Venda". Dos 20 registros de internação, nenhum tem item nem recebimento — o valor dele
+//     é a diária combinada. Foi ele que aparecia nas compras com o diagnóstico no lugar do
+//     produto (09/09/2026), e um deles (#1174) ganhou número por engano.
+
+/** As grafias do nome do registro de internação. */
+export const TIPOS_DE_INTERNACAO = ['Internação', 'Internacao', 'INTERNAÇÃO', 'INTERNACAO', 'internação', 'internacao'] as const;
+
+/** O registro-prontuário da internação — não é venda, mesmo com valor ou número. */
+export function ehRegistroDeInternacao(a?: { type?: string | null; notes?: unknown } | null): boolean {
+  if (!a) return false;
+  if (semAcento(String(a.type || '').trim()).toLowerCase() === 'internacao') return true;
+  return typeof a.notes === 'string' && a.notes.includes('HOSPITALIZATION');
+}
+
+/** É venda? Tem número de venda, e não é orçamento nem registro de internação. */
+export function ehVenda(a?: { numeroVenda?: number | null; type?: string | null; notes?: unknown } | null): boolean {
+  if (!a || a.numeroVenda == null) return false;
+  if (ehTipoDeOrcamento(a.type)) return false;
+  return !ehRegistroDeInternacao(a);
+}
+
+/**
+ * A mesma regra, para a consulta ao banco. Vai inteira dentro de `AND`, para quem montar a
+ * busca depois poder acrescentar condições sem apagar esta.
+ *
+ * `notes: null` precisa estar no OR: no SQL, `NOT (notes LIKE ...)` com notes vazio dá NULL e a
+ * linha some — seriam justamente as vendas comuns, que não têm notes.
+ */
+export function ondeEVenda(): { AND: any[] } {
+  return {
+    AND: [
+      { numeroVenda: { not: null } },
+      { type: { notIn: [...TIPOS_DE_ORCAMENTO, ...TIPOS_DE_INTERNACAO] } },
+      { OR: [{ notes: null }, { NOT: { notes: { contains: 'HOSPITALIZATION' } } }] },
+    ],
+  };
+}

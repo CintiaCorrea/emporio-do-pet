@@ -5,7 +5,7 @@ import { LeadStatus, LeadSource } from '@prisma/client';
 import { findExistingTutor, findTutorByPhoneUnique } from '../../common/tutor-match';
 import { last8, onlyDigits, normalizePhone } from '../../common/phone';
 import { proximoCodigo } from '../../common/codigo';
-import { pagoDaVenda, abertoDaVenda, situacaoDaVenda, TIPOS_DE_VENDA } from './consulta-vendas.regras';
+import { pagoDaVenda, abertoDaVenda, situacaoDaVenda, ondeEVenda } from './consulta-vendas.regras';
 
 export interface WhatsAppLeadData {
   conversationId: string;
@@ -454,7 +454,8 @@ export class CrmIntegrationService {
           await this.comRetry(async () => {
             const vendasTutor = await this.prisma.appointment.findMany({
               // Mesma correcao: o snapshot do tutor contava so as vendas importadas.
-              where: { tutorId, type: { in: [...TIPOS_DE_VENDA] } },
+              // Venda e' quem tem NUMERO DE VENDA, nao o nome do atendimento (consulta-vendas.regras).
+              where: { tutorId, ...ondeEVenda() },
               select: { date: true, value: true },
             });
             if (!vendasTutor.length) return;
@@ -988,7 +989,10 @@ export class CrmIntegrationService {
     // TODAS as grafias de venda (consulta-vendas.regras). Ate 08/09/2026 esta linha dizia
     // apenas `type: 'VENDA'` — a grafia do IMPORTADOR — e o nosso ponto de venda grava 'Venda'.
     // A tela mostrava agosto (importado) e escondia tudo que a clinica vendeu desde entao.
-    const where: any = { type: { in: [...TIPOS_DE_VENDA] } };
+    // VENDA E' QUEM TEM NUMERO DE VENDA (consulta-vendas.regras.ondeEVenda), qualquer que seja o
+    // nome do atendimento. Ate 16/09/2026 esta linha filtrava pelo nome "Venda", e a venda lancada
+    // dentro de uma consulta sumia da tela — a castracao da Cueia (#1130) entre elas.
+    const where: any = ondeEVenda();
 
     // Periodo (de/ate em date) — ate inclui o dia inteiro
     if (q.de || q.ate) {

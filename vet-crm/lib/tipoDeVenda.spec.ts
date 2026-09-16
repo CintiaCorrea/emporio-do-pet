@@ -120,3 +120,40 @@ describe("as vendas do cliente abrem como no SimplesVet", () => {
     expect(pdv).not.toContain(">Fechar</button>");
   });
 });
+
+// A Cintia, 16/09/2026: "consulta também é uma venda (...) venda é venda." Casos reais.
+describe("venda é quem tem número de venda, não o nome do atendimento", () => {
+  it("a castração da Cueia (#1130), lançada dentro de 'Resultado de exames', entra nas compras", () => {
+    expect(ehCompra({ numeroVenda: 1130, type: "Resultado de exames", value: 1052.1 })).toBe(true);
+  });
+
+  it("venda lançada dentro de CONSULTA ou RETORNO entra", () => {
+    expect(ehCompra({ numeroVenda: 1241, type: "CONSULTA", value: 1230 })).toBe(true);
+    expect(ehCompra({ numeroVenda: 1188, type: "Retorno", value: 87.5 })).toBe(true);
+  });
+
+  it("consulta sem cobrança não tem número — não entra", () => {
+    expect(ehCompra({ numeroVenda: null, type: "CONSULTA", value: 300 })).toBe(false);
+  });
+
+  it("o registro de internação não entra, nem com número (#1174)", () => {
+    expect(ehCompra({ numeroVenda: 1174, type: "Internação", value: 150 })).toBe(false);
+    expect(ehCompra({ numeroVenda: 1, type: "Venda", value: 150, notes: '{"type":"HOSPITALIZATION"}' })).toBe(false);
+  });
+
+  it("orçamento não entra, nem com número", () => {
+    expect(ehCompra({ numeroVenda: 5, type: "Orçamento", value: 100 })).toBe(false);
+  });
+
+  it("lista que não trouxe o número: vale o nome, como antes", () => {
+    expect(ehCompra({ type: "Venda", value: 150 })).toBe(true);
+    expect(ehCompra({ type: "CONSULTA", value: 150 })).toBe(false);
+  });
+
+  it("a regra da tela e a do servidor concordam", () => {
+    const api = require("fs").readFileSync(
+      require("path").resolve(__dirname, "../..", "backend/src/modules/crm/consulta-vendas.regras.ts"), "utf8");
+    expect(api).toContain("export function ehVenda");
+    expect(api).toContain("numeroVenda == null");
+  });
+});
