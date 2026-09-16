@@ -17,11 +17,11 @@ const RAIZ = join(__dirname, "..");
 const ler = (...p: string[]) => readFileSync(join(RAIZ, ...p), "utf8");
 
 describe("onde a taxa do cartão aparece, ela pergunta quem está vendo", () => {
-  it("nas formas de pagamento — PDV, Caixa e baixar várias usam este mesmo componente", () => {
+  it("no painel de pagamento (PDV, Caixa, Baixar várias, Recebimentos sem forma) NÃO aparece para NINGUÉM", () => {
+    // Cintia, 16/09/2026, com o print de "taxa ~4.08% = R$ 53,19 · líquido R$ 1.250,48": "essas
+    // informações não devem aparecer para ninguém". Nem para o adm, na hora de receber.
     const src = ler("components", "financeiro", "PagamentoFormas.tsx");
-    expect(src).toContain('const verTaxa = sessaoPronta && papelEfetivo === "ADMIN";');
-    expect(src).toContain("{verTaxa && (() => { const bps = taxaBpsDe(f, cfg);");
-    expect(src).toContain("{verTaxa && taxaTotal > 0.001 && (");
+    expect(src).not.toMatch(/Taxa estimada|líquido \{|taxaBpsDe|verTaxa/);
   });
 
   it("no Caixa, a previsão LÍQUIDA das maquininhas", () => {
@@ -39,7 +39,6 @@ describe("onde a taxa do cartão aparece, ela pergunta quem está vendo", () => 
 
   it("vale o papel EFETIVO, para a pré-visualização como Recepção mostrar o que a recepção vê", () => {
     for (const p of [
-      ["components", "financeiro", "PagamentoFormas.tsx"],
       ["app", "(user)", "dashboard", "erp", "caixa", "page.tsx"],
       ["app", "(user)", "dashboard", "erp", "consulta-vendas", "page.tsx"],
     ]) expect(ler(...p)).toContain("const papelEfetivo = useRolePreview().effectiveRole;");
@@ -49,7 +48,6 @@ describe("onde a taxa do cartão aparece, ela pergunta quem está vendo", () => 
     // Cintia, 16/09/2026: "ela está aparecendo no caixa da recepção". Enquanto a sessão carrega o
     // papel vem vazio, e lib/ui/role o transforma em ADMIN: a taxa piscava para a recepção.
     for (const p of [
-      ["components", "financeiro", "PagamentoFormas.tsx"],
       ["app", "(user)", "dashboard", "erp", "caixa", "page.tsx"],
       ["app", "(user)", "dashboard", "erp", "consulta-vendas", "page.tsx"],
     ]) {

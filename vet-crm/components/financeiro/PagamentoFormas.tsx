@@ -5,8 +5,6 @@
 
 import React, { useState } from "react";
 import CampoValor from "@/components/comum/CampoValor";
-import { useRolePreview } from "@/lib/ui/RolePreview";
-import { useSession } from "next-auth/react";
 // Fonte única: tipos + modalidades + helpers vêm de lib/formasPagamento (re-exportados aqui p/ compat).
 import { PagForma, FormaCfg, TaxaRow, MODALIDADES, PARC, BANDEIRAS_PADRAO, modalidadeToTaxaForma, ehMaquininha, ehCartao, ehLinkPagamento, adquirenteDe, adquirenteDaLinha } from "@/lib/formasPagamento";
 export type { PagForma, FormaCfg, TaxaRow };
@@ -31,21 +29,11 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
   const cfgByNome = new Map(formasConfig.map((c) => [c.nome, c]));
   const set = (i: number, patch: Partial<PagForma>) => onChange(formas.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const fmtValor = (v: number) => (v ? v.toFixed(2).replace(".", ",") : "");
-  // A TAXA DO CARTÃO É DO ADMINISTRATIVO (Cintia, 16/09/2026: "não quero que as informações
-  // sobre o desconto do cartão de crédito apareçam para todos, somente para o adm").
-  //
-  // Quanto a operadora cobra é condição comercial da clínica, não informação de balcão. Quem
-  // recebe precisa de forma, bandeira, parcelas e AUT — a taxa continua sendo calculada e lançada
-  // no Financeiro do mesmo jeito; só deixa de aparecer para quem não é adm. Usa o papel EFETIVO:
-  // a Cintia, pré-visualizando como Recepção, vê exatamente o que a recepção vê.
-  // SÓ DEPOIS QUE A SESSÃO CHEGA. Enquanto ela carrega, o papel vem vazio e o sistema o trata
-  // como ADMIN (lib/ui/role: "não esconde nada de quem não classificou") — a taxa piscava na
-  // tela da recepção. Cintia, 16/09/2026: "ela está aparecendo no caixa da recepção".
-  const sessaoPronta = useSession().status === "authenticated";
-  // Os dois hooks são chamados SEMPRE, e só depois combinados: hook dentro de `&&` muda a ordem
-  // das chamadas entre renderizações e o React quebra a tela.
-  const papelEfetivo = useRolePreview().effectiveRole;
-  const verTaxa = sessaoPronta && papelEfetivo === "ADMIN";
+  // A TAXA DO CARTÃO NÃO APARECE NO RECEBIMENTO — PARA NINGUÉM (Cintia, 16/09/2026, com o print
+  // de "taxa ~4.08% = R$ 53,19 · líquido R$ 1.250,48": "essas informações não devem aparecer para
+  // ninguém"). Antes, no mesmo dia, ela tinha pedido "somente para o adm"; ao ver na tela, decidiu
+  // que nem o adm precisa disso na hora de receber. A taxa continua calculada e lançada no
+  // Financeiro, pela tabela de Taxas — só não é mostrada aqui.
   // Bandeiras da operadora, pela tabela de taxas. Operadora SEM taxa cadastrada cai na lista
   // padrão — antes ficava vazia e a recepção não tinha o que escolher (era o caso do Nubank).
   const bandeirasDe = (adq: string) => {
@@ -59,19 +47,6 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
     ...taxas.map((t) => t.adquirente),
     ...formasConfig.filter(ehCartao).map(adquirenteDe),
   ].filter(Boolean))].sort();
-  // 💳 Prévia da taxa (só visual) — MESMA chave da taxa oficial (adquirente|bandeira|forma|parcelas),
-  // pra não divergir do lançamento que alimenta a conciliação. Não muda o que é gravado.
-  const brl = (n: number) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-  const nrm = (s?: string) => String(s || "").trim().toLowerCase();
-  const taxaBpsDe = (f: PagForma, cfg?: FormaCfg): number | null => {
-    if (!ehCartao(cfg) || !f.modalidade || !f.bandeira) return null;
-    const adq = adquirenteDaLinha(f, cfg); const formaTaxa = modalidadeToTaxaForma(f.modalidade);
-    const parc = f.modalidade === "Crédito parcelado" ? (f.parcelas || 2) : 1;
-    const row = taxas.find((t) => nrm(t.adquirente) === nrm(adq) && nrm(t.bandeira) === nrm(f.bandeira) && nrm(t.forma) === nrm(formaTaxa) && Number(t.parcelas) === parc);
-    return row ? Number(row.aliquotaBps) : null;
-  };
-  const taxaTotal = formas.reduce((s, f) => { const bps = taxaBpsDe(f, cfgByNome.get(f.forma)); return s + (bps != null ? (Number(f.valor) || 0) * bps / 10000 : 0); }, 0);
-  const cartaoBruto = formas.reduce((s, f) => s + (taxaBpsDe(f, cfgByNome.get(f.forma)) != null ? (Number(f.valor) || 0) : 0), 0);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -149,16 +124,9 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
                 )}
               </div>
             )}
-            {verTaxa && (() => { const bps = taxaBpsDe(f, cfg); if (bps == null) return null; const v = Number(f.valor) || 0; const taxa = v * bps / 10000; return <div style={{ marginTop: 6, fontSize: 11, color: "#9A6C1F" }}>💳 taxa ~{(bps / 100).toFixed(2)}% = {brl(taxa)} · líquido {brl(v - taxa)}</div>; })()}
           </div>
         );
       })}
-      {verTaxa && taxaTotal > 0.001 && (
-        <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6, fontSize: 12, color: "#9A6C1F", background: "#FBF1DA", border: "1px solid #F0D9A6", borderRadius: 9, padding: "7px 11px" }}>
-          <span>💳 Taxa estimada dos cartões: {brl(taxaTotal)}</span>
-          <span>Líquido dos cartões: <b>{brl(cartaoBruto - taxaTotal)}</b></span>
-        </div>
-      )}
       <button onClick={() => onChange([...formas, { forma: formasList[0] || "Dinheiro", valor: 0 }])} style={{ alignSelf: "flex-start", border: `1px dashed ${C.teal}`, background: "none", color: C.teal, fontSize: 12, fontWeight: 600, cursor: "pointer", padding: "6px 11px", borderRadius: 9 }}>➕ outra forma</button>
     </div>
   );
