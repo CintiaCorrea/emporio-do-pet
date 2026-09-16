@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Matriz, perfilDoUsuario, podeAcao } from './permissoes.regras';
+import { Matriz, acaoNegada, perfilDoUsuario, podeAcao } from './permissoes.regras';
 
 /**
  * LÊ A MATRIZ QUE A CINTIA EDITA, do mesmo lugar em que a tela lê.
@@ -52,6 +52,13 @@ export class PermissoesService {
     const { matrizes, mapa } = await this.carregar();
     const perfil = perfilDoUsuario(userId, papel, mapa);
     return podeAcao(matrizes[perfil], chave, papel);
+  }
+
+  /** A Cintia fechou esta ação para este perfil de propósito? Ver `acaoNegada`. */
+  async negada(userId: string | null | undefined, papel: string | null | undefined, chave: string): Promise<boolean> {
+    const { matrizes, mapa } = await this.carregar();
+    const perfil = perfilDoUsuario(userId, papel, mapa);
+    return acaoNegada(matrizes[perfil], chave, papel);
   }
 
   /** Esquece o que está em memória — usado quando a matriz é salva. */

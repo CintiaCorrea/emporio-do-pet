@@ -52,6 +52,28 @@ export function podeAcao(matriz: Matriz | null | undefined, chave: string, papel
   return !(ACOES_DINHEIRO as readonly string[]).includes(chave);
 }
 
+/**
+ * ESTA AÇÃO FOI FECHADA DE PROPÓSITO?
+ *
+ * `podeAcao` responde "pode ou não pode", e para dinheiro o silêncio conta como NÃO. Existe um
+ * caso em que a diferença entre "ninguém decidiu" e "a Cintia decidiu que não" importa: o
+ * DESCONTO. Desconto é operação de balcão, acontece o dia inteiro, e já tem uma trava própria
+ * (limite em % na configuração de vendas, com liberação de gerente por e-mail e senha). Se o
+ * silêncio da matriz virasse bloqueio ali, a recepção pararia de conseguir dar 5% num banho na
+ * manhã seguinte — o oposto do "tá tudo muito engessado" que ela pediu para resolver.
+ *
+ * Então a ação de desconto lê os três níveis da matriz como três coisas diferentes:
+ *   EDITA     → concede sem passar pelo limite (equivale a gerente);
+ *   nada      → segue o limite de hoje, como sempre foi;
+ *   OCULTO    → não dá desconto nenhum, nem dentro do limite. Isto aqui.
+ *   VISUALIZA
+ */
+export function acaoNegada(matriz: Matriz | null | undefined, chave: string, papel?: string | null): boolean {
+  if (ehAdmin(papel)) return false;   // a mesma trava anti-tranca de `podeAcao`
+  const nivel = matriz?.[chave];
+  return nivel === 'OCULTO' || nivel === 'VISUALIZA';
+}
+
 /** Cargo (Role) → nome do perfil. Espelha `roleToPerfil` da tela. */
 export function papelParaPerfil(papel?: string | null): string {
   const r = String(papel || '').toUpperCase();

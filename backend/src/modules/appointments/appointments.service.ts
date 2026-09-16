@@ -10,6 +10,23 @@ import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PermissoesService } from '../permissoes/permissoes.service';
 
+/**
+ * ISTO AQUI E' UMA VENDA? (e nao: tem valor?)
+ *
+ * As travas de dinheiro — apagar, mudar a data — nao podem acordar em cima de um ORCAMENTO. O
+ * orcamento nasce pelo mesmo caminho da venda, com itens e com valor, e por isso "tem valor" o
+ * classificava como venda. Mas orcamento nao entra em caixa, nao tem recebimento e nao aparece
+ * em mes nenhum: e' papel de balcao, e a recepcao precisa poder apagar e remarcar o dela sem
+ * chamar o administrativo. Travar isso seria o "engessado" de novo.
+ *
+ * Tambem nao acorda em atendimento clinico puro, que nao tem valor.
+ */
+function ehVendaDeVerdade(appt: { value?: number | null; numeroVenda?: number | null; type?: string | null }): boolean {
+  if (/or[çc]amento/i.test(String(appt?.type || ''))) return false;
+  return appt?.numeroVenda != null || Number(appt?.value || 0) > 0;
+}
+
+
 @Injectable()
 export class AppointmentsService {
   constructor(
@@ -68,6 +85,38 @@ export class AppointmentsService {
     if (!pode) {
       throw new ForbiddenException(
         'Esta venda já foi recebida. Para corrigir, o administrativo precisa reabri-la — isso estorna o recebimento do caixa.',
+      );
+    }
+  }
+
+  /**
+   * MUDAR A DATA DE UMA VENDA — só quem a matriz autorizar.
+   *
+   * Cintia, 15/09/2026: "preciso poder editar as vendas, datas, itens... mesmo que isso tenha
+   * que ser autorizado por perfil". A data de uma venda não é uma etiqueta: ela decide em que
+   * DIA o dinheiro aparece, em que caixa a conferência procura e em que mês a receita entra.
+   * Arrastar uma venda de 31/08 para 01/09 muda o fechamento dos dois meses.
+   *
+   * O QUE ESTA REGRA NÃO TOCA, e é o cuidado principal: REMARCAR AGENDAMENTO. Mudar o horário
+   * da consulta de terça é o trabalho da recepção, acontece dezenas de vezes por dia, e passa
+   * exatamente pelo mesmo `update` com `date`. Por isso a regra só acorda quando o registro é
+   * uma VENDA de verdade — tem número de venda ou tem valor. Agenda continua livre.
+   */
+  private async exigirPermissaoParaAlterarDataDaVenda(
+    atual: any,
+    dto: any,
+    papel?: string,
+    userId?: string,
+  ): Promise<void> {
+    if (dto?.date === undefined) return;
+    if (!ehVendaDeVerdade(atual)) return;
+    // Um minuto de folga: a tela reenvia a mesma data com outra precisão de segundos, e recusar
+    // por isso seria travar quem só mexeu na observação.
+    const mudou = Math.abs(new Date(dto.date).getTime() - new Date(atual.date).getTime()) > 60000;
+    if (!mudou) return;
+    if (!(await this.permissoes.pode(userId, papel, 'acao:venda.alterar_data'))) {
+      throw new ForbiddenException(
+        'SEM_PERMISSAO: Mudar a data de uma venda muda o dia do caixa e o mês da receita — isso é do administrativo.',
       );
     }
   }
@@ -757,6 +806,7 @@ export class AppointmentsService {
   async update(id: string, updateAppointmentDto: UpdateAppointmentDto, requesterRole?: string, requesterId?: string) {
     const existingAppointment = await this.findById(id);
     await this.exigirPermissaoParaEditarRecebida(id, updateAppointmentDto, requesterRole, requesterId);
+    await this.exigirPermissaoParaAlterarDataDaVenda(existingAppointment, updateAppointmentDto, requesterRole, requesterId);
     const previousStatus = existingAppointment.status;
 
     // Regra: venda que já tem recebimento só pode ter os itens/valor alterados pelo ADM.
@@ -1081,12 +1131,29 @@ export class AppointmentsService {
    * Fica no backend de propósito: vale pra toda tela, não é botão escondido.
    */
   private async checarPermissaoExclusaoVenda(
-    appt: { id: string; value: number | null; numeroVenda: number | null; paymentStatus: string; createdAt: Date },
-    autor?: { role?: string },
+    appt: { id: string; value: number | null; numeroVenda: number | null; paymentStatus: string; createdAt: Date; type?: string | null },
+    autor?: { role?: string; userId?: string },
   ) {
+    const userId = autor?.userId;
     if (autor?.role === 'ADMIN') return; // ADM pode sempre
-    const ehVenda = appt.numeroVenda != null || Number(appt.value || 0) > 0;
-    if (!ehVenda) return; // atendimento clínico puro: regra de hoje
+    const ehVenda = ehVendaDeVerdade(appt);
+    if (!ehVenda) return; // atendimento clínico puro ou orçamento: regra de hoje
+
+    // 0) ESTA PESSOA PODE APAGAR VENDA?
+    //
+    // Cintia, 15/09/2026: "é possível deletar a venda, também tudo pelo adm". Até aqui a
+    // resposta era "qualquer um, desde que a venda esteja aberta e seja do caixa de hoje" —
+    // as duas travas abaixo. São boas travas, mas respondem outra pergunta: QUANDO se pode
+    // apagar, nunca QUEM. Apagar venda some com o registro inteiro (e, por cascata, com os
+    // itens); é a operação mais definitiva do sistema.
+    //
+    // A matriz nasce fechada para dinheiro, então na prática isto é "só o administrativo" —
+    // que é o que ela pediu — e ela pode abrir para um perfil sem mexer em código.
+    if (!(await this.permissoes.pode(userId, autor?.role, 'acao:venda.excluir'))) {
+      throw new ForbiddenException(
+        'SEM_PERMISSAO: Apagar venda é do administrativo. Se foi lançada errada, dá para corrigir os itens enquanto ela estiver em aberto.',
+      );
+    }
 
     // 1) a venda ainda está EM ABERTO?
     const recebimentos = await this.prisma.recebimento.count({ where: { appointmentId: appt.id } });
@@ -1121,12 +1188,12 @@ export class AppointmentsService {
     }
   }
 
-  async remove(id: string, force = false, autor?: { role?: string }) {
+  async remove(id: string, force = false, autor?: { role?: string; userId?: string }) {
     await this.findById(id);
 
     const venda = await this.prisma.appointment.findUnique({
       where: { id },
-      select: { id: true, value: true, numeroVenda: true, paymentStatus: true, createdAt: true },
+      select: { id: true, value: true, numeroVenda: true, paymentStatus: true, createdAt: true, type: true },
     });
     if (venda) await this.checarPermissaoExclusaoVenda(venda as any, autor);
 

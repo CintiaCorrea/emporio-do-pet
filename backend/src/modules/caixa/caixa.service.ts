@@ -1072,11 +1072,16 @@ export class CaixaService {
       select: { userId: true, numero: true, user: { select: { name: true } } },
     });
     if (!caixa) throw new NotFoundException('Caixa nao encontrado');
-    if (!podeLancarNoCaixa(caixa.userId, userId, papel)) {
-      throw new BadRequestException(
-        `O caixa ${caixa.numero} e de ${caixa.user?.name || 'outra pessoa'}. Cada um lanca no proprio caixa — abra o seu em Vendas › Caixa.`,
-      );
-    }
+    if (podeLancarNoCaixa(caixa.userId, userId, papel)) return;
+    // A MATRIZ E' A SEGUNDA PORTA, e ela existe porque a primeira fecha sozinha: a excecao do
+    // administrativo acima vale so' ate a data da janela de ajuste. Depois dela, se a Cintia
+    // quiser que alguem (uma supervisora, por exemplo) continue lancando em caixa de outra
+    // pessoa, e' aqui que ela concede — na tela de Perfis de acesso, sem mexer em codigo e sem
+    // esticar a janela de novo. Nasce fechada: acao de dinheiro nao se abre por esquecimento.
+    if (await this.permissoes.pode(userId, papel, 'acao:caixa.lancar_em_caixa_alheio')) return;
+    throw new BadRequestException(
+      `O caixa ${caixa.numero} e de ${caixa.user?.name || 'outra pessoa'}. Cada um lanca no proprio caixa — abra o seu em Vendas › Caixa.`,
+    );
   }
 
   /**
@@ -1626,10 +1631,28 @@ export class CaixaService {
     const descontoGlobal = Number(dto.desconto || 0);
     // 🚫 Trava de desconto POR PERFIL: ADMIN (gerente) não tem limite; os demais respeitam o limite %
     // da config, mas podem exceder com LIBERAÇÃO de um gerente (e-mail + senha de um ADMIN).
+    // 🚫 ANTES DO LIMITE, A MATRIZ: este perfil pode dar desconto?
+    //
+    // Sao tres respostas, nao duas, e a do meio e' que evita quebrar o balcao (ver `acaoNegada`
+    // em permissoes.regras):
+    //   · fechada de proposito → nao da' desconto nenhum, nem dentro do limite;
+    //   · liberada (EDITA)     → nao passa pelo limite, igual gerente;
+    //   · nao configurada      → segue o limite de sempre, que e' o comportamento de hoje.
+    //
+    // Desconto e' a unica acao de dinheiro que acontece o dia inteiro. Se o silencio da matriz
+    // virasse bloqueio aqui, ninguem daria 5% num banho na manha seguinte.
+    const descontoPedido = descontoGlobal > 0.009 || items.some((it: any) => Number(it.desconto || 0) > 0.009);
+    if (descontoPedido && (await this.permissoes.negada(userId, papel, 'acao:venda.conceder_desconto'))) {
+      throw new BadRequestException(
+        'SEM_PERMISSAO: Seu perfil nao concede desconto. Chame o administrativo para liberar esta venda.',
+      );
+    }
     const limitePct = Number(cfgVenda.limiteDesconto) || 0;
-    if (limitePct > 0) {
+    if (limitePct > 0 && descontoPedido) {
       const operador = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-      const ehGerente = String(operador?.role || '').toUpperCase() === 'ADMIN';
+      const ehGerente =
+        String(operador?.role || '').toUpperCase() === 'ADMIN' ||
+        (await this.permissoes.pode(userId, papel, 'acao:venda.conceder_desconto'));
       if (!ehGerente) {
         const bruto = items.reduce((s: number, it: any) => s + (it.convenioId ? 0 : Number(it.quantidade) * Number(it.valorUnitario)), 0);
         const descItens = items.reduce((s: number, it: any) => s + (it.convenioId ? 0 : Number(it.desconto || 0)), 0);
