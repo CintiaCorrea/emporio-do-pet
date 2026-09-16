@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { cabecalhoComAcessoValido } from '@/lib/backend-proxy';
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3333';
 
@@ -16,12 +17,8 @@ function buildApiBase(backendBaseUrl: string) {
 export async function POST(request: NextRequest) {
   try {
     // Get auth token
-    const secret = process.env.NEXTAUTH_SECRET;
-    const token = secret ? await getToken({ req: request as any, secret }) : null;
-    const authHeader: Record<string, string> = {};
-    if (token?.accessToken && typeof token.accessToken === 'string') {
-      authHeader['Authorization'] = `Bearer ${token.accessToken}`;
-    }
+    // Renova o acesso vencido ANTES de mandar: o áudio vai em fluxo e não pode ser reenviado.
+    const authHeader = await cabecalhoComAcessoValido(request);
 
     // Read form data from request
     const formData = await request.formData();

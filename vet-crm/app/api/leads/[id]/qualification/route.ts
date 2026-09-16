@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { cabecalhoComAcessoValido } from '@/lib/backend-proxy';
 
 function backendUrl() {
   return process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;
 }
 function apiBase(b: string) { const n = b.replace(/\/$/, ''); return n.endsWith('/api') ? n : `${n}/api`; }
 async function authHeader(req: NextRequest) {
-  const secret = process.env.NEXTAUTH_SECRET;
-  if (!secret) return {};
-  try {
-    const t: any = await getToken({ req: req as any, secret });
-    if (t?.accessToken) return { Authorization: `Bearer ${t.accessToken}` };
-  } catch {}
-  return {};
+  // Renova o acesso vencido antes de mandar (lib/backend-proxy).
+  return cabecalhoComAcessoValido(req);
 }
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { cabecalhoComAcessoValido } from '@/lib/backend-proxy';
 
 function getBackendBaseUrl() {
   return (
@@ -16,16 +17,8 @@ function buildApiBase(backendBaseUrl: string) {
 }
 
 async function buildAuthHeader(request: NextRequest) {
-  const token = await getToken({
-    req: request as any,
-    secret: process.env.NEXTAUTH_SECRET,
-  });
-
-  if (token?.accessToken && typeof token.accessToken === 'string') {
-    return { Authorization: `Bearer ${token.accessToken}` };
-  }
-
-  return {};
+  // Renova o acesso vencido antes de mandar (lib/backend-proxy).
+  return cabecalhoComAcessoValido(request);
 }
 
 export async function GET(

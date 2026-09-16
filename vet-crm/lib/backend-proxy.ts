@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { precisaRenovar, segundosParaVencer } from '@/lib/acessoDoToken';
 
 type JwtTokenLike = {
   accessToken?: unknown;
@@ -68,6 +69,30 @@ export async function buildAuthHeader(request: NextRequest): Promise<Record<stri
   }
 
   return {};
+}
+
+/**
+ * O CABEÇALHO DE ACESSO, RENOVADO SE JÁ VENCEU — para as rotas que chamam o servidor por conta
+ * própria, sem passar pelo proxyToBackend.
+ *
+ * Cintia, 16/09/2026: a assinatura das receitas "do nada parou". Doze rotas pegavam o acesso da
+ * sessão e mandavam sem olhar se ele tinha vencido. O acesso vale 7 dias: uma semana depois do
+ * login elas passavam a responder 401 e a tela falhava calada — a lista de profissionais vinha
+ * vazia e a receita saía sem assinatura.
+ *
+ * Renova ANTES de mandar, e não depois de um 401, porque uma delas envia o áudio da consulta em
+ * fluxo contínuo: esse corpo não pode ser mandado duas vezes.
+ */
+export async function cabecalhoComAcessoValido(request: NextRequest): Promise<Record<string, string>> {
+  const token = await readAuthToken(request);
+  const acesso = typeof token?.accessToken === 'string' ? token.accessToken : '';
+  if (!acesso) return {};
+  if (precisaRenovar(segundosParaVencer(acesso)) && typeof token?.refreshToken === 'string') {
+    const base = getBackendBaseUrl();
+    const novo = base ? await refreshBackendAccessToken(base, token.refreshToken) : undefined;
+    if (novo) return { Authorization: `Bearer ${novo}` };
+  }
+  return { Authorization: `Bearer ${acesso}` };
 }
 
 export async function proxyToBackend(

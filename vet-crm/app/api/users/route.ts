@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
-import { proxyToBackend } from '@/lib/backend-proxy';
+import { proxyToBackend, cabecalhoComAcessoValido } from '@/lib/backend-proxy';
 
 function getBackendBaseUrl() {
   return (
@@ -17,13 +17,8 @@ function buildApiBase(base: string) {
 }
 
 async function authHeader(request: NextRequest) {
-  const secret = process.env.NEXTAUTH_SECRET;
-  if (!secret) return {};
-  try {
-    const token: any = await getToken({ req: request as any, secret });
-    if (token?.accessToken) return { Authorization: `Bearer ${token.accessToken}` };
-  } catch {}
-  return {};
+  // Renova o acesso vencido antes de mandar (lib/backend-proxy) — criar/editar usuário também.
+  return cabecalhoComAcessoValido(request);
 }
 
 // A LISTA DE PROFISSIONAIS PASSA PELO REPASSADOR COMUM, QUE RENOVA O ACESSO (16/09/2026).

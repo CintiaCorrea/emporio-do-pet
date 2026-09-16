@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
+import { cabecalhoComAcessoValido } from '@/lib/backend-proxy';
 
 function backendUrl() {
   return process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL;
@@ -14,14 +15,8 @@ export async function POST(request: NextRequest) {
   const base = backendUrl();
   if (!base) return NextResponse.json({ error: 'Backend não configurado' }, { status: 500 });
 
-  const secret = process.env.NEXTAUTH_SECRET;
-  let bearer: Record<string, string> = {};
-  if (secret) {
-    try {
-      const token: any = await getToken({ req: request as any, secret });
-      if (token?.accessToken) bearer = { Authorization: `Bearer ${token.accessToken}` };
-    } catch {}
-  }
+  // Renova o acesso vencido antes de mandar (lib/backend-proxy).
+  const bearer = await cabecalhoComAcessoValido(request);
 
   const body = await request.text();
   const res = await fetch(`${apiBase(base)}/auth/change-password`, {
