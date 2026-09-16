@@ -646,10 +646,16 @@ export class ExamesService {
    *
    * É idempotente de propósito: chamado no create, no update e quantas vezes for, o resultado é o
    * mesmo. Nunca lança — é ouvinte de evento e não pode derrubar a venda.
+   *
+   * 3. SÓ PARA LINHA LANÇADA AGORA (`somenteItens`, 16/09/2026). Desde que editar venda deixou de
+   *    recriar os itens, a linha que continua mantém o id. Exame que já estava na venda não abre
+   *    card — nem quando o card dele já foi entregue ou arquivado, nem quando a venda antiga ganha
+   *    a ligação ao cadastro depois (os 28 exames de setembro religados). Cintia: "pode excluir ao
+   *    reabrir?" — melhor: não reabre.
    */
   async garantirCardsDaVenda(
     appointmentId: string,
-    opts?: { statusInicial?: string },
+    opts?: { statusInicial?: string; somenteItens?: string[] },
   ): Promise<{ criados: number; religados: number }> {
     const nada = { criados: 0, religados: 0 };
     if (!appointmentId) return nada;
@@ -679,7 +685,8 @@ export class ExamesService {
       select: { id: true },
     }).catch(() => []);
     const ehExame = new Set(doCatalogo.map((c: any) => c.id));
-    const itensExame = itens.filter((i) => i.catalogoItemId && ehExame.has(i.catalogoItemId));
+    const soAgora = opts?.somenteItens ? new Set(opts.somenteItens) : null;
+    const itensExame = itens.filter((i) => i.catalogoItemId && ehExame.has(i.catalogoItemId) && (!soAgora || soAgora.has(i.id)));
     if (!itensExame.length) return nada;
 
     const lista = `petexa_${venda.petId}`;
@@ -702,7 +709,9 @@ export class ExamesService {
       : new Set<string>();
 
     const abertos = cards.filter((c) => !ehArquivado(c.d) && !c.d?.entregueAt);
-    const jaLigados = new Set(abertos.filter((c) => c.d?.itemVendaId && vivos.has(c.d.itemVendaId)).map((c) => c.d.itemVendaId));
+    // Um item que JÁ TEM card — em andamento, entregue ou arquivado — não ganha outro. Contar só os
+    // abertos fazia a venda editada abrir um segundo card do exame já entregue.
+    const jaLigados = new Set(cards.filter((c) => c.d?.itemVendaId && vivos.has(c.d.itemVendaId)).map((c) => c.d.itemVendaId));
     const orfaos = abertos.filter((c) => !c.d?.itemVendaId || !vivos.has(c.d.itemVendaId));
 
     const mesmoNome = (a?: string, b?: string) =>
@@ -750,9 +759,9 @@ export class ExamesService {
    * card seria trocar o essencial pelo acessório.
    */
   @OnEvent('venda.itens.gravados')
-  async aoGravarItensDaVenda(ev: { appointmentId?: string }): Promise<void> {
+  async aoGravarItensDaVenda(ev: { appointmentId?: string; itensNovos?: string[] }): Promise<void> {
     try {
-      await this.garantirCardsDaVenda(String(ev?.appointmentId || ''));
+      await this.garantirCardsDaVenda(String(ev?.appointmentId || ''), { somenteItens: ev?.itensNovos ?? [] });
     } catch (e) {
       this.logger.warn(`Falha ao garantir cards da venda: ${String((e as any)?.message || e)}`);
     }

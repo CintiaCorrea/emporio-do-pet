@@ -29,6 +29,34 @@ Estado hoje:
 
 ---
 
+## 1b. Reforma das vendas (comecou em 16/09/2026)
+
+Mapa: https://claude.ai/artifact/RQB7T66VUQQzWzeWV8pCY5 · uma aba dedicada so a vendas.
+
+**Decisoes da Cintia (nao reabrir):** item de venda e orcamento SO do cadastro; preco SO do
+cadastro pela faixa do peso, sem preco a mao; item com faixa exige peso registrado (o bloco de
+peso do prontuario e o registro central); desconto: ADM sem limite, demais ate o % da forma
+(5% PIX/Dinheiro, 0% cartao), sem senha de gerente; comanda unica com abas Orcamento/Venda e
+botao Salvar; transformar orcamento em venda apaga o orcamento (guardar so contador);
+atendimento nunca vira venda (cobranca so pelo carrinho); internacao lanca na venda do dia na
+hora, diaria por faixa de peso, item depois de fechar/pagar vai para venda complementar;
+apagar venda paga (so ADM) tira os recebimentos do caixa junto; SimplesVet so consulta.
+
+**Ordem:** A1 religar itens de setembro ao cadastro (ensaio feito; APLICAR SO DEPOIS da A2
+bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao → C comanda/orcamento
+→ D atendimento + Inbox → E SimplesVet → F dados.
+
+- [x] **A2 bloco 1** (branch `feat/vendas-gravacao-unica`): editar venda mantem a linha
+  (`appointments/linhas-da-venda.regras.ts`); card de exame so para linha lancada agora;
+  porteiro em modo aviso grava em `lista_itens` lista `porteiro_vendas`; pesagem antiga nao
+  sobrescreve a mais nova.
+- [ ] A2 bloco 2 — preco pelo cadastro/peso (modo aviso) · bloco 3 — desconto e observacao ·
+  bloco 4 — apagar venda paga leva os recebimentos.
+- [ ] Ao final: varredura da tela do ponto de venda (recebimento) e revisao da tabela de
+  produtos e servicos (a Cintia esta fazendo fora do sistema; reintegrar junto).
+
+---
+
 ## 2. As tres frentes prontas para comecar
 
 Escolher UMA por sessao. Nao emendar tudo numa noite so — foi a pressa que

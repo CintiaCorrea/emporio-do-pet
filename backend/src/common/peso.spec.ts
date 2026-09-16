@@ -4,6 +4,7 @@ import {
   sugestoesDeCorrecao,
   avisoPesoInvalido,
   PESO_MAX_KG,
+  pesagemEhAMaisNova,
 } from './peso';
 
 // BLINDAGEM do peso do animal. O caso real: em 04/09/2026 o Snoopy (#7974), poodle de
@@ -82,5 +83,19 @@ describe('peso', () => {
       expect(pesoSuspeito(null)).toBe(false);
       expect(pesoSuspeito(0)).toBe(false);
     });
+  });
+});
+
+// O peso atual decide a faixa de preco da venda (Cintia, 16/09/2026: "peso tem que estar
+// registrado"). Ate 16/09 lancar uma pesagem antiga trocava o peso de hoje pelo antigo.
+describe('pesagem mais nova', () => {
+  it('lancar a pesagem esquecida de 01/09 nao troca a de 15/09', () => {
+    expect(pesagemEhAMaisNova(new Date('2026-09-01T10:00:00Z'), new Date('2026-09-15T10:00:00Z'))).toBe(false);
+  });
+  it('a pesagem de hoje vale', () => {
+    expect(pesagemEhAMaisNova(new Date('2026-09-16T19:00:00Z'), new Date('2026-09-15T10:00:00Z'))).toBe(true);
+  });
+  it('pet sem pesagem nenhuma: a primeira vale', () => {
+    expect(pesagemEhAMaisNova(new Date('2026-09-16T19:00:00Z'), null)).toBe(true);
   });
 });

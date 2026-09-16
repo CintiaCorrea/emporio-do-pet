@@ -162,6 +162,59 @@ describe('toda venda com exame cria o card', () => {
     });
   });
 
+  describe('card só para linha lançada agora (16/09/2026)', () => {
+    // Editar venda deixou de recriar os itens: a linha que continua mantém o id. E os 28 exames de
+    // setembro que perderam a ligação ao cadastro vão ser religados — ao salvar essas vendas de
+    // novo (a venda do dia da internação da Luna é regravada), o card NÃO pode reabrir.
+    it('exame que já estava na venda não abre card quando a venda é salva de novo', async () => {
+      const { svc, criados } = montar({
+        venda: VENDA,
+        itens: [
+          { id: 'hemo-luna-14-09', descricao: 'HEMOGRAMA COMPLETO CANINO / FELINO / MAMÍFEROS', catalogoItemId: 'cat-hemo' },
+          { id: 'hemo-lancado-agora', descricao: 'HEMOGRAMA COMPLETO CANINO / FELINO / MAMÍFEROS', catalogoItemId: 'cat-hemo' },
+        ],
+        catalogo: [CAT_EXAME],
+        cards: [],
+      });
+      const r = await svc.garantirCardsDaVenda('v1', { somenteItens: ['hemo-lancado-agora'] });
+      expect(r).toEqual({ criados: 1, religados: 0 });
+      expect(criados.map((c) => c.d.itemVendaId)).toEqual(['hemo-lancado-agora']);
+    });
+
+    it('venda salva sem linha nova não mexe em card nenhum', async () => {
+      const { svc, criados, atualizados } = montar({
+        venda: VENDA,
+        itens: [{ id: 'it1', descricao: 'CITOLOGIA', catalogoItemId: 'cat-hemo' }],
+        catalogo: [CAT_EXAME],
+        cards: [{ id: 'c1', valor: JSON.stringify({ nome: 'CITOLOGIA', itemVendaId: 'velho' }) }],
+        itensVivos: ['it1'],
+      });
+      expect(await svc.garantirCardsDaVenda('v1', { somenteItens: [] })).toEqual({ criados: 0, religados: 0 });
+      expect(criados).toEqual([]);
+      expect(atualizados).toEqual([]);
+    });
+
+    it('card ENTREGUE ou ARQUIVADO de uma linha que continua na venda não ganha um segundo card', async () => {
+      for (const extra of [{ entregueAt: '2026-09-10' }, { arquivadoEm: '2026-09-12' }]) {
+        const { svc, criados } = montar({
+          venda: VENDA,
+          itens: [{ id: 'it1', descricao: 'CITOLOGIA', catalogoItemId: 'cat-hemo' }],
+          catalogo: [CAT_EXAME],
+          cards: [{ id: 'c1', valor: JSON.stringify({ nome: 'CITOLOGIA', itemVendaId: 'it1', ...extra }) }],
+          itensVivos: ['it1'],
+        });
+        expect(await svc.garantirCardsDaVenda('v1')).toEqual({ criados: 0, religados: 0 });
+        expect(criados).toEqual([]);
+      }
+    });
+
+    it('o ouvinte do evento passa adiante só as linhas novas', () => {
+      const src = readFileSync(join(__dirname, 'exames.service.ts'), 'utf8');
+      const fn = src.slice(src.indexOf('async aoGravarItensDaVenda('), src.indexOf('async aoGravarItensDaVenda(') + 400);
+      expect(fn).toContain('somenteItens: ev?.itensNovos');
+    });
+  });
+
   describe('o que NÃO deve virar card', () => {
     it('orçamento não cria exame — ele vira card quando é convertido', async () => {
       const { svc, criados } = montar({

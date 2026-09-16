@@ -81,7 +81,20 @@ describe("editar um atendimento não apaga o vínculo dos itens", () => {
 
 describe("o servidor guarda o que recebe", () => {
   it("nas duas gravações de itens de venda", () => {
+    // Desde 16/09/2026 as duas gravações (criar e editar) montam a linha pela MESMA função,
+    // `dadosDaLinha` — antes eram duas cópias, e cada cópia era uma chance de esquecer o campo.
     const svc = readFileSync(join(RAIZ, "..", "backend", "src", "modules", "appointments", "appointments.service.ts"), "utf8");
-    expect((svc.match(/catalogoItemId: it\.catalogoItemId \?\? null/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect(svc).toContain("catalogoItemId: it.catalogoItemId ?? null");
+    expect((svc.match(/this\.dadosDaLinha\(/g) || []).length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("e editar não apaga a ligação que a tela não mandou", () => {
+    // O ponto de venda salva a edição sem catalogoItemId. A linha que continua herda o que estava
+    // gravado (backend linhas-da-venda.regras, CAMPOS_HERDADOS) em vez de ser apagada e recriada.
+    const regras = readFileSync(join(RAIZ, "..", "backend", "src", "modules", "appointments", "linhas-da-venda.regras.ts"), "utf8");
+    expect(regras).toMatch(/CAMPOS_HERDADOS = \[[^\]]*'catalogoItemId'/);
+    const svc = readFileSync(join(RAIZ, "..", "backend", "src", "modules", "appointments", "appointments.service.ts"), "utf8");
+    expect(svc).toContain("casarLinhas(");
+    expect(svc).not.toContain("tx.appointmentItem.deleteMany({ where: { appointmentId: id } })");
   });
 });

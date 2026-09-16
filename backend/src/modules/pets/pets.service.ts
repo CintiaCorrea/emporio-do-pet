@@ -4,7 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { CreatePetDto } from './dto/create-pet.dto';
 import { UpdatePetDto } from './dto/update-pet.dto';
-import { pesoSuspeito, sugestoesDeCorrecao, PESO_SUSPEITO_KG } from '../../common/peso';
+import { pesoSuspeito, sugestoesDeCorrecao, PESO_SUSPEITO_KG, pesagemEhAMaisNova } from '../../common/peso';
 import { proximoCodigo, isColisaoCodigo } from '../../common/codigo';
 
 @Injectable()
@@ -246,6 +246,11 @@ export class PetsService {
     const quando = opts?.at ? new Date(opts.at) : new Date();
     const data = Number.isNaN(quando.getTime()) ? new Date() : quando;
 
+    // A pesagem mais recente JA registrada, lida antes de gravar esta.
+    const ultima = await this.prisma.historicoClinico
+      .findFirst({ where: { petId, tipo: 'PESO', valorNum: { gt: 0 } }, orderBy: { data: 'desc' }, select: { data: true } })
+      .catch(() => null);
+
     await this.prisma.historicoClinico.create({
       data: {
         petId, tipo: 'PESO', data,
@@ -257,8 +262,8 @@ export class PetsService {
     }).catch(() => undefined); // historico e complemento: nao pode derrubar o salvar do peso
 
     // O peso ATUAL do pet so anda pra frente no tempo: corrigir um peso de ontem nao pode
-    // sobrescrever a pesagem de hoje.
-    const maisNovo = !(pet as any)?.updatedAt || data.getTime() >= new Date((pet as any).pesoAt || 0).getTime();
+    // sobrescrever a pesagem de hoje (ver common/peso, pesagemEhAMaisNova).
+    const maisNovo = pesagemEhAMaisNova(data, ultima?.data);
     const atualizado = maisNovo
       ? await this.prisma.pet.update({ where: { id: petId }, data: { weight: kg } })
       : pet;

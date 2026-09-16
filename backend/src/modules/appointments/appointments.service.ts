@@ -7,6 +7,8 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { avisoDeRecebimentoNaExclusao } from './exclusao-com-recebimento.regras';
 import { ensureNumeroVenda } from '../../common/venda-numero';
+import { casarLinhas, linhasSemCadastro } from './linhas-da-venda.regras';
+import { ehTipoDeOrcamento } from '../crm/consulta-vendas.regras';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PermissoesService } from '../permissoes/permissoes.service';
@@ -52,12 +54,87 @@ export class AppointmentsService {
    *
    * Por evento, e não por chamada direta, por dois motivos: não acopla venda a exame (nem cria
    * ciclo entre os módulos), e um erro do ouvinte não derruba a venda que já foi gravada.
+   *
+   * `itensNovos` são as linhas criadas NESTA gravação. Card de exame só nasce para elas: exame que
+   * já estava na venda não reabre card (Cintia, 16/09/2026), nem quando o card antigo já foi
+   * entregue ou arquivado.
    */
-  private avisarItensGravados(appointmentId?: string | null): void {
+  private avisarItensGravados(appointmentId: string | null | undefined, itensNovos: string[]): void {
     if (!appointmentId) return;
     try {
-      this.eventEmitter.emit('venda.itens.gravados', { appointmentId });
+      this.eventEmitter.emit('venda.itens.gravados', { appointmentId, itensNovos });
     } catch { /* avisar é acessório; a venda já está salva */ }
+  }
+
+  /**
+   * PORTEIRO DAS VENDAS, EM MODO AVISO (ver linhas-da-venda.regras, linhasSemCadastro).
+   *
+   * Anota cada linha nova de venda que chegou sem ligação ao cadastro — qual venda, qual item, por
+   * qual gravação e quem — na lista `porteiro_vendas`. É essa lista que diz quais telas e quais
+   * itens ainda precisam de conserto antes de o porteiro passar a recusar. Nunca derruba a venda.
+   */
+  private anotarLinhasSemCadastro(
+    appointmentId: string,
+    tipo: string | null | undefined,
+    linhas: { descricao: string | null; catalogoItemId: string | null }[],
+    via: 'criar' | 'editar',
+    userId?: string | null,
+  ): void {
+    const soltas = linhasSemCadastro(linhas);
+    if (!soltas.length || ehTipoDeOrcamento(tipo)) return;
+    const at = new Date().toISOString();
+    Promise.all(
+      soltas.map((l, i) =>
+        this.prisma.listaItem.create({
+          data: {
+            lista: 'porteiro_vendas',
+            valor: JSON.stringify({ at, i, appointmentId, tipo: tipo ?? null, descricao: l.descricao, via, userId: userId ?? null }),
+          },
+        }),
+      ),
+    ).catch(() => undefined);
+  }
+
+  /** Ids de serviço e produto que existem de verdade — um id inexistente derrubaria a venda (FK). */
+  private async idsValidosDasLinhas(tx: PrismaTransactionClient, linhas: any[]): Promise<{ servicos: Set<string>; produtos: Set<string> }> {
+    // O catálogo vendável agora é `Product`, e o front manda o mesmo id nos dois campos.
+    // `servicoId` aponta pra tabela `servicos` (legado, em aposentadoria): id que não existir lá
+    // violaria a FK e derrubaria a venda inteira. A descrição e o valor já vão na própria linha,
+    // então perder o vínculo legado é bem menos grave do que perder a venda.
+    const idsServ = Array.from(new Set(linhas.map((it: any) => it.servicoId).filter(Boolean))) as string[];
+    const idsProd = Array.from(new Set(linhas.map((it: any) => it.productId ?? it.servicoId).filter(Boolean))) as string[];
+    const servicos = new Set(idsServ.length ? (await tx.servico.findMany({ where: { id: { in: idsServ } }, select: { id: true } })).map((s) => s.id) : []);
+    const produtos = new Set(idsProd.length ? (await tx.product.findMany({ where: { id: { in: idsProd } }, select: { id: true } })).map((p) => p.id) : []);
+    return { servicos, produtos };
+  }
+
+  /** A linha como vai para o banco — a MESMA conta no criar e no editar. */
+  private dadosDaLinha(it: any, appointmentId: string, validos: { servicos: Set<string>; produtos: Set<string> }) {
+    const qtd = Number(it.quantidade ?? 1);
+    const unit = Number(it.valorUnitario ?? 0);
+    const desc = Number(it.desconto ?? 0);
+    const total = Number.isFinite(it.valorTotal) ? Number(it.valorTotal) : (qtd * unit - desc);
+    const pid = it.productId ?? it.servicoId ?? null;
+    return {
+      appointmentId,
+      servicoId: it.servicoId && validos.servicos.has(it.servicoId) ? it.servicoId : null,
+      productId: pid && validos.produtos.has(pid) ? pid : null,
+      descricao: it.descricao ?? null,
+      executorUserId: it.executorUserId ?? null,
+      fornecedorId: it.fornecedorId ?? null,
+      catalogoItemId: it.catalogoItemId ?? null,
+      convenioId: it.convenioId ?? null,
+      quantidade: qtd,
+      valorUnitario: unit,
+      custoUnitario: Number(it.custoUnitario ?? 0),
+      desconto: desc,
+      valorTotal: total,
+      comissaoBase: it.comissaoBase ?? null,
+      comissaoTipo: it.comissaoTipo ?? null,
+      comissaoValor: it.comissaoValor != null ? Number(it.comissaoValor) : null,
+      comissaoCalculada: it.comissaoCalculada != null ? Number(it.comissaoCalculada) : null,
+      observacoes: it.observacoes ?? null,
+    };
   }
 
   /**
@@ -449,6 +526,7 @@ export class AppointmentsService {
       if (agendado) reuseId = agendado.id;
     }
 
+    const linhasCriadas: { id: string; descricao: string | null; catalogoItemId: string | null }[] = [];
     const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       let appointment: any;
       if (reuseId) {
@@ -481,75 +559,15 @@ export class AppointmentsService {
         });
       }
 
-      // Items (serviços/exames) — cobrança detalhada
+      // Items (serviços/exames) — cobrança detalhada. Uma a uma para saber o id de cada linha
+      // criada: é por ele que o card de exame sabe que a linha é nova (ver avisarItensGravados).
       const itemsDto = (createAppointmentDto as any).items as any[] | undefined;
       if (itemsDto && itemsDto.length > 0) {
-        // O catálogo vendável agora é `Product`, e o front manda o mesmo id nos dois campos.
-        // `servicoId` aponta pra tabela `servicos` (legado, em aposentadoria): id que não
-        // existir lá violaria a FK e derrubaria a venda inteira. Ninguém LÊ esse campo —
-        // então guardamos só quando é válido, e `productId` segue como a ligação de verdade.
-        const idsServico = Array.from(
-          new Set(itemsDto.map((it: any) => it.servicoId).filter(Boolean)),
-        ) as string[];
-        const servicosValidos = new Set(
-          idsServico.length
-            ? (
-                await tx.servico.findMany({
-                  where: { id: { in: idsServico } },
-                  select: { id: true },
-                })
-              ).map((s) => s.id)
-            : [],
-        );
-        // Mesma proteção do outro lado: id de produto inexistente derrubaria a venda toda.
-        // A descrição e o valor do item já vão no próprio AppointmentItem, então perder o
-        // vínculo é bem menos grave do que perder a venda.
-        const idsProduto = Array.from(
-          new Set(
-            itemsDto.map((it: any) => it.productId ?? it.servicoId).filter(Boolean),
-          ),
-        ) as string[];
-        const produtosValidos = new Set(
-          idsProduto.length
-            ? (
-                await tx.product.findMany({
-                  where: { id: { in: idsProduto } },
-                  select: { id: true },
-                })
-              ).map((p) => p.id)
-            : [],
-        );
-        await tx.appointmentItem.createMany({
-          data: itemsDto.map((it: any) => {
-            const qtd = Number(it.quantidade ?? 1);
-            const unit = Number(it.valorUnitario ?? 0);
-            const desc = Number(it.desconto ?? 0);
-            const total = Number.isFinite(it.valorTotal) ? Number(it.valorTotal) : (qtd * unit - desc);
-            return {
-              appointmentId: appointment.id,
-              servicoId: it.servicoId && servicosValidos.has(it.servicoId) ? it.servicoId : null,
-              productId: (() => {
-                const pid = it.productId ?? it.servicoId ?? null;
-                return pid && produtosValidos.has(pid) ? pid : null;
-              })(),
-              descricao: it.descricao ?? null,
-              executorUserId: it.executorUserId ?? null,
-              fornecedorId: it.fornecedorId ?? null,
-              catalogoItemId: it.catalogoItemId ?? null,
-              convenioId: it.convenioId ?? null,
-              quantidade: qtd,
-              valorUnitario: unit,
-              custoUnitario: Number(it.custoUnitario ?? 0),
-              desconto: desc,
-              valorTotal: total,
-              comissaoBase: it.comissaoBase ?? null,
-              comissaoTipo: it.comissaoTipo ?? null,
-              comissaoValor: it.comissaoValor != null ? Number(it.comissaoValor) : null,
-              comissaoCalculada: it.comissaoCalculada != null ? Number(it.comissaoCalculada) : null,
-              observacoes: it.observacoes ?? null,
-            };
-          }),
-        });
+        const validos = await this.idsValidosDasLinhas(tx, itemsDto);
+        for (const it of itemsDto) {
+          const criada = await tx.appointmentItem.create({ data: this.dadosDaLinha(it, appointment.id, validos) });
+          linhasCriadas.push({ id: criada.id, descricao: criada.descricao, catalogoItemId: criada.catalogoItemId });
+        }
       }
 
       return tx.appointment.findUnique({
@@ -573,8 +591,9 @@ export class AppointmentsService {
 
     // Itens gravados → quem se importa (hoje: exames) que se vire. Fora da transação de
     // propósito: o ouvinte precisa enxergar os itens já comitados.
-    if (result && ((createAppointmentDto as any).items || []).length > 0) {
-      this.avisarItensGravados(result.id);
+    if (result && linhasCriadas.length > 0) {
+      this.avisarItensGravados(result.id, linhasCriadas.map((l) => l.id));
+      this.anotarLinhasSemCadastro(result.id, (result as any).type, linhasCriadas, 'criar', createAppointmentDto.userId);
     }
 
     // Emit appointment created event for automations
@@ -962,6 +981,7 @@ export class AppointmentsService {
       }
     }
 
+    const linhasCriadas: { id: string; descricao: string | null; catalogoItemId: string | null }[] = [];
     const result = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
       const updatedAppointment = await tx.appointment.update({ where: { id }, data: updateData });
 
@@ -988,45 +1008,25 @@ export class AppointmentsService {
         }
       }
 
-      // Itens da venda (appointmentItem): substitui a lista inteira quando `items` vier no update.
+      // Itens da venda (appointmentItem), quando `items` vier no update. A linha que continua é a
+      // MESMA linha: recebe o que a tela mudou e herda o que ela não mandou (cadastro, laboratório,
+      // convênio, comissão). Só a nova é criada; só a que saiu é apagada. Ver linhas-da-venda.regras.
       const itemsUpd = (updateAppointmentDto as any).items as any[] | undefined;
       if (itemsUpd !== undefined) {
-        await tx.appointmentItem.deleteMany({ where: { appointmentId: id } });
-        if (itemsUpd && itemsUpd.length > 0) {
-          // Mesma proteção do CREATE: servicoId/productId inexistentes (ex.: cuid do catálogo novo)
-          // violariam a FK e derrubariam o update inteiro. Guarda só os ids válidos; o resto vira null.
-          const idsServ = Array.from(new Set(itemsUpd.map((it: any) => it.servicoId).filter(Boolean))) as string[];
-          const servValidos = new Set(idsServ.length ? (await tx.servico.findMany({ where: { id: { in: idsServ } }, select: { id: true } })).map((s) => s.id) : []);
-          const idsProd = Array.from(new Set(itemsUpd.map((it: any) => it.productId ?? it.servicoId).filter(Boolean))) as string[];
-          const prodValidos = new Set(idsProd.length ? (await tx.product.findMany({ where: { id: { in: idsProd } }, select: { id: true } })).map((p) => p.id) : []);
-          await tx.appointmentItem.createMany({
-            data: itemsUpd.map((it: any) => {
-              const qtd = Number(it.quantidade ?? 1);
-              const unit = Number(it.valorUnitario ?? 0);
-              const desc = Number(it.desconto ?? 0);
-              const total = Number.isFinite(it.valorTotal) ? Number(it.valorTotal) : (qtd * unit - desc);
-              return {
-                appointmentId: id,
-                servicoId: it.servicoId && servValidos.has(it.servicoId) ? it.servicoId : null,
-                productId: (() => { const pid = it.productId ?? it.servicoId ?? null; return pid && prodValidos.has(pid) ? pid : null; })(),
-                descricao: it.descricao ?? null,
-                executorUserId: it.executorUserId ?? null,
-                fornecedorId: it.fornecedorId ?? null,
-                catalogoItemId: it.catalogoItemId ?? null,
-              convenioId: it.convenioId ?? null,
-                quantidade: qtd,
-                valorUnitario: unit,
-                custoUnitario: Number(it.custoUnitario ?? 0),
-                desconto: desc,
-                valorTotal: total,
-                comissaoBase: it.comissaoBase ?? null,
-                comissaoTipo: it.comissaoTipo ?? null,
-                comissaoValor: it.comissaoValor != null ? Number(it.comissaoValor) : null,
-                comissaoCalculada: it.comissaoCalculada != null ? Number(it.comissaoCalculada) : null,
-                observacoes: it.observacoes ?? null,
-              };
-            }),
-          });
+        const gravadas = await tx.appointmentItem.findMany({ where: { appointmentId: id }, orderBy: { createdAt: 'asc' } });
+        const casamento = casarLinhas(gravadas as any[], itemsUpd || []);
+        const validos = await this.idsValidosDasLinhas(tx, [...casamento.manter.map((m) => m.recebida), ...casamento.criar]);
+        if (casamento.apagar.length) {
+          await tx.appointmentItem.deleteMany({ where: { id: { in: casamento.apagar }, appointmentId: id } });
+        }
+        for (const m of casamento.manter) {
+          const dados = this.dadosDaLinha(m.recebida, id, validos);
+          const mudou = (Object.keys(dados) as (keyof typeof dados)[]).some((k) => (m.existente as any)[k] !== dados[k]);
+          if (mudou) await tx.appointmentItem.update({ where: { id: m.id }, data: dados });
+        }
+        for (const it of casamento.criar) {
+          const criada = await tx.appointmentItem.create({ data: this.dadosDaLinha(it, id, validos) });
+          linhasCriadas.push({ id: criada.id, descricao: criada.descricao, catalogoItemId: criada.catalogoItemId });
         }
       }
 
@@ -1062,12 +1062,12 @@ export class AppointmentsService {
       } catch (e) { console.error('reavaliar paymentStatus (update) falhou:', e); }
     }
 
-    // EDITAR A COMANDA APAGA E RECRIA TODOS OS ITENS, com ids novos. O card do exame apontava
-    // para o id antigo, que deixou de existir — e é esse vínculo que autoriza a conta a pagar do
-    // laboratório. Avisar aqui é o que religa; sem isto, toda edição deixava um exame órfão,
-    // cobrado do cliente e sem custo lançado.
-    if (result && (updateAppointmentDto as any).items !== undefined) {
-      this.avisarItensGravados(id);
+    // Até 16/09/2026 editar apagava e recriava todos os itens, e este aviso religava o card do
+    // exame ao id novo. Agora a linha que continua mantém o id; o aviso vai só com as linhas
+    // criadas, e é para elas (e só elas) que o card pode nascer ou ser religado.
+    if (result && linhasCriadas.length > 0) {
+      this.avisarItensGravados(id, linhasCriadas.map((l) => l.id));
+      this.anotarLinhasSemCadastro(id, (result as any).type, linhasCriadas, 'editar', requesterId);
     }
 
     // Emit events based on status change

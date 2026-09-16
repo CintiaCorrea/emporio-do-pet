@@ -66,6 +66,19 @@ export function sugestoesDeCorrecao(kg?: number | null): number[] {
   return out.sort((a, b) => a - b);
 }
 
+/**
+ * A pesagem que esta sendo lancada passa a ser o PESO ATUAL do pet?
+ *
+ * So se for a mais nova. O bloco de peso do prontuario e o registro central (Cintia, 16/09/2026),
+ * e o peso atual decide a faixa de preco na venda. Ate 16/09 a conferencia lia um campo que o
+ * cadastro do pet nao tem (`pesoAt`) — dava sempre "mais nova", e lancar uma pesagem esquecida de
+ * semanas atras trocava o peso de hoje pelo antigo.
+ */
+export function pesagemEhAMaisNova(data: Date, ultimaPesagem?: Date | null): boolean {
+  if (!ultimaPesagem || Number.isNaN(new Date(ultimaPesagem).getTime())) return true;
+  return data.getTime() >= new Date(ultimaPesagem).getTime();
+}
+
 /** Entra no relatorio de revisao? Mais amplo que a trava: pega o que passou antes dela existir. */
 export function pesoSuspeito(kg?: number | null): boolean {
   if (kg == null) return false;
