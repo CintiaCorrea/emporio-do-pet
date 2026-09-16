@@ -62,7 +62,18 @@ export async function imprimirDocumento(titulo: string, corpoHtml: string, cabec
   w.focus();
   // preview = só VISUALIZAR (olhinho): abre o documento sem disparar a impressão (ela pode imprimir por Ctrl+P).
   if (!opts?.preview) {
-    // dá um tempinho pra a LOGO (imagem externa) carregar antes de mandar imprimir
-    setTimeout(() => { try { w.print(); } catch { /* usuário fecha */ } }, 600);
+    // ESPERA AS IMAGENS (logo e ASSINATURA) antes de imprimir. Era um tempo fixo de 0,6 s: a
+    // assinatura da Dra. Victoria tem 1,4 MB e vem por um proxy autenticado — com a internet lenta
+    // o papel saía antes dela chegar, sem assinatura e sem aviso (Cintia, 16/09/2026). Agora espera
+    // todas carregarem (ou falharem), com teto de 5 s para nunca prender a impressão.
+    const imprimir = () => { try { w.print(); } catch { /* usuário fecha */ } };
+    setTimeout(() => {
+      const imgs = Array.from(w.document.images || []).filter((i) => !i.complete);
+      if (!imgs.length) { imprimir(); return; }
+      let feito = false;
+      const uma = () => { if (feito) return; if (Array.from(w.document.images).every((i) => i.complete)) { feito = true; imprimir(); } };
+      imgs.forEach((i) => { i.addEventListener("load", uma); i.addEventListener("error", uma); });
+      setTimeout(() => { if (!feito) { feito = true; imprimir(); } }, 5000);
+    }, 300);
   }
 }

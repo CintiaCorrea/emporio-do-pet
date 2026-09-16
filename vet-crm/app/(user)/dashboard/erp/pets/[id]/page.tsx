@@ -932,7 +932,7 @@ export default function PetDetailPage() {
     return String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>");
   }
   // Imprime o documento/receita com o timbrado (cabeçalho + quadro de dados) montado dos dados reais
-  function imprimirComTimbrado(titulo: string, corpo: string, vetId?: string, assinar?: boolean) {
+  async function imprimirComTimbrado(titulo: string, corpo: string, vetId?: string, assinar?: boolean) {
     const cab = montarTimbradoHtml({ titulo, clinica, pet, tutor: (pet as any)?.tutor });
     let corpoFinal = corpoParaImpressao(corpo);
     // Receituário de CONTROLE ESPECIAL: já é um formulário A4 completo (assinaturas do emitente e
@@ -943,7 +943,25 @@ export default function PetDetailPage() {
     // duplicar, removemos esse rodapé do corpo e montamos UMA assinatura só aqui.
     // 🖊️ Assinatura do vet SÓ na RECEITA (pedido Cintia 17/08). Documento/Patologia/Solicitação
     // não saem assinados. `assinar` vem true só do botão Imprimir da RECEITA.
-    const vet: any = (vetId && assinar) ? vets.find((u: any) => u.id === vetId) : null;
+    let vet: any = (vetId && assinar) ? vets.find((u: any) => u.id === vetId) : null;
+    // A RECEITA NÃO DEPENDE MAIS DA LISTA CARREGADA NA ABERTURA DA FICHA (Cintia, 16/09/2026: "você
+    // não está conseguindo consertar a porra da assinatura em um documento, uma coisa que já estava
+    // pronta e funcionando"). A receita do Kiss saiu sem assinatura porque a lista de profissionais
+    // tinha vindo vazia. Se o veterinário não está na lista na HORA de imprimir, busca de novo; e
+    // se ainda assim não achar, AVISA — nunca mais sai sem assinatura calada.
+    if (vetId && assinar && !vet) {
+      try {
+        const r = await fetch(`/api/users`, { cache: "no-store" });
+        const d = await r.json();
+        const arr = Array.isArray(d) ? d : (d.users || d.data || []);
+        if (arr.length) setVets(arr.filter((u: any) => !u.isBlocked));
+        vet = arr.find((u: any) => u.id === vetId) || null;
+      } catch { /* cai no aviso abaixo */ }
+      if (!vet && !especial) toast.error("Não consegui carregar o veterinário — a receita vai sair SEM assinatura. Aperte F5 e imprima de novo.");
+    }
+    if (vet && !especial && !vet.signatureUrl) {
+      toast("Este veterinário não tem imagem de assinatura no perfil — sai só o nome e o CRMV. (Meu perfil › Minha assinatura)", { icon: "🖋️" });
+    }
     if (vet && !especial) {
       const vnome = vet.nomeExibicao || vet.name || "";
       const vcrmv = vet.crmv || (vet.profissional && vet.profissional.crmv) || "";
