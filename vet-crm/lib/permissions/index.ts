@@ -103,7 +103,16 @@ export const PERM_SECTIONS: PermSection[] = [
       },
       {
         key: "financeiro", label: "Financeiro", emoji: "💵", children: [
-          { key: "/dashboard/erp/financeiro", label: "Financeiro", emoji: "💵" },
+          // A CHAVE ESTAVA APONTANDO PARA O FINANCEIRO ANTIGO (/dashboard/erp/financeiro), que
+          // saiu do menu em 05/08 — o código e a tabela ficaram, a tela não. Resultado: a
+          // Cintia marcava "Financeiro: Oculto" para Recepção e para Veterinário, salvava, e
+          // aquilo não governava nada: a tela que existe é /dashboard/financeiro, e ela não
+          // tinha chave nenhuma.
+          //
+          // Uma permissão que não faz nada é pior que uma permissão que falta: quem configurou
+          // acredita que configurou. (Não houve vazamento — o menu já restringia o Financeiro
+          // a ADMIN por conta própria. O que não funcionava era a configuração dela.)
+          { key: "/dashboard/financeiro", label: "Financeiro", emoji: "💵" },
         ],
       },
     ],

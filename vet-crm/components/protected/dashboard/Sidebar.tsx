@@ -69,6 +69,14 @@ const NAV: Entry[] = [
       { href: "/dashboard/erp/portal-tutores", label: "Portal do tutor", emoji: "📱", roles: ALL },
       { href: "/dashboard/erp/aniversarios", label: "Aniversários", emoji: "🎂", roles: ALL },
       { href: "/dashboard/erp/vacinacao", label: "Vacinação", emoji: "💉", roles: ALL },
+      // Cintia, 15/09/2026, quando perguntei se esta entrava no menu ou saía: "todos os
+      // atendimentos os pets são pesados na hora e lançados no sistema... talvez isso nem seja
+      // um problema real no momento, seja mesmo mais para referência".
+      //
+      // Referência que ninguém alcança não é referência. A tela existia desde 04/09 (o Snoopy
+      // com 8100 kg), estava na matriz de perfis e não estava no menu — o mesmo descasamento
+      // de Cadastros recebidos, e o motivo de existir o guard tela-nova-tem-porta.
+      { href: "/dashboard/erp/pesos-suspeitos", label: "Pesos a revisar", emoji: "⚖️", roles: ALL },
     ],
   },
   // LIXEIRA-PETS-MENU (Cintia 22/06): aba "Pets" removida do menu. Edicao do pet centralizada na ficha de Cliente; ficha clinica acessivel pelo nome do pet na lista de Clientes. Restaurar = descomentar a linha abaixo.

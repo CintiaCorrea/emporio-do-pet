@@ -23,6 +23,8 @@ import { describe, it, expect } from "vitest";
  */
 const RAIZ = join(__dirname, "..");
 const ler = (...p: string[]) => readFileSync(join(RAIZ, ...p), "utf8");
+/** Tira comentários de bloco e de linha — o que vale é o que o código FAZ. */
+const semComentarios = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 describe("o título do papel", () => {
   it("é só Venda ou Orçamento — sem número", () => {
@@ -33,14 +35,16 @@ describe("o título do papel", () => {
     expect(print).not.toContain("`${rotulo} ${num}`");
   });
 
-  it("mas o número continua no papel, na linha de dados", () => {
-    // Tirar do título não é apagar: a conferência de balcão usa o número, e ele fica junto da
-    // data, onde não compete com o nome do documento.
-    const print = ler("lib", "documentos", "venda-print.ts");
-    // A assercao e um trecho literal, e nao um recorte com regex: a primeira versao usava
-    // [^)]* e parava no ")" de `new Date()`, reprovando um codigo que estava certo. Teste
-    // que falha por si mesmo custa a confianca de todos os outros.
-    expect(print).toContain("new Date()), num,");
+  it("e o número não aparece em lugar nenhum do papel", () => {
+    // EU TINHA DEIXADO ELE NA LINHA DE DADOS, supondo que a conferência de balcão precisasse.
+    // Cintia, ao ser perguntada: "nem da venda nem do orçamento". Quem confere está no sistema
+    // com a venda aberta na tela; o papel é do cliente, e para ele o número não diz nada.
+    // Olha o CÓDIGO, não os comentários: o cabeçalho do arquivo cita `numeroVenda` só para
+    // explicar que formato de objeto a função aceita, e reprovar por causa de uma explicação
+    // é o tipo de teste que a gente aprende a ignorar.
+    expect(semComentarios(ler("lib", "documentos", "venda-print.ts"))).not.toMatch(/numeroVenda|codigoExterno/);
+    // O orçamento nunca teve número no papel — e continua sem.
+    expect(semComentarios(ler("lib", "documentos", "orcamento-print.ts"))).not.toMatch(/numero/i);
   });
 
   it("o orçamento já se chamava orçamento", () => {
@@ -55,10 +59,17 @@ describe("imprimir segue o que está sendo montado", () => {
     expect(rail).toContain('rotulo: orcando ? "Orçamento" : "Venda"');
   });
 
-  it("orçamento sai SEM número de venda", () => {
-    // Orçamento não é venda: carregar um número de venda no papel confunde quem recebe e quem
-    // confere depois.
-    expect(rail).toContain("...(orcando ? {} : { numeroVenda })");
+  it("nem venda nem orçamento levam o número para a impressão", () => {
+    // Antes o rail mandava o número só quando NÃO era orçamento. Agora a impressão ignora o
+    // número de qualquer jeito, então mandar era código morto — e código morto engana quem lê
+    // depois: parece que existe uma regra ali, e não existe mais.
+    expect(rail).not.toContain("{ numeroVenda }");
+  });
+
+  it("mas o número continua NA TELA — ele não sumiu do sistema", () => {
+    // O pedido foi tirar do papel do cliente, não deixar de existir. Quem confere no balcão
+    // olha a tela, e é lá que o número tem de estar.
+    expect(rail).toContain("nº ${numeroVenda}");
   });
 
   it("a OBSERVAÇÃO vai junto — é onde o modelo escreve", () => {

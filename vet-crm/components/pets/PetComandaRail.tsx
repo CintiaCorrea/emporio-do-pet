@@ -302,7 +302,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     // Eram três defeitos no mesmo clique: o nome errado, o número que ela não quer no papel, e a
     // informação do modelo que sumia.
     imprimirVenda(
-      { itens: itens.map(linhaBody), valor: total, petNome, tutorNome, petId, observacao: obs || undefined, ...(orcando ? {} : { numeroVenda }), date: new Date().toISOString() },
+      { itens: itens.map(linhaBody), valor: total, petNome, tutorNome, petId, observacao: obs || undefined, date: new Date().toISOString() },
       { rotulo: orcando ? "Orçamento" : "Venda" },
     );
   }
