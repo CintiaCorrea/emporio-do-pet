@@ -28,6 +28,7 @@ import { hojeNaClinicaISO } from "@/lib/datas";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import CampoValor from '@/components/comum/CampoValor';
 import SaldoDevedorTag from '@/components/comum/SaldoDevedorTag';
+import ReceberEmLoteModal, { type ComandaParaReceber } from '@/components/caixa/ReceberEmLoteModal';
 
 const TEAL = '#009AAC';
 const NAVY = '#014D5E';
@@ -665,7 +666,41 @@ export default function PDVPage() {
       if (!r.ok) throw new Error(d.message || 'Erro ao salvar');
       toast.success(msg + (d.troco ? ` · troco ${brl(d.troco)}` : ''));
       setModal(false); reset(); loadVendas();
-    } catch (e: any) { toast.error(e.message || 'Erro ao salvar'); } finally { setSalvando(false); }
+      return d;
+    } catch (e: any) { toast.error(e.message || 'Erro ao salvar'); return null; } finally { setSalvando(false); }
+  };
+
+  // ── BAIXAR VÁRIAS, AQUI NO PONTO DE VENDA ─────────────────────────────────────────────────
+  //
+  // Cintia, 16/09/2026: "eu tinha trazido vários exemplos do simplesvet para poder baixar várias
+  // vendas simultaneamente no próprio ponto de vendas, e essa opção não aparece quando vamos
+  // fechar. Só conseguimos ver se formos pela aba de consulta de vendas."
+  //
+  // Ela tinha razão: em 15/09 a baixa de várias foi posta só na Consulta de vendas e nas Comandas.
+  // Agora ela existe nas TRÊS portas de fechar que o ponto de venda tem — a lista "Deve R$ X" do
+  // cliente, o pagamento de uma venda nova, e (pelo "Levar para o caixa") o recebimento do Caixa.
+  // É sempre o MESMO componente: recebimento é dinheiro, e cópia parecida é conserto esquecido.
+  const [loteDe, setLoteDe] = useState<{ nome: string; comandas: ComandaParaReceber[]; pre?: string[] } | null>(null);
+  const paraReceber = (o: any): ComandaParaReceber => ({
+    id: o.id, date: o.date, pet: o.pet, origem: o.origem,
+    numeroVenda: o.numeroVenda ?? o.codigoExterno ?? null,
+    aberto: Math.max(0, Number(o.valor || 0) - Number(o.pago || 0)),
+  });
+  // Venda NOVA com outras em aberto: grava esta como "a receber" e abre a escolha com ela marcada.
+  // Gravar antes é o que permite escolher — o servidor só baixa venda que existe.
+  const salvarEBaixarVarias = async () => {
+    if (!cliente || temCaucao) return;
+    const nome = cliente.name;
+    const petNome = (cliente?.pets || []).find((x: any) => x.id === petId)?.name || null;
+    const outras = contasDoCliente.map(paraReceber);
+    const d: any = await enviar(payload({ tipo: 'VENDA' }), 'Venda salva');
+    const nova = d?.appointment;
+    if (!nova?.id) return;
+    setLoteDe({
+      nome,
+      comandas: [{ id: nova.id, date: nova.date || new Date().toISOString(), pet: petNome, numeroVenda: nova.numeroVenda ?? null, aberto: Number(d.valorVenda ?? nova.value ?? 0) }, ...outras],
+      pre: [nova.id],
+    });
   };
 
   // 💰 CAUÇÃO — dinheiro adiantado, não serviço vendido.
@@ -1476,6 +1511,14 @@ export default function PDVPage() {
                 <span style={{ fontSize: 13, color: INK2 }}>Total da venda</span>
                 <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(total)}</span>
               </div>
+              {/* O total do aviso INCLUI esta venda: é o número que se diz ao cliente no balcão.
+                  Caução não entra — ela não pode ficar "a receber" (ver receberCaucao). */}
+              {saldoDoCliente > 0.009 && !temCaucao && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14, background: ERRB, border: `1px solid ${ERR}`, borderRadius: 11, padding: '10px 14px' }}>
+                  <span style={{ fontSize: 13, color: ERR, fontWeight: 600 }}>Vendas em aberto {brl(saldoDoCliente + total)}</span>
+                  <button onClick={salvarEBaixarVarias} disabled={salvando} style={{ border: 'none', background: ERR, color: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: salvando ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>Baixar várias</button>
+                </div>
+              )}
               <PagamentoFormas formas={formas} onChange={setFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
 
               <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
@@ -1488,6 +1531,16 @@ export default function PDVPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {loteDe && (
+        <ReceberEmLoteModal
+          tutor={loteDe.nome}
+          comandas={loteDe.comandas}
+          preSelecionadas={loteDe.pre}
+          onFechar={() => setLoteDe(null)}
+          onRecebido={() => { loadVendas(); }}
+        />
       )}
 
       {/* ===== DETALHE DO ORÇAMENTO (abre ao clicar na linha roxa) ===== */}
@@ -1575,6 +1628,12 @@ export default function PDVPage() {
                 disabled={imprimindoDia}
                 style={{ width: '100%', border: `1px solid ${ERR}`, background: '#fff', color: ERR, borderRadius: 9, padding: '9px', fontSize: 12.5, fontWeight: 600, cursor: imprimindoDia ? 'default' : 'pointer' }}
               >{imprimindoDia ? 'Montando…' : '🖨️ Imprimir estas contas'}</button>
+              {/* Daqui dava para abrir UMA conta por vez. Com 10 vendas do Chico, isso é 10 vezes
+                  o mesmo caminho. Pelo extrato do cliente, todas nascem marcadas. */}
+              <button
+                onClick={() => { setContasOpen(false); setLoteDe({ nome: cliente?.name || 'Cliente', comandas: contasDoCliente.map(paraReceber) }); }}
+                style={{ width: '100%', marginTop: 8, border: 'none', background: TEAL, color: '#fff', borderRadius: 9, padding: '10px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >💰 Baixar várias</button>
             </div>
           </div>
         </div>

@@ -26,6 +26,7 @@ import {
 import MovimentoCaixaModal, { TipoMovimento } from '@/components/caixa/MovimentoCaixaModal';
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import CampoValor from '@/components/comum/CampoValor';
+import ReceberEmLoteModal, { type ComandaParaReceber } from '@/components/caixa/ReceberEmLoteModal';
 
 const TEAL = '#009AAC';
 const TEAL_DARK = '#014D5E';
@@ -173,6 +174,15 @@ export default function CaixaPage() {
   const [obsReceb, setObsReceb] = useState('');
   const [tutorSaldo, setTutorSaldo] = useState<number | null>(null);
   const [tutorAReceber, setTutorAReceber] = useState<number | null>(null); // total a receber do cliente (todas as vendas)
+  // AS VENDAS EM ABERTO DO CLIENTE, linha a linha — de qualquer dia (Cintia, 16/09/2026: "eu tinha
+  // trazido vários exemplos do simplesvet para poder baixar várias vendas simultaneamente no
+  // próprio ponto de vendas, e essa opção não aparece quando vamos fechar").
+  //
+  // O ponto de venda manda receber AQUI (decisão de 10/09: quem recebe é uma tela só). A baixa de
+  // várias tinha sido posta só na Consulta de vendas — justamente fora do caminho de fechar.
+  // null = ainda carregando; [] = não deve nada além desta.
+  const [abertasDoCliente, setAbertasDoCliente] = useState<(ComandaParaReceber & { pago?: number })[] | null>(null);
+  const [loteDe, setLoteDe] = useState<{ nome: string; comandas: ComandaParaReceber[]; pre: string[] } | null>(null);
   // O FORMULARIO do movimento virou componente (components/caixa/MovimentoCaixaModal) — o mesmo
   // que o ponto de venda usa desde 07/09/2026. Aqui fica so qual tipo esta aberto.
   const [movOpen, setMovOpen] = useState(false);
@@ -253,13 +263,22 @@ export default function CaixaPage() {
       // A venda pedida pelo link abre o recebimento assim que ela aparece na lista do dia.
       const pedida = vendaDoLink.current;
       if (pedida) {
+        // A lista acima é SÓ a do dia na tela. Venda de outro dia — as 10 do Chico, de 05 a 15/09 —
+        // não estava nela, e o "Levar para o caixa" do ponto de venda chegava aqui e NÃO ABRIA
+        // NADA, sem aviso. Agora, não achando no dia, busca a venda pelo id.
+        vendaDoLink.current = null;
+        const u = new URL(window.location.href);
+        u.searchParams.delete('venda');
+        window.history.replaceState({}, '', u.toString());
         const achada = list.find((a: any) => a.id === pedida);
-        if (achada) {
-          vendaDoLink.current = null;
-          const u = new URL(window.location.href);
-          u.searchParams.delete('venda');
-          window.history.replaceState({}, '', u.toString());
-          setTimeout(() => abrirReceber(achada), 0);
+        if (achada) setTimeout(() => abrirReceber(achada), 0);
+        else {
+          try {
+            const rv = await fetch(`/api/appointments/${encodeURIComponent(pedida)}`, { cache: 'no-store' });
+            const v = rv.ok ? await rv.json() : null;
+            if (v?.id && Number(v.value) > 0) setTimeout(() => abrirReceber({ ...v, tutorId: v.tutorId || v.tutor?.id }), 0);
+            else toast.error('Não encontrei essa venda para receber. Ela pode ter sido excluída — confira na Consulta de vendas.');
+          } catch { toast.error('Não consegui abrir essa venda. Tente pela Consulta de vendas.'); }
         }
       }
     } catch { /* silencioso */ }
@@ -431,8 +450,18 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
     catch (e: any) { toast.error(e.message || 'Erro ao reabrir caixa'); }
   };
   const abrirReceber = async (venda: Appointment) => {
-    setVendaSel(venda); setFormas([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]); setDesconto(0); setObsReceb(''); setTutorSaldo(null); setTutorAReceber(null); setReceberOpen(true);
+    setVendaSel(venda); setFormas([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]); setDesconto(0); setObsReceb(''); setTutorSaldo(null); setTutorAReceber(null); setAbertasDoCliente(null); setReceberOpen(true);
     const tid = tutorIdDe(venda);
+    // A MESMA FONTE da Consulta de vendas e do ponto de venda (/api/caixa/vendas), filtrada no
+    // servidor pelo cliente. Uma conta só para "quanto ele deve" em todas as telas.
+    if (tid) {
+      fetch(`/api/caixa/vendas?abertas=true&tutorId=${encodeURIComponent(tid)}`, { cache: 'no-store' })
+        .then((r) => (r.ok ? r.json() : []))
+        .then((arr) => setAbertasDoCliente((Array.isArray(arr) ? arr : [])
+          .map((x: any) => ({ id: x.id, date: x.date, pet: x.pet, origem: x.origem, numeroVenda: x.numeroVenda ?? x.codigoExterno ?? null, pago: Number(x.pago || 0), aberto: Math.max(0, Number(x.valor || 0) - Number(x.pago || 0)) }))
+          .filter((x: any) => x.aberto > 0.009)))
+        .catch(() => setAbertasDoCliente([]));
+    } else setAbertasDoCliente([]);
     if (tid) { try { const r = await fetch(`/api/credito/tutor/${tid}/resumo`, { cache: 'no-store' }); if (r.ok) { const d = await r.json(); setTutorSaldo(Number(d.credito || 0)); setTutorAReceber(Number(d.aReceber || 0)); } } catch { /* ignore */ } }
   };
 
@@ -459,7 +488,13 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
   const somaFormas = formas.reduce((s, f) => s + Number(f.valor || 0), 0);
   const creditoNasFormas = formas.filter((f) => ehCredito(f.forma)).reduce((s, f) => s + Number(f.valor || 0), 0);
   const creditoExcede = tutorSaldo !== null && creditoNasFormas > tutorSaldo + 0.001;
-  const valorDevido = vendaSel ? Number(vendaSel.value) - (pagoPorAppt.get(vendaSel.id) || 0) : 0;
+  // O SALDO DA VENDA É O QUE FALTA EM TODOS OS CAIXAS, não só no que está aberto na tela. Venda de
+  // 05/09 com metade paga no caixa daquele dia aparecia aqui cobrando o valor inteiro. Quando a
+  // lista do cliente já chegou, ela manda (o `pago` dela soma todos os recebimentos).
+  const linhaDaVendaSel = vendaSel ? (abertasDoCliente || []).find((x) => x.id === vendaSel.id) : undefined;
+  const valorDevido = vendaSel
+    ? (linhaDaVendaSel ? Number(linhaDaVendaSel.aberto || 0) : Number(vendaSel.value) - (pagoPorAppt.get(vendaSel.id) || 0))
+    : 0;
   const temDinheiro = formas.some((f) => ehDinheiro(f.forma));
   const troco = temDinheiro && somaFormas + desconto > valorDevido ? somaFormas + desconto - valorDevido : 0;
   const valorAplicado = Math.max(0, somaFormas + desconto - troco);
@@ -1134,11 +1169,27 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
             <span style={{ color: '#1F2A2E' }}>{vendaSel.tutor?.name || 'Cliente'} · {vendaSel.pet?.name || 'Pet'}</span>
             <span style={{ color: '#5C6B70', fontSize: 12 }}>Total {brl(Number(vendaSel.value))} · Saldo <b style={{ color: ORANGE }}>{brl(valorDevido)}</b></span>
           </div>
-          {tutorAReceber !== null && tutorAReceber > valorDevido + 0.5 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', background: '#FDF6E9', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
-              <span style={{ color: '#9A6C1F' }}>Total a receber do cliente (todas as vendas)</span><b style={{ color: '#9A6C1F' }}>{brl(tutorAReceber)}</b>
-            </div>
-          )}
+          {/* VENDAS EM ABERTO + BAIXAR VÁRIAS — como no SimplesVet (Cintia, 15 e 16/09/2026).
+              O texto é só "Vendas em aberto R$ X", a pedido dela. O total INCLUI esta venda: é o
+              número que se diz ao cliente no balcão. A escolha abre o MESMO componente da
+              Consulta de vendas, com esta venda marcada e as outras à vista, desmarcadas. */}
+          {(() => {
+            const todas = abertasDoCliente || [];
+            const outras = todas.filter((x) => x.id !== vendaSel.id);
+            if (!outras.length) return null;
+            const total = todas.reduce((t, x) => t + Number(x.aberto || 0), 0) + (linhaDaVendaSel ? 0 : valorDevido);
+            const abrirLote = () => {
+              const comandas: ComandaParaReceber[] = linhaDaVendaSel ? todas : [{ id: vendaSel.id, date: vendaSel.start || null, pet: vendaSel.pet?.name || null, numeroVenda: vendaSel.numeroVenda ?? null, aberto: valorDevido }, ...todas];
+              setReceberOpen(false);
+              setLoteDe({ nome: vendaSel.tutor?.name || 'Cliente', comandas, pre: [vendaSel.id] });
+            };
+            return (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#FDECEC', border: '1px solid #E4A5A5', borderRadius: 8, padding: '9px 12px' }}>
+                <span style={{ color: '#A32D2D', fontSize: 13, fontWeight: 600 }}>Vendas em aberto {brl(total)}</span>
+                <button onClick={abrirLote} style={{ border: 'none', background: '#A32D2D', color: '#fff', borderRadius: 7, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Baixar várias</button>
+              </div>
+            );
+          })()}
           {tutorSaldo !== null && (
             <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e8f7f9', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
               <span style={{ color: '#014D5E' }}>Crédito disponível do cliente</span><b style={{ color: TEAL_DARK }}>{brl(tutorSaldo)}</b>
@@ -1151,7 +1202,7 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
             {creditoExcede && <p style={{ fontSize: 11, color: ORANGE, margin: '6px 0 0' }}>Crédito usado ({brl(creditoNasFormas)}) maior que o disponível ({brl(tutorSaldo || 0)}).</p>}
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1 }}><Field label="Desconto"><input value={desconto || ''} inputMode="decimal" placeholder="0,00" onChange={(e) => setDesconto(Number(String(e.target.value).replace(',', '.')) || 0)} style={inp} /></Field></div>
+            <div style={{ flex: 1 }}><Field label="Desconto"><CampoValor valor={desconto} onValor={setDesconto} placeholder="0,00" style={inp} /></Field></div>
             <div style={{ flex: 1 }}><Field label="Troco (auto)"><div style={{ ...inp, color: '#374151', background: '#FBF9F4' }}>{brl(troco)}</div></Field></div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e8f7f9', borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>
@@ -1160,6 +1211,15 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
           </div>
           <Field label="Observação"><input value={obsReceb} onChange={(e) => setObsReceb(e.target.value)} style={inp} /></Field>
         </Modal>
+      )}
+      {loteDe && (
+        <ReceberEmLoteModal
+          tutor={loteDe.nome}
+          comandas={loteDe.comandas}
+          preSelecionadas={loteDe.pre}
+          onFechar={() => setLoteDe(null)}
+          onRecebido={() => { fetchAppointments(); fetchCaixas(); if (detail) fetchDetail(detail.id); }}
+        />
       )}
     </div>
   );
