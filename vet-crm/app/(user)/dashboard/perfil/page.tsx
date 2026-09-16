@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
+import { reduzirAssinatura } from '@/lib/reduzirAssinatura';
 import { 
   LuUser, 
   LuCalendar,
@@ -238,7 +239,8 @@ export default function PerfilPage() {
     try {
       // Storage real do sistema = S3 (Tigris), a MESMA rota dos documentos (Cloudinary nunca foi configurado).
       const fd = new FormData();
-      fd.append('file', file);
+      // Reduz antes de enviar: no papel ela sai com 260 px; foto de celular chegava a 1,4 MB.
+      fd.append('file', await reduzirAssinatura(file));
       const uploadRes = await fetch(`/api/media/upload?pasta=documentos&origem=assinatura&origemId=${encodeURIComponent(userId)}`, { method: 'POST', body: fd });
       const uploadData = await uploadRes.json().catch(() => null);
       if (!uploadRes.ok || !uploadData?.url) throw new Error(uploadData?.error || uploadData?.message || `Falha no upload (HTTP ${uploadRes.status})`);
