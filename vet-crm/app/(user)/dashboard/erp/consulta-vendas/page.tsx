@@ -147,6 +147,15 @@ interface DevPreview {
 const MOTIVOS = ['Arrependimento do cliente', 'Produto com defeito', 'Erro no lançamento', 'Procedimento não realizado'];
 
 function DevolucaoModal({ vendaId, onClose }: { vendaId: string; onClose: () => void }) {
+  // A TAXA DO CARTÃO É DO ADMINISTRATIVO (Cintia, 16/09/2026: "não quero que as informações
+  // sobre o desconto do cartão de crédito apareçam para todos, somente para o adm").
+  //
+  // Quanto a operadora cobra é condição comercial da clínica, não informação de balcão. Quem
+  // recebe precisa de forma, bandeira, parcelas e AUT — a taxa continua sendo calculada e lançada
+  // no Financeiro do mesmo jeito; só deixa de aparecer para quem não é adm. Usa o papel EFETIVO:
+  // a Cintia, pré-visualizando como Recepção, vê exatamente o que a recepção vê.
+  // Na devolução, quem devolve continua vendo QUANTO devolver — só não vê a taxa descontada.
+  const verTaxa = useRolePreview().effectiveRole === 'ADMIN';
   const [pv, setPv] = useState<DevPreview | null>(null);
   const [erro, setErro] = useState('');
   const [escopo, setEscopo] = useState<'total' | 'item'>('total');
@@ -216,7 +225,7 @@ function DevolucaoModal({ vendaId, onClose }: { vendaId: string; onClose: () => 
           </div>
           {pv && (pv.forma.taxaPct > 0 || pv.forma.parcelas > 1) && (
             <div style={{ marginTop: 10, fontSize: 12.5, background: 'rgba(255,255,255,.10)', border: '1px solid rgba(255,255,255,.16)', padding: '7px 10px', borderRadius: 9 }}>
-              💳 Pago em <b>{pv.forma.nome}{pv.forma.parcelas > 1 ? ` ${pv.forma.parcelas}×` : ''}</b>{pv.forma.taxaPct > 0 ? ` · taxa da operadora ${pv.forma.taxaPct}%` : ''}
+              💳 Pago em <b>{pv.forma.nome}{pv.forma.parcelas > 1 ? ` ${pv.forma.parcelas}×` : ''}</b>{verTaxa && pv.forma.taxaPct > 0 ? ` · taxa da operadora ${pv.forma.taxaPct}%` : ''}
             </div>
           )}
         </div>
@@ -279,18 +288,18 @@ function DevolucaoModal({ vendaId, onClose }: { vendaId: string; onClose: () => 
 
             {/* resumo */}
             <div style={{ background: '#F7F4EC', borderTop: `1px solid ${CARD_LINE}`, padding: '14px 18px' }}>
-              {taxaPct > 0 && (
+              {verTaxa && taxaPct > 0 && (
                 <>
                   <div className="flex justify-between" style={{ fontSize: 13, color: GREY, padding: '2px 0' }}><span>Valor dos itens</span><b style={{ color: NAVY }}>{brl(bruto)}</b></div>
                   <div className="flex justify-between" style={{ fontSize: 13, color: GREY, padding: '2px 0' }}><span>− Taxa do cartão ({parcelas > 1 ? `${parcelas}× · ` : ''}{taxaPct}%)</span><b style={{ color: CORAL }}>− {brl(taxa)}</b></div>
                 </>
               )}
               <div className="flex justify-between items-center" style={{ marginTop: 6, paddingTop: 8, borderTop: `1px dashed ${CARD_LINE}` }}>
-                <span style={{ fontSize: 13, color: GREY }}>Devolver ao cliente{taxaPct > 0 ? ' (líquido)' : ''}</span>
+                <span style={{ fontSize: 13, color: GREY }}>Devolver ao cliente{verTaxa && taxaPct > 0 ? ' (líquido)' : ''}</span>
                 <span style={{ fontSize: 23, fontWeight: 800, color: NAVY }}>{brl(liquido)}</span>
               </div>
               {parcelas > 1 && <div style={{ fontSize: 12, color: TEAL, marginTop: 5 }}>↳ em <b>{parcelas}×</b> de <b>{brl(parcela)}</b> (venc. mensal, espelhando o cartão)</div>}
-              <div style={{ fontSize: 11.5, color: GREY2, marginTop: 8 }}>📉 Estorno de receita no Financeiro (Deduções de Vendas){taxaPct > 0 ? ' — a taxa permanece como custo' : ''}. {forma === 'CREDITO' ? 'Vira crédito do cliente.' : 'Registrado como saída no Financeiro.'}</div>
+              <div style={{ fontSize: 11.5, color: GREY2, marginTop: 8 }}>📉 Estorno de receita no Financeiro (Deduções de Vendas){verTaxa && taxaPct > 0 ? ' — a taxa permanece como custo' : ''}. {forma === 'CREDITO' ? 'Vira crédito do cliente.' : 'Registrado como saída no Financeiro.'}</div>
               {erro && <div style={{ fontSize: 12.5, color: CORAL, marginTop: 8 }}>⚠ {erro}</div>}
             </div>
 

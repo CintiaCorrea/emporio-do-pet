@@ -5,6 +5,7 @@
 
 import React, { useState } from "react";
 import CampoValor from "@/components/comum/CampoValor";
+import { useRolePreview } from "@/lib/ui/RolePreview";
 // Fonte única: tipos + modalidades + helpers vêm de lib/formasPagamento (re-exportados aqui p/ compat).
 import { PagForma, FormaCfg, TaxaRow, MODALIDADES, PARC, BANDEIRAS_PADRAO, modalidadeToTaxaForma, ehMaquininha, ehCartao, ehLinkPagamento, adquirenteDe, adquirenteDaLinha } from "@/lib/formasPagamento";
 export type { PagForma, FormaCfg, TaxaRow };
@@ -29,6 +30,14 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
   const cfgByNome = new Map(formasConfig.map((c) => [c.nome, c]));
   const set = (i: number, patch: Partial<PagForma>) => onChange(formas.map((x, j) => (j === i ? { ...x, ...patch } : x)));
   const fmtValor = (v: number) => (v ? v.toFixed(2).replace(".", ",") : "");
+  // A TAXA DO CARTÃO É DO ADMINISTRATIVO (Cintia, 16/09/2026: "não quero que as informações
+  // sobre o desconto do cartão de crédito apareçam para todos, somente para o adm").
+  //
+  // Quanto a operadora cobra é condição comercial da clínica, não informação de balcão. Quem
+  // recebe precisa de forma, bandeira, parcelas e AUT — a taxa continua sendo calculada e lançada
+  // no Financeiro do mesmo jeito; só deixa de aparecer para quem não é adm. Usa o papel EFETIVO:
+  // a Cintia, pré-visualizando como Recepção, vê exatamente o que a recepção vê.
+  const verTaxa = useRolePreview().effectiveRole === "ADMIN";
   // Bandeiras da operadora, pela tabela de taxas. Operadora SEM taxa cadastrada cai na lista
   // padrão — antes ficava vazia e a recepção não tinha o que escolher (era o caso do Nubank).
   const bandeirasDe = (adq: string) => {
@@ -132,11 +141,11 @@ export default function PagamentoFormas({ formas, onChange, formasList, formasCo
                 )}
               </div>
             )}
-            {(() => { const bps = taxaBpsDe(f, cfg); if (bps == null) return null; const v = Number(f.valor) || 0; const taxa = v * bps / 10000; return <div style={{ marginTop: 6, fontSize: 11, color: "#9A6C1F" }}>💳 taxa ~{(bps / 100).toFixed(2)}% = {brl(taxa)} · líquido {brl(v - taxa)}</div>; })()}
+            {verTaxa && (() => { const bps = taxaBpsDe(f, cfg); if (bps == null) return null; const v = Number(f.valor) || 0; const taxa = v * bps / 10000; return <div style={{ marginTop: 6, fontSize: 11, color: "#9A6C1F" }}>💳 taxa ~{(bps / 100).toFixed(2)}% = {brl(taxa)} · líquido {brl(v - taxa)}</div>; })()}
           </div>
         );
       })}
-      {taxaTotal > 0.001 && (
+      {verTaxa && taxaTotal > 0.001 && (
         <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 6, fontSize: 12, color: "#9A6C1F", background: "#FBF1DA", border: "1px solid #F0D9A6", borderRadius: 9, padding: "7px 11px" }}>
           <span>💳 Taxa estimada dos cartões: {brl(taxaTotal)}</span>
           <span>Líquido dos cartões: <b>{brl(cartaoBruto - taxaTotal)}</b></span>

@@ -8,6 +8,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { usePodeEditar } from '@/lib/permissions/context';
+import { useRolePreview } from '@/lib/ui/RolePreview';
 import { useSession } from 'next-auth/react';
 import { idDoMeuCaixa } from '@/lib/caixaAtual';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
@@ -173,6 +174,15 @@ export default function CaixaPage() {
   const [desconto, setDesconto] = useState(0);
   const [obsReceb, setObsReceb] = useState('');
   const [tutorSaldo, setTutorSaldo] = useState<number | null>(null);
+  // A TAXA DO CARTÃO É DO ADMINISTRATIVO (Cintia, 16/09/2026: "não quero que as informações
+  // sobre o desconto do cartão de crédito apareçam para todos, somente para o adm").
+  //
+  // Quanto a operadora cobra é condição comercial da clínica, não informação de balcão. Quem
+  // recebe precisa de forma, bandeira, parcelas e AUT — a taxa continua sendo calculada e lançada
+  // no Financeiro do mesmo jeito; só deixa de aparecer para quem não é adm. Usa o papel EFETIVO:
+  // a Cintia, pré-visualizando como Recepção, vê exatamente o que a recepção vê.
+  // Aqui: o "A receber das maquininhas" é o valor LÍQUIDO — dele se tira a taxa de cabeça.
+  const verTaxa = useRolePreview().effectiveRole === 'ADMIN';
   const [tutorAReceber, setTutorAReceber] = useState<number | null>(null); // total a receber do cliente (todas as vendas)
   // AS VENDAS EM ABERTO DO CLIENTE, linha a linha — de qualquer dia (Cintia, 16/09/2026: "eu tinha
   // trazido vários exemplos do simplesvet para poder baixar várias vendas simultaneamente no
@@ -858,7 +868,7 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
                         💡 Recebimentos são registrados no <b style={{ color: '#014D5E' }}>Ponto de venda</b>. Aqui você <b>acompanha e confere</b> os recebimentos do dia para o fechamento.
                       </div>
                     )}
-                    {prevCred && prevCred.totalCentavos > 0 && (
+                    {verTaxa && prevCred && prevCred.totalCentavos > 0 && (
                       <div className="no-print" style={{ marginBottom: 12, background: '#F0FAF6', border: '1px solid #BFE6D4', borderRadius: 12, padding: '12px 14px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                           <div style={{ fontSize: 13, color: '#0F5132', fontWeight: 600 }}>💳 A receber das maquininhas <span style={{ fontWeight: 400, color: '#5C6B70' }}>(previsão de crédito · líquido · pelo prazo de cada maquininha)</span></div>
