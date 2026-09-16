@@ -66,6 +66,8 @@ export const PERM_SECTIONS: PermSection[] = [
           { key: "/dashboard/erp/orcamentos", label: "Orçamentos", emoji: "📋" },
           { key: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦" },
           { key: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾" },
+          // Preencher a forma que o defeito de 16/09 apagou (os "Outros" do caixa). So adm grava.
+          { key: "/dashboard/erp/recebimentos-sem-forma", label: "Recebimentos sem forma", emoji: "❓" },
           { key: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛" },
           { key: "/dashboard/erp/formas-recebimento", label: "Formas de recebimento", emoji: "💳" },
           { key: "/dashboard/erp/configuracoes-vendas", label: "Configuração de vendas", emoji: "⚙️" },

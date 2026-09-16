@@ -62,6 +62,10 @@ export class CrmController {
     @Query('busca') busca?: string,
     @Query('cod') cod?: string,
     @Query('limit') limit?: string,
+    // Quem chega por link: a etiqueta de saldo devedor manda o CLIENTE; o caixa, o ponto de
+    // venda e as telas de arrumação mandam UMA venda.
+    @Query('tutorId') tutorId?: string,
+    @Query('id') id?: string,
   ) {
     return this.crmService.consultaVendas({
       de,
@@ -71,6 +75,8 @@ export class CrmController {
       funcionarioId,
       busca,
       cod,
+      tutorId,
+      id,
       limit: limit ? Number(limit) : undefined,
     });
   }

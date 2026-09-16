@@ -44,7 +44,13 @@ describe("a etiqueta do saldo devedor", () => {
   });
 
   it("leva para as vendas do cliente — ver a dívida e não poder agir é meio caminho", () => {
-    expect(tag).toContain("/dashboard/erp/consulta-vendas?busca=");
+    // Pelo ID do cliente, não pelo nome: "?busca=Lucas" trazia todo cliente chamado Lucas. E a
+    // Consulta de vendas precisa LER o endereço — até 16/09/2026 ela o ignorava, e o clique na
+    // etiqueta abria a lista do mês inteira.
+    expect(tag).toContain("/dashboard/erp/consulta-vendas?cliente=");
+    const consulta = ler("app", "(user)", "dashboard", "erp", "consulta-vendas", "page.tsx");
+    expect(consulta).toContain("const cliente = (u.get('cliente') || '').trim();");
+    expect(consulta).toContain("if (soCliente?.id) p.set('tutorId', soCliente.id);");
   });
 
   it("não deixa o clique escapar para a linha atrás dela", () => {

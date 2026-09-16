@@ -74,7 +74,7 @@ export default function SaldoDevedorTag({
   if (!nome) return <span style={estilo} title="Vendas em aberto deste cliente">{texto}</span>;
   return (
     <Link
-      href={`/dashboard/erp/consulta-vendas?busca=${encodeURIComponent(nome)}`}
+      href={`/dashboard/erp/consulta-vendas?cliente=${encodeURIComponent(tutorId || "")}&nome=${encodeURIComponent(nome)}`}
       onClick={(e) => e.stopPropagation()}
       target="_blank"
       rel="noopener"

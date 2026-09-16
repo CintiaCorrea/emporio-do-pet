@@ -509,6 +509,14 @@ export default function ConsultaVendasPage() {
   const [marca, setMarca] = useState('');
   const [busca, setBusca] = useState('');
   const [cod, setCod] = useState('');
+  // ── QUEM CHEGA POR LINK ──────────────────────────────────────────────────────────────────
+  // A etiqueta "Deve R$ X" (ficha do cliente, ficha do pet, PDV, internação) manda ?cliente=;
+  // o Caixa, o ponto de venda e as telas de arrumação mandam ?venda= (id ou número). Até
+  // 16/09/2026 esta tela IGNORAVA o endereço: todo link abria a lista do mês inteira, e a
+  // pessoa tinha de procurar de novo o que tinha acabado de clicar.
+  const [soCliente, setSoCliente] = useState<{ id: string; nome: string } | null>(null);
+  const [soVenda, setSoVenda] = useState<string>('');
+  const linkAplicado = useRef(false);
   const [func, setFunc] = useState('');
   const [modo, setModo] = useState<'VENDAS' | 'ORCAMENTOS' | 'TOTAIS' | 'RESUMO'>('VENDAS');
   const { effectiveRole } = useRolePreview();
@@ -583,6 +591,8 @@ O recebimento de ${brl(v.pago || 0)} sai do caixa e a venda volta a ficar em abe
       if (marca) p.set('marca', marca);
       if (busca.trim()) p.set('busca', busca.trim());
       if (cod.trim()) p.set('cod', cod.trim());
+      if (soCliente?.id) p.set('tutorId', soCliente.id);
+      if (soVenda) p.set('id', soVenda);
       const r = await fetch(`/api/crm/consulta-vendas?${p.toString()}`, { cache: 'no-store' });
       if (r.ok) setData(await r.json());
       else setData({ vendas: [], totais: { qtd: 0, liquido: 0, ticket: 0, descontos: 0, recebido: 0, aberto: 0 } });
@@ -591,9 +601,31 @@ O recebimento de ${brl(v.pago || 0)} sai do caixa e a venda volta a ficar em abe
     } finally {
       jaCarregou.current = true; setLoading(false);
     }
-  }, [de, ate, marca, busca, cod]);
+  }, [de, ate, marca, busca, cod, soCliente, soVenda]);
 
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+  // A ORDEM DESTES DOIS EFEITOS IMPORTA. Este vem primeiro: no primeiro render a marca ainda está
+  // desligada e ele não faz nada; quando o de baixo aplica o link, o estado muda, `load` é
+  // recriado com os filtros novos, e AÍ este roda e consulta. Chamar load() direto no efeito de
+  // baixo usaria o `load` velho, com o mês inteiro.
+  useEffect(() => {
+    if (!linkAplicado.current) return;
+    linkAplicado.current = false;
+    load();
+  }, [load]);
+  useEffect(() => {
+    const u = new URLSearchParams(window.location.search);
+    const cliente = (u.get('cliente') || '').trim();
+    const venda = (u.get('venda') || '').trim();
+    const buscaLink = (u.get('busca') || '').trim();
+    if (!cliente && !venda && !buscaLink) { load(); return; }
+    linkAplicado.current = true;
+    // Dívida e venda antiga não moram no mês corrente: quem vem por link vê todos os períodos.
+    setDe(''); setAte('');
+    if (cliente) { setSoCliente({ id: cliente, nome: (u.get('nome') || '').trim() || 'este cliente' }); setSitPg('ABERTO'); }
+    if (venda) { if (/^\d+$/.test(venda)) setCod(venda); else setSoVenda(venda); }
+    if (buscaLink && !cliente) setBusca(buscaLink);
+    /* eslint-disable-next-line */
+  }, []);
 
   // As contas em aberto de TODOS os dias, somadas por cliente (mesma fonte do ponto de venda).
   useEffect(() => {
@@ -790,6 +822,15 @@ O recebimento de ${brl(v.pago || 0)} sai do caixa e a venda volta a ficar em abe
             placeholder="Cliente, pet ou serviço"
             style={{ ...fino, flex: 1, minWidth: 150 }}
           />
+          {/* O filtro que veio pelo link fica À VISTA, com um ✕ — filtro invisível é lista que
+              "some" sem ninguém entender por quê. */}
+          {(soCliente || soVenda) && (
+            <button
+              onClick={() => { setSoCliente(null); setSoVenda(''); setSitPg(''); setDe(mesIni); setAte(mesFim); linkAplicado.current = true; }}
+              title="Tirar este filtro e voltar para o mês"
+              style={{ ...fino, background: '#FDECEC', borderColor: '#E4A5A5', color: '#A32D2D', fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer' }}
+            >{soCliente ? `Só ${soCliente.nome}` : 'Só esta venda'} ✕</button>
+          )}
 
           {/* SO OS ICONES (Cintia, 08/09/2026). Cada um leva `title` e `aria-label`: sem o
               texto, e ali que o nome da acao passa a viver. */}

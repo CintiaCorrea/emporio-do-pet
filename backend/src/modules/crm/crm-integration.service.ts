@@ -980,6 +980,8 @@ export class CrmIntegrationService {
     busca?: string;
     cod?: string;
     limit?: number;
+    tutorId?: string;
+    id?: string;
   }) {
     const limit = Math.max(1, Math.min(Number(q.limit) || 200, 1000));
 
@@ -1009,6 +1011,11 @@ export class CrmIntegrationService {
     }
 
     if (q.funcionarioId && q.funcionarioId.trim()) where.userId = q.funcionarioId.trim();
+
+    // POR LINK: um cliente (etiqueta de saldo devedor) ou uma venda (caixa, ponto de venda, telas de
+    // arrumação). Filtra pelo id, não pelo nome: "Lucas" no texto traria todo cliente chamado Lucas.
+    if (q.tutorId && String(q.tutorId).trim()) where.tutorId = String(q.tutorId).trim();
+    if (q.id && String(q.id).trim()) where.id = String(q.id).trim();
 
     // Cod. da venda: nosso numeroVenda (se numerico) OU codigoExterno do SimplesVet (contains)
     if (q.cod && String(q.cod).trim()) {

@@ -123,6 +123,8 @@ const NAV: Entry[] = [
       // nao quebrar os atalhos "Abrir o meu caixa" espalhados pelo sistema.
       { href: "/dashboard/erp/caixa", label: "Movimento de caixa", emoji: "💵", roles: ALL },
       { href: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾", roles: ALL },
+      // Os "Outros" do caixa: recebimentos que o defeito de 16/09/2026 gravou sem forma. So adm preenche.
+      { href: "/dashboard/erp/recebimentos-sem-forma", label: "Recebimentos sem forma", emoji: "❓", roles: ["ADMIN"] },
       { href: "/dashboard/erp/pacotes", label: "Pacotes vendidos", emoji: "📦", roles: ALL },
       { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ALL },
       { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN", "RECEPTIONIST"] },
