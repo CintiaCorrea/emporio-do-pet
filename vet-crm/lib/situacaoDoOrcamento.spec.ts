@@ -72,22 +72,20 @@ describe("as duas telas de orçamento falam a MESMA língua", () => {
   it("nenhuma delas inventa o próprio vocabulário", () => {
     // "Qual a diferença entre vendido e fechado?" (Cintia). Nenhuma: eram duas palavras nossas
     // para a mesma coisa. Agora o nome sai de um lugar só.
-    for (const rel of [
-      "app/(user)/dashboard/erp/orcamentos/page.tsx",
-      "components/vendas/OrcamentosBusca.tsx",
-    ]) {
-      expect(fonte(rel)).toContain("situacaoDoOrcamento");
-    }
+    // Desde 17/09/2026 a lista de orçamentos é UMA só (components/vendas/ListaDeOrcamentos),
+    // dentro da Consulta de vendas; o endereço antigo /orcamentos leva para lá.
+    expect(fonte("components/vendas/ListaDeOrcamentos.tsx")).toContain("situacaoDoOrcamento");
+    expect(fonte("app/(user)/dashboard/erp/orcamentos/page.tsx")).toContain('redirect("/dashboard/erp/consulta-vendas?modo=orcamentos")');
   });
 
   it('a palavra "Vendido" não volta — o nome é "Virou venda"', () => {
-    expect(fonte("components/vendas/OrcamentosBusca.tsx")).not.toContain('"Vendido"');
+    expect(fonte("components/vendas/ListaDeOrcamentos.tsx")).not.toContain('"Vendido"');
     expect(SITUACOES.VENDA.rotulo).toBe("Virou venda");
     expect(SITUACOES.RECEBIDO.rotulo).toBe("Recebido");
   });
 
-  it("a busca de orçamentos mostra por padrão só o que continua orçamento", () => {
-    expect(fonte("components/vendas/OrcamentosBusca.tsx")).toContain("permaneceOrcamento");
+  it("a lista abre por padrão no que continua orçamento (em aberto)", () => {
+    expect(fonte("components/vendas/ListaDeOrcamentos.tsx")).toContain('useState<"TODOS" | Situacao>("ABERTO")');
   });
 });
 

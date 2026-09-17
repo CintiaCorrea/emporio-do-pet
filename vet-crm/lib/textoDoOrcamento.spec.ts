@@ -62,13 +62,20 @@ describe("o texto que o cliente lê", () => {
   });
 });
 
-describe("as duas telas que enviam orçamento usam o mesmo texto", () => {
+describe("quem envia orçamento usa o mesmo texto", () => {
   const ler = (rel: string) => require("fs").readFileSync(require("path").resolve(__dirname, "..", rel), "utf8");
 
-  it("a ficha do pet e a aba de orçamentos", () => {
+  it("o carrinho da ficha manda o orçamento com este texto", () => {
     // Dois textos parecidos significariam dois orçamentos diferentes saindo da mesma clínica,
     // para o mesmo cliente, dependendo de qual tela a pessoa abriu.
     expect(ler("components/pets/PetComandaRail.tsx")).toContain("textoDoOrcamento");
-    expect(ler("components/vendas/OrcamentosBusca.tsx")).toContain("textoDoOrcamento");
+  });
+
+  it("a lista de orçamentos manda o MESMO documento da venda, em PDF (17/09/2026)", () => {
+    // Ela pediu PDF ("em PDF de preferência"): a lista usa o gerador da venda com o rótulo
+    // Orçamento, e não um texto próprio.
+    const lista = ler("components/vendas/ListaDeOrcamentos.tsx");
+    expect(lista).toContain("enviarVendaNoWhats");
+    expect(lista).toContain('rotulo: "Orçamento"');
   });
 });

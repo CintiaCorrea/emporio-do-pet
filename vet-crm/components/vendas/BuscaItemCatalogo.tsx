@@ -68,11 +68,18 @@ export default function BuscaItemCatalogo({
     const c = el.getBoundingClientRect();
     const abaixo = window.innerHeight - c.bottom - 8;
     const acima = c.top - 8;
+    // A LISTA PRECISA SER LIDA ANTES DE ESCOLHER (Cintia, 17/09/2026, sobre o orçamento do Inbox:
+    // "não conseguimos nem ler o que estamos selecionando"). Em janela estreita o campo tem ~200px
+    // e o nome do item sumia atrás das reticências. A lista passa a ter largura própria: no mínimo
+    // 360px, sem passar da borda da tela.
+    const larguraMinima = 360;
+    const espacoAteABorda = window.innerWidth - c.left - 12;
+    const largura = Math.max(Math.min(Math.max(c.width, larguraMinima), espacoAteABorda), Math.min(c.width, espacoAteABorda));
     // Não cabe embaixo mas cabe em cima? Sobe. É o caso do campo perto do rodapé do modal.
     if (abaixo < ALTURA_MIN && acima > abaixo) {
-      setCaixa({ left: c.left, width: c.width, bottom: window.innerHeight - c.top + 4, altura: Math.min(ALTURA_MAX, acima) });
+      setCaixa({ left: c.left, width: largura, bottom: window.innerHeight - c.top + 4, altura: Math.min(ALTURA_MAX, acima) });
     } else {
-      setCaixa({ left: c.left, width: c.width, top: c.bottom + 4, altura: Math.min(ALTURA_MAX, abaixo) });
+      setCaixa({ left: c.left, width: largura, top: c.bottom + 4, altura: Math.min(ALTURA_MAX, abaixo) });
     }
   }, []);
 
@@ -116,7 +123,7 @@ export default function BuscaItemCatalogo({
             onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#F5FBFC"; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "#fff"; }}
           >
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "#1F2A2E" }}>
+            <span style={{ color: "#1F2A2E", whiteSpace: "normal", overflowWrap: "anywhere", minWidth: 0 }}>
               {s.nome}{rot ? <span style={{ color: "#8A7F6E" }}> · {rot}</span> : null}
             </span>
             <span style={{ color: "#0F6E56", fontWeight: 600, flexShrink: 0 }}>

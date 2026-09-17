@@ -1,4 +1,4 @@
-import { distribuirPagamento, totalEmAberto, repartirFormas } from './recebimento-lote.regras';
+import { distribuirPagamento, totalEmAberto, repartirFormas, repartirSobra, ehFormaEmDinheiro } from './recebimento-lote.regras';
 
 // 🛡️ UM PAGAMENTO SÓ, VÁRIAS COMANDAS (Cintia, 11/09/2026).
 // A regra que ela escolheu: quita da MAIS ANTIGA para a mais nova.
@@ -93,5 +93,27 @@ describe('as formas de pagamento seguem para a venda certa', () => {
     const r = repartirFormas([{ forma: 'Pix', valor: 333.33 }], partes);
     const total = r.reduce((s, p) => s + p.formas.reduce((x, f) => x + Number(f.valor || 0), 0), 0);
     expect(+total.toFixed(2)).toBe(333.33);
+  });
+});
+
+// O caso real de 17/09/2026: conta de R$ 2.088,13 paga com dois cartões, R$ 2.688,13.
+describe('o que passou do total', () => {
+  it('sem dinheiro na mão, a sobra inteira vira crédito do cliente', () => {
+    expect(repartirSobra(600, 0)).toEqual({ troco: 0, credito: 600 });
+  });
+  it('em dinheiro, continua saindo como troco', () => {
+    expect(repartirSobra(37.5, 200)).toEqual({ troco: 37.5, credito: 0 });
+  });
+  it('dinheiro e cartão juntos: o troco vai até onde o dinheiro alcança', () => {
+    expect(repartirSobra(600, 250)).toEqual({ troco: 250, credito: 350 });
+  });
+  it('sem sobra, não há troco nem crédito', () => {
+    expect(repartirSobra(0, 500)).toEqual({ troco: 0, credito: 0 });
+    expect(repartirSobra(-5, 500)).toEqual({ troco: 0, credito: 0 });
+  });
+  it('reconhece dinheiro e espécie', () => {
+    expect(ehFormaEmDinheiro('Dinheiro')).toBe(true);
+    expect(ehFormaEmDinheiro('Espécie')).toBe(true);
+    expect(ehFormaEmDinheiro('InfinityPay')).toBe(false);
   });
 });

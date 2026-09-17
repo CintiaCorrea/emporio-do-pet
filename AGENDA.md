@@ -121,6 +121,15 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Sobra do pagamento vira credito** (17/09): troco so ate onde o DINHEIRO alcanca
+  (`recebimento-lote.regras.repartirSobra`, com teste); o resto entra como RECARGA de credito do
+  cliente no mesmo caixa. A gaveta diz o que vai acontecer e o botao explica "Escolha o caixa acima".
+- [x] **Uma lista de orcamentos so** (17/09, pedido dela: "tudo dentro de consulta de vendas"):
+  `components/vendas/ListaDeOrcamentos` (a antiga tela, completa) passa a ser a aba Orcamentos da
+  Consulta de vendas, com os MESMOS botoes da venda (🖨️ 💬 ✏️ 🗑️); /orcamentos redireciona para
+  consulta-vendas?modo=orcamentos; OrcamentosBusca saiu. Envio do orcamento agora e PDF (venda-pdf).
+- [x] **Lista do catalogo legivel** (17/09): a lista de busca ganha largura propria (min 360px, sem
+  passar da borda) e o nome quebra em vez de virar reticencias — era o orcamento do Inbox.
 - [x] **Acoes na linha da venda** (17/09, pedido dela): Consulta de vendas ganha 🖨️ imprimir venda,
   💬 enviar a venda em PDF no WhatsApp ("segue o relatorio da sua compra" — depois de pago e o recibo),
   ✏️ editar (so ADM) e 🗑️ excluir (regra unica: com dinheiro recebido, so ADM e com aviso). Orcamentos ja

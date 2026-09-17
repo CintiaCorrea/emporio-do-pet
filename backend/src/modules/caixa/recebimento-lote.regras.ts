@@ -102,3 +102,21 @@ export function repartirFormas(
     return { appointmentId: p.appointmentId, valor: p.valor, quita: p.quita, formas: doMeu };
   });
 }
+
+// ── O QUE PASSOU DO TOTAL: TROCO SÓ EM DINHEIRO ──────────────────────────────────────────
+//
+// Cintia, 17/09/2026, com o print de dois cartões numa conta menor: "Está passando o valor, não
+// pode entrar como crédito para depois ser devolvido?". No cartão não existe troco — o valor já
+// passou na maquininha. Então a sobra só vira troco até onde o DINHEIRO alcança; o resto vira
+// crédito do cliente, que ele usa numa próxima venda ou recebe de volta.
+export function repartirSobra(excedente: number, emDinheiro: number): { troco: number; credito: number } {
+  const sobra = Math.max(0, Math.round((Number(excedente) || 0) * 100) / 100);
+  const dinheiro = Math.max(0, Math.round((Number(emDinheiro) || 0) * 100) / 100);
+  const troco = Math.min(sobra, dinheiro);
+  return { troco: Math.round(troco * 100) / 100, credito: Math.round((sobra - troco) * 100) / 100 };
+}
+
+/** É dinheiro (a única forma que devolve troco)? */
+export function ehFormaEmDinheiro(forma?: string | null): boolean {
+  return /dinheiro|especie|espécie/i.test(String(forma || ''));
+}

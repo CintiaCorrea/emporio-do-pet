@@ -12,7 +12,7 @@ import { formasComCondicoes, formasDoRecebimento, rotuloDaForma } from './recebi
 import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa, contaQueFaltaNoMovimento, podeReabrirVenda, podeTransferirEntreCaixas } from './caixa.regras';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
-import { distribuirPagamento, repartirFormas, totalEmAberto } from './recebimento-lote.regras';
+import { distribuirPagamento, repartirFormas, repartirSobra, ehFormaEmDinheiro, totalEmAberto } from './recebimento-lote.regras';
 import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
 import { nomeNormalizado, percentualClassificado, sugerirVinculo } from './vinculo-itens.regras';
 import { avaliarDesconto, ratearDesconto, repartirDescontoDoLote } from './desconto.regras';
@@ -1474,7 +1474,12 @@ export class CaixaService {
 
     const { partes, sobra } = distribuirPagamento(comandas, Math.min(valorPago, devidoAgora));
     const comFormas = repartirFormas(formas, partes);
-    const troco = Number(Math.max(0, valorPago - devidoAgora).toFixed(2)) + sobra;
+    // TROCO SÓ EM DINHEIRO (Cintia, 17/09/2026: "Está passando o valor, não pode entrar como
+    // crédito para depois ser devolvido?"). No cartão o valor já passou na maquininha — devolver
+    // em dinheiro seria tirar do caixa o que não entrou nele. O que passa vira crédito do cliente.
+    const emDinheiro = formas.filter((f: any) => ehFormaEmDinheiro(f?.forma)).reduce((sm: number, f: any) => sm + (Number(f.valor) || 0), 0);
+    const excedente = Number((Math.max(0, valorPago - devidoAgora) + sobra).toFixed(2));
+    const { troco, credito: creditoDaSobra } = repartirSobra(excedente, emDinheiro);
 
     // Marca compartilhada: e' o que faz o caixa e o extrato mostrarem como UM pagamento.
     const referencia = `LOTE-${Date.now().toString(36).toUpperCase()}`;
@@ -1501,12 +1506,31 @@ export class CaixaService {
       }
     }
 
+    // O crédito da sobra entra no MESMO caixa e no mesmo dia, ligado ao cliente: ele aparece no
+    // saldo, pode ser usado na próxima venda ou devolvido (Vendas › Saldo dos clientes).
+    let creditoGerado = 0;
+    if (creditoDaSobra > 0.009 && tutorId && quitadas.length) {
+      try {
+        await this.prisma.creditoMovimento.create({
+          data: {
+            tutorId, tipo: 'RECARGA', valor: creditoDaSobra,
+            descricao: `Sobra do pagamento (${referencia}) — crédito do cliente`,
+            caixaSessaoId: caixaId, appointmentId: quitadas[0], createdById: userId,
+          },
+        });
+        creditoGerado = creditoDaSobra;
+      } catch (e: any) {
+        console.error('[credito] sobra do lote:', e?.message);
+      }
+    }
+
     return {
       referencia,
       comandas: partes.length,
       quitadas: quitadas.length,
       valorRecebido: Number(partes.reduce((sm, p) => sm + p.valor, 0).toFixed(2)),
       troco,
+      creditoGerado,
       // Depois do desconto (devidoAgora). Com `devido`, o desconto voltava como "ainda em aberto"
       // na mensagem — a #1219 da Cintia, 17/09/2026: R$ 63,11 de desconto viraram R$ 63,11 a pagar.
       restanteEmAberto: Number(Math.max(0, devidoAgora - valorPago).toFixed(2)),

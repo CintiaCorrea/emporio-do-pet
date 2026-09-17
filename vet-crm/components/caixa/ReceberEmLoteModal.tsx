@@ -189,9 +189,10 @@ export default function ReceberEmLoteModal({
         alert(`Recebi ${dd.quitadas} de ${dd.comandas} comanda(s). Não consegui: ${dd.falhou.length}. Confira a lista antes de tentar de novo.`);
       } else {
         const resto = Number(dd?.restanteEmAberto || 0);
+        const extra = `${Number(dd?.troco) > 0.009 ? ` Troco: ${fmtBRL(dd.troco)}.` : ""}${Number(dd?.creditoGerado) > 0.009 ? ` Sobra de ${fmtBRL(dd.creditoGerado)} virou crédito de ${tutor || "o cliente"}.` : ""}`;
         alert(resto > 0.009
-          ? `Recebido ${fmtBRL(dd.valorRecebido)}. Ainda em aberto: ${fmtBRL(resto)}.`
-          : `Recebido ${fmtBRL(dd.valorRecebido)} — tudo quitado.${Number(dd?.troco) > 0.009 ? ` Troco: ${fmtBRL(dd.troco)}.` : ""}`);
+          ? `Recebido ${fmtBRL(dd.valorRecebido)}. Ainda em aberto: ${fmtBRL(resto)}.${extra}`
+          : `Recebido ${fmtBRL(dd.valorRecebido)} — tudo quitado.${extra}`);
       }
       onRecebido();
       onFechar();
@@ -314,11 +315,25 @@ export default function ReceberEmLoteModal({
                 ) : falta > 0 ? (
                   <div className="mt-2 text-[12px] text-[#b23b39]">Falta lançar {money(falta)} — o que sobrar em aberto continua na lista, da comanda mais nova.</div>
                 ) : (
-                  <div className="mt-2 text-[12px] text-[#8a6400]">Passou {money(-falta)} do total — sai como troco.</div>
+                  // TROCO SÓ EM DINHEIRO (17/09/2026): no cartão o valor já passou na maquininha,
+                  // então o que sobra vira crédito do cliente. A frase diz qual dos dois vai ser.
+                  <div className="mt-2 text-[12px] text-[#8a6400]">
+                    Passou {money(-falta)} do total — {(() => {
+                      const dinheiro = formasLote.filter((f) => /dinheiro|especie|espécie/i.test(f.forma || "")).reduce((s, f) => s + (Number(f.valor) || 0), 0);
+                      const troco = Math.min(-falta, dinheiro);
+                      const credito = Math.max(0, -falta - troco);
+                      if (credito <= 0.009) return "sai como troco.";
+                      if (troco <= 0.009) return `vira crédito de ${tutor || "o cliente"}, para a próxima venda ou devolução.`;
+                      return `${money(troco)} saem como troco e ${money(credito)} viram crédito de ${tutor || "o cliente"}.`;
+                    })()}
+                  </div>
                 )}
               </div>
               <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
                 <button onClick={onFechar} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Fechar</button>
+                {!caixaAberto && (
+                  <span className="self-center text-[11.5px]" style={{ color: "#8a6400" }}>Escolha o caixa acima para receber</span>
+                )}
                 <button
                   onClick={receber}
                   disabled={baixando || lancado <= 0.009 || !caixaAberto}

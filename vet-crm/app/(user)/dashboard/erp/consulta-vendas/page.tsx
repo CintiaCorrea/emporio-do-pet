@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef, Fragment } from 'react';
 import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
-import OrcamentosBusca from '@/components/vendas/OrcamentosBusca';
+import ListaDeOrcamentos from '@/components/vendas/ListaDeOrcamentos';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirRecibo } from '@/lib/documentos/recibo-print';
 import { enviarReciboNoWhats } from '@/lib/documentos/recibo-pdf';
@@ -727,6 +727,8 @@ O recebimento de ${brl(v.pago || 0)} sai do caixa e a venda volta a ficar em abe
   }, [load]);
   useEffect(() => {
     const u = new URLSearchParams(window.location.search);
+    // ?modo=orcamentos — o endereço antigo de Orçamentos leva para cá (17/09/2026: uma lista só).
+    if ((u.get('modo') || '').toLowerCase().startsWith('orc')) setModo('ORCAMENTOS');
     const cliente = (u.get('cliente') || '').trim();
     const venda = (u.get('venda') || '').trim();
     const buscaLink = (u.get('busca') || '').trim();
@@ -862,7 +864,7 @@ O recebimento de ${brl(v.pago || 0)} sai do caixa e a venda volta a ficar em abe
     <div className="p-6 min-h-screen" style={{ background: BG }}>
       <style>{`@media print{ .no-print{display:none!important;} body{background:#fff;} .cv-print-h{display:block!important;} }`}</style>
 
-      {modo === 'ORCAMENTOS' ? <OrcamentosBusca /> : (<>
+      {modo === 'ORCAMENTOS' ? <ListaDeOrcamentos /> : (<>
 
       {/* cabeçalho só de impressão */}
       <div className="cv-print-h" style={{ display: 'none', marginBottom: 14 }}>
