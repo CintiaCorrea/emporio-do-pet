@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 import { imprimirRecibo } from "@/lib/documentos/recibo-print";
+import { enviarReciboNoWhats } from "@/lib/documentos/recibo-pdf";
 
 const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v) ? v : 0);
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -125,6 +126,18 @@ export default function RecebimentosPage() {
     const marca = String(r?.observacao || "").match(/LOTE-[A-Z0-9]+/)?.[0];
     const grupo = marca ? rows.filter((x) => String(x?.observacao || "").includes(marca)) : [r];
     return imprimirRecibo(grupo.length ? grupo : [r], { preview: true });
+  };
+
+  // 💬 O MESMO recibo, em PDF, no WhatsApp do cliente (Cintia, 17/09/2026: "em PDF de preferência").
+  const [enviandoRecibo, setEnviandoRecibo] = useState<string | null>(null);
+  const enviarRecibo = async (r: any) => {
+    const marca = String(r?.observacao || "").match(/LOTE-[A-Z0-9]+/)?.[0];
+    const grupo = marca ? rows.filter((x) => String(x?.observacao || "").includes(marca)) : [r];
+    setEnviandoRecibo(r.id);
+    const res = await enviarReciboNoWhats(grupo.length ? grupo : [r]);
+    setEnviandoRecibo(null);
+    if (res.ok) toast.success("Recibo enviado no WhatsApp");
+    else toast.error(res.erro || "Não consegui enviar.");
   };
 
   // 🧾 Abrir a comanda (itens) do pagamento — imprime no padrão da clínica.
@@ -316,8 +329,15 @@ export default function RecebimentosPage() {
                     <td className="r">{money(Number(r.valorTotal))}</td>
                     <td className="no-print" style={{ whiteSpace: "nowrap", textAlign: "right" }}>
                       <button onClick={() => reciboDe(r)} title="Recibo do pagamento, no timbrado" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", marginRight: 4, fontSize: 13 }}>🧾</button>
+                      <button onClick={() => enviarRecibo(r)} disabled={enviandoRecibo === r.id} title="Enviar o recibo em PDF no WhatsApp do cliente" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", marginRight: 4, fontSize: 13 }}>{enviandoRecibo === r.id ? "…" : "💬"}</button>
                       <button onClick={() => abrirComanda(r)} title="Ver os itens da venda" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", marginRight: 4, fontSize: 13 }}>👁️</button>
-                      <button onClick={() => excluir(r)} title="Excluir recebimento" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", color: "#b23b3b", fontSize: 13 }}>🗑️</button>
+                      {/* Caixa fechado: reabrir primeiro (Cintia, 17/09/2026). O servidor recusa de
+                          qualquer jeito; aqui a pessoa entende antes de clicar. */}
+                      {String(r.caixa?.status || "ABERTO").toUpperCase() === "ABERTO" ? (
+                        <button onClick={() => excluir(r)} title="Excluir recebimento" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", color: "#b23b3b", fontSize: 13 }}>🗑️</button>
+                      ) : (
+                        <span title={`Caixa nº ${r.caixa?.numero} fechado — reabra o caixa em Movimento de caixa para apagar`} style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", color: "#8A9499", fontSize: 13, cursor: "default" }}>🔒</span>
+                      )}
                     </td>
                   </tr>
                 ))}

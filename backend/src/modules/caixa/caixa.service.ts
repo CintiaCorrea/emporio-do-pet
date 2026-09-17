@@ -92,7 +92,7 @@ export class CaixaService {
       include: {
         appointment: { select: { id: true, value: true, date: true, numeroVenda: true, codigoExterno: true, pet: { select: { name: true } }, tutor: { select: { id: true, name: true } }, items: { select: { marca: true } } } },
         // O caixa em que a baixa entrou, com a dona (Cintia, 17/09/2026, no molde do SimplesVet).
-        caixaSessao: { select: { numero: true, abertura: true, user: { select: { name: true } } } },
+        caixaSessao: { select: { numero: true, abertura: true, status: true, user: { select: { name: true } } } },
       },
       orderBy: { data: 'desc' },
       take: 500,
@@ -105,7 +105,7 @@ export class CaixaService {
     return rows.map((r: any) => ({
       ...r,
       usuario: (r.createdById && userName.get(r.createdById)) || 'Sistema',
-      caixa: r.caixaSessao ? { numero: r.caixaSessao.numero, abertura: r.caixaSessao.abertura, dona: r.caixaSessao.user?.name || null } : null,
+      caixa: r.caixaSessao ? { numero: r.caixaSessao.numero, abertura: r.caixaSessao.abertura, status: r.caixaSessao.status, dona: r.caixaSessao.user?.name || null } : null,
       formasRotulo: formasDoRecebimento(r.formas).map(rotuloDaForma).join(' + ') || null,
       marcas: [...new Set(((r.appointment?.items || []) as any[]).map((i) => MARCAS[i.marca] || i.marca).filter(Boolean))],
     }));
@@ -2079,6 +2079,13 @@ export class CaixaService {
   async deleteRecebimento(caixaId: string, itemId: string) {
     const rec = await this.prisma.recebimento.findUnique({ where: { id: itemId } });
     if (!rec || rec.caixaSessaoId !== caixaId) throw new NotFoundException('Recebimento nao encontrado');
+    // CAIXA FECHADO NÃO PERDE DINHEIRO PELAS COSTAS (Cintia, 17/09/2026: "Reabre e depois deleta").
+    // O Movimento de caixa já escondia a lixeira; a tela de Recebimentos não, e o servidor aceitava —
+    // o dinheiro saía de uma gaveta já conferida. A regra agora vale para toda tela, aqui.
+    const sessao = await this.prisma.caixaSessao.findUnique({ where: { id: caixaId }, select: { numero: true, status: true } });
+    if (sessao && String(sessao.status || '').toUpperCase() !== 'ABERTO') {
+      throw new BadRequestException(`O caixa nº ${sessao.numero} está fechado. Reabra o caixa (Movimento de caixa › Reabrir caixa) para apagar este recebimento.`);
+    }
     // 🧹 Estorno único (common/estornar-recebimento): o crédito usado volta, a taxa do cartão e a
     // baixa de crédito saem do DRE. É o mesmo que apagar venda paga usa.
     await estornarRecebimento(this.prisma as any, itemId);

@@ -113,6 +113,14 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   Medido: lista de cobranca 90 vendas R$ 53.317,59 -> 34 R$ 12.426,23 (56 de agosto, R$ 40.891,36, viram
   historico); clientes com "Deve" 46 -> 12; 4 registros de internacao (R$ 532,80) saem do "a receber".
   Fora (P1 relatorios): vendasResumo, ranking, dashboard PENDING, relatorio de consultas. Publicado (api v856, web v1688).
+- [x] **Correcoes do dia 17/09 (prints dela)**: DTO do item aceita `id` (a edicao da venda voltou a
+  salvar — era "items.0.property id should not exist"); caucao nao pede peso nem trava o salvar
+  (`_ehCaucao` vai para a linha do carrinho); apagar recebimento de caixa FECHADO recusa no servidor
+  e a tela de Recebimentos mostra 🔒 ("Reabre e depois deleta" — decisao dela).
+- [x] **Recibo em PDF no WhatsApp + recibo no PDV** (17/09): `lib/documentos/recibo.ts` monta os dados
+  uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
+  /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
+  venda do ponto de venda.
 - [x] **Recibo no timbrado** (17/09, pedido dela; uma via, COM descritivo dos servicos): 
   `lib/documentos/recibo-print` usa o timbrado da casa (logo/endereco/CNPJ de dadosclinica) + 
   `valorPorExtenso` (com teste). Botao 🧾 em Recebimentos (agrupa o pagamento LOTE- num recibo so) e 

@@ -21,6 +21,8 @@ import { casarNoCatalogo, juntarObservacao, ModeloVenda } from '@/lib/modelosVen
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
 import { carregarCatalogoVendavel, labDoItem, lancarDoCadastro } from '@/lib/catalogoVendavel';
+import { imprimirRecibo } from '@/lib/documentos/recibo-print';
+import { enviarReciboNoWhats } from '@/lib/documentos/recibo-pdf';
 import { aplicarPeso, type FaixaPorte } from '@/lib/porte';
 import PesoDaVenda from '@/components/vendas/PesoDaVenda';
 import { excluirVenda as excluirVendaComum } from '@/lib/vendas/excluirVenda';
@@ -225,7 +227,9 @@ export default function PDVPage() {
   };
   // Item cobrado por peso ainda sem preço (pet sem peso, ou faixa sem preço no cadastro): não salva.
   const pendenciaDePreco = () => {
-    const p = carrinho.find((it) => it._avisoPorte);
+    // CAUÇÃO FICA DE FORA: o valor é o que o cliente deixa, não vem do cadastro nem da faixa de
+    // peso (Cintia, 17/09/2026 — a caução de R$ 600 não salvava por "falta o peso do animal").
+    const p = carrinho.find((it) => it._avisoPorte && !it._ehCaucao);
     if (!p) return false;
     toast.error(`${p.descricao}: ${p._avisoPorte}`);
     if (!pesoPet) setPedindoPeso(true);
@@ -494,7 +498,7 @@ export default function PDVPage() {
       //
       // A Cintia, 11/09/2026: "no caso do artrosan nao conseguimos que entre pela faixa de
       // peso". O Artrosan vai de R$ 80 (ate 10 kg) a R$ 280 (acima de 50) — era isso.
-      const base = { descricao: l.descricao, quantidade: q, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined, _faixas: l._faixas, _faixaRotulo: l._faixaRotulo, _avisoPorte: l._avisoPorte };
+      const base = { descricao: l.descricao, quantidade: q, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined, _faixas: l._faixas, _faixaRotulo: l._faixaRotulo, _avisoPorte: l._avisoPorte, _ehCaucao: l._ehCaucao };
       return [...c, l._novo
         ? { ...base, _novo: true, ...(l._exame ? { _exame: true } : {}), catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome }
         : l._exame
@@ -504,6 +508,18 @@ export default function PDVPage() {
     setItemBusca(''); setItemAberto(false); setQtd(1);
     return true;
   };
+  // 🧾 O recibo de uma venda já recebida: busca as baixas dela e imprime ou manda no WhatsApp.
+  const reciboDaVenda = async (v: any, como: 'imprimir' | 'whats') => {
+    try {
+      const baixas = await fetch(`/api/caixa/recebimentos?appointmentId=${encodeURIComponent(v.id)}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : []));
+      const lista = (Array.isArray(baixas) ? baixas : []).map((b: any) => ({ ...b, appointment: { id: v.id, numeroVenda: v.numeroVenda, petId: v.petId, pet: v.pet ? { name: v.pet } : null, tutor: { id: v.tutorId, name: v.tutor } } }));
+      if (!lista.length) { toast.error('Esta venda ainda não tem baixa.'); return; }
+      if (como === 'imprimir') { await imprimirRecibo(lista); return; }
+      const res = await enviarReciboNoWhats(lista);
+      if (res.ok) toast.success('Recibo enviado no WhatsApp'); else toast.error(res.erro || 'Não consegui enviar.');
+    } catch { toast.error('Não consegui montar o recibo.'); }
+  };
+
   const updItem = (i: number, patch: Partial<CartItem>) => setCarrinho((c) => c.map((x, j) => j === i ? { ...x, ...patch } : x));
   const rmItem = (i: number) => setCarrinho((c) => c.filter((_, j) => j !== i));
 
@@ -1093,7 +1109,7 @@ export default function PDVPage() {
                       <button onClick={() => rmItem(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                     </div>
                     {/* ⚖️ faixa de peso — só leitura: quem escolhe é o peso registrado */}
-                    {(it._faixas || []).length > 0 && (
+                    {(it._faixas || []).length > 0 && !it._ehCaucao && (
                       <div style={{ fontSize: 11, marginTop: 5, color: it._avisoPorte ? '#8a6400' : MUT }}>
                         {it._avisoPorte ? `⚖️ ${it._avisoPorte}` : `⚖️ faixa ${it._faixaRotulo} · pelo peso do ${(cliente?.pets || []).find((x: any) => x.id === petId)?.name || 'pet'}${pesoPet ? ` (${String(pesoPet).replace('.', ',')} kg)` : ''}`}
                       </div>
@@ -1692,6 +1708,14 @@ export default function PDVPage() {
                         {/* RECEBER É NA GAVETA ÚNICA, aqui mesmo (16/09/2026). A mesma do Caixa e de
                             Vendas: pergunta o caixa, mostra a data, tem desconto e observação, e
                             mostra as outras vendas em aberto do cliente. */}
+                        {/* 🧾 RECIBO da venda já recebida (Cintia, 17/09/2026). As baixas vêm do
+                            servidor, as mesmas que a Consulta de vendas mostra. */}
+                        {Number(detVenda.pago || 0) > 0.009 && (
+                          <>
+                            <button onClick={() => reciboDaVenda(detVenda, 'imprimir')} title="Recibo do pagamento, no timbrado" style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>🧾 Recibo</button>
+                            <button onClick={() => reciboDaVenda(detVenda, 'whats')} title="Enviar o recibo em PDF no WhatsApp do cliente" style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 Recibo no WhatsApp</button>
+                          </>
+                        )}
                         {aReceber > 0.001 && (
                           <button onClick={() => { const outras = outrasEmAberto(detVenda).map(paraReceber); setLoteDe({ nome: detVenda.tutor || 'Cliente', comandas: [paraReceber(detVenda), ...outras], pre: [detVenda.id] }); }} title="Receber esta venda — e ver as outras em aberto do cliente" style={{ marginLeft: 'auto', background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer' }}>💰 Receber</button>
                         )}

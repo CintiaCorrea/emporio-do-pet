@@ -9,12 +9,21 @@ const ler = (...p: string[]) => readFileSync(join(RAIZ, ...p), "utf8");
 
 describe("recibo no timbrado", () => {
   it("usa o timbrado da casa e o valor por extenso", () => {
-    const src = ler("lib", "documentos", "recibo-print.ts");
-    expect(src).toContain('imprimirDocumento("Recibo"');
-    expect(src).toContain("valorPorExtenso(total)");
-    expect(src).toContain("Recebi de");
+    expect(ler("lib", "documentos", "recibo-print.ts")).toContain('imprimirDocumento("Recibo"');
+    // Papel e PDF montam o conteúdo no MESMO lugar (lib/documentos/recibo).
+    const dados = ler("lib", "documentos", "recibo.ts");
+    expect(dados).toContain("valorPorExtenso(total)");
+    expect(dados).toContain("Recebi de");
     // O descritivo dos serviços vem dos itens de cada venda quitada.
-    expect(src).toContain("/api/appointments/${id}");
+    expect(dados).toContain("/api/appointments/${id}");
+  });
+
+  it("o PDF do WhatsApp sai do mesmo conteúdo do papel", () => {
+    const pdf = ler("lib", "documentos", "recibo-pdf.ts");
+    expect(pdf).toContain("montarDadosDoRecibo");
+    expect(pdf).toContain("fraseDoRecibo(d)");
+    expect(pdf).toContain("/api/whatsapp/enviar-documentos");
+    expect(ler("lib", "documentos", "recibo-print.ts")).toContain("fraseDoRecibo(d)");
   });
 
   it("o botão está em Recebimentos e no detalhe da venda", () => {

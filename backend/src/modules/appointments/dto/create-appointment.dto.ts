@@ -196,6 +196,14 @@ export class CreateAppointmentTreatmentDto {
 
 
 export class CreateAppointmentItemDto {
+  // O ID DA LINHA QUE JÁ EXISTE. A edição manda de volta o id de cada linha, e é por ele que
+  // `casarLinhas` sabe que é A MESMA linha (mantém ligação com o cadastro, laboratório, convênio
+  // e comissão). Sem este campo o servidor recusava a venda inteira com "property id should not
+  // exist" e ninguém conseguia salvar a edição (Cintia, 17/09/2026, com o print da #1234).
+  @ApiPropertyOptional({ description: 'ID da linha já existente (edição da venda)' })
+  @IsOptional() @IsString()
+  id?: string;
+
   // Aceita UUID (serviço legado) OU cuid (catálogo novo). O serviço valida contra a tabela
   // `servicos` e ignora id inválido — então @IsString é seguro e evita recusar a venda inteira.
   @ApiPropertyOptional({ description: 'ID do serviço (catálogo)' })
