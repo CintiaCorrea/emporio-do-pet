@@ -114,7 +114,7 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   historico); clientes com "Deve" 46 -> 12; 4 registros de internacao (R$ 532,80) saem do "a receber".
   Fora (P1 relatorios): vendasResumo, ranking, dashboard PENDING, relatorio de consultas. Publicado (api v856, web v1688).
 - [x] **Correcoes do dia 17/09 (prints dela)**: DTO do item aceita `id` (a edicao da venda voltou a
-  salvar — era "items.0.property id should not exist"); caucao nao pede peso nem trava o salvar
+  salvar — era "items.0.property id should not exist"); caucao COM faixa segue a regra do peso (decisao dela, 17/09: "ja leia o peso no sistema em todos os servicos com precificacao por peso"); caucao SEM faixa e valor livre
   (`_ehCaucao` vai para a linha do carrinho); apagar recebimento de caixa FECHADO recusa no servidor
   e a tela de Recebimentos mostra 🔒 ("Reabre e depois deleta" — decisao dela).
 - [x] **Recibo em PDF no WhatsApp + recibo no PDV** (17/09): `lib/documentos/recibo.ts` monta os dados

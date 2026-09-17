@@ -242,11 +242,12 @@ export type ResultadoLancamento =
 export function lancarDoCadastro(item: ItemVendavel, pesoKg: number | null | undefined, petNome?: string | null): ResultadoLancamento {
   const faixas = lerFaixas(item._precosPorte);
   const nome = nomeSemMarcador(item.nome);
-  if (faixas.length && !(Number(pesoKg) > 0) && !item._ehCaucao) {
+  // Item cobrado por peso exige o peso — inclusive a caução com faixa (Cintia, 17/09/2026).
+  if (faixas.length && !(Number(pesoKg) > 0)) {
     return { ok: false, motivo: "sem_peso", mensagem: `${nome} é cobrado pelo peso. Registre o peso ${petNome ? `de ${petNome} ` : "do pet "}para lançar.` };
   }
   const linha = linhaDoItem(item, pesoKg);
-  if (faixas.length && linha._avisoPorte && !item._ehCaucao) {
+  if (faixas.length && linha._avisoPorte) {
     return { ok: false, motivo: "sem_preco", mensagem: `${nome}: ${linha._avisoPorte} Ajuste o preço no cadastro.` };
   }
   if (!faixas.length && !(Number(linha.valorUnitario) > 0) && !item._ehCaucao) {

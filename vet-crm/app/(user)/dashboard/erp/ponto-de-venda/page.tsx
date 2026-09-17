@@ -227,9 +227,10 @@ export default function PDVPage() {
   };
   // Item cobrado por peso ainda sem preço (pet sem peso, ou faixa sem preço no cadastro): não salva.
   const pendenciaDePreco = () => {
-    // CAUÇÃO FICA DE FORA: o valor é o que o cliente deixa, não vem do cadastro nem da faixa de
-    // peso (Cintia, 17/09/2026 — a caução de R$ 600 não salvava por "falta o peso do animal").
-    const p = carrinho.find((it) => it._avisoPorte && !it._ehCaucao);
+    // Vale para TODO item cobrado por peso, caução inclusive (Cintia, 17/09/2026: "já leia o peso
+    // no sistema em todos os serviços que tiverem precificação por peso"). Caução SEM faixa não cai
+    // aqui: ela não tem preço de cadastro, o valor é o que o cliente deixa.
+    const p = carrinho.find((it) => it._avisoPorte);
     if (!p) return false;
     toast.error(`${p.descricao}: ${p._avisoPorte}`);
     if (!pesoPet) setPedindoPeso(true);
@@ -1109,7 +1110,7 @@ export default function PDVPage() {
                       <button onClick={() => rmItem(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                     </div>
                     {/* ⚖️ faixa de peso — só leitura: quem escolhe é o peso registrado */}
-                    {(it._faixas || []).length > 0 && !it._ehCaucao && (
+                    {(it._faixas || []).length > 0 && (
                       <div style={{ fontSize: 11, marginTop: 5, color: it._avisoPorte ? '#8a6400' : MUT }}>
                         {it._avisoPorte ? `⚖️ ${it._avisoPorte}` : `⚖️ faixa ${it._faixaRotulo} · pelo peso do ${(cliente?.pets || []).find((x: any) => x.id === petId)?.name || 'pet'}${pesoPet ? ` (${String(pesoPet).replace('.', ',')} kg)` : ''}`}
                       </div>
