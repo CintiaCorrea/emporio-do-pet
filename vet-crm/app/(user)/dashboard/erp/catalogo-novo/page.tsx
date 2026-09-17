@@ -23,7 +23,7 @@ const FORM0: any = {
   tipo: "PRODUTO", nome: "", grupoId: "", fornecedorId: "", custo: "", markup: "", preco: "", exibeListaPreco: true, permiteAlterarPreco: true,
   codigoBarras: "", unidadeVenda: "", marcaId: "", proposito: "VENDA", duracaoMin: "",
   controlaEstoque: false, estoqueAtual: "", estoqueMin: "", estoqueMax: "", controlaValidade: false,
-  comissionado: false, comissaoTipo: "PERCENTUAL", comissaoValor: "", descontoModo: "LIMITE_GERAL", descontoLimite: "",
+  comissionado: false, comissaoTipo: "PERCENTUAL", comissaoValor: "",
   protocoloTemplateId: "", ativo: true,
   controlePlano: "", planoUnidades: "", planoIntervaloDias: "", // pacote/kit: o que a venda cria
   exame: { fornecedorId: "", custoLab: "", prazoResultadoDias: "", categoria: "", externo: false },
@@ -122,7 +122,7 @@ export default function CatalogoNovoPage() {
         ...FORM0, ...it,
         custo: it.custo ?? "", markup: it.markup ?? "", preco: it.preco ?? "", duracaoMin: it.duracaoMin ?? "", fornecedorId: it.fornecedorId || "",
         estoqueAtual: it.estoqueAtual ?? "", estoqueMin: it.estoqueMin ?? "", estoqueMax: it.estoqueMax ?? "",
-        comissaoValor: it.comissaoValor ?? "", descontoLimite: it.descontoLimite ?? "",
+        comissaoValor: it.comissaoValor ?? "",
         grupoId: it.grupoId || "", marcaId: it.marcaId || "", protocoloTemplateId: it.protocoloTemplateId || "",
         controlePlano: it.controlePlano || "", planoUnidades: it.planoUnidades ?? "", planoIntervaloDias: it.planoIntervaloDias ?? "",
         exame: it.exame ? { fornecedorId: it.exame.fornecedorId || "", custoLab: it.exame.custoLab ?? "", prazoResultadoDias: it.exame.prazoResultadoDias ?? "", categoria: it.exame.categoria || "", externo: !!it.exame.externo } : { ...FORM0.exame },
@@ -566,16 +566,6 @@ export default function CatalogoNovoPage() {
                       <input value={form.comissaoValor} onChange={(e) => up({ comissaoValor: e.target.value.replace(",", ".") })} inputMode="decimal" style={inp} placeholder="valor" />
                     </div>
                   )}
-                </div>
-                <div className="rounded-xl border p-3" style={{ borderColor: LINE }}>
-                  <label style={lbl}>🎯 Desconto</label>
-                  <select value={form.descontoModo} onChange={(e) => up({ descontoModo: e.target.value })} style={inp}>
-                    <option value="LIMITE_GERAL">Segue limite da empresa/usuário</option>
-                    <option value="LIMITE_ITEM">Limite próprio deste item</option>
-                    <option value="SEM_DESCONTO">Não permite desconto</option>
-                    <option value="ATE_100">Permite até 100%</option>
-                  </select>
-                  {form.descontoModo === "LIMITE_ITEM" && <input value={form.descontoLimite} onChange={(e) => up({ descontoLimite: e.target.value.replace(",", ".") })} inputMode="decimal" style={{ ...inp, marginTop: 6 }} placeholder="limite %" />}
                 </div>
               </div>
             </div>

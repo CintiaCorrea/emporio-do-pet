@@ -240,8 +240,6 @@ export class CatalogoService {
       // Terceirizado/parceiro (ou lab do exame) → gera o a-pagar D+1 ao vender.
       _fornecedorId: fid ?? null,
       _fornecedorNome: fid ? (fornMap.get(fid) ?? null) : null,
-      _descontoModo: i.descontoModo,     // política de desconto por item (Fatia 6b)
-      _descontoLimite: i.descontoLimite ?? null,
       // Faixas de peso (null = preço único). Quem resolve o preço é lib/porte, com o peso do pet.
       _precosPorte: i.precosPorte ?? null,
       // Caução: o valor recebido vira CRÉDITO do cliente, não receita de serviço.

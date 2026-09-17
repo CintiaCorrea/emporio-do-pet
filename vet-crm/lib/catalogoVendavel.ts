@@ -19,8 +19,6 @@ export type ItemVendavel = {
   _fornecedorId?: string | null;
   _fornecedorNome?: string | null;
   _novo?: boolean;        // veio do CATÁLOGO NOVO (cat_itens) — vende por descrição+valor
-  _descontoModo?: string; // política de desconto do item (LIMITE_GERAL/LIMITE_ITEM/SEM_DESCONTO/ATE_100)
-  _descontoLimite?: number | null;
   /** Faixas de peso gravadas no item (JSON). Null/vazio = preço único. Ver lib/porte. */
   _precosPorte?: string | null;
   /** Caução: ao receber, o valor vira crédito do cliente em vez de receita de serviço. */
@@ -33,7 +31,6 @@ export type LinhaVendavel = {
   servicoId?: string; productId?: string;
   _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null;
   _novo?: boolean; catalogoItemId?: string; // catálogo novo
-  descontoModo?: string; descontoLimite?: number | null;
   // PREÇO POR PORTE — o que a tela precisa mostrar depois de escolher o item.
   _faixas?: FaixaPorte[];        // as faixas do item (vazio = preço único)
   _faixaRotulo?: string | null;  // a faixa que o peso escolheu ("11 a 20 kg")
@@ -113,7 +110,7 @@ export function linhaDoItem(item: ItemVendavel, pesoKg?: number | null): LinhaVe
     // Se for EXAME, marca _exame TAMBÉM: assim entra no Kanban (petexa_) pela FONTE NOVA (cat_item_exame,
     // resolvido por catalogoItemId no backend) — sem usar o id da base antiga (exa_catalogo).
     const ehExame = !!item._exame || item.tipo === 'EXAME';
-    return { ...base, _novo: true, ...(ehExame ? { _exame: true } : {}), catalogoItemId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null, descontoModo: item._descontoModo, descontoLimite: item._descontoLimite ?? null };
+    return { ...base, _novo: true, ...(ehExame ? { _exame: true } : {}), catalogoItemId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null };
   }
   if (item._exame) {
     return { ...base, _exame: true, catalogoExameId: item.id, fornecedorId: item._fornecedorId ?? null, fornecedorNome: item._fornecedorNome ?? null };

@@ -45,6 +45,12 @@ describe("nenhuma tela pede senha de gerente", () => {
     expect(existsSync(join(RAIZ, "lib", "liberacaoGerente.ts"))).toBe(false);
   });
 
+  it("a trava de desconto por item do cadastro saiu (Cintia, 16/09/2026: \"Pode tirar\")", () => {
+    expect(ler("app", "(user)", "dashboard", "erp", "ponto-de-venda", "page.tsx")).not.toContain("clampDesc");
+    expect(ler("app", "(user)", "dashboard", "erp", "catalogo-novo", "page.tsx")).not.toContain("Não permite desconto");
+    expect(ler("lib", "catalogoVendavel.ts")).not.toContain("_descontoModo");
+  });
+
   it('e "Conceder desconto" saiu da matriz de permissões', () => {
     expect(ler("lib", "permissions", "index.ts")).not.toContain("acao:venda.conceder_desconto");
   });

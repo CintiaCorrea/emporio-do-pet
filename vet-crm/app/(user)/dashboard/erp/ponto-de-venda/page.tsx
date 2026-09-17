@@ -54,7 +54,7 @@ interface Pet { id: string; name: string }
 interface Tutor { id: string; name: string; pets?: Pet[] }
 interface Servico { id: string; nome: string; valorPadrao?: number | null; _exame?: boolean; _fornecedorId?: string | null; _fornecedorNome?: string | null }
 interface Prof { id: string; name: string }
-interface CartItem { _ehCaucao?: boolean; _faixas?: FaixaPorte[]; _faixaRotulo?: string | null; _avisoPorte?: string | null; servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null; _novo?: boolean; catalogoItemId?: string; descontoModo?: string; descontoLimite?: number | null; _convenio?: boolean; convenioId?: string; _convLabel?: string }
+interface CartItem { _ehCaucao?: boolean; _faixas?: FaixaPorte[]; _faixaRotulo?: string | null; _avisoPorte?: string | null; servicoId?: string; descricao: string; quantidade: number; valorUnitario: number; custoUnitario?: number; desconto: number; descTipo?: '$' | '%'; executorUserId?: string; _exame?: boolean; catalogoExameId?: string; fornecedorId?: string | null; fornecedorNome?: string | null; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string }
 interface Venda { id: string; tutor: string; pet: string; valor: number; pago: number; status: string; pagoTotal: boolean; date: string; tutorId?: string }
 
 const FORMAS = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
@@ -521,7 +521,7 @@ export default function PDVPage() {
       // peso". O Artrosan vai de R$ 80 (ate 10 kg) a R$ 280 (acima de 50) — era isso.
       const base = { descricao: l.descricao, quantidade: q, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, desconto: 0, executorUserId: profId || undefined, _faixas: l._faixas, _faixaRotulo: l._faixaRotulo, _avisoPorte: l._avisoPorte };
       return [...c, l._novo
-        ? { ...base, _novo: true, ...(l._exame ? { _exame: true } : {}), catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, descontoModo: l.descontoModo, descontoLimite: l.descontoLimite }
+        ? { ...base, _novo: true, ...(l._exame ? { _exame: true } : {}), catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome }
         : l._exame
         ? { ...base, _exame: true, catalogoExameId: l.catalogoExameId, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome }
         : { ...base, servicoId: l.servicoId }];
@@ -579,17 +579,6 @@ export default function PDVPage() {
 
   // Desconto do item: resolve % → R$ (backend recebe sempre R$)
   const descItemVal = (it: CartItem) => { const bruto = it.quantidade * it.valorUnitario; const d = Number(it.desconto) || 0; return it.descTipo === '%' ? bruto * d / 100 : d; };
-  // Política de desconto POR ITEM (catálogo novo): bloqueia/limita o desconto no caixa.
-  const clampDesc = (it: CartItem, valor: number) => {
-    if (it.descontoModo === 'SEM_DESCONTO') return 0;
-    if (it.descontoModo === 'LIMITE_ITEM' && it.descontoLimite != null) {
-      const lim = Number(it.descontoLimite);
-      if (it.descTipo === '%') return Math.min(valor, lim);
-      const total = (Number(it.valorUnitario) || 0) * (it.quantidade || 1);
-      return Math.min(valor, total * lim / 100);
-    }
-    return valor;
-  };
   const itemTotal = (it: CartItem) => Math.max(0, it.quantidade * it.valorUnitario - descItemVal(it));
   const subtotal = useMemo(() => carrinho.reduce((s, it) => s + (it._convenio ? 0 : itemTotal(it)), 0), [carrinho]);
   // Total faturado ao convênio (não entra no que o tutor paga).
@@ -1139,7 +1128,7 @@ export default function PDVPage() {
                       <span style={{ color: MUT, fontSize: 12 }}>×</span>
                       <CampoValor valor={it.valorUnitario} onValor={(v) => updItem(i, { valorUnitario: v })} placeholder="Unit." title="Valor unitário" style={{ ...inp, width: 96, padding: '5px 8px', fontSize: 12 }} />
                       <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-                        <CampoValor valor={it.desconto} disabled={it.descontoModo === 'SEM_DESCONTO'} placeholder="Desc." onValor={(v) => updItem(i, { desconto: clampDesc(it, v) })} title={it.descontoModo === 'SEM_DESCONTO' ? 'Este item não permite desconto' : it.descontoModo === 'LIMITE_ITEM' && it.descontoLimite != null ? `Desconto máximo: ${it.descontoLimite}%` : 'Desconto'} style={{ ...inp, width: 52, padding: '5px 6px', fontSize: 12, borderTopRightRadius: 0, borderBottomRightRadius: 0, opacity: it.descontoModo === 'SEM_DESCONTO' ? 0.5 : 1 }} />
+                        <CampoValor valor={it.desconto} placeholder="Desc." onValor={(v) => updItem(i, { desconto: v })} title="Desconto (o limite é o da forma de pagamento, conferido ao receber)" style={{ ...inp, width: 52, padding: '5px 6px', fontSize: 12, borderTopRightRadius: 0, borderBottomRightRadius: 0 }} />
                         <button type="button" onClick={() => updItem(i, { descTipo: it.descTipo === '%' ? '$' : '%' })} title="Alternar R$ / %" style={{ border: `1px solid ${SOFT}`, borderLeft: 'none', background: SUAVE, color: NAVY, fontSize: 11, fontWeight: 600, padding: '5px 6px', cursor: 'pointer', borderTopRightRadius: 7, borderBottomRightRadius: 7 }}>{it.descTipo === '%' ? '%' : 'R$'}</button>
                       </span>
                       <span title="Vendedor deste item" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 4, background: vendDiff ? AGUA : SUAVE, border: `1px solid ${vendDiff ? TEAL : SOFT}`, borderRadius: 999, padding: '2px 4px 2px 9px' }}>
