@@ -358,8 +358,73 @@ function Td({ children, dir, forte, sub, cor }: { children: React.ReactNode; dir
 }
 
 /* ---------------- linha expansível ---------------- */
-function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber, onReabrir }: { v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null; isAdmin: boolean; onReceber?: (v: Venda) => void; onReabrir?: (v: Venda) => void }) {
-  const [open, setOpen] = useState(false);
+/**
+ * BAIXAS EFETUADAS — como no resumo da venda do SimplesVet (Cintia, 17/09/2026: "Eu vejo o
+ * recebimento, mas não consigo ver as informações da baixa, dia, forma, parcelamento").
+ * O dia é o do caixa em que o dinheiro entrou; a hora, a do lançamento. Carrega só ao abrir.
+ */
+function BaixasDaVenda({ v }: { v: Venda }) {
+  const [baixas, setBaixas] = useState<any[] | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    fetch(`/api/caixa/recebimentos?appointmentId=${encodeURIComponent(v.id)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => { if (vivo) setBaixas((Array.isArray(d) ? d : []).sort((a: any, b: any) => String(a.data).localeCompare(String(b.data)))); })
+      .catch(() => { if (vivo) setBaixas([]); });
+    return () => { vivo = false; };
+  }, [v.id, v.pago]);
+  const fz = { timeZone: 'America/Fortaleza' } as const;
+  const dia = (s?: string) => (s ? new Date(s).toLocaleDateString('pt-BR', fz) : '—');
+  const hora = (s?: string) => (s ? new Date(s).toLocaleTimeString('pt-BR', { ...fz, hour: '2-digit', minute: '2-digit' }) : '');
+  const linha: React.CSSProperties = { display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 12.5 };
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${CARD_LINE}` }}>
+      <div style={{ ...linha, color: GREY }}><span>Total líquido</span><b style={{ color: NAVY }}>{brl(v.valor)}</b></div>
+      <div style={{ ...linha, color: GREY }}><span>Baixado</span><span style={{ color: GREEN, fontWeight: 600 }}>{brl(v.pago ?? 0)}</span></div>
+      {(v.aberto ?? 0) > 0.009 && <div style={{ ...linha, color: GREY }}><span>Em aberto</span><span style={{ color: '#b23b39', fontWeight: 600 }}>{brl(v.aberto)}</span></div>}
+      <div style={{ fontSize: 11.5, color: GREY2, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px', margin: '10px 0 6px' }}>💳 Baixas efetuadas</div>
+      {baixas === null ? (
+        <div style={{ fontSize: 12, color: GREY2 }}>Carregando…</div>
+      ) : baixas.length === 0 ? (
+        <div style={{ fontSize: 12, color: GREY2 }}>Nenhuma baixa.</div>
+      ) : baixas.map((b) => {
+        const formas: any[] = (Array.isArray(b.formas) ? b.formas.flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
+        const lancadaNoutroDia = b.createdAt && dia(b.createdAt) !== dia(b.data);
+        return (
+          <div key={b.id} style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 9, padding: '7px 10px', marginBottom: 6 }}>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1" style={{ fontSize: 12.5 }}>
+              <b style={{ color: NAVY }}>{dia(b.data)}{b.createdAt && !lancadaNoutroDia ? ` ${hora(b.createdAt)}` : ''}</b>
+              {lancadaNoutroDia && <span style={{ color: GREY2, fontSize: 11.5 }}>lançada {dia(b.createdAt)} {hora(b.createdAt)}</span>}
+              <b style={{ color: NAVY }}>{brl(Number(b.valorTotal))}</b>
+              <span style={{ color: GREY }}>{b.usuario || '—'}</span>
+              <span style={{ color: GREY, marginLeft: 'auto' }}>{b.caixa ? `Caixa nº ${b.caixa.numero} de ${dia(b.caixa.abertura)}${b.caixa.dona ? ` · ${String(b.caixa.dona).split(' ').slice(0, 2).join(' ')}` : ''}` : '—'}</span>
+            </div>
+            {formas.length === 0 && <div style={{ fontSize: 12, color: '#b23b39', paddingLeft: 14, marginTop: 3 }}>Sem forma de pagamento registrada</div>}
+            {formas.map((f, i) => {
+              const n = Math.trunc(Number(f.parcelas) || 0);
+              const detalhe = [f.modalidade, n > 1 ? `${n}x` : null, f.bandeira, f.aut ? `AUT ${f.aut}` : null, f.nsu ? `NSU ${f.nsu}` : null].filter(Boolean).join(' · ');
+              return (
+                <div key={i} style={{ ...linha, color: GREY, paddingLeft: 14, marginTop: 3 }}>
+                  <span>{f.forma || 'Sem forma'}{detalhe ? <span style={{ color: GREY2 }}> ({detalhe})</span> : (n > 1 ? null : <span style={{ color: GREY2 }}> (À vista)</span>)}</span>
+                  <span>{brl(Number(f.valor) || 0)}</span>
+                </div>
+              );
+            })}
+            {(Number(b.desconto) > 0.009 || Number(b.troco) > 0.009 || (b.observacao && b.observacao !== 'Recebimento de venda')) && (
+              <div style={{ fontSize: 11.5, color: GREY2, paddingLeft: 14, marginTop: 3 }}>
+                {[Number(b.desconto) > 0.009 ? `Desconto ${brl(Number(b.desconto))}` : null, Number(b.troco) > 0.009 ? `Troco ${brl(Number(b.troco))}` : null, b.observacao && b.observacao !== 'Recebimento de venda' ? `Obs: ${b.observacao}` : null].filter(Boolean).join(' · ')}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber, onReabrir, abrirJa }: { abrirJa?: boolean; v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null; isAdmin: boolean; onReceber?: (v: Venda) => void; onReabrir?: (v: Venda) => void }) {
+  // Quem chega por link de UMA venda (?venda=, ex.: da tela de Recebimentos) já a vê aberta.
+  const [open, setOpen] = useState(!!abrirJa);
   const [devOpen, setDevOpen] = useState(false);
   return (
     <>
@@ -407,6 +472,7 @@ function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber,
                   </div>
                 ))}
               </div>
+              <BaixasDaVenda v={v} />
               <div className="flex items-center gap-4 mt-2.5 flex-wrap" style={{ fontSize: 12, color: GREY2 }}>
                 {v.paymentMethod && <span>💳 {v.paymentMethod}</span>}
                 {v.funcionario && <span>🧑 {v.funcionario}</span>}
@@ -1255,7 +1321,7 @@ O recebimento de ${brl(v.pago || 0)} sai do caixa e a venda volta a ficar em abe
               </tr>
             </thead>
             <tbody>
-              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} isAdmin={isAdmin} onReceber={abrirRecebimentoDaVenda} onReabrir={reabrirVenda} />)}
+              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} isAdmin={isAdmin} onReceber={abrirRecebimentoDaVenda} onReabrir={reabrirVenda} abrirJa={!!soVenda} />)}
             </tbody>
           </table>
         )}

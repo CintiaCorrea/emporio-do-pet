@@ -92,7 +92,16 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
 - [x] **ADM escolhe qualquer caixa aberto na gaveta** (17/09, pedido com print da #1177): o ADM,
   dentro da janela de ajuste (ate 19/09), ve todos os caixas abertos de qualquer pessoa e dia
   (select por dia + atalho "do dia da venda"), nada vem marcado, e nao precisa abrir caixa proprio.
-  O servidor ja aceitava (podeLancarNoCaixa). Demais perfis: igual antes.
+  O servidor ja aceitava (podeLancarNoCaixa). Demais perfis: igual antes. Publicado (web v1685).
+- [x] **Excluir na tela de Orcamentos** (17/09): botao em cada linha, mesmo DELETE do carrinho. Publicado (web v1686).
+- [x] **Baixa com detalhe, no molde do SimplesVet** (17/09, sem tela nova): Recebimentos › Lista com
+  Baixa (dia do caixa + hora do lancamento), Venda (link abre a venda ja aberta na Consulta), Data da
+  venda, Caixa (nº + dona), Forma com condicao ("InfinityPay · Parcelado 2x"); Resumo na ordem usuario
+  › data da baixa › formas com condicoes embaixo › marca; botoes Dia anterior/Proximo dia. Consulta de
+  vendas: detalhe da venda ganha Total liquido/Baixado/Em aberto e "Baixas efetuadas" (forma,
+  modalidade, parcelas, bandeira, AUT/NSU, caixa, quem lancou). Servidor: `GET /caixa/recebimentos`
+  aceita `appointmentId` e devolve `caixa` e `formasRotulo`; resumo ganha `porFormaCondicao`
+  (caixa/recebimentos-da-tela.regras). Sem data de parcela (nao e gravada).
 - [ ] Proximo: B internacao (Luna internada) · D atendimento + Inbox (venda rapida falha sem userId;
   enviar PDF e registrar na ficha) · E SimplesVet so consulta · P1 regra unica de venda nos relatorios.
 - [ ] Ao final: varredura da tela do ponto de venda (recebimento) e revisao da tabela de

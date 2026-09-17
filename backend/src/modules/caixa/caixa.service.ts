@@ -7,6 +7,7 @@ import { LancamentosService } from '../financeiro/lancamentos.service';
 import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
 import { PermissoesService } from '../permissoes/permissoes.service';
+import { formasComCondicoes, formasDoRecebimento, rotuloDaForma } from './recebimentos-da-tela.regras';
 import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa, contaQueFaltaNoMovimento, podeReabrirVenda, podeTransferirEntreCaixas } from './caixa.regras';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
@@ -83,11 +84,14 @@ export class CaixaService {
   }
 
   async listRecebimentos(query: any = {}) {
-    const where = rangeFromQuery(query);
+    // `appointmentId`: as baixas de UMA venda, para o bloco "Baixas efetuadas" da Consulta de vendas.
+    const where: any = query?.appointmentId ? { appointmentId: String(query.appointmentId) } : rangeFromQuery(query);
     const rows = await this.prisma.recebimento.findMany({
       where,
       include: {
-        appointment: { select: { id: true, value: true, numeroVenda: true, codigoExterno: true, pet: { select: { name: true } }, tutor: { select: { id: true, name: true } }, items: { select: { marca: true } } } },
+        appointment: { select: { id: true, value: true, date: true, numeroVenda: true, codigoExterno: true, pet: { select: { name: true } }, tutor: { select: { id: true, name: true } }, items: { select: { marca: true } } } },
+        // O caixa em que a baixa entrou, com a dona (Cintia, 17/09/2026, no molde do SimplesVet).
+        caixaSessao: { select: { numero: true, abertura: true, user: { select: { name: true } } } },
       },
       orderBy: { data: 'desc' },
       take: 500,
@@ -100,6 +104,8 @@ export class CaixaService {
     return rows.map((r: any) => ({
       ...r,
       usuario: (r.createdById && userName.get(r.createdById)) || 'Sistema',
+      caixa: r.caixaSessao ? { numero: r.caixaSessao.numero, abertura: r.caixaSessao.abertura, dona: r.caixaSessao.user?.name || null } : null,
+      formasRotulo: formasDoRecebimento(r.formas).map(rotuloDaForma).join(' + ') || null,
       marcas: [...new Set(((r.appointment?.items || []) as any[]).map((i) => MARCAS[i.marca] || i.marca).filter(Boolean))],
     }));
   }
@@ -651,6 +657,8 @@ export class CaixaService {
     return {
       kpis: { noDia, posteriores, adiantamento, receitaTotal, emAberto },
       porForma: toArr(porForma), porUsuario: toArr(porUsuario),
+      // O quadro de formas com as condições embaixo ("Parcelado 2x", "À vista"), como o SimplesVet.
+      porFormaCondicao: formasComCondicoes(recs as any),
       porDia: toArr(porDia).sort((a, b) => a.nome.localeCompare(b.nome)), porMarca: toArr(porMarca),
     };
   }

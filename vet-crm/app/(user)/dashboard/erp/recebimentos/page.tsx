@@ -2,17 +2,27 @@
 // [EMP-COWORK] Recebimentos analítico (Vendas · repaginação padrão "delicada"): cores SUAVES + tela inteira + barra de filtros.
 // Resumo: GET /api/caixa/recebimentos-resumo?from=&to=. Lista: GET /api/caixa/recebimentos?from=&to= (linhas trazem usuario + marcas).
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
 
 const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v) ? v : 0);
-const dh = (s?: string | null) => (s ? new Date(s).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).replace(",", "") : "—");
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const diaBR = (s: string) => { try { const [, m, dd] = s.split("-"); return `${dd}/${m}`; } catch { return s; } };
 const uniq = (arr: any[]) => [...new Set(arr.filter(Boolean))];
+const dm = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Fortaleza" }) : "—");
+const hm = (s?: string | null) => (s ? new Date(s).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Fortaleza" }) : "");
+// A BAIXA, COMO NO SIMPLESVET (Cintia, 17/09/2026): o dia é o do caixa em que o dinheiro entrou
+// (`data`); a hora é a do lançamento (`createdAt`). A hora de `data` é a de abertura do caixa
+// ("09:00" em todas), não a da baixa. Lançada noutro dia, o dia do lançamento aparece junto.
+const baixaDe = (r: any) => {
+  const dia = dm(r?.data);
+  if (!r?.createdAt) return dia;
+  return dm(r.createdAt) === dia ? `${dia} ${hm(r.createdAt)}` : `${dia} · lançada ${dm(r.createdAt)} ${hm(r.createdAt)}`;
+};
+const somarDias = (s: string, n: number) => { const d = new Date(`${s}T12:00:00`); d.setDate(d.getDate() + n); return iso(d); };
 
 const CSS = `
 .rc-page{width:100%;padding:2px 2px 48px}
@@ -191,6 +201,9 @@ export default function RecebimentosPage() {
           {optUsuarios.map((u) => <option key={u} value={u}>{u}</option>)}
         </select>
         <input className="rc-in" placeholder="👤 Cliente ou pet…" value={fCliente} onChange={(e) => setFCliente(e.target.value)} style={{ minWidth: 160 }} />
+        {/* Dia a dia, como no SimplesVet: parte do "de" e mostra um dia só. */}
+        <button className="rc-btn" onClick={() => { const d = somarDias(from, -1); setFrom(d); setTo(d); }}>◀ Dia anterior</button>
+        <button className="rc-btn" onClick={() => { const d = somarDias(from === to ? from : to, from === to ? 1 : 0); setFrom(d); setTo(d); }}>Próximo dia ▶</button>
         <button className="rc-icon pri" title="Consultar período" onClick={load}>🔍</button>
         <button className={`rc-icon funnel ${advOpen ? "on" : ""}`} title="Filtros avançados" onClick={() => setAdvOpen((v) => !v)}>🔻</button>
         <button className="rc-icon" title="Limpar filtros" onClick={limpar}>↺</button>
@@ -243,10 +256,29 @@ export default function RecebimentosPage() {
               </div>
             ))}
           </div>
+          {/* A ORDEM DO SIMPLESVET (Cintia, 17/09/2026): usuário, formas (com a condição embaixo),
+              data da baixa; a marca, que é só nossa, por último. */}
           <div className="rc-cards">
-            <Quebra titulo="💳 Por forma de recebimento" dados={resumo?.porForma} />
-            <Quebra titulo="🧑 Por quem realizou a baixa" dados={resumo?.porUsuario} />
-            <Quebra titulo="📅 Por dia" dados={(resumo?.porDia || []).map((d: any) => ({ nome: diaBR(d.nome), valor: d.valor }))} />
+            <Quebra titulo="🧑 Usuário que realizou a baixa" dados={resumo?.porUsuario} />
+            <Quebra titulo="📅 Data da baixa" dados={(resumo?.porDia || []).map((d: any) => ({ nome: diaBR(d.nome), valor: d.valor }))} />
+            <div className="rc-card">
+              <div className="rc-ch">💳 Formas de recebimento</div>
+              {!(resumo?.porFormaCondicao || []).length ? (
+                <div className="rc-empty">Sem dados no período.</div>
+              ) : (
+                <table className="rc-tbl"><tbody>
+                  {(resumo.porFormaCondicao as any[]).map((f: any) => (
+                    <Fragment key={f.nome}>
+                      <tr><td style={{ color: "#014D5E", fontWeight: 600 }}>{f.nome}</td><td className="r" style={{ fontWeight: 600 }}>{money(f.valor)}</td></tr>
+                      {(f.condicoes || []).map((c: any) => (
+                        <tr key={`${f.nome}|${c.nome}`}><td style={{ color: "#5C6B70", paddingLeft: 30 }}>{c.nome}</td><td className="r" style={{ fontWeight: 400, color: "#5C6B70" }}>{money(c.valor)}</td></tr>
+                      ))}
+                    </Fragment>
+                  ))}
+                  <tr><td></td><td className="r" style={{ fontWeight: 700 }}>{money((resumo.porFormaCondicao as any[]).reduce((s: number, f: any) => s + Number(f.valor || 0), 0))}</td></tr>
+                </tbody></table>
+              )}
+            </div>
             <Quebra titulo="🏷️ Por marca" dados={resumo?.porMarca} />
           </div>
         </>
@@ -258,16 +290,20 @@ export default function RecebimentosPage() {
           </div>
           <div className="rc-scroll">
             <table className="rc-tbl">
-              <thead><tr><th>Venda</th><th>Data</th><th>Cliente · Pet</th><th>Responsável</th><th>Formas</th><th className="r">Valor</th><th></th></tr></thead>
+              <thead><tr><th>Baixa</th><th>Cliente · Pet</th><th>Venda</th><th>Data da venda</th><th>Caixa</th><th>Responsável</th><th>Forma</th><th className="r">Valor</th><th></th></tr></thead>
               <tbody>
-                {filtered.length === 0 && <tr><td colSpan={7} className="rc-empty">Nenhum recebimento no período{temFiltro ? " com esses filtros" : ""}.</td></tr>}
+                {filtered.length === 0 && <tr><td colSpan={9} className="rc-empty">Nenhum recebimento no período{temFiltro ? " com esses filtros" : ""}.</td></tr>}
                 {filtered.map((r) => (
                   <tr key={r.id}>
-                    <td style={{ color: "#014D5E", fontWeight: 500, whiteSpace: "nowrap" }}>{vendaLabel(r.appointment)}</td>
-                    <td style={{ color: "#374151", whiteSpace: "nowrap" }}>{dh(r.data)}</td>
+                    <td style={{ color: "#374151", whiteSpace: "nowrap" }}>{baixaDe(r)}</td>
                     <td style={{ color: "#1F2A2E" }}>{r.appointment?.tutor?.id ? (<Link href={`/dashboard/erp/tutores/${r.appointment.tutor.id}`} style={{ color: "#014D5E", textDecoration: "none", fontWeight: 500 }}>{r.appointment?.tutor?.name || "Cliente"}</Link>) : (r.appointment?.tutor?.name || "Cliente")} · {r.appointment?.pet?.name || "Pet"}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>{r.appointment?.id ? (
+                      <Link href={`/dashboard/erp/consulta-vendas?venda=${r.appointment.id}`} style={{ color: "#009AAC", fontWeight: 500, textDecoration: "none" }}>{vendaLabel(r.appointment)}</Link>
+                    ) : vendaLabel(r.appointment)}</td>
+                    <td style={{ color: "#374151", whiteSpace: "nowrap" }}>{r.appointment?.date ? new Date(r.appointment.date).toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" }) : "—"}</td>
+                    <td style={{ color: "#5C6B70", whiteSpace: "nowrap" }}>{r.caixa ? <>nº {r.caixa.numero}{r.caixa.dona ? <div style={{ fontSize: 11 }}>{String(r.caixa.dona).split(" ").slice(0, 2).join(" ")}</div> : null}</> : "—"}</td>
                     <td style={{ color: "#5C6B70" }}>{r.usuario || "—"}</td>
-                    <td style={{ color: "#374151" }}>{(r.formas || []).map((f: any) => f.forma).join(" + ") || "—"}</td>
+                    <td style={{ color: "#374151" }}>{r.formasRotulo || (r.formas || []).map((f: any) => f.forma).join(" + ") || "—"}</td>
                     <td className="r">{money(Number(r.valorTotal))}</td>
                     <td className="no-print" style={{ whiteSpace: "nowrap", textAlign: "right" }}>
                       <button onClick={() => abrirComanda(r)} title="Ver os itens da venda" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", marginRight: 4, fontSize: 13 }}>👁️</button>
