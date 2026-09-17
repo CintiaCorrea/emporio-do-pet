@@ -121,6 +121,12 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Etapa 2 — UM CARRINHO SO** (17/09): o carrinho da ficha (PetComandaRail) aceita ser aberto de
+  fora (props aberto/aoFechar/abaInicial) e o INBOX passa a usar ele na aba Orcamento — a janela
+  OrcamentoRapidoModal SAIU (era estreita e cortava a lista). Editar orcamento acontece dentro do
+  carrinho (PATCH por cima, botao ✏️ na lista de orcamentos e evento comanda:editar-orcamento da ficha).
+  Editar VENDA idem: ?editarVenda=<id> carrega a venda no carrinho e salva por PATCH mandando o id de
+  cada linha; o ✏️ da Consulta de vendas aponta para la. consultaVendas passou a devolver petId.
 - [x] **Sobra do pagamento vira credito** (17/09): troco so ate onde o DINHEIRO alcanca
   (`recebimento-lote.regras.repartirSobra`, com teste); o resto entra como RECARGA de credito do
   cliente no mesmo caixa. A gaveta diz o que vai acontecer e o botao explica "Escolha o caixa acima".

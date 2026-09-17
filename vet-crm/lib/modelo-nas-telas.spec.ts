@@ -29,7 +29,6 @@ const ler = (p: string) =>
 const TELAS_COM_MODELO = [
   "app/(user)/dashboard/erp/ponto-de-venda/page.tsx",
   "components/pets/PetComandaRail.tsx",
-  "components/vendas/OrcamentoRapidoModal.tsx",
 ];
 
 describe("o modelo está em todo ponto de venda", () => {

@@ -14,7 +14,9 @@ describe("ações na linha da venda", () => {
   it("imprimir, enviar, editar e excluir ficam na linha", () => {
     expect(src).toContain('title="Imprimir a venda (comprovante no timbrado)"');
     expect(src).toContain('title="Enviar a venda em PDF no WhatsApp do cliente"');
-    expect(src).toContain('title="Editar a venda no Ponto de venda"');
+    // Desde 17/09/2026 o editar abre o CARRINHO da ficha (um editor só para venda e orçamento).
+    expect(src).toContain('aria-label="Editar a venda"');
+    expect(src).toContain("?carrinho=venda&editarVenda=");
     expect(src).toContain('title="Excluir a venda"');
   });
 

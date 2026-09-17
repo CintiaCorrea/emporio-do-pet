@@ -17,7 +17,10 @@ import toast from "react-hot-toast";
 import { speciesKey, ageFromBirth } from "@/lib/pets/labels";
 import NovoAgendamentoModal from "@/components/agendamentos/NovoAgendamentoModal";
 import BoletimModal from "@/components/pets/BoletimModal";
-import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
+// O MESMO CARRINHO DA FICHA (Cintia, 17/09/2026). A janela própria era estreita — "não
+// conseguimos nem ler o que estamos selecionando" — e era mais um lugar para montar venda ou
+// orçamento. Aqui ele abre já na aba Orçamento.
+import PetComandaRail from "@/components/pets/PetComandaRail";
 import ClienteEditModal from "@/components/inbox/ClienteEditModal";
 import PetEditModal from "@/components/inbox/PetEditModal";
 import { SendEmailModal } from "@/components/email/SendEmailModal";
@@ -2682,7 +2685,17 @@ export default function InboxRightPanel({ canal = "BotConversa", initialPhone, i
                   <button type="button" onClick={abrirExames} title="Acompanhar exames do pet" className="flex items-center justify-center h-11 rounded-lg border transition hover:bg-[#E1F2F4]" style={{ borderColor: "#009AAC", background: "white" }}><LuFlaskConical size={18} style={{ color: "#009AAC" }} /></button>
                 </div>
                 <NovoAgendamentoModal inline open={agendaOpen} onClose={() => setAgendaOpen(false)} defaults={agendaDefaults} onCreated={(info) => { setAcaoFeita(true); setProximasTick((t) => t + 1); avisarAgendado(info); }} />
-                <OrcamentoRapidoModal open={orcRapidoOpen} onClose={() => setOrcRapidoOpen(false)} pet={selectedPet ? { id: selectedPet.id, name: selectedPet.name } : null} pesoKg={selectedPet?.weight ?? null} tutor={tutor ? { id: tutor.id, name: tutor.name } : null} onEnviarTexto={onEnviarTexto} phone={initialPhone} />
+                {selectedPet?.id ? (
+                  <PetComandaRail
+                    petId={selectedPet.id}
+                    tutorId={tutor?.id}
+                    petNome={selectedPet.name}
+                    tutorNome={tutor?.name}
+                    aberto={orcRapidoOpen}
+                    aoFechar={() => setOrcRapidoOpen(false)}
+                    abaInicial="ORCAMENTO"
+                  />
+                ) : null}
                 {petActForward && (
                   <div className="mt-2 border rounded-lg overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
                     {staff.length === 0 ? (

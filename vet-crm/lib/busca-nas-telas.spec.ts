@@ -43,7 +43,6 @@ const TELAS_DE_VENDA = [
   "app/(user)/dashboard/erp/internacoes/[id]/page.tsx",
   "app/(user)/dashboard/erp/internacoes/page.tsx",
   "app/(user)/dashboard/erp/modelos-orcamento/page.tsx",
-  "components/vendas/OrcamentoRapidoModal.tsx",
   "components/pets/PetComandaRail.tsx",
   "app/(user)/dashboard/erp/pets/[id]/atendimentos/novo/page.tsx",
 ];
@@ -105,7 +104,6 @@ describe("o catálogo chega inteiro em quem vende", () => {
   });
 
   it.each([
-    "components/vendas/OrcamentoRapidoModal.tsx",
     "app/(user)/dashboard/erp/modelos-orcamento/page.tsx",
     "app/(user)/dashboard/erp/pets/[id]/atendimentos/novo/page.tsx",
   ])("%s não entrega o catálogo ao <datalist> do navegador", (tela) => {

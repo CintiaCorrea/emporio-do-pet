@@ -62,6 +62,8 @@ interface Venda {
   cliente: string | null;
   clienteId: string;
   pet: string | null;
+  /** id do pet — o editar abre o carrinho da ficha dele. */
+  petId?: string | null;
   funcionario: string | null;
   marca: string | null;
   itens: Item[];
@@ -490,7 +492,7 @@ function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber,
             style={acaoDaLinha}
           >{enviando ? '…' : '💬'}</button>
           {isAdmin ? (
-            <Link href={`/dashboard/erp/ponto-de-venda?editar=${v.id}`} target="_blank" rel="noopener" title="Editar a venda no Ponto de venda" aria-label="Editar a venda" style={{ ...acaoDaLinha, display: 'inline-block', textDecoration: 'none' }}>✏️</Link>
+            <Link href={`/dashboard/erp/pets/${v.petId || ''}?carrinho=venda&editarVenda=${v.id}`} title="Editar a venda no carrinho da ficha — a mesma tela em que ela foi montada" aria-label="Editar a venda" style={{ ...acaoDaLinha, display: 'inline-block', textDecoration: 'none' }}>✏️</Link>
           ) : (
             <span title="Só o administrativo edita venda" style={{ ...acaoDaLinha, color: '#8A9499', cursor: 'default' }}>🔒</span>
           )}

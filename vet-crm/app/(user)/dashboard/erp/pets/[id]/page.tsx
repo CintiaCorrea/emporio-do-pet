@@ -26,7 +26,6 @@ import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
 import { LinhaEditavel, totalDasLinhas, linhasParaGravar } from "@/lib/linhasDeVenda";
 import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
 import { textoDoRelatorioVendas } from "@/lib/textoDoRelatorioVendas";
-import OrcamentoRapidoModal from "@/components/vendas/OrcamentoRapidoModal";
 import { enviarExtratoPdfNoWhats, baixarExtratoPdf } from "@/lib/documentos/enviarPdfWhats";
 import FeedTimeline from "@/components/pets/FeedTimeline";
 import ResolverFuModal from "@/components/followup/ResolverFuModal";
@@ -253,7 +252,6 @@ export default function PetDetailPage() {
   // ORCAMENTOS DO PET na aba Compras (Cintia, 12/09/2026): "os orcamentos precisam estar na
   // aba de compras dos pets e poderem ser editados". Antes so' existiam na aba de Orcamentos.
   const [orcamentos, setOrcamentos] = useState<any[]>([]);
-  const [orcEditando, setOrcEditando] = useState<any | null>(null);
   const [clinDocs, setClinDocs] = useState<any[]>([]);
   const [historico, setHistorico] = useState<any[]>([]);
   // Enviar exame/receita do prontuário pelo WhatsApp (mensagem + anexos; fica no aguardo se fechada)
@@ -2918,7 +2916,7 @@ export default function PetDetailPage() {
                       )}
                       {!convertido && (
                         <button
-                          onClick={() => setOrcEditando(o)}
+                          onClick={() => { try { window.dispatchEvent(new CustomEvent("comanda:editar-orcamento", { detail: o })); } catch { /* sem evento: nada acontece */ } }}
                           title="Editar este orçamento"
                           className="text-[11px] font-medium px-2 py-1 rounded-lg shrink-0"
                           style={{ background: "#FBF6EC", color: "#8A5A0B" }}
@@ -3152,16 +3150,8 @@ export default function PetDetailPage() {
       {/* ===== ENVIAR EXAME/RECEITA PELO WHATSAPP (mensagem + anexos; aguardo se fechada) ===== */}
       {/* ESCOLHER O QUE MANDAR — lista INTEIRA das vendas do tutor, com rolagem. Cortar aqui
           esconderia justamente a conta que se quer cobrar. */}
-      {/* Editar orcamento pela ficha do pet — o mesmo modal que cria. */}
-      <OrcamentoRapidoModal
-        open={!!orcEditando}
-        onClose={() => setOrcEditando(null)}
-        pet={pet ? { id: pet.id, name: pet.name } : null}
-        tutor={pet?.tutor ? { id: (pet as any).tutorId || pet.tutor.id, name: pet.tutor.name } : null}
-        pesoKg={Number((pet as any)?.weight) || null}
-        orcamento={orcEditando ? { id: orcEditando.id, itens: orcEditando.itens, validade: orcEditando.validade, observacao: orcEditando.observacao } : null}
-        onSalvo={() => { setOrcEditando(null); carregarOrcamentos(); }}
-      />
+      {/* EDITAR ORÇAMENTO É NO CARRINHO (17/09/2026) — a janela própria saiu. A ficha avisa o
+          carrinho pelo mesmo caminho do "comanda:add", e ele abre na aba Orçamento com os itens. */}
 
       {selVendasOpen && (
         <div {...fundoDeModal(() => setSelVendasOpen(false))} className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50">

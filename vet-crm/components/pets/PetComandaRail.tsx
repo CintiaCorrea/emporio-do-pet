@@ -28,7 +28,7 @@ import SeletorModeloVenda from "@/components/vendas/SeletorModeloVenda";
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from "@/lib/modelosVenda";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-type Item = { _faixas?: FaixaPorte[]; _faixaRotulo?: string | null; _avisoPorte?: string | null; descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
+type Item = { /** id da linha quando a venda já existe (edição) */ id?: string; _faixas?: FaixaPorte[]; _faixaRotulo?: string | null; _avisoPorte?: string | null; descricao: string; servicoId?: string; quantidade: number; valorUnitario: number; custoUnitario?: number; fornecedorId?: string | null; fornecedorNome?: string | null; catalogoExameId?: string; _exame?: boolean; _novo?: boolean; catalogoItemId?: string; _convenio?: boolean; convenioId?: string; _convLabel?: string };
 type Aba = "VENDA" | "ORCAMENTO";
 
 const ST: any = {
@@ -50,7 +50,20 @@ const somaConvenio = (arr: Item[]) => arr.reduce((s, it) => s + (it._convenio ? 
 const ler = (k: string, padrao: any) => { try { const v = localStorage.getItem(k); return v == null ? padrao : JSON.parse(v); } catch { return padrao; } };
 const gravar = (k: string, v: any) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento: segue na memória */ } };
 
-export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: { petId: string; tutorId?: string; petNome?: string; tutorNome?: string }) {
+export default function PetComandaRail({
+  petId, tutorId, petNome, tutorNome,
+  aberto: abertoDeFora, aoFechar, abaInicial,
+}: {
+  petId: string; tutorId?: string; petNome?: string; tutorNome?: string;
+  /**
+   * QUEM ABRE DE FORA (o Inbox, 17/09/2026). Com esta prop o carrinho vira o conteúdo de quem
+   * chamou: não mostra o botão flutuante e o fechar avisa quem abriu. Sem ela, nada muda — a
+   * ficha do pet continua com o botão de sempre.
+   */
+  aberto?: boolean;
+  aoFechar?: () => void;
+  abaInicial?: "VENDA" | "ORCAMENTO";
+}) {
   const { data: session } = useSession();
   const meId = (session?.user as any)?.id || "";
 
@@ -71,14 +84,25 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     return () => { cancelado = true; };
   }, [petId]);
 
-  const [aberto, setAberto] = useState(false);
-  const [aba, setAba] = useState<Aba>("VENDA");
+  const comandadoDeFora = abertoDeFora !== undefined;
+  const [abertoLocal, setAbertoLocal] = useState(false);
+  const aberto = comandadoDeFora ? !!abertoDeFora : abertoLocal;
+  const setAberto = (v: boolean) => {
+    if (!comandadoDeFora) { setAbertoLocal(v); return; }
+    if (!v) aoFechar?.();
+  };
+  const [aba, setAba] = useState<Aba>(abaInicial || "VENDA");
   // Link de outra tela (Orçamentos, ponto de venda): ?carrinho=orcamento abre direto na aba Orçamento.
   useEffect(() => {
     try {
-      const q = new URLSearchParams(window.location.search).get("carrinho");
+      const p = new URLSearchParams(window.location.search);
+      const q = p.get("carrinho");
       if (q === "orcamento") { setAba("ORCAMENTO"); setAberto(true); }
       else if (q === "venda") { setAba("VENDA"); setAberto(true); }
+      // EDITAR A VENDA AQUI (17/09/2026): a Consulta de vendas manda ?editarVenda=<id>, e a venda
+      // volta para o carrinho — a mesma tela em que ela foi montada.
+      const ev = p.get("editarVenda");
+      if (ev) carregarVendaParaEditar(ev);
     } catch { /* */ }
   }, []);
   const orcando = aba === "ORCAMENTO";
@@ -196,6 +220,90 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     setAberto(true);
   }
 
+  // ✏️ EDITAR A VENDA AQUI DENTRO — era a gaveta do ponto de venda, com outra aparência. Salvar
+  // manda de volta o id de cada linha: é assim que o servidor sabe que é A MESMA linha e mantém
+  // ligação com o cadastro, laboratório, convênio e comissão (appointments/linhas-da-venda.regras).
+  const [editandoVenda, setEditandoVenda] = useState<{ id: string; numeroVenda: number | null } | null>(null);
+  async function carregarVendaParaEditar(id: string) {
+    try {
+      const v = await fetch(`/api/appointments/${id}`, { cache: "no-store" }).then((r) => (r.ok ? r.json() : null));
+      if (!v?.id) { toast.error("Não achei essa venda."); return; }
+      const linhas = (v.items || v.itens || []).map((it: any) => ({
+        id: it.id,
+        descricao: it.descricao || "Item",
+        quantidade: Number(it.quantidade) || 1,
+        valorUnitario: Number(it.valorUnitario) || 0,
+        custoUnitario: it.custoUnitario ?? undefined,
+        catalogoItemId: it.catalogoItemId ?? undefined,
+        servicoId: it.servicoId ?? undefined,
+        productId: it.productId ?? undefined,
+        fornecedorId: it.fornecedorId ?? undefined,
+        convenioId: it.convenioId ?? undefined,
+        _convenio: !!it.convenioId,
+        _novo: !!it.catalogoItemId,
+      }));
+      setItensPorAba((p) => ({ ...p, VENDA: linhas }));
+      setObsPorAba((p) => ({ ...p, VENDA: String(v.notes || "") }));
+      setAba("VENDA");
+      setEditandoVenda({ id: v.id, numeroVenda: v.numeroVenda ?? null });
+      setAberto(true);
+    } catch { toast.error("Não consegui abrir a venda."); }
+  }
+  function cancelarEdicaoDaVenda() {
+    setEditandoVenda(null);
+    setItensPorAba((p) => ({ ...p, VENDA: [] }));
+    setObsPorAba((p) => ({ ...p, VENDA: "" }));
+  }
+  async function salvarAlteracoesDaVenda() {
+    if (!editandoVenda) return;
+    if (!itens.length) { toast.error("A venda precisa de pelo menos um item."); return; }
+    setSaving(true);
+    try {
+      const corpo = {
+        value: somaTutor(itens),
+        notes: obs.trim() || null,
+        items: itens.map((it) => ({ ...linhaBody(it), ...(it.id ? { id: it.id } : {}) })),
+      };
+      const r = await fetch(`/api/appointments/${editandoVenda.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || "Não consegui salvar as alterações.");
+      toast.success(editandoVenda.numeroVenda ? `Venda nº ${editandoVenda.numeroVenda} alterada ✅` : "Venda alterada ✅");
+      cancelarEdicaoDaVenda();
+      try { window.dispatchEvent(new Event("pet:venda")); } catch { /* */ }
+    } catch (e: any) { toast.error(e?.message || "Não consegui salvar as alterações."); }
+    finally { setSaving(false); }
+  }
+
+  // ✏️ EDITAR O ORÇAMENTO AQUI DENTRO (Cintia, 17/09/2026: "editar as vendas, orçamentos é muito
+  // complicado"). Antes havia uma janela própria só para editar; agora o orçamento volta para o
+  // carrinho, na aba Orçamento, e o Salvar grava por cima em vez de criar outro.
+  const [editandoOrc, setEditandoOrc] = useState<{ id: string; numero?: number | null } | null>(null);
+  function editarOrcamentoAqui(o: any) {
+    const linhas = (o?.itens || o?.items || []).map((it: any) => ({
+      descricao: it.descricao || it.nome || "Item",
+      quantidade: Number(it.quantidade) || 1,
+      valorUnitario: Number(it.valorUnitario) || 0,
+      custoUnitario: it.custoUnitario ?? undefined,
+      catalogoItemId: it.catalogoItemId ?? undefined,
+      servicoId: it.servicoId ?? undefined,
+      productId: it.productId ?? undefined,
+      fornecedorId: it.fornecedorId ?? undefined,
+      _novo: !!it.catalogoItemId,
+    }));
+    setItensPorAba((p) => ({ ...p, ORCAMENTO: linhas }));
+    setObs(String(o?.observacao || ""));
+    setAba("ORCAMENTO");
+    setEditandoOrc({ id: o.id });
+    setAberto(true);
+  }
+  function cancelarEdicaoDoOrcamento() {
+    setEditandoOrc(null);
+    setItensPorAba((p) => ({ ...p, ORCAMENTO: [] }));
+    setObs("");
+  }
+
   const [orcs, setOrcs] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
   const [enviandoWhats, setEnviandoWhats] = useState(false);
@@ -221,8 +329,14 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
       setItensPorAba((p) => ({ ...p, VENDA: [...p.VENDA, { descricao: l.descricao, servicoId: l.servicoId, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId, fornecedorNome: l.fornecedorNome, catalogoExameId: l.catalogoExameId, _exame: l._exame, _novo: l._novo, catalogoItemId: l.catalogoItemId, quantidade: Number(d.quantidade) || 1, _faixas: l._faixas, _faixaRotulo: l._faixaRotulo, _avisoPorte: l._avisoPorte }] }));
       toast.success("Lançado na venda");
     }
+    // A ficha do pet pede para editar um orçamento salvo aqui dentro, em vez da janela antiga.
+    function onEditarOrc(e: any) { if (e?.detail?.id) editarOrcamentoAqui(e.detail); }
     window.addEventListener("comanda:add", onAdd as any);
-    return () => window.removeEventListener("comanda:add", onAdd as any);
+    window.addEventListener("comanda:editar-orcamento", onEditarOrc as any);
+    return () => {
+      window.removeEventListener("comanda:add", onAdd as any);
+      window.removeEventListener("comanda:editar-orcamento", onEditarOrc as any);
+    };
   }, [cat, pesoPet, petNome]);
 
   const total = useMemo(() => somaDe(itens), [itens]);
@@ -281,9 +395,15 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
     if (!podeSalvar()) return false;
     setSaving(true);
     try {
-      const r = await fetch(`/api/orcamentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ petId, tutorId, observacao: obs.trim() || undefined, itens: itens.map(linhaBody) }) });
+      // Editando: grava POR CIMA do mesmo orçamento (PATCH). Senão, cria um novo.
+      const url = editandoOrc ? `/api/orcamentos/${editandoOrc.id}` : `/api/orcamentos`;
+      const r = await fetch(url, {
+        method: editandoOrc ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ petId, tutorId, observacao: obs.trim() || undefined, itens: itens.map(linhaBody) }),
+      });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.message || "Não consegui salvar o orçamento."); }
-      toast.success("Orçamento salvo ✅");
+      toast.success(editandoOrc ? "Orçamento alterado ✅" : "Orçamento salvo ✅");
+      setEditandoOrc(null);
       setItens(() => []); setObs(""); await loadOrcs();
       return true;
     } catch (e: any) { toast.error(e?.message || "Não consegui salvar o orçamento."); return false; }
@@ -476,9 +596,16 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
             <div className="flex gap-2">
               <button onClick={imprimirComanda} disabled={!itens.length} className="flex-1 border-2 rounded-lg py-2 text-[12.5px] font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={13} /> Imprimir</button>
               {orcando ? (
-                <button onClick={salvarOrcamento} disabled={saving || !itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }}>📄 Salvar orçamento</button>
+                <button onClick={salvarOrcamento} disabled={saving || !itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }}>{editandoOrc ? "📄 Salvar alterações" : "📄 Salvar orçamento"}</button>
               ) : (
-                <button onClick={salvarVenda} disabled={saving || !itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }}>💰 Salvar venda</button>
+                editandoVenda ? (
+                  <>
+                    <button onClick={cancelarEdicaoDaVenda} className="rounded-lg py-2 px-3 text-[12.5px] font-semibold border" style={{ borderColor: "#E8DFC8", color: "#5C6B70" }}>Cancelar</button>
+                    <button onClick={salvarAlteracoesDaVenda} disabled={saving || !itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }}>💾 Salvar alterações da venda nº {editandoVenda.numeroVenda ?? ""}</button>
+                  </>
+                ) : (
+                  <button onClick={salvarVenda} disabled={saving || !itens.length} className="flex-1 rounded-lg py-2 text-[12.5px] font-semibold text-white disabled:opacity-50" style={{ background: "#009AAC" }}>💰 Salvar venda</button>
+                )
               )}
             </div>
             {orcando && (
@@ -518,6 +645,7 @@ export default function PetComandaRail({ petId, tutorId, petNome, tutorNome }: {
                       )}
                       {o.observacao ? <div className="text-[10.5px] text-gray-400 mt-1"><b>Obs:</b> {o.observacao}</div> : null}
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        <button onClick={() => editarOrcamentoAqui(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#E8DFC8", color: "#8A5A0B" }}>✏️ Editar</button>
                         <button onClick={() => imprimirOrcamento(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={11} /> Imprimir</button>
                         <button onClick={() => transformarEmVenda(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded text-white" style={{ background: "#009AAC" }}><LuArrowRight size={11} /> Transformar em venda</button>
                         <button onClick={() => excluirOrcamento(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#F0CFCF", color: "#A32D2D" }}><LuTrash size={11} /> Excluir</button>

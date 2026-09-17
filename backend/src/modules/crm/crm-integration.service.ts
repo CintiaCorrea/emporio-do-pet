@@ -1126,6 +1126,8 @@ export class CrmIntegrationService {
         cliente: a.tutor?.name ?? null,
         clienteId: a.tutorId,
         pet: a.pet?.name ?? null,
+        // O editar da linha abre o carrinho da ficha DESTE pet (17/09/2026).
+        petId: a.petId ?? null,
         funcionario: a.user?.name ?? null,
         marca,
         itens: a.items.map((it) => ({

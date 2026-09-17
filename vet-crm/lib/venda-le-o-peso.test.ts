@@ -17,7 +17,6 @@ import { codigoDoProjeto } from "@/lib/testes/varreduraDoProjeto";
 const TELAS_QUE_LANCAM = [
   "app/(user)/dashboard/erp/ponto-de-venda/page.tsx",
   "components/pets/PetComandaRail.tsx",
-  "components/vendas/OrcamentoRapidoModal.tsx",
 ];
 
 describe("as telas de lançamento passam pela porta única, com o peso", () => {
