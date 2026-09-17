@@ -113,6 +113,11 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   Medido: lista de cobranca 90 vendas R$ 53.317,59 -> 34 R$ 12.426,23 (56 de agosto, R$ 40.891,36, viram
   historico); clientes com "Deve" 46 -> 12; 4 registros de internacao (R$ 532,80) saem do "a receber".
   Fora (P1 relatorios): vendasResumo, ranking, dashboard PENDING, relatorio de consultas. Publicado (api v856, web v1688).
+- [x] **Recibo no timbrado** (17/09, pedido dela; uma via, COM descritivo dos servicos): 
+  `lib/documentos/recibo-print` usa o timbrado da casa (logo/endereco/CNPJ de dadosclinica) + 
+  `valorPorExtenso` (com teste). Botao 🧾 em Recebimentos (agrupa o pagamento LOTE- num recibo so) e 
+  no detalhe da venda, dentro de "Baixas efetuadas". Recibo e do PAGAMENTO: valor, por extenso, forma 
+  com parcelamento, desconto, data, itens de cada venda e linha de assinatura.
 - [x] **Gaveta: "ainda em aberto" contava o desconto** (17/09, #1219): restanteEmAberto passa a usar o devido
   depois do desconto; "Baixas efetuadas" soma o desconto que foi para os itens (descontoItens). Dado estava certo.
 - [ ] Proximo: B internacao (Luna internada) · D atendimento + Inbox (venda rapida falha sem userId;

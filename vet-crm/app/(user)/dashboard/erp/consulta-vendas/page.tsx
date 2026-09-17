@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import OrcamentosBusca from '@/components/vendas/OrcamentosBusca';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
+import { imprimirRecibo } from '@/lib/documentos/recibo-print';
 import { resumoDeVendas } from '@/lib/resumoDeVendas';
 import { useRolePreview } from '@/lib/ui/RolePreview';
 import { useSession } from 'next-auth/react';
@@ -405,6 +406,11 @@ function BaixasDaVenda({ v }: { v: Venda }) {
               {lancadaNoutroDia && <span style={{ color: GREY2, fontSize: 11.5 }}>lançada {dia(b.createdAt)} {hora(b.createdAt)}</span>}
               <b style={{ color: NAVY }}>{brl(Number(b.valorTotal))}</b>
               <span style={{ color: GREY }}>{b.usuario || '—'}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); imprimirRecibo([{ ...b, appointment: { id: v.id, numeroVenda: v.numeroVenda, pet: v.pet ? { name: v.pet } : null, tutor: { id: v.clienteId, name: v.cliente } } }], { preview: true }); }}
+                title="Recibo desta baixa, no timbrado"
+                style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 7, padding: '1px 7px', fontSize: 11.5, background: '#fff', color: NAVY, cursor: 'pointer' }}
+              >🧾 Recibo</button>
               <span style={{ color: GREY, marginLeft: 'auto' }}>{b.caixa ? `Caixa nº ${b.caixa.numero} de ${dia(b.caixa.abertura)}${b.caixa.dona ? ` · ${String(b.caixa.dona).split(' ').slice(0, 2).join(' ')}` : ''}` : '—'}</span>
             </div>
             {formas.length === 0 && <div style={{ fontSize: 12, color: '#b23b39', paddingLeft: 14, marginTop: 3 }}>Sem forma de pagamento registrada</div>}

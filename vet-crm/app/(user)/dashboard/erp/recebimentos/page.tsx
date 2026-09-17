@@ -7,6 +7,7 @@ import Link from "next/link";
 import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
+import { imprimirRecibo } from "@/lib/documentos/recibo-print";
 
 const brl = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number.isFinite(v) ? v : 0);
 const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -118,6 +119,14 @@ export default function RecebimentosPage() {
       toast.success("Recebimento excluído"); load();
     } catch { toast.error("Não consegui excluir."); }
   };
+  // 🧾 RECIBO do pagamento, no timbrado (Cintia, 17/09/2026). Quando o mesmo pagamento quitou
+  // várias vendas (marca LOTE-… na observação), sai UM recibo com todas.
+  const reciboDe = (r: any) => {
+    const marca = String(r?.observacao || "").match(/LOTE-[A-Z0-9]+/)?.[0];
+    const grupo = marca ? rows.filter((x) => String(x?.observacao || "").includes(marca)) : [r];
+    return imprimirRecibo(grupo.length ? grupo : [r], { preview: true });
+  };
+
   // 🧾 Abrir a comanda (itens) do pagamento — imprime no padrão da clínica.
   const abrirComanda = async (r: any) => {
     const id = r?.appointment?.id;
@@ -306,6 +315,7 @@ export default function RecebimentosPage() {
                     <td style={{ color: "#374151" }}>{r.formasRotulo || (r.formas || []).map((f: any) => f.forma).join(" + ") || "—"}</td>
                     <td className="r">{money(Number(r.valorTotal))}</td>
                     <td className="no-print" style={{ whiteSpace: "nowrap", textAlign: "right" }}>
+                      <button onClick={() => reciboDe(r)} title="Recibo do pagamento, no timbrado" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", marginRight: 4, fontSize: 13 }}>🧾</button>
                       <button onClick={() => abrirComanda(r)} title="Ver os itens da venda" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", marginRight: 4, fontSize: 13 }}>👁️</button>
                       <button onClick={() => excluir(r)} title="Excluir recebimento" style={{ border: "1px solid #E8E2D6", background: "#fff", borderRadius: 7, padding: "2px 7px", cursor: "pointer", color: "#b23b3b", fontSize: 13 }}>🗑️</button>
                     </td>
