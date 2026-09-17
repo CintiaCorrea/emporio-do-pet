@@ -1507,7 +1507,9 @@ export class CaixaService {
       quitadas: quitadas.length,
       valorRecebido: Number(partes.reduce((sm, p) => sm + p.valor, 0).toFixed(2)),
       troco,
-      restanteEmAberto: Number(Math.max(0, devido - valorPago).toFixed(2)),
+      // Depois do desconto (devidoAgora). Com `devido`, o desconto voltava como "ainda em aberto"
+      // na mensagem — a #1219 da Cintia, 17/09/2026: R$ 63,11 de desconto viraram R$ 63,11 a pagar.
+      restanteEmAberto: Number(Math.max(0, devidoAgora - valorPago).toFixed(2)),
       falhou,
     };
   }

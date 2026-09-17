@@ -396,6 +396,8 @@ function BaixasDaVenda({ v }: { v: Venda }) {
       ) : baixas.map((b) => {
         const formas: any[] = (Array.isArray(b.formas) ? b.formas.flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
         const lancadaNoutroDia = b.createdAt && dia(b.createdAt) !== dia(b.data);
+        // O desconto dado na gaveta vai para os itens (descontoItens); `desconto` guarda só o que não coube.
+        const descontoDaBaixa = Number(b.desconto || 0) + (Array.isArray(b.descontoItens) ? b.descontoItens.reduce((s: number, d: any) => s + (Number(d?.valor) || 0), 0) : 0);
         return (
           <div key={b.id} style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 9, padding: '7px 10px', marginBottom: 6 }}>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1" style={{ fontSize: 12.5 }}>
@@ -416,9 +418,9 @@ function BaixasDaVenda({ v }: { v: Venda }) {
                 </div>
               );
             })}
-            {(Number(b.desconto) > 0.009 || Number(b.troco) > 0.009 || (b.observacao && b.observacao !== 'Recebimento de venda')) && (
+            {(descontoDaBaixa > 0.009 || Number(b.troco) > 0.009 || (b.observacao && b.observacao !== 'Recebimento de venda')) && (
               <div style={{ fontSize: 11.5, color: GREY2, paddingLeft: 14, marginTop: 3 }}>
-                {[Number(b.desconto) > 0.009 ? `Desconto ${brl(Number(b.desconto))}` : null, Number(b.troco) > 0.009 ? `Troco ${brl(Number(b.troco))}` : null, b.observacao && b.observacao !== 'Recebimento de venda' ? `Obs: ${b.observacao}` : null].filter(Boolean).join(' · ')}
+                {[descontoDaBaixa > 0.009 ? `Desconto ${brl(descontoDaBaixa)}` : null, Number(b.troco) > 0.009 ? `Troco ${brl(Number(b.troco))}` : null, b.observacao && b.observacao !== 'Recebimento de venda' ? `Obs: ${b.observacao}` : null].filter(Boolean).join(' · ')}
               </div>
             )}
           </div>

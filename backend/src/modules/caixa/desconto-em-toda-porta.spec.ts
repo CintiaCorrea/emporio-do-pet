@@ -41,6 +41,8 @@ describe('o desconto é conferido em toda porta de receber', () => {
     const corpo = corpoDe('async registrarRecebimentoLote(', 'const { partes, sobra } = distribuirPagamento(');
     expect(corpo).toContain('await this.conferirDesconto({');
     expect(svc).toContain('}, userId, papel, { descontoJaConferido: true, descontoItens: descontoPorVenda.get(p.appointmentId) });');
+    // O que falta receber é contado DEPOIS do desconto (#1219, 17/09/2026).
+    expect(svc).toContain('restanteEmAberto: Number(Math.max(0, devidoAgora - valorPago).toFixed(2)),');
   });
 
   it('não existe mais liberação por senha de gerente', () => {
