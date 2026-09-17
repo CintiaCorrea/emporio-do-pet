@@ -19,6 +19,7 @@ type LinhaParaConferir = {
 };
 import { ehTipoDeOrcamento } from '../crm/consulta-vendas.regras';
 import { estornarRecebimento, limparReceitaDaVenda } from '../../common/estornar-recebimento';
+import { devolverEstoqueDaVenda } from '../../common/estoque-da-venda';
 import { podeReabrirVenda } from '../caixa/caixa.regras';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -1231,13 +1232,19 @@ export class AppointmentsService {
     }
   }
 
-  async remove(id: string, force = false, autor?: { role?: string; userId?: string }, comRecebimento = false) {
+  async remove(id: string, force = false, autor?: { role?: string; userId?: string }, comRecebimento = false, naoApagarVenda = false) {
     await this.findById(id);
 
     const venda = await this.prisma.appointment.findUnique({
       where: { id },
       select: { id: true, value: true, numeroVenda: true, paymentStatus: true, createdAt: true, type: true },
     });
+    // VENDA NÃO SE APAGA PELA AGENDA, PELO ATENDIMENTO NEM PELO DOCUMENTO (Cintia, 17/09/2026). Essas
+    // telas pedem `naoApagarVenda`; havendo número de venda, recusa e diz onde apagar. Existem vendas
+    // antigas guardadas como "CONSULTA" e como "Resultado de exames" (a #1130 da Cueia).
+    if (naoApagarVenda && venda?.numeroVenda != null) {
+      throw new ConflictException(`E_VENDA: Este registro é a venda nº ${venda.numeroVenda}. Venda se apaga pela tela Vendas.`);
+    }
     if (venda) await this.checarPermissaoExclusaoVenda(venda as any, autor);
 
     // PROTEÇÃO (fase de teste): apagar um atendimento apaga em cascata a gravação de
@@ -1311,6 +1318,8 @@ export class AppointmentsService {
 
     // Estorno e exclusão no mesmo passo: ou sai tudo, ou nada muda.
     const removido = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
+      // O estoque que a venda baixou volta antes de a venda (e as linhas) sumirem.
+      await devolverEstoqueDaVenda(tx as any, id);
       for (const rec of recebimentosDaVenda) await estornarRecebimento(tx as any, rec.id);
       if (recebimentosDaVenda.length) await limparReceitaDaVenda(tx as any, id);
       return tx.appointment.delete({ where: { id } });

@@ -7,6 +7,7 @@ import BuscaClientePet, { SelecaoClientePet } from "@/components/common/BuscaCli
 import toast from "react-hot-toast";
 import { hojeNaClinicaISO } from "@/lib/datas";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
+import { apagarAtendimento } from "@/lib/vendas/excluirVenda";
 
 type Defaults = { date?: string; time?: string; userId?: string; duration?: number; tutor?: any; petId?: string; agendaAvulsa?: string; avulsaNome?: string; novoCliente?: { nome?: string; tel?: string } } | null;
 // agendarAposCriar: ao criar um cliente novo aqui, EM VEZ de pular pra ficha, continua pro
@@ -305,11 +306,16 @@ export default function NovoAgendamentoModal({ open, onClose, onCreated, default
     } catch (e: any) { alert("Erro ao criar agendamento: " + (e?.message || e || "desconhecido")); } finally { setSaving(false); }
   };
 
+  // Caminho único (lib/vendas/excluirVenda). A agenda apaga agendamento, nunca venda: se o registro
+  // já é uma venda, o servidor recusa e a tela diz onde apagar (Cintia, 17/09/2026).
   const excluir = async () => {
     if (!editId || !confirm("Excluir este agendamento?")) return;
     setSaving(true);
-    try { const res = await fetch(`/api/appointments/${editId}`, { method: "DELETE", credentials: "include" }); if (!res.ok) throw new Error(); fechar(); if (onCreated) onCreated(); }
-    catch { alert("Erro ao excluir."); } finally { setSaving(false); }
+    try {
+      const r = await apagarAtendimento(editId, { confirmar: (m) => window.confirm(m), naoApagarVenda: true });
+      if (r.ok) { fechar(); if (onCreated) onCreated(); }
+      else if (!("cancelado" in r && r.cancelado)) alert(r.erro || "Não consegui excluir.");
+    } finally { setSaving(false); }
   };
   const cadastrarCli = async () => {
     if (!nNome.trim() || nTel.replace(/\D/g, "").length < 8) { alert("Informe nome e telefone."); return; }

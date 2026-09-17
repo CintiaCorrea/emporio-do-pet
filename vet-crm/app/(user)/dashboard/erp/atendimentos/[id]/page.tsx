@@ -8,6 +8,7 @@ import { LuArrowLeft, LuPencil, LuTrash2, LuStethoscope, LuClipboardList, LuActi
 import PetIcon from "@/components/profile/PetIcon";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { speciesLabel } from "@/lib/pets/labels";
+import { apagarAtendimento } from "@/lib/vendas/excluirVenda";
 
 interface AppointmentItem {
   id: string;
@@ -99,12 +100,12 @@ export default function AtendimentoDetailPage() {
     if (!data) return;
     if (!window.confirm(`Excluir o atendimento de ${data.pet?.name || "este pet"}? Não dá pra desfazer.`)) return;
     setExcluindo(true);
-    try {
-      const r = await fetch(`/api/appointments/${id}`, { method: "DELETE" });
-      if (!r.ok) throw new Error();
-      toast.success("Atendimento excluído");
-      router.push(`/dashboard/erp/pets/${data.petId}`);
-    } catch { toast.error("Erro ao excluir"); setExcluindo(false); }
+    // Caminho único. Esta tela é para o veterinário abrir o atendimento — não apaga venda (Cintia,
+    // 17/09/2026): se o registro for uma venda antiga, o servidor recusa e a tela diz onde apagar.
+    const r = await apagarAtendimento(String(id), { confirmar: (m) => window.confirm(m), naoApagarVenda: true });
+    if (r.ok) { toast.success("Atendimento excluído"); router.push(`/dashboard/erp/pets/${data.petId}`); return; }
+    if (!("cancelado" in r && r.cancelado)) toast.error(r.erro || "Não consegui excluir.");
+    setExcluindo(false);
   }
 
   usePageTitle(data ? `Atendimento · ${TYPE_LABEL[data.type] || data.type}` : "Atendimento", data?.pet ? `${data.pet.name}` : undefined);

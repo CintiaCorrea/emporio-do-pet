@@ -41,6 +41,8 @@ export type ResultadoExclusao =
  *   TEM_GRAVACAO    o atendimento tem gravação de áudio → repete com `force=true`
  *   TEM_RECEBIMENTO a venda tem dinheiro recebido (só chega ao administrativo — os outros
  *                   perfis são barrados antes) → repete com `comRecebimento=true`
+ *   E_VENDA         pedido com `naoApagarVenda` e o registro é uma venda → não apaga e diz onde
+ *                   apagar (agenda, tela do atendimento e documentos da ficha — Cintia, 17/09/2026)
  *
  * Em cada aviso a pessoa lê a frase DO SERVIDOR (quanto, em que caixa, de quem) e decide.
  * Recusar deixa tudo no lugar.
@@ -56,9 +58,12 @@ export async function apagarAtendimento(
     confirmar: (msg: string) => boolean;
     /** Oferecer apagar junto a gravação de áudio. A Consulta de vendas só oferece ao ADM. */
     oferecerApagarGravacao?: boolean;
+    /** Quem não é tela de venda (agenda, atendimento, documento) nunca apaga uma venda. */
+    naoApagarVenda?: boolean;
   },
 ): Promise<ResultadoExclusao> {
   const params = new URLSearchParams();
+  if (opts.naoApagarVenda) params.set("naoApagarVenda", "true");
   try {
     for (let tentativa = 0; tentativa < 3; tentativa++) {
       const qs = params.toString();

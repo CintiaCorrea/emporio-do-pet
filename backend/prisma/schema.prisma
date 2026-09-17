@@ -3078,6 +3078,9 @@ model Recebimento {
   data          DateTime     @default(now())
   valorTotal    Float
   desconto      Float        @default(0)
+  // Desconto dado NESTE recebimento e dividido nos itens da venda: [{ itemId, valor }]. É o que
+  // permite devolver o desconto à venda quando o recebimento é estornado (17/09/2026).
+  descontoItens Json?
   troco         Float        @default(0)
   formas        Json
   observacao    String?

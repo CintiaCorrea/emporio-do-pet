@@ -338,15 +338,20 @@ export class CatalogoService {
   // Baixa de estoque na VENDA (idempotente): itens do catálogo novo vendidos numa venda PAGA, que
   // controlam estoque, geram UMA saída (origem VENDA) — dedup por refId=appointmentItemId. Roda no cron.
   async processarEstoqueVendas() {
+    // REDE DE SEGURANÇA, NÃO SEGUNDA BAIXA (17/09/2026). A baixa acontece na virada da venda para paga
+    // (caixa.service.baixarEstoqueDaVenda, refId = id da VENDA). Esta rotina olhava só o id da LINHA,
+    // não via aquela baixa e baixaria o mesmo item de novo — e pegava venda com qualquer recebimento,
+    // mesmo parcial. Agora: só venda PAGA, e só o que não foi baixado nem pela venda nem pela linha.
     const itens = await this.prisma.appointmentItem.findMany({
-      where: { catalogoItemId: { not: null }, quantidade: { gt: 0 }, appointment: { is: { recebimentos: { some: {} } } } },
-      select: { id: true, catalogoItemId: true, quantidade: true },
+      where: { catalogoItemId: { not: null }, quantidade: { gt: 0 }, appointment: { is: { paymentStatus: 'PAID' } } },
+      select: { id: true, appointmentId: true, catalogoItemId: true, quantidade: true },
       take: 2000,
     });
     if (itens.length === 0) return { baixados: 0 };
-    const jaFeitos = await this.prisma.catEstoqueMovimento.findMany({ where: { origem: 'VENDA', refId: { in: itens.map((i) => i.id) } }, select: { refId: true } });
-    const feitos = new Set(jaFeitos.map((x) => x.refId));
-    const novos = itens.filter((i) => !feitos.has(i.id));
+    const refs = [...new Set([...itens.map((i) => i.id), ...itens.map((i) => i.appointmentId)])];
+    const jaFeitos = await this.prisma.catEstoqueMovimento.findMany({ where: { origem: 'VENDA', refId: { in: refs } }, select: { refId: true, itemId: true } });
+    const feitos = new Set(jaFeitos.map((x) => `${x.refId}|${x.itemId}`));
+    const novos = itens.filter((i) => !feitos.has(`${i.id}|${i.catalogoItemId}`) && !feitos.has(`${i.appointmentId}|${i.catalogoItemId}`));
     if (novos.length === 0) return { baixados: 0 };
     const catIds = [...new Set(novos.map((i) => i.catalogoItemId as string))];
     const cats = await this.prisma.itemCatalogo.findMany({ where: { id: { in: catIds }, controlaEstoque: true }, select: { id: true } });

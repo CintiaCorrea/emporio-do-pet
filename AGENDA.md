@@ -83,6 +83,12 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   botao de caucao da internacao; /comandas e /vendas redirecionam para Vendas.
 - [x] **C5** tela de Orcamentos: contador do mes; "Abrir orcamento" no carrinho da ficha; botoes de
   converter sairam de Orcamentos, Consulta de vendas e PDV.
+- [x] **C publicada** 17/09/2026 (api v853, web v1683).
+- [x] **Apagar pelo mesmo caminho** (17/09, nao publicado ate o ok): agenda, tela do atendimento e
+  documentos/card de exame da ficha apagam por `apagarAtendimento` com `naoApagarVenda` (servidor
+  recusa E_VENDA se tiver numero de venda); recebimento guarda `descontoItens` e o estorno devolve o
+  desconto a venda; estoque volta (`common/estoque-da-venda`) ao apagar venda paga e quando o
+  estorno tira a venda de paga; rotina de estoque so baixa venda PAGA e nao repete a baixa da venda.
 - [ ] Proximo: B internacao (Luna internada) · D atendimento + Inbox (venda rapida falha sem userId;
   enviar PDF e registrar na ficha) · E SimplesVet so consulta · P1 regra unica de venda nos relatorios.
 - [ ] Ao final: varredura da tela do ponto de venda (recebimento) e revisao da tabela de

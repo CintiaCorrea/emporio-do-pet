@@ -786,12 +786,24 @@ export default function PetDetailPage() {
         await listasDel(it.rawId); // exame vive na lista petexa_ (id ≠ agendamento)
         toast.success("Exame excluído"); await loadPetColecoes(); await loadAtendimentos(); return;
       }
-      const url = it.src === "doc" ? `/api/clinical-documents/${it.rawId}` : `/api/appointments/${it.rawId}`;
-      const r = await fetch(url, { method: "DELETE" });
-      if (!r.ok) throw new Error();
-      // receita/documento vive em appointment + clinical-document — apaga o OUTRO LADO também (senão sobra fantasma)
-      if (it.src === "atd") { const doc = (clinDocs || []).find((d: any) => d?.appointment?.id === it.rawId); if (doc) { try { await fetch(`/api/clinical-documents/${doc.id}`, { method: "DELETE" }); } catch {} } }
-      if (it.src === "doc") { const apId = it.raw?.appointment?.id || it.raw?.appointmentId; if (apId) { try { await fetch(`/api/appointments/${apId}`, { method: "DELETE" }); } catch {} } }
+      // Registro da linha do tempo apaga pelo caminho único e NUNCA leva uma venda junto (Cintia,
+      // 17/09/2026). Havia vendas guardadas como "Resultado de exames" (a #1130 da Cueia, paga) — e
+      // antes a recusa do servidor era engolida em silêncio.
+      if (it.src === "atd") {
+        const r = await apagarAtendimento(it.rawId, { confirmar: (m) => window.confirm(m), naoApagarVenda: true });
+        if (!r.ok) { if (!("cancelado" in r && r.cancelado)) toast.error(r.erro || "Não consegui excluir."); return; }
+        const doc = (clinDocs || []).find((d: any) => d?.appointment?.id === it.rawId);
+        if (doc) { try { await fetch(`/api/clinical-documents/${doc.id}`, { method: "DELETE" }); } catch {} }
+      } else {
+        const r = await fetch(`/api/clinical-documents/${it.rawId}`, { method: "DELETE" });
+        if (!r.ok) throw new Error();
+        // O atendimento ligado ao documento sai junto só se NÃO for venda.
+        const apId = it.raw?.appointment?.id || it.raw?.appointmentId;
+        if (apId) {
+          const r2 = await apagarAtendimento(apId, { confirmar: () => true, naoApagarVenda: true, oferecerApagarGravacao: false });
+          if (!r2.ok && !("cancelado" in r2 && r2.cancelado)) toast(`Documento excluído. ${r2.erro || ""}`.trim(), { duration: 8000 });
+        }
+      }
       toast.success("Registro excluído"); await loadAtendimentos(); await loadClinDocs();
     } catch { toast.error("Erro ao excluir"); }
   }
@@ -1234,7 +1246,12 @@ export default function PetDetailPage() {
       const ex = (exames || []).find((e: any) => e.id === id);
       const aptId = ex?.data?.resultadoAppointmentId; // vínculo guardado ao anexar o laudo
       await listasDel(id);
-      if (aptId) { try { await fetch(`/api/appointments/${aptId}`, { method: "DELETE" }); } catch {} } // remove o "Resultado de exames" ligado (sem fantasma)
+      // Remove o "Resultado de exames" ligado (sem fantasma) — mas nunca uma venda: o card sai, a venda
+      // fica, e a tela diz (Cintia, 17/09/2026).
+      if (aptId) {
+        const r2 = await apagarAtendimento(aptId, { confirmar: () => true, naoApagarVenda: true, oferecerApagarGravacao: false });
+        if (!r2.ok && !("cancelado" in r2 && r2.cancelado)) toast(`Exame excluído. ${r2.erro || ""}`.trim(), { duration: 8000 });
+      }
       await loadPetColecoes(); await loadAtendimentos();
     } catch { toast.error("Erro"); }
   }
@@ -1276,7 +1293,7 @@ export default function PetDetailPage() {
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 {d.pdfUrl ? <button type="button" onClick={() => setLaudoView({ url: d.pdfUrl, nome: d.title })} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>📎 abrir</button> : (d.htmlContent || d.content) ? <button type="button" title="Abrir na caixa de edição (modificar / imprimir)" onClick={() => editarEntrada({ src: "doc", raw: d })} className="text-[11px] px-2 py-1 rounded-lg border" style={{ borderColor: "#009AAC", color: "#00798A" }}>✏️ abrir</button> : <span className="text-[10.5px] text-[#94a3a0]">sem arquivo</span>}
-                <button type="button" title="Excluir" onClick={async () => { if (!(await confirmDelete({ entityLabel: entity, itemName: d.title || entity }))) return; try { const r = await fetch(`/api/clinical-documents/${d.id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); if (d?.appointment?.id) { try { await fetch(`/api/appointments/${d.appointment.id}`, { method: "DELETE" }); } catch {} } await loadClinDocs(); await loadAtendimentos(); toast.success("Excluído"); } catch { toast.error("Erro ao excluir"); } }} className="text-[13px] px-2 py-1 rounded-lg border hover:bg-[#FBEEEC]" style={{ borderColor: "#E8DFC8", color: "#b23b39" }}>🗑️</button>
+                <button type="button" title="Excluir" onClick={async () => { if (!(await confirmDelete({ entityLabel: entity, itemName: d.title || entity }))) return; try { const r = await fetch(`/api/clinical-documents/${d.id}`, { method: "DELETE" }); if (!r.ok) throw new Error(); if (d?.appointment?.id) { const r2 = await apagarAtendimento(d.appointment.id, { confirmar: () => true, naoApagarVenda: true, oferecerApagarGravacao: false }); if (!r2.ok && !("cancelado" in r2 && r2.cancelado)) toast(`Documento excluído. ${r2.erro || ""}`.trim(), { duration: 8000 }); } await loadClinDocs(); await loadAtendimentos(); toast.success("Excluído"); } catch { toast.error("Erro ao excluir"); } }} className="text-[13px] px-2 py-1 rounded-lg border hover:bg-[#FBEEEC]" style={{ borderColor: "#E8DFC8", color: "#b23b39" }}>🗑️</button>
               </div>
             </div>
           ))}

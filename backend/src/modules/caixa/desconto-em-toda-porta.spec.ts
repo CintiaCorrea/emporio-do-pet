@@ -40,7 +40,7 @@ describe('o desconto é conferido em toda porta de receber', () => {
   it('o Baixar várias confere ANTES de gravar, e as partes não conferem de novo', () => {
     const corpo = corpoDe('async registrarRecebimentoLote(', 'const { partes, sobra } = distribuirPagamento(');
     expect(corpo).toContain('await this.conferirDesconto({');
-    expect(svc).toContain('}, userId, papel, { descontoJaConferido: true });');
+    expect(svc).toContain('}, userId, papel, { descontoJaConferido: true, descontoItens: descontoPorVenda.get(p.appointmentId) });');
   });
 
   it('não existe mais liberação por senha de gerente', () => {

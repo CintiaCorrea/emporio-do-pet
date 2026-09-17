@@ -15,6 +15,7 @@ import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
 import { nomeNormalizado, percentualClassificado, sugerirVinculo } from './vinculo-itens.regras';
 import { avaliarDesconto, ratearDesconto, repartirDescontoDoLote } from './desconto.regras';
 import { estornarRecebimento, limparReceitaDaVenda } from '../../common/estornar-recebimento';
+import { devolverEstoqueDaVenda } from '../../common/estoque-da-venda';
 import { estaSemForma, erroNasFormasPreenchidas, ehCreditoDoCliente } from './forma-que-faltou.regras';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
@@ -1268,11 +1269,13 @@ export class CaixaService {
    * O DESCONTO DADO NA HORA DE RECEBER VAI PARA OS ITENS DA VENDA (ver desconto.regras, ratearDesconto).
    *
    * Devolve quanto NÃO coube nos itens (venda sem itens do cliente) — esse resto continua no
-   * recebimento, como antes. A venda passa a valer a soma dos itens, e "paga" confere de verdade.
+   * recebimento, como antes — e quanto foi para cada linha, que o recebimento guarda para poder
+   * devolver o desconto se for estornado. A venda passa a valer a soma dos itens.
    */
-  private async ratearDescontoNaVenda(appointmentId: string, desconto: number): Promise<number> {
+  private async ratearDescontoNaVenda(appointmentId: string, desconto: number): Promise<{ naoCoube: number; partes: { itemId: string; valor: number }[] }> {
     const d = Math.round((Number(desconto) || 0) * 100) / 100;
-    if (d <= 0.009) return 0;
+    const partes: { itemId: string; valor: number }[] = [];
+    if (d <= 0.009) return { naoCoube: 0, partes };
     const itens = await this.prisma.appointmentItem.findMany({
       where: { appointmentId }, orderBy: { createdAt: 'asc' },
       select: { id: true, valorTotal: true, desconto: true, convenioId: true },
@@ -1283,6 +1286,7 @@ export class CaixaService {
       const parte = Math.round((Number(itens[i].valorTotal) - Number(novos[i].valorTotal)) * 100) / 100;
       if (parte <= 0) continue;
       await this.prisma.appointmentItem.update({ where: { id: itens[i].id }, data: { desconto: novos[i].desconto ?? 0, valorTotal: novos[i].valorTotal } });
+      partes.push({ itemId: itens[i].id, valor: parte });
       aplicado += parte;
     }
     aplicado = Math.round(aplicado * 100) / 100;
@@ -1290,7 +1294,7 @@ export class CaixaService {
       const ap = await this.prisma.appointment.findUnique({ where: { id: appointmentId }, select: { value: true } });
       await this.prisma.appointment.update({ where: { id: appointmentId }, data: { value: Math.max(0, Math.round((Number(ap?.value || 0) - aplicado) * 100) / 100) } });
     }
-    return Math.round((d - aplicado) * 100) / 100;
+    return { naoCoube: Math.round((d - aplicado) * 100) / 100, partes };
   }
 
   /** O bruto e o desconto já abatido de uma venda — itens do tutor, fora os do convênio. */
@@ -1418,6 +1422,8 @@ export class CaixaService {
     // tinham de desconto, com as formas deste pagamento. Depois é repartido entre as vendas pelo
     // valor em aberto de cada uma e dividido nos itens (ratearDescontoNaVenda).
     const descontoAgora = Math.round(Number(dto?.desconto || 0) * 100) / 100;
+    // Quanto do desconto foi para cada linha, por venda — vai junto no recebimento daquela venda.
+    const descontoPorVenda = new Map<string, { itemId: string; valor: number }[]>();
     if (descontoAgora > 0.009) {
       if (descontoAgora > devido + 0.009) throw new BadRequestException('O desconto é maior que o valor em aberto.');
       let bruto = 0, jaDado = 0;
@@ -1430,7 +1436,8 @@ export class CaixaService {
       const partesDoDesconto = repartirDescontoDoLote(comandas, descontoAgora);
       for (const p of partesDoDesconto) {
         // O que não coube nos itens (venda sem itens do cliente) não abate o valor da venda.
-        const naoCoube = await this.ratearDescontoNaVenda(p.id, p.desconto);
+        const { naoCoube, partes: noItens } = await this.ratearDescontoNaVenda(p.id, p.desconto);
+        descontoPorVenda.set(p.id, noItens);
         const c = comandas.find((x) => x.id === p.id);
         if (c) c.aberto = Math.max(0, Number((c.aberto - (p.desconto - naoCoube)).toFixed(2)));
       }
@@ -1471,7 +1478,7 @@ export class CaixaService {
           troco: i === comFormas.length - 1 ? troco : 0,
           formas: p.formas,
           observacao: obs,
-        }, userId, papel, { descontoJaConferido: true });
+        }, userId, papel, { descontoJaConferido: true, descontoItens: descontoPorVenda.get(p.appointmentId) });
         quitadas.push(p.appointmentId);
       } catch (e: any) {
         falhou.push({ appointmentId: p.appointmentId, erro: String(e?.message || e) });
@@ -1489,7 +1496,7 @@ export class CaixaService {
     };
   }
 
-  async registrarRecebimento(caixaId: string, dto: any, userId: string, papel?: string, opts?: { descontoJaConferido?: boolean }) {
+  async registrarRecebimento(caixaId: string, dto: any, userId: string, papel?: string, opts?: { descontoJaConferido?: boolean; descontoItens?: { itemId: string; valor: number }[] }) {
     await this.exigirDonoDoCaixa(caixaId, userId, papel);
     const appointmentId = dto.appointmentId || null;
     // Normaliza: achata malformado (ex.: [[]] de baixa sem forma) e mantém só objetos {forma,valor} válidos.
@@ -1542,13 +1549,16 @@ export class CaixaService {
     }
 
     // O desconto dado agora vai para os itens da venda (dividido); só o que não couber fica aqui.
-    const descontoQueSobra = appointmentId ? await this.ratearDescontoNaVenda(appointmentId, Number(dto.desconto || 0)) : Number(dto.desconto || 0);
+    const rateio = appointmentId ? await this.ratearDescontoNaVenda(appointmentId, Number(dto.desconto || 0)) : { naoCoube: Number(dto.desconto || 0), partes: [] };
+    const descontoQueSobra = rateio.naoCoube;
+    const descontoItens = [...rateio.partes, ...(opts?.descontoItens || [])];
 
     const rec = await this.prisma.recebimento.create({
       data: {
         caixaSessaoId: caixaId, appointmentId,
         valorTotal: Number(dto.valorTotal || 0),
         desconto: descontoQueSobra,
+        ...(descontoItens.length ? { descontoItens } : {}),
         troco: Number(dto.troco || 0),
         formas,
         observacao: dto.observacao || null,
@@ -2058,7 +2068,11 @@ export class CaixaService {
       const ap = await this.prisma.appointment.findUnique({ where: { id: rec.appointmentId }, include: { recebimentos: true } });
       if (ap) {
         const pago = ap.recebimentos.reduce((s: number, r: any) => s + Number(r.valorTotal), 0);
-        await this.prisma.appointment.update({ where: { id: ap.id }, data: { paymentStatus: pago >= Number(ap.value) - 0.001 ? 'PAID' : 'PENDING' } });
+        const agoraPaga = pago >= Number(ap.value) - 0.001;
+        await this.prisma.appointment.update({ where: { id: ap.id }, data: { paymentStatus: agoraPaga ? 'PAID' : 'PENDING' } });
+        // Deixou de estar paga: o estoque que ela baixou volta (Cintia, 17/09/2026). Paga de novo,
+        // baixa de novo (baixarEstoqueDaVenda, na virada para PAID).
+        if (ap.paymentStatus === 'PAID' && !agoraPaga) await devolverEstoqueDaVenda(this.prisma as any, ap.id).catch((e) => console.error('[estoque] devolver:', e?.message));
         // Se a venda ficou SEM nenhum recebimento, a receita não deve ser reconhecida → remove receita e desconto do DRE.
         if (ap.recebimentos.length === 0) {
           await limparReceitaDaVenda(this.prisma as any, ap.id).catch(() => undefined);

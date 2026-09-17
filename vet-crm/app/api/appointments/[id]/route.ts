@@ -34,6 +34,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const q = new URLSearchParams();
   if (['true', '1'].includes(String(sp.get('force')))) q.set('force', 'true');
   if (['true', '1'].includes(String(sp.get('comRecebimento')))) q.set('comRecebimento', 'true');
+  // Agenda, tela do atendimento e documentos da ficha: venda não se apaga por ali (17/09/2026).
+  if (['true', '1'].includes(String(sp.get('naoApagarVenda')))) q.set('naoApagarVenda', 'true');
   const qs = q.toString() ? `?${q.toString()}` : '';
   return proxyToBackend(request, `/appointments/${encodeURIComponent(id)}${qs}`, { method: 'DELETE' });
 }
