@@ -230,6 +230,18 @@ export class CreateAppointmentItemDto {
   @IsOptional() @IsString()
   catalogoItemId?: string;
 
+  // EXAME: o carrinho manda `tipoItem: "EXAME"` e, no catálogo antigo, o `catalogoExameId` — é o que
+  // leva o exame para o Kanban. O ponto de venda já mandava isso pelo caminho do caixa; por esta
+  // porta o servidor recusava a venda inteira ("items.2.property tipoItem should not exist") e
+  // ninguém conseguia salvar uma venda com exame pelo carrinho (Cintia, 17/09/2026, venda da Pam).
+  @ApiPropertyOptional({ description: 'Tipo do item (EXAME) — o exame entra no Kanban' })
+  @IsOptional() @IsString()
+  tipoItem?: string;
+
+  @ApiPropertyOptional({ description: 'ID do exame no catálogo antigo' })
+  @IsOptional() @IsString()
+  catalogoExameId?: string;
+
   @ApiPropertyOptional({ description: 'ID do convênio que paga este item (Petlife etc.) — sai do total do tutor e vira a-receber mensal' })
   @IsOptional() @IsString()
   convenioId?: string;
