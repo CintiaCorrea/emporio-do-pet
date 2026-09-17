@@ -26,3 +26,13 @@ describe("excluir orçamento convertido nas fichas", () => {
     });
   }
 });
+
+// Cintia, 17/09/2026, com o print da tela de Orçamentos: "Ainda não consigo deletar orçamento".
+// O excluir só existia no carrinho da ficha; a lista de Orçamentos não tinha o botão.
+describe("excluir orçamento na tela de Orçamentos", () => {
+  it("cada linha tem Excluir, pelo mesmo caminho do carrinho", () => {
+    const src = ler("app", "(user)", "dashboard", "erp", "orcamentos", "page.tsx");
+    expect(src).toContain("onClick={() => excluirOrcamento(o)}");
+    expect(src).toContain("fetch(`/api/orcamentos/${o.id}`, { method: \"DELETE\" })");
+  });
+});

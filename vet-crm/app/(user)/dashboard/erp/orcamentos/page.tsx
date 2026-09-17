@@ -87,6 +87,18 @@ export default function OrcamentosPage() {
   );
 
 
+  // EXCLUIR DIRETO DA LISTA (Cintia, 17/09/2026: "Ainda não consigo deletar orçamento"). Só existia
+  // dentro do carrinho da ficha, e quem está nesta tela não achava. Mesmo caminho do carrinho.
+  async function excluirOrcamento(o: any) {
+    if (!confirm(`Excluir o orçamento de ${o.tutor?.name || "cliente"}${o.pet?.name ? ` (${o.pet.name})` : ""}, ${brl(o.valorTotal)}?`)) return;
+    try {
+      const r = await fetch(`/api/orcamentos/${o.id}`, { method: "DELETE" });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.message || "Não consegui excluir."); }
+      setOrcs((l) => l.filter((x) => x.id !== o.id));
+      toast.success("Orçamento excluído");
+    } catch (e: any) { toast.error(e?.message || "Não consegui excluir."); }
+  }
+
   async function abrirFollowUp(o: any) {
     setFuAberto(o); setFuAtual(null);
     if (o.petId) setFuAtual(await loadFuRespFor("pet", o.petId));
@@ -194,6 +206,7 @@ export default function OrcamentosPage() {
                           {o.petId && (
                             <Link href={`/dashboard/erp/pets/${o.petId}?carrinho=orcamento`} className="text-[11.5px] font-medium px-2.5 py-1.5 rounded-lg text-white" style={{ background: TEAL }}>Abrir orçamento</Link>
                           )}
+                          <button onClick={() => excluirOrcamento(o)} className="text-[11.5px] font-medium px-2.5 py-1.5 rounded-lg border" style={{ borderColor: "#F0CFCF", color: "#A32D2D", background: "#fff" }}>Excluir</button>
                         </div>
                       </td>
                     </tr>
