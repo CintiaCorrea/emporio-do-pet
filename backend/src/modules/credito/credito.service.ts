@@ -1,3 +1,4 @@
+import { abertoDaCobranca, ondeEntraNaCobranca } from '../../common/cobranca.regras';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { LancamentosService } from '../financeiro/lancamentos.service';
@@ -67,11 +68,13 @@ export class CreditoService {
     const credito = await this.saldo(tutorId);
     const now = new Date();
     const aps = await this.prisma.appointment.findMany({
-      where: { tutorId, value: { gt: 0 }, paymentStatus: { not: 'PAID' }, NOT: { notes: { contains: 'HOSPITALIZATION' } } },
-      select: { value: true, status: true, date: true },
+      // Cobrança pela regra única (common/cobranca.regras, 17/09/2026): venda de verdade, depois
+      // de 31/08, não cancelada; e o aberto desconta o que já foi recebido.
+      where: { tutorId, value: { gt: 0 }, paymentStatus: { not: 'PAID' }, AND: ondeEntraNaCobranca().AND },
+      select: { value: true, status: true, date: true, recebimentos: { select: { valorTotal: true } } },
     });
     let aReceber = 0;
-    for (const a of aps) if (realizadaAReceber(a.status, a.date, now)) aReceber += Number(a.value) || 0;
+    for (const a of aps) if (realizadaAReceber(a.status, a.date, now)) aReceber += abertoDaCobranca(a.value, a.recebimentos);
     return { credito: Number(credito) || 0, aReceber };
   }
 
@@ -91,14 +94,16 @@ export class CreditoService {
     const aps = await this.prisma.appointment.findMany({
       // Exclui a INTERNAÇÃO (value = diária) — quem gera o a-receber dela são as comandas diárias (venda),
       // senão a internação contava 2× no "Saldo dos clientes".
-      where: { value: { gt: 0 }, paymentStatus: { not: 'PAID' }, NOT: { notes: { contains: 'HOSPITALIZATION' } } },
-      select: { tutorId: true, value: true, status: true, date: true },
+      // Regra única de cobrança (common/cobranca.regras, 17/09/2026) — já deixa o registro de
+      // internação de fora, junto com orçamento, venda cancelada e agosto.
+      where: { value: { gt: 0 }, paymentStatus: { not: 'PAID' }, AND: ondeEntraNaCobranca().AND },
+      select: { tutorId: true, value: true, status: true, date: true, recebimentos: { select: { valorTotal: true } } },
     });
     const receber = new Map<string, number>();
     for (const a of aps) {
       if (!a.tutorId) continue;
       if (!realizadaAReceber(a.status, a.date, now)) continue;
-      receber.set(a.tutorId, (receber.get(a.tutorId) || 0) + (Number(a.value) || 0));
+      receber.set(a.tutorId, (receber.get(a.tutorId) || 0) + abertoDaCobranca(a.value, a.recebimentos));
     }
     // (3) saldo líquido = crédito − a receber
     const tutorIds = Array.from(new Set<string>([...credito.keys(), ...receber.keys()]));

@@ -633,7 +633,10 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     (acc: { total: number; aberto: number; qtdAberto: number }, a: any) => {
       const v = Number(a.value) || 0;
       acc.total += v;
-      if (v > 0 && a.paymentStatus && a.paymentStatus !== "PAID") { acc.aberto += v; acc.qtdAberto++; }
+      // O servidor já manda quanto falta pela regra única de cobrança (sem agosto, sem registro de
+      // internação, descontando o recebido). O status solto fica só para dado antigo sem o campo.
+      const ab = a.aberto != null ? Number(a.aberto) || 0 : (v > 0 && a.paymentStatus && a.paymentStatus !== "PAID" ? v : 0);
+      if (ab > 0.009) { acc.aberto += ab; acc.qtdAberto++; }
       return acc;
     },
     { total: 0, aberto: 0, qtdAberto: 0 },
@@ -1236,6 +1239,8 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
             const valor = Number(a.value) || 0;
             const situacao = pago >= valor - 0.005 && valor > 0
               ? { l: "Baixado", bg: "#E7F6EF", c: "#0F6E56" }
+              : a.historico
+                ? { l: "Histórico", bg: "#EEF0F1", c: "#5C6B70" }
               : pago > 0
                 ? { l: "Baixa parcial", bg: "#FDF6E3", c: "#854F0B" }
                 : { l: "Em aberto", bg: "#FDECEC", c: "#b23b39" };

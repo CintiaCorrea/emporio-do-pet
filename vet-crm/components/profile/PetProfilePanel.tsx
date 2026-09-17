@@ -15,6 +15,8 @@ interface Stats {
   diasAteProxima: number | null;
   valorTotal: number;
   valorPago: number;
+  /** A receber pela regra única de cobrança do servidor (17/09/2026). */
+  valorAReceber?: number;
   ticketMedio: number;
   idadeAnos: number | null;
   idadeMeses: number | null;
@@ -89,7 +91,7 @@ export default function PetProfilePanel({ petId }: { petId: string }) {
           </div>
           <div>
             <div className="text-[11px] text-gray-500">A receber</div>
-            <div className="text-lg font-semibold mt-0.5 tabular-nums" style={{ color: (stats.valorTotal - stats.valorPago) > 0 ? "#A32D2D" : "#1A1A1A" }}>{fmtR(stats.valorTotal - stats.valorPago)}</div>
+            <div className="text-lg font-semibold mt-0.5 tabular-nums" style={{ color: (stats.valorAReceber ?? stats.valorTotal - stats.valorPago) > 0 ? "#A32D2D" : "#1A1A1A" }}>{fmtR(stats.valorAReceber ?? stats.valorTotal - stats.valorPago)}</div>
           </div>
         </div>
       </div>

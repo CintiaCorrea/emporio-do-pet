@@ -1,3 +1,4 @@
+import { abertoDaCobranca, ehHistorico, entraNaCobranca } from '../../common/cobranca.regras';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
@@ -545,6 +546,8 @@ export class TutorsService {
     });
 
     const linhas = vendas.map((a) => {
+      // Agosto é histórico (common/cobranca.regras): aparece no extrato, mas não soma no aberto.
+      const cobra = entraNaCobranca(a as any);
       const pago = (a.recebimentos || []).reduce((s, r) => s + Number(r.valorTotal || 0), 0);
       const valor = Number(a.value || 0);
       // Forma de pagamento so' aparece quando houve recebimento; a venda em aberto nao tem.
@@ -559,7 +562,8 @@ export class TutorsService {
         pet: a.pet?.name ?? null,
         valor,
         pago,
-        aberto: Math.max(0, Number((valor - pago).toFixed(2))),
+        aberto: cobra ? Math.max(0, Number((valor - pago).toFixed(2))) : 0,
+        historico: ehHistorico(a.date),
         paymentStatus: a.paymentStatus,
         observacao: a.description ?? null,
         formaPagamento: formas.length ? [...new Set(formas)].join(' + ') : (a.paymentMethod ?? null),
@@ -582,7 +586,7 @@ export class TutorsService {
         qtd: linhas.length,
         total: +total.toFixed(2),
         recebido: +recebido.toFixed(2),
-        aberto: +(total - recebido).toFixed(2),
+        aberto: +linhas.reduce((s, l) => s + l.aberto, 0).toFixed(2),
       },
     };
   }
@@ -595,7 +599,8 @@ export class TutorsService {
       where: { tutorId },
       select: {
         id: true, date: true, value: true, status: true, paymentStatus: true, petId: true,
-        numeroVenda: true, description: true, type: true,
+        numeroVenda: true, description: true, type: true, notes: true,
+        recebimentos: { select: { valorTotal: true } },
       },
       orderBy: { date: 'desc' },
     });
@@ -604,7 +609,9 @@ export class TutorsService {
     const ultima = realizadas[0];
     const valorTotal = realizadas.reduce((s, a) => s + (a.value || 0), 0);
     const valorPago = realizadas.filter(a => a.paymentStatus === 'PAID').reduce((s, a) => s + (a.value || 0), 0);
-    const valorAReceber = valorTotal - valorPago;
+    // A RECEBER pela regra única de cobrança (common/cobranca.regras, 17/09/2026). Antes somava
+    // tudo que não estava marcado como pago — o registro de internação, orçamento e agosto juntos.
+    const valorAReceber = apps.filter((a) => entraNaCobranca(a as any)).reduce((s, a) => s + abertoDaCobranca(a.value, a.recebimentos), 0);
 
     // Frequência últimos 12 meses
     const freq: { mes: string; total: number; valor: number }[] = [];
@@ -648,6 +655,10 @@ export class TutorsService {
       status: a.status,
       paymentStatus: a.paymentStatus,
       numeroVenda: a.numeroVenda ?? null,
+      // O que foi recebido e o que falta, para a ficha não mostrar "Em aberto" antes de abrir a venda.
+      pago: +((a.recebimentos || []).reduce((s, r) => s + Number(r.valorTotal || 0), 0)).toFixed(2),
+      aberto: entraNaCobranca(a as any) ? abertoDaCobranca(a.value, a.recebimentos) : 0,
+      historico: ehHistorico(a.date),
       description: a.description ?? null,
       type: a.type,
       pet: a.petId ? { name: nomePet.get(a.petId) ?? null } : null,

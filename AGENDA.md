@@ -101,7 +101,18 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   vendas: detalhe da venda ganha Total liquido/Baixado/Em aberto e "Baixas efetuadas" (forma,
   modalidade, parcelas, bandeira, AUT/NSU, caixa, quem lancou). Servidor: `GET /caixa/recebimentos`
   aceita `appointmentId` e devolve `caixa` e `formasRotulo`; resumo ganha `porFormaCondicao`
-  (caixa/recebimentos-da-tela.regras). Sem data de parcela (nao e gravada).
+  (caixa/recebimentos-da-tela.regras). Sem data de parcela (nao e gravada). Publicado (api v855, web v1687).
+- [x] **#1128 Pixie — Opcao B aplicada** (17/09): recebimento de 04/09 dividido (#1128 856,85 · #1057 450 ·
+  #1060 625 · #1083 4,75), desconto #1083 368,25 e #1061 625; receita #1128 1936,60->856,85 e taxa
+  122,39->54,15 (rotina do financeiro lanca as partes de agosto). Script: scratchpad marceloB.js.
+- [x] **Cobranca por regra unica + corte 31/08 23:59** (17/09, `common/cobranca.regras`): entra na
+  cobranca = venda (ehVenda) + data > 31/08 23:59 + nao cancelada; aberto = valor - recebido. Aplicado em
+  caixa/vendas?abertas (Deve R$, PDV, gaveta, Consulta), resumo de Recebimentos "Em aberto", saldo dos
+  clientes/credito, ficha do cliente (vendas, profileStats A receber, compras com pago/aberto/historico),
+  ficha do pet (valorAReceber), Consulta de vendas (selo "Historico", sem Receber, fora do a receber).
+  Medido: lista de cobranca 90 vendas R$ 53.317,59 -> 34 R$ 12.426,23 (56 de agosto, R$ 40.891,36, viram
+  historico); clientes com "Deve" 46 -> 12; 4 registros de internacao (R$ 532,80) saem do "a receber".
+  Fora (P1 relatorios): vendasResumo, ranking, dashboard PENDING, relatorio de consultas.
 - [ ] Proximo: B internacao (Luna internada) · D atendimento + Inbox (venda rapida falha sem userId;
   enviar PDF e registrar na ficha) · E SimplesVet so consulta · P1 regra unica de venda nos relatorios.
 - [ ] Ao final: varredura da tela do ponto de venda (recebimento) e revisao da tabela de

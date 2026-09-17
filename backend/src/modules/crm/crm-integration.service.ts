@@ -1,3 +1,4 @@
+import { ehHistorico } from '../../common/cobranca.regras';
 import { Injectable, Logger } from '@nestjs/common';
 import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
@@ -1115,6 +1116,8 @@ export class CrmIntegrationService {
         pago: pagoVenda,
         aberto: abertoDaVenda(a.value, a.recebimentos),
         situacao: situacaoDaVenda(a.value, a.recebimentos),
+        // Até 31/08 23:59 é histórico: a tela mostra, mas não oferece receber (common/cobranca.regras).
+        historico: ehHistorico(a.date),
         recebimentos: (a.recebimentos || []).map((r) => ({
           valor: r.valorTotal || 0,
           data: r.data,
@@ -1184,6 +1187,8 @@ export class CrmIntegrationService {
       .map((g) => ({ ...g, reconhecido: Number(g.reconhecido.toFixed(2)), aReconhecer: Number(Math.max(0, g.valor - g.reconhecido).toFixed(2)) }))
       .sort((a, b) => b.valor - a.valor);
 
+    // O que agosto deixou em aberto não é "a receber" (common/cobranca.regras).
+    const abertoHistorico = vendas.filter((v: any) => v.historico).reduce((s: number, v: any) => s + Number(v.aberto || 0), 0);
     const qtd = vendas.length;
     const ticket = qtd > 0 ? liquido / qtd : 0;
 
@@ -1197,7 +1202,7 @@ export class CrmIntegrationService {
         descontos,
         recebido,
         // O que falta receber do periodo. Nunca negativo, pelo mesmo motivo do pagoVenda.
-        aberto: Math.max(0, liquido - recebido),
+        aberto: Math.max(0, liquido - recebido - abertoHistorico),
       },
     };
   }

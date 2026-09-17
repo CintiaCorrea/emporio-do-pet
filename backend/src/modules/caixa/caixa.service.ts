@@ -1,3 +1,4 @@
+import { abertoDaCobranca, ehHistorico, ondeEntraNaCobranca } from '../../common/cobranca.regras';
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppointmentsService } from '../appointments/appointments.service';
@@ -326,6 +327,9 @@ export class CaixaService {
       // Só VENDAS entram no "a pagar": consulta/alta clínica (sem numeroVenda) fica de fora.
       // O numeroVenda é atribuído a todo atendimento que nasce como venda (PDV, comanda, saldo migrado).
       where.numeroVenda = { not: null };
+      // COBRANÇA (common/cobranca.regras, Cintia 17/09/2026): só venda de verdade, depois do
+      // corte de 31/08 23:59 e não cancelada. Agosto fica para consulta.
+      where.AND = ondeEntraNaCobranca().AND;
       // Venda com data FUTURA não some mais: sai da lista principal e volta marcada como
       // "a cobrar em breve" (futura: true), pra ninguém perder cobrança lançada pra frente.
       // O agendamento puro continua fora — ele não tem numeroVenda.
@@ -378,6 +382,8 @@ export class CaixaService {
         valor, pago, aberto: Math.max(0, valor - pago), status: a.paymentStatus,
         itens: a._count?.items ?? 0,
         pagoTotal: pago >= valor - 0.001 && valor > 0, date: a.date, origem,
+        // Venda até 31/08 23:59: aparece, mas não se cobra (common/cobranca.regras).
+        historico: ehHistorico(a.date),
       };
     });
     // "Comandas abertas": só o que ainda tem saldo e NÃO é internação (essa é faturada pela conta da F5)
@@ -649,10 +655,12 @@ export class CaixaService {
     }
     const cred = await this.prisma.creditoMovimento.findMany({ where: { tipo: "RECARGA", ...(where.data ? { data: where.data } : {}) } });
     const adiantamento = cred.reduce((s, c) => s + Number(c.valor), 0);
-    const apWhere: any = { value: { gt: 0 } };
+    // Em aberto só de venda que entra na cobrança (common/cobranca.regras): o registro de
+    // internação, o orçamento, a venda cancelada e agosto ficam fora.
+    const apWhere: any = { value: { gt: 0 }, AND: ondeEntraNaCobranca().AND };
     if (where.data) apWhere.date = where.data;
     const aps = await this.prisma.appointment.findMany({ where: apWhere, select: { value: true, recebimentos: { select: { valorTotal: true } } } });
-    const emAberto = aps.reduce((s, a) => { const pago = (a.recebimentos || []).reduce((x, r) => x + Number(r.valorTotal), 0); return s + Math.max(0, Number(a.value) - pago); }, 0);
+    const emAberto = aps.reduce((s, a) => s + abertoDaCobranca(a.value, a.recebimentos), 0);
     const toArr = (m: Map<string, number>) => [...m.entries()].map(([nome, valor]) => ({ nome, valor })).sort((a, b) => b.valor - a.valor);
     return {
       kpis: { noDia, posteriores, adiantamento, receitaTotal, emAberto },

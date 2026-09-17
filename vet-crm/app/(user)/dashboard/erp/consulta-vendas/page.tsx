@@ -54,6 +54,8 @@ interface Venda {
   pago: number;
   aberto: number;
   situacao: 'ABERTA' | 'PARCIAL' | 'PAGA';
+  /** Venda até 31/08 23:59: só consulta, não entra na cobrança (backend common/cobranca.regras). */
+  historico?: boolean;
   cliente: string | null;
   clienteId: string;
   pet: string | null;
@@ -107,7 +109,11 @@ function StatusPill({ v }: { v: Venda }) {
   // Tres estados, tres cores — do jeito que a recepcao le a lista: o que falta receber e
   // vermelho, o que entrou pela metade e ambar, o que fechou e verde. A cor sai do MESMO
   // calculo do backend (consulta-vendas.regras), nunca de um texto de status solto.
-  const cfg = v.situacao === 'PAGA'
+  // HISTÓRICO (Cintia, 17/09/2026: corte em 31/08 23:59): o que agosto deixou sem baixa aparece
+  // para consulta, em cinza — não é "Aberto", porque não se cobra.
+  const cfg = v.historico && v.situacao !== 'PAGA'
+    ? { bg: '#EEF0F1', fg: '#5C6B70', label: 'Histórico' }
+    : v.situacao === 'PAGA'
     ? { bg: '#E6F3EA', fg: GREEN, label: 'Baixado' }
     : v.situacao === 'PARCIAL'
       ? { bg: '#FEF3D7', fg: '#946200', label: 'Baixa parcial' }
@@ -116,7 +122,7 @@ function StatusPill({ v }: { v: Venda }) {
     <span
       className="inline-flex items-center rounded-full font-medium"
       style={{ background: cfg.bg, color: cfg.fg, fontSize: 11.5, padding: '3px 9px' }}
-      title={v.situacao === 'PARCIAL' ? `Pago ${brl(v.pago)} · falta ${brl(v.aberto)}` : undefined}
+      title={v.historico && v.situacao !== 'PAGA' ? 'Venda até 31/08: só consulta, não entra na cobrança' : v.situacao === 'PARCIAL' ? `Pago ${brl(v.pago)} · falta ${brl(v.aberto)}` : undefined}
     >
       {cfg.label}
     </span>
@@ -505,7 +511,7 @@ function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber,
                       style={{ border: `1px solid ${CORAL}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: CORAL, background: '#fff', cursor: 'pointer' }}
                     >🔓 Reabrir</button>
                   ) : null}
-                  {onReceber && (v.aberto ?? 0) > 0.009 ? (
+                  {onReceber && (v.aberto ?? 0) > 0.009 && !v.historico ? (
                     <button
                       onClick={(e) => { e.stopPropagation(); onReceber(v); }}
                       title="Receber esta venda — e ver as outras em aberto deste cliente"

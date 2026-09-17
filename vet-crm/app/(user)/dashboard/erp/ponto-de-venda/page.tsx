@@ -762,7 +762,8 @@ export default function PDVPage() {
   // A comanda aparece NO DIA EM QUE ESTÁ ABERTA (Cintia, 07/09/2026) — o seletor de data manda
   // na lista. O acumulado do cliente não mora aqui: ele aparece na hora de receber.
   const vendasFiltradas = useMemo(() => vendas
-    .filter((v: any) => Number(v.valor) > 0 && !v.pagoTotal && !v.futura)
+    // Agosto é histórico (corte 31/08 23:59): não aparece como conta a receber do dia.
+    .filter((v: any) => Number(v.valor) > 0 && !v.pagoTotal && !v.futura && !v.historico)
     .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()),
     [vendas]);
   // O orçamento fica NO DIA EM QUE FOI FEITO — igual à venda (Cintia, 07/09/2026: "os

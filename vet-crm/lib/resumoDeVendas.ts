@@ -40,6 +40,8 @@ export type VendaDoResumo = {
   valor?: number | null;
   pago?: number | null;
   situacao?: "ABERTA" | "PARCIAL" | "PAGA";
+  /** Venda até 31/08 23:59 — só consulta; o que ficou sem baixa não é "a receber". */
+  historico?: boolean;
   funcionario?: string | null;
   itens?: ItemDaVenda[] | null;
   recebimentos?: RecebimentoDaVenda[] | null;
@@ -61,7 +63,7 @@ function daVenda(v: VendaDoResumo) {
   }
   const liquido = n(v.valor);
   const pago = Math.max(0, Math.min(n(v.pago), liquido));
-  return { bruto, desconto, liquido, pago, aberto: Math.max(0, liquido - pago) };
+  return { bruto, desconto, liquido, pago, aberto: v.historico ? 0 : Math.max(0, liquido - pago) };
 }
 
 export type LinhaDia = { dia: string; qtd: number; ticket: number; bruto: number; desconto: number; percentual: number; liquido: number; recebido: number; aberto: number };

@@ -1,3 +1,4 @@
+import { abertoDaCobranca, entraNaCobranca } from '../../common/cobranca.regras';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
@@ -391,7 +392,7 @@ export class PetsService {
     const [appointments, todayCount, futuras] = await Promise.all([
       this.prisma.appointment.findMany({
         where: { petId },
-        select: { id: true, date: true, value: true, status: true, paymentStatus: true, description: true },
+        select: { id: true, date: true, value: true, status: true, paymentStatus: true, description: true, numeroVenda: true, type: true, notes: true, recebimentos: { select: { valorTotal: true } } },
         orderBy: { date: 'desc' },
       }),
       this.prisma.appointment.count({ where: { petId, status: { not: 'CANCELLED' } } }),
@@ -445,6 +446,8 @@ export class PetsService {
       diasAteProxima,
       valorTotal: +valorTotal.toFixed(2),
       valorPago: +valorPago.toFixed(2),
+      // A receber pela regra única de cobrança (common/cobranca.regras, 17/09/2026).
+      valorAReceber: +appointments.filter((a) => entraNaCobranca(a as any)).reduce((s, a) => s + abertoDaCobranca(a.value, a.recebimentos), 0).toFixed(2),
       ticketMedio: realizadas.length > 0 ? +(valorTotal / realizadas.length).toFixed(2) : 0,
       idadeAnos, idadeMeses,
       pesoAtual: pet.weight,
