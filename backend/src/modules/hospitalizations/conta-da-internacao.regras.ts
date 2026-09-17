@@ -67,3 +67,37 @@ export function novosDepoisDaCobranca<T extends { baixado?: boolean; _criadoEm?:
     return Number.isFinite(t) && t > corte;
   });
 }
+
+/**
+ * A DIÁRIA VEM DO CADASTRO E DO PESO (construção B5, Cintia: "diária e itens só do cadastro,
+ * diária por faixa de peso"). Antes era um número digitado na internação — dois pets do mesmo
+ * porte podiam ter diárias diferentes, e o preço do cadastro não valia para nada aqui.
+ *
+ * As três respostas, no molde do ponto de venda (`lancarDoCadastro`):
+ *   · item sem faixa       → o preço do cadastro;
+ *   · com faixa e com peso → o preço da faixa;
+ *   · com faixa e sem peso → não resolve, e diz o que fazer (registrar o peso).
+ */
+export type DiariaResolvida =
+  | { ok: true; valor: number; custo: number | null; rotuloDaFaixa: string | null }
+  | { ok: false; motivo: 'sem_peso' | 'sem_preco'; mensagem: string };
+
+export function resolverDiaria(
+  item: { nome?: string | null; preco?: number | null; custo?: number | null; faixas?: any[] | null },
+  pesoKg: number | null | undefined,
+  petNome?: string | null,
+  precoPorPorte?: (i: any, p: number | null | undefined) => { preco: number | null; custo: number | null; faixa: any; aviso: string | null },
+): DiariaResolvida {
+  const nome = String(item?.nome || 'A diária').trim();
+  const temFaixa = Array.isArray(item?.faixas) && item.faixas.length > 0;
+  if (temFaixa && !(Number(pesoKg) > 0)) {
+    return { ok: false, motivo: 'sem_peso', mensagem: `${nome} é cobrada pelo peso. Registre o peso ${petNome ? `de ${petNome} ` : 'do animal '}para internar.` };
+  }
+  const r = precoPorPorte
+    ? precoPorPorte({ preco: item?.preco ?? null, custo: item?.custo ?? null, faixas: item?.faixas || [] }, pesoKg)
+    : { preco: item?.preco ?? null, custo: item?.custo ?? null, faixa: null, aviso: null };
+  if (!(Number(r.preco) > 0)) {
+    return { ok: false, motivo: 'sem_preco', mensagem: `${nome} está sem preço no cadastro para este porte. Ajuste o cadastro antes de internar.` };
+  }
+  return { ok: true, valor: Number(r.preco), custo: r.custo != null ? Number(r.custo) : null, rotuloDaFaixa: r.faixa?.rotulo ?? null };
+}

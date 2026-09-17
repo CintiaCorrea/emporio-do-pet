@@ -1,4 +1,5 @@
-import { comData, jaEstaNaConta, novosDepoisDaCobranca } from './conta-da-internacao.regras';
+import { comData, jaEstaNaConta, novosDepoisDaCobranca, resolverDiaria } from './conta-da-internacao.regras';
+import { lerFaixas, precoPorPorte } from '../../common/porte';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BoardsService } from '../boards/boards.service';
@@ -42,6 +43,32 @@ export class HospitalizationsService {
   // "COMANDA DO DIA" SAIU (construção B, 17/09/2026). Era o segundo caminho de cobrança da
   // internação: faturava de novo a diária e os itens que as vendas de cada dia já cobram
   // (sincronizarVendasDosDiasAbertos). A Cintia viu a conta dobrada em Chico, Kate e Luna.
+  /**
+   * A DIARIA SAI DO CADASTRO, PELA FAIXA DE PESO (construcao B5, 17/09/2026).
+   *
+   * Era um numero digitado na internacao: dois pets do mesmo porte podiam ter diarias diferentes,
+   * e o preco do cadastro nao valia aqui. Agora o valor vem do item escolhido e do peso do animal
+   * — a mesma regra do ponto de venda (common/porte.precoPorPorte).
+   */
+  private async diariaDoCadastro(catalogoItemId: string, petId?: string | null) {
+    const item = await this.prisma.itemCatalogo.findUnique({
+      where: { id: catalogoItemId },
+      select: { nome: true, preco: true, custo: true, precosPorte: true },
+    });
+    if (!item) throw new BadRequestException('A diária escolhida não está no cadastro de produtos e serviços.');
+    const pet = petId
+      ? await this.prisma.pet.findUnique({ where: { id: petId }, select: { name: true, weight: true } })
+      : null;
+    const r = resolverDiaria(
+      { nome: item.nome, preco: item.preco, custo: item.custo, faixas: lerFaixas(item.precosPorte) },
+      pet?.weight ?? null,
+      pet?.name ?? null,
+      precoPorPorte as any,
+    );
+    if (!r.ok) throw new BadRequestException(r.mensagem);
+    return r;
+  }
+
   /**
    * LANCAR ITEM NA CONTA — a porta unica (construcao B, 17/09/2026).
    *
@@ -506,13 +533,19 @@ export class HospitalizationsService {
   }
 
   async create(dto: CreateHospitalizationDto) {
+    // A DIÁRIA VEM DO CADASTRO E DO PESO (B5, 17/09/2026). Escolhido o item, o valor digitado não
+    // manda mais: o preço é o da faixa do animal. Sem item escolhido, segue o valor informado —
+    // internação antiga e importada continuam abrindo.
+    const diariaDoCat = (dto as any).diariaCatalogoItemId
+      ? await this.diariaDoCadastro(String((dto as any).diariaCatalogoItemId), (dto as any).petId)
+      : null;
     const metadata: HospitalizationMetadata = {
       type: 'HOSPITALIZATION',
       roomNumber: dto.roomNumber,
-      dailyRate: dto.dailyRate,
+      dailyRate: diariaDoCat ? diariaDoCat.valor : dto.dailyRate,
       diariaServicoId: (dto as any).diariaServicoId,
       diariaCatalogoItemId: (dto as any).diariaCatalogoItemId,
-      diariaCusto: (dto as any).diariaCusto,
+      diariaCusto: diariaDoCat ? diariaDoCat.custo ?? undefined : (dto as any).diariaCusto,
       priority: (dto.priority as any) || 'MEDIUM',
       estimatedDischargeDate: dto.estimatedDischargeDate,
       diagnosis: dto.diagnosis,
@@ -699,7 +732,21 @@ export class HospitalizationsService {
       } as HospitalizationMetadata);
 
     if (dto.roomNumber !== undefined) metadata.roomNumber = dto.roomNumber;
-    if (dto.dailyRate !== undefined) metadata.dailyRate = dto.dailyRate;
+    // TROCAR A DIÁRIA É TROCAR O ITEM DO CADASTRO (B5, 17/09/2026): o valor vem do cadastro e do
+    // peso do animal. O número digitado só vale para internação sem item escolhido (as antigas).
+    const novaDiaria = (dto as any).diariaCatalogoItemId
+      ? await this.diariaDoCadastro(String((dto as any).diariaCatalogoItemId), current.petId)
+      : null;
+    if (novaDiaria) {
+      metadata.dailyRate = novaDiaria.valor;
+      (metadata as any).diariaCatalogoItemId = String((dto as any).diariaCatalogoItemId);
+      (metadata as any).diariaCusto = novaDiaria.custo ?? undefined;
+    } else if (dto.dailyRate !== undefined) {
+      if ((metadata as any).diariaCatalogoItemId) {
+        throw new BadRequestException('A diária desta internação vem do cadastro: troque o item da diária em vez de digitar o valor.');
+      }
+      metadata.dailyRate = dto.dailyRate;
+    }
     if (dto.priority !== undefined) metadata.priority = dto.priority as any;
     if (dto.estimatedDischargeDate !== undefined)
       metadata.estimatedDischargeDate = dto.estimatedDischargeDate;

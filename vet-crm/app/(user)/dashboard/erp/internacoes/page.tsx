@@ -594,9 +594,11 @@ export default function InternacoesPage() {
                       onPick={(c: any) => { pickDiaria(c); setDiariaBusca(""); }}
                     />
                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                      {form.diariaNome ? <span className="text-[11px] text-[#0E5560] bg-[#E0F0F2] rounded-full px-2 py-0.5">🗂️ {form.diariaNome}{form.diariaCusto != null ? ` · custo ${fmtBRL(Number(form.diariaCusto))}` : ""}</span> : <span className="text-[11px] text-[#8A857A]">ou digite o valor manual →</span>}
-                      <label className="text-[10.5px] text-[#374151] uppercase tracking-wide">Valor/dia (R$)</label>
-                      <input type="number" min={0} step="0.01" value={form.dailyRate} onChange={(e) => setForm({ ...form, dailyRate: e.target.value })} placeholder="0,00" className="w-28 bg-white border rounded-lg px-3 py-1.5 text-[13px] text-[#1F2A2E] focus:outline-none focus:border-[#009AAC] focus:ring-2 focus:ring-[#E0F4F6]" style={{ borderColor: "#E8E2D6" }} /></div>
+                      {form.diariaNome ? <span className="text-[11px] text-[#0E5560] bg-[#E0F0F2] rounded-full px-2 py-0.5">🗂️ {form.diariaNome}{form.diariaCusto != null ? ` · custo ${fmtBRL(Number(form.diariaCusto))}` : ""}</span> : <span className="text-[11px] text-[#8A857A]">escolha a diária no cadastro acima</span>}
+                      {/* O VALOR VEM DO CADASTRO, PELA FAIXA DE PESO (B5, 17/09/2026): não se digita
+                          diária, como não se digita preço de item no ponto de venda. */}
+                      <label className="text-[10.5px] text-[#374151] uppercase tracking-wide">Valor/dia</label>
+                      <span title="Preço do cadastro, pela faixa de peso do animal" className="w-28 bg-[#F7F5EF] border rounded-lg px-3 py-1.5 text-[13px] text-[#1F2A2E] inline-block" style={{ borderColor: "#E8E2D6" }}>{fmtBRL(Number(form.dailyRate) || 0)}</span></div>
                     {/* ⚖️ a faixa que decidiu o valor — só aparece em diária cobrada por porte */}
                     {lerFaixas(diariaItem?._precosPorte).length > 0 && (
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">

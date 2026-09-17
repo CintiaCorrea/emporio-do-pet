@@ -237,12 +237,15 @@ export default function FichaInternacaoPage() {
   // editada à mão — era o caminho manual pra fazer o que o sistema passou a fazer sozinho.
   // Foi ele que deixou a ficha da Kate (migrada à mão) diferente das outras.
   const [diariaSalvando, setDiariaSalvando] = useState(false);
-  const definirDiaria = async (valor: number) => {
-    if (!Number.isFinite(valor) || valor < 0) { alert("Informe um valor válido para a diária."); return; }
+  // A DIÁRIA VEM DO CADASTRO, PELA FAIXA DE PESO (B5, 17/09/2026). Manda o item escolhido; o
+  // servidor resolve o preço pelo peso do animal. O número só vai quando não há item no cadastro.
+  const definirDiaria = async (valor: number, catalogoItemId?: string) => {
+    if (!catalogoItemId && (!Number.isFinite(valor) || valor < 0)) { alert("Informe um valor válido para a diária."); return; }
     setDiariaSalvando(true);
     try {
       const antes = Number(h?.dailyRate) || 0;
-      const res = await fetch(`/api/hospitalizations/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ dailyRate: valor }) });
+      const corpo = catalogoItemId ? { diariaCatalogoItemId: catalogoItemId } : { dailyRate: valor };
+      const res = await fetch(`/api/hospitalizations/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(corpo) });
       if (!res.ok) throw new Error();
       await logInterno("editou", "diaria", id, { dailyRate: antes }, { dailyRate: valor });
       load();
@@ -254,7 +257,8 @@ export default function FichaInternacaoPage() {
     const it = servicos.find((x: any) => /di[áa]ria de interna/i.test(x?.nome || ""));
     if (!it || !pesoPet) return null;
     const l = linhaDoItem(it as any, pesoPet);
-    return l.valorUnitario > 0 ? { valor: l.valorUnitario, faixa: l._faixaRotulo } : null;
+    // Leva o ITEM DO CADASTRO junto: quem manda no valor é ele, não o número (B5, 17/09/2026).
+    return l.valorUnitario > 0 ? { valor: l.valorUnitario, faixa: l._faixaRotulo, catalogoItemId: (it as any).id } : null;
   }, [servicos, pesoPet]);
 
   const [caucaoSaldo, setCaucaoSaldo] = useState(0);
@@ -2344,7 +2348,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                       {diariaSugerida && <> Pela tabela por peso, {pesoPet} kg cai em <b>{diariaSugerida.faixa}</b>: {fmtBRL(diariaSugerida.valor)}/dia.</>}
                     </div>
                     {diariaSugerida && podeEditar && (
-                      <button onClick={() => definirDiaria(diariaSugerida.valor)} disabled={diariaSalvando} className="text-[11.5px] font-medium px-2.5 py-1 rounded-lg text-white bg-[#009AAC] flex-shrink-0 disabled:opacity-60">{diariaSalvando ? "…" : `usar ${fmtBRL(diariaSugerida.valor)}`}</button>
+                      <button onClick={() => definirDiaria(diariaSugerida.valor, diariaSugerida.catalogoItemId)} disabled={diariaSalvando} className="text-[11.5px] font-medium px-2.5 py-1 rounded-lg text-white bg-[#009AAC] flex-shrink-0 disabled:opacity-60">{diariaSalvando ? "…" : `usar ${fmtBRL(diariaSugerida.valor)}`}</button>
                     )}
                   </div>
                 )}

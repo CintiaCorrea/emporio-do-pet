@@ -46,3 +46,13 @@ describe('o caminho que cobrava em dobro saiu', () => {
     expect(svc).toContain('Venda complementar da internação');
   });
 });
+
+// B5: a diária sai do cadastro e do peso — não é mais um número digitado na internação.
+describe('a diária vem do cadastro e do peso', () => {
+  it('internar e trocar a diária resolvem o valor pelo cadastro', () => {
+    expect(svc).toContain('private async diariaDoCadastro');
+    expect(svc).toContain('resolverDiaria(');
+    expect(svc).toContain('dailyRate: diariaDoCat ? diariaDoCat.valor : dto.dailyRate');
+    expect(svc).toContain('A diária desta internação vem do cadastro');
+  });
+});

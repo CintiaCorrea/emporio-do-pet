@@ -51,3 +51,42 @@ describe('o que chegou depois de o dia ser cobrado', () => {
     expect(novosDepoisDaCobranca(ITENS, null)).toEqual([]);
   });
 });
+
+// B5: a diária sai do cadastro, pela faixa de peso do animal (Cintia, 16/09/2026).
+import { resolverDiaria } from './conta-da-internacao.regras';
+import { precoPorPorte } from '../../common/porte';
+
+const DIARIA = {
+  nome: 'Diária de internação',
+  preco: 0,
+  faixas: [
+    { ate: 10, rotulo: '0 a 10 kg', preco: 150 },
+    { ate: 20, rotulo: '11 a 20 kg', preco: 175 },
+    { ate: null, rotulo: 'acima de 20 kg', preco: 210 },
+  ],
+};
+
+describe('a diária da internação', () => {
+  it('sai do cadastro pela faixa do peso — a Luna, com 9 kg, paga 150', () => {
+    const r = resolverDiaria(DIARIA, 9, 'Luna', precoPorPorte as any);
+    expect(r).toEqual({ ok: true, valor: 150, custo: null, rotuloDaFaixa: '0 a 10 kg' });
+  });
+
+  it('pet de 15 kg cai na faixa de 175', () => {
+    const r = resolverDiaria(DIARIA, 15, 'Chico', precoPorPorte as any) as any;
+    expect(r.valor).toBe(175);
+  });
+
+  it('sem o peso, não interna: pede o peso', () => {
+    const r = resolverDiaria(DIARIA, null, 'Luna', precoPorPorte as any) as any;
+    expect(r.ok).toBe(false);
+    expect(r.motivo).toBe('sem_peso');
+    expect(r.mensagem).toContain('Registre o peso de Luna');
+  });
+
+  it('item de diária sem preço no cadastro não interna', () => {
+    const r = resolverDiaria({ nome: 'Diária', preco: 0, faixas: [] }, 9, 'Luna', precoPorPorte as any) as any;
+    expect(r.ok).toBe(false);
+    expect(r.motivo).toBe('sem_preco');
+  });
+});

@@ -121,6 +121,11 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **B5 — a diaria vem do cadastro e do peso** (17/09): `resolverDiaria` + `diariaDoCadastro`
+  resolvem o valor pelo item do cadastro e pela faixa de peso do animal (mesma regra do PDV, 
+  common/porte). Internar e trocar a diaria mandam o item, nao o numero; sem peso, nao interna e diz
+  para registrar o peso. Internacao antiga (sem item) continua aceitando o valor gravado.
+- [x] **B1-B4 publicados** 17/09/2026 (api v860, web v1693).
 - [x] **B3 — venda complementar** (17/09): dia fechado ou venda do dia ja paga -> o que for lancado
   depois entra numa VENDA COMPLEMENTAR do mesmo dia (`novosDepoisDaCobranca`, meta.cobradoEm e
   meta.vendasComplementares). Complementar paga fecha e a proxima abre outra.
