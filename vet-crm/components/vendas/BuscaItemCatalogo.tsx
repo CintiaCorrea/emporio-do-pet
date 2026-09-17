@@ -35,7 +35,7 @@ const ALTURA_MIN = 180;
 const ALTURA_MAX = 320;
 
 export default function BuscaItemCatalogo({
-  value, itens, onType, onPick, placeholder, inpStyle, className, disabled, autoFocus, limite = 40, rotuloDe,
+  value, itens, onType, onPick, placeholder, inpStyle, className, disabled, autoFocus, limite = 40, rotuloDe, precoDe,
 }: {
   value: string;
   itens: readonly ItemBuscavel[];
@@ -49,6 +49,12 @@ export default function BuscaItemCatalogo({
   limite?: number;
   /** Etiqueta extra à direita do nome (o laboratório do exame, por exemplo). */
   rotuloDe?: (item: ItemBuscavel) => string | null;
+  /**
+   * O PREÇO QUE APARECE NA LISTA. Sem isto, item cobrado por peso mostrava só "⚖️ pelo peso" e a
+   * pessoa escolhia sem saber quanto custa (Cintia, 17/09/2026). Quem chama sabe o peso do animal,
+   * então é quem calcula — a regra continua uma só (lib/porte).
+   */
+  precoDe?: (item: ItemBuscavel) => { texto: string; abaixo?: string | null };
 }) {
   const [aberto, setAberto] = useState(false);
   const [q, setQ] = useState(value || "");
@@ -126,9 +132,16 @@ export default function BuscaItemCatalogo({
             <span style={{ color: "#1F2A2E", whiteSpace: "normal", overflowWrap: "anywhere", minWidth: 0 }}>
               {s.nome}{rot ? <span style={{ color: "#8A7F6E" }}> · {rot}</span> : null}
             </span>
-            <span style={{ color: "#0F6E56", fontWeight: 600, flexShrink: 0 }}>
-              {Number(s.valorPadrao || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
-            </span>
+            {(() => {
+              const p = precoDe?.(s);
+              const texto = p ? p.texto : Number(s.valorPadrao || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+              return (
+                <span style={{ color: "#0F6E56", fontWeight: 600, flexShrink: 0, textAlign: "right" }}>
+                  {texto}
+                  {p?.abaixo ? <div style={{ color: "#8A7F6E", fontWeight: 400, fontSize: 11 }}>{p.abaixo}</div> : null}
+                </span>
+              );
+            })()}
           </button>
         );
       })}

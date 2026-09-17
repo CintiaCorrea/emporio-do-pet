@@ -121,6 +121,16 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Venda com exame voltou a salvar** (17/09, venda da Pam): o item do DTO aceita `tipoItem` e
+  `catalogoExameId` (o carrinho manda quando a linha e exame; o servidor recusava a venda inteira).
+- [x] **Preco pelo peso na busca do cadastro** (17/09): a lista mostrava "pelo peso"; agora mostra o
+  valor DESTE animal e a faixa (BuscaItemCatalogo.precoDe; carrinho da ficha e ponto de venda).
+  Sem peso registrado, continua "pelo peso · registre o peso".
+- [x] **Dados corrigidos** (17/09, com ensaio): 17 vendas de internacao com a data errada (Chico 10,
+  Luna 3, Reginaldo 4) passaram para o dia do atendimento; 5 linhas repetidas da Luna (R$ 268,55)
+  sairam da conta e das vendas #1228 (746,71->709,14) e #1239 (571,61->340,63). PENDENTE com ela:
+  Kate (10 vendas com data errada, sem dia no nome da diaria) e as vendas suspeitas #1194, #1223
+  (Chico) e #1048 (Kate, paga sem recebimento).
 - [x] **B5 — a diaria vem do cadastro e do peso** (17/09): `resolverDiaria` + `diariaDoCadastro`
   resolvem o valor pelo item do cadastro e pela faixa de peso do animal (mesma regra do PDV, 
   common/porte). Internar e trocar a diaria mandam o item, nao o numero; sem peso, nao interna e diz

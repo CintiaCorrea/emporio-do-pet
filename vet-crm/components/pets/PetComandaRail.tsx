@@ -20,7 +20,7 @@ import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
 import PesoDaVenda from "@/components/vendas/PesoDaVenda";
 import { imprimirOrcamento } from "@/lib/documentos/orcamento-print";
 import { imprimirVenda } from "@/lib/documentos/venda-print";
-import { carregarCatalogoVendavel, lancarDoCadastro, itemParaVenda, labDoItem, nomeSemMarcador, type ItemVendavel } from "@/lib/catalogoVendavel";
+import { carregarCatalogoVendavel, lancarDoCadastro, itemParaVenda, labDoItem, nomeSemMarcador, type ItemVendavel, linhaDoItem } from "@/lib/catalogoVendavel";
 import { aplicarPeso, lerFaixas, type FaixaPorte } from "@/lib/porte";
 import { carregarEstoqueComprometido, avisoDeEstoque, MapaEstoque } from "@/lib/estoqueComprometido";
 import { buscarItens, avisoDeCorte } from "@/lib/buscaCatalogo";
@@ -506,12 +506,18 @@ export default function PetComandaRail({
                   <div className="border rounded-lg mt-1 overflow-auto" style={{ borderColor: "#F0EBE0", maxHeight: "min(40vh, 360px)" }}>
                     {matches.length === 0 ? <div className="text-[12px] text-gray-400 text-center py-3">Nada encontrado no cadastro</div> :
                       matches.map((c) => {
+                        // O PREÇO DESTE ANIMAL, já pela faixa do peso (17/09/2026): "pelo peso" só
+                        // aparece quando o pet ainda não tem peso registrado.
                         const porPeso = lerFaixas(c._precosPorte).length > 0;
+                        const linha = porPeso && pesoPet ? linhaDoItem(c as any, pesoPet) : null;
                         const lab = labDoItem(c);
                         return (
                           <button key={c.id} title={c.nome} onClick={() => { if (addDoCatalogo(c)) setBusca(""); }} className="flex w-full justify-between items-center px-2.5 py-1.5 text-[12.5px] border-b last:border-b-0 hover:bg-[#F0FBFC] text-left" style={{ borderColor: "#F5F1E8" }}>
                             <span className="text-[#1F2A2E] truncate pr-2 flex items-center gap-1.5 min-w-0"><span className="truncate">{nomeSemMarcador(c.nome)}</span>{lab ? <span className="shrink-0 text-[10px] font-bold px-1.5 py-[1px] rounded-full" style={{ background: lab.veter ? "#E1F5EE" : "#EEF2F6", color: lab.veter ? "#0F6E56" : "#4D6A8A" }}>{lab.veter ? "⭐ " : "🏥 "}{lab.nome}</span> : null}</span>
-                            <span className="text-[#0F6E56] font-semibold shrink-0">{porPeso ? "⚖️ pelo peso" : BRL(c.valorPadrao)}</span>
+                            <span className="text-[#0F6E56] font-semibold shrink-0 text-right">
+                              {linha ? BRL(linha.valorUnitario) : porPeso ? "⚖️ pelo peso" : BRL(c.valorPadrao)}
+                              {linha?._faixaRotulo ? <div className="text-[10.5px] font-normal text-[#8A857A]">faixa {linha._faixaRotulo}</div> : null}
+                            </span>
                           </button>
                         );
                       })}

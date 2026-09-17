@@ -20,10 +20,10 @@ import { imprimirContasDoCliente } from '@/lib/documentos/relatorio-vendas-print
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from '@/lib/modelosVenda';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
-import { carregarCatalogoVendavel, labDoItem, lancarDoCadastro } from '@/lib/catalogoVendavel';
+import { carregarCatalogoVendavel, labDoItem, lancarDoCadastro, linhaDoItem } from '@/lib/catalogoVendavel';
 import { imprimirRecibo } from '@/lib/documentos/recibo-print';
 import { enviarReciboNoWhats } from '@/lib/documentos/recibo-pdf';
-import { aplicarPeso, type FaixaPorte } from '@/lib/porte';
+import { aplicarPeso, lerFaixas, type FaixaPorte } from '@/lib/porte';
 import PesoDaVenda from '@/components/vendas/PesoDaVenda';
 import { excluirVenda as excluirVendaComum } from '@/lib/vendas/excluirVenda';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma } from '@/lib/formasPagamento';
@@ -519,6 +519,16 @@ export default function PDVPage() {
       const res = await enviarReciboNoWhats(lista);
       if (res.ok) toast.success('Recibo enviado no WhatsApp'); else toast.error(res.erro || 'Não consegui enviar.');
     } catch { toast.error('Não consegui montar o recibo.'); }
+  };
+
+  // O PREÇO DESTE ANIMAL NA LISTA DE BUSCA (17/09/2026): item cobrado por peso mostrava só o
+  // preço-base (ou nada), e a pessoa escolhia sem saber quanto custa para o pet que está na frente.
+  const precoDoItemNaBusca = (c: any) => {
+    const faixas = lerFaixas(c?._precosPorte);
+    if (!faixas.length) return { texto: brl(Number(c?.valorPadrao) || 0) };
+    if (!pesoPet) return { texto: '⚖️ pelo peso', abaixo: 'registre o peso' };
+    const l = linhaDoItem(c, pesoPet);
+    return { texto: brl(l.valorUnitario), abaixo: l._faixaRotulo ? `faixa ${l._faixaRotulo}` : null };
   };
 
   const updItem = (i: number, patch: Partial<CartItem>) => setCarrinho((c) => c.map((x, j) => j === i ? { ...x, ...patch } : x));
@@ -1621,7 +1631,7 @@ export default function PDVPage() {
                         {editItens.map((it: any, i: number) => (
                           <div key={i} style={{ borderBottom: `1px solid ${SOFT}`, padding: '8px 10px' }}>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5 }}>
-                              <BuscaItemCatalogo value={it.descricao} itens={servicos as any} inpStyle={{ ...inp, width: '100%', padding: '6px 8px' }} placeholder="🔍 Produto ou serviço do catálogo" onType={(val) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: val } : x))} onPick={(s: any) => { const r = lancarDoCadastro(s, pesoPet, detVenda?.pet || null); if (!r.ok) { toast.error(r.mensagem, { duration: 7000 }); return; } const l = r.linha; setEditItens((c) => c!.map((x, j) => j === i ? { ...x, id: undefined, descricao: l.descricao, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId ?? undefined, servicoId: l.servicoId, productId: l.productId } : x)); }} />
+                              <BuscaItemCatalogo value={it.descricao} itens={servicos as any} inpStyle={{ ...inp, width: '100%', padding: '6px 8px' }} placeholder="🔍 Produto ou serviço do catálogo" precoDe={precoDoItemNaBusca} onType={(val) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: val } : x))} onPick={(s: any) => { const r = lancarDoCadastro(s, pesoPet, detVenda?.pet || null); if (!r.ok) { toast.error(r.mensagem, { duration: 7000 }); return; } const l = r.linha; setEditItens((c) => c!.map((x, j) => j === i ? { ...x, id: undefined, descricao: l.descricao, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId ?? undefined, servicoId: l.servicoId, productId: l.productId } : x)); }} />
                               <button onClick={() => setEditItens((c) => c!.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
