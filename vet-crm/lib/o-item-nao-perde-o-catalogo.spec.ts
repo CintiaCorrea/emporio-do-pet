@@ -71,11 +71,11 @@ describe("a conta da internação grava o vínculo", () => {
 });
 
 describe("editar um atendimento não apaga o vínculo dos itens", () => {
-  it("a ficha do pet reenvia o catalogoItemId que recebeu", () => {
-    // O modal de editar já LIA `catalogoItemId` do item existente para montar a tela, e não o
-    // devolvia ao salvar: abrir e salvar sem mudar nada desclassificava a venda inteira.
-    const src = ler("app", "(user)", "dashboard", "erp", "pets", "[id]", "page.tsx");
-    expect(src).toContain("...(it.catalogoItemId ? { catalogoItemId: it.catalogoItemId } : {})");
+  it("o carrinho da ficha reenvia o catalogoItemId que recebeu", () => {
+    // Desde 17/09/2026 quem edita venda é o CARRINHO (o atendimento virou só prontuário). O id do
+    // cadastro tem de voltar ao servidor: sem ele, salvar desclassifica a venda inteira.
+    const src = ler("components", "pets", "PetComandaRail.tsx");
+    expect(src).toContain("catalogoItemId: it.catalogoItemId ?? undefined");
   });
 });
 

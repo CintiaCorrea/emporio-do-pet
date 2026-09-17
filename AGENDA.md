@@ -121,6 +121,13 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **D2 — atendimento nunca vira venda** (17/09): a edicao do atendimento na ficha do pet perdeu a
+  caixa de itens (EditorDeItens saiu do projeto); salvar o atendimento nao manda mais items nem value;
+  criar atendimento tambem nao (o painel ja nao tinha a caixa) — saiu junto o atalho do pacote de
+  fisioterapia, que dependia dos itens. A tela diz onde se edita a venda (carrinho/Consulta de vendas).
+- [x] **Kate — 7 vendas com data corrigida** (17/09, casadas pelo valor exato de cada dia da conta):
+  29/08 #1104, 30/08 #1103, 31/08 #1102, 01/09 #1110, 02/09 #1135, 03/09 #1136, 04/09 #1134. As outras
+  (#1016, #1048, #1186, #1187) nao casaram e ficaram como estao — decisao dela (pet faleceu, ja pago).
 - [x] **Venda com exame voltou a salvar** (17/09, venda da Pam): o item do DTO aceita `tipoItem` e
   `catalogoExameId` (o carrinho manda quando a linha e exame; o servidor recusava a venda inteira).
 - [x] **Preco pelo peso na busca do cadastro** (17/09): a lista mostrava "pelo peso"; agora mostra o

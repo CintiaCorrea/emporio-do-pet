@@ -19,11 +19,9 @@ import {
   LuPackage, LuMessageSquare, LuShare2, LuTag, LuClock, LuCalendar, LuX, LuCheck,
 } from "react-icons/lu";
 import toast from "react-hot-toast";
-import EditorDeItens from "@/components/vendas/EditorDeItens";
 import { ehCompra } from "@/lib/tipoDeVenda";
 import { apagarAtendimento } from "@/lib/vendas/excluirVenda";
 import BotaoAbrirNoPDV from "@/components/vendas/BotaoAbrirNoPDV";
-import { LinhaEditavel, totalDasLinhas, linhasParaGravar } from "@/lib/linhasDeVenda";
 import { imprimirVendasDoCliente } from "@/lib/documentos/relatorio-vendas-print";
 import { textoDoRelatorioVendas } from "@/lib/textoDoRelatorioVendas";
 import { enviarExtratoPdfNoWhats, baixarExtratoPdf } from "@/lib/documentos/enviarPdfWhats";
@@ -227,7 +225,6 @@ export default function PetDetailPage() {
   const [savingArt, setSavingArt] = useState(false);
   const ATD0 = { date: "", userId: "", type: "CONSULTA", status: "Realizado", duration: "30", chiefComplaint: "", anamnesis: "", physicalExam: "", petWeight: "", temperature: "", diagnosis: "", conduct: "", prescription: "", examsRequested: "", nextReturnDate: "", paymentMethod: "", followUpNotes: "", notes: "" };
   const [atd, setAtd] = useState<any>(ATD0);
-  const [items, setItems] = useState<any[]>([]);
   const [atdTipos, setAtdTipos] = useState<{ v: string; l: string }[]>(ATD_TIPOS_DEFAULT.map(([v, l]) => ({ v, l })));
   const [atdStatus, setAtdStatus] = useState<string[]>(ATD_STATUS_DEFAULT);
   const [servicosCat, setServicosCat] = useState<any[]>([]);
@@ -770,8 +767,7 @@ export default function PetDetailPage() {
       setVidUrl(ap.prescription || ""); setVidVetId(ap.userId || ""); setArtefato("VIDEO");
     } else {
       setArtefato(null);
-      setAtd({ ...ATD0, date: ap.date ? fmtLocal(ap.date) : "", userId: ap.userId || "", type: ap.type || "CONSULTA", status: ap.status || "Realizado", chiefComplaint: ap.chiefComplaint || "", anamnesis: ap.anamnesis || "", physicalExam: ap.physicalExam || "", diagnosis: ap.diagnosis || "", conduct: ap.conduct || "", prescription: ap.prescription || "", notes: ap.notes || "" });
-      setItems([]); setAtdOpen(true);
+      setAtd({ ...ATD0, date: ap.date ? fmtLocal(ap.date) : "", userId: ap.userId || "", type: ap.type || "CONSULTA", status: ap.status || "Realizado", chiefComplaint: ap.chiefComplaint || "", anamnesis: ap.anamnesis || "", physicalExam: ap.physicalExam || "", diagnosis: ap.diagnosis || "", conduct: ap.conduct || "", prescription: ap.prescription || "", notes: ap.notes || "" }); setAtdOpen(true);
     }
   }
   async function excluirEntrada(it: any) {
@@ -1374,29 +1370,16 @@ export default function PetDetailPage() {
       if (atd.petWeight) body.petWeight = Number(atd.petWeight);
       if (atd.temperature) body.temperature = Number(atd.temperature);
       if (atd.nextReturnDate) body.nextReturnDate = new Date(atd.nextReturnDate + "T12:00:00").toISOString();
-      const itensValidos = items.filter((it: any) => it.descricao || it.servicoId);
-      if (itensValidos.length) {
-        body.items = itensValidos.map((it: any) => ({ ...(it.servicoId ? { servicoId: it.servicoId, productId: it.servicoId } : {}), ...(it.descricao ? { descricao: it.descricao } : {}), ...(it.executorUserId ? { executorUserId: it.executorUserId } : {}), quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, custoUnitario: Number(it.custoUnitario) || 0, ...(it.fornecedorId ? { fornecedorId: it.fornecedorId } : {}), ...(it._exame ? { tipoItem: "EXAME", catalogoExameId: it.catalogoExameId } : {}), ...(it.catalogoItemId ? { catalogoItemId: it.catalogoItemId } : {}), valorTotal: (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), ...(it.comissaoValor ? { comissaoTipo: "PERCENTUAL", comissaoValor: Number(it.comissaoValor) } : {}) }));
-        body.value = body.items.reduce((sm: number, it: any) => sm + (it.valorTotal || 0), 0);
-      }
+      // ATENDIMENTO É PRONTUÁRIO, NÃO VENDA (Cintia, 17/09/2026). A caixa de itens já não existe
+      // neste formulário; o que se cobra entra pelo carrinho da ficha.
       const r = await fetch(editId ? `/api/appointments/${editId}` : "/api/appointments", { method: editId ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error(await r.text());
       if (atd.petWeight) { try { await patchPet({ weight: Number(atd.petWeight) }); } catch {} } // F5.1: peso do atendimento atualiza o peso atual do pet
-      toast.success("Atendimento registrado"); setAtdOpen(false); setAtd(ATD0); setItems([]); await load(); await loadAtendimentos();
-      // Venda de fisioterapia: abre o pacote pra lancar as sessoes
-      const fisioItem = itensValidos.find((it: any) => it.servicoId && fisioSrv.some((sv: any) => String(sv.id) === String(it.servicoId)));
-      if (fisioItem) {
-        const sv = fisioSrv.find((x: any) => String(x.id) === String(fisioItem.servicoId));
-        setMainTab("GERAL"); // o form do pacote de fisio fica na aba Geral — leva a recepção até ele
-        setPacForm({ open: true, serviceId: String(fisioItem.servicoId), nome: "", total: String(Number(fisioItem.quantidade) || 4), jaFeitas: "0" });
-        toast(`Fisioterapia vendida (${sv?.nome || sv?.titulo || "sessão"}) — defina o total de sessões do pacote`, { icon: "🩺", duration: 6000 });
-      }
+      toast.success("Atendimento registrado"); setAtdOpen(false); setAtd(ATD0); await load(); await loadAtendimentos();
+      // O ATALHO DO PACOTE DE FISIOTERAPIA saiu daqui junto com os itens (17/09/2026): a venda da
+      // fisioterapia é feita no carrinho, e é lá que o pacote é aberto.
     } catch { toast.error("Erro ao registrar atendimento"); } finally { setSavingAtd(false); }
   }
-  function addItem() { setItems(prev => [...prev, { servicoId: "", descricao: "", quantidade: 1, valorUnitario: 0, custoUnitario: 0, executorUserId: "", comissaoValor: 0 }]); }
-  function updItem(i: number, patch: any) { setItems(prev => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it)); }
-  function rmItem(i: number) { setItems(prev => prev.filter((_, idx) => idx !== i)); }
-  function pickServico(i: number, servicoId: string) { const sv = servicosCat.find((x: any) => x.id === servicoId); if (!sv) return; const l = linhaDoItem(sv); updItem(i, { servicoId: l.servicoId || "", descricao: l.descricao, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, fornecedorId: l.fornecedorId ?? null, catalogoExameId: l.catalogoExameId, _exame: l._exame }); }
   async function loadInteracoesPet() {
     try { const r = await fetch(`/api/interacoes?petId=${petId}&limit=100`, { cache: "no-store" }); const d = await r.json(); setPetInteracoes(Array.isArray(d) ? d : (d.interacoes || d.data || [])); } catch {}
     // Responsável pelo follow-up (KV fu_responsavel, uma entrada por pet)
@@ -1537,22 +1520,20 @@ export default function PetDetailPage() {
   // ficha do pet tambem"). Ate aqui o modal deixava mudar tipo, status, data e observacao — mas
   // os "Servicos e valores" eram so leitura, e corrigir um item lancado errado obrigava a
   // apagar o atendimento inteiro e refazer.
-  const [editItens, setEditItens] = useState<LinhaEditavel[]>([]);
 
   async function salvarEditAtd() {
     if (!verAtd) return;
     try {
       const body: any = { type: editAtdForm.type, status: editAtdForm.status, notes: editAtdForm.notes ?? "" };
-      // OS ITENS E O TOTAL. O valor da venda vem da soma das linhas — nunca digitado a parte,
-      // senao a conta da tela e a do caixa passam a discordar.
-      body.items = linhasParaGravar(editItens);
-      body.value = Number(totalDasLinhas(editItens).toFixed(2));
+      // O ATENDIMENTO NÃO MEXE EM VENDA (Cintia, 17/09/2026: "tela de atendimento era somente para
+      // abrir o atendimento para o veterinário mais rápido, não era para ter ligação com a venda").
+      // Itens e valor se editam na venda, no carrinho — daqui vai só o prontuário.
       // Data/hora real da sessão (pra lançar as sessões que já aconteceram na data certa).
       if (editAtdForm.date && editAtdForm.time) body.date = new Date(`${editAtdForm.date}T${editAtdForm.time}`).toISOString();
       const r = await fetch(`/api/appointments/${verAtd.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) throw new Error();
       toast.success("Atendimento atualizado");
-      setVerAtd({ ...verAtd, ...body, items: body.items, value: body.value, date: body.date || verAtd.date });
+      setVerAtd({ ...verAtd, ...body, date: body.date || verAtd.date });
       setEditAtd(false); await loadAtendimentos();
     } catch { toast.error("Erro ao salvar"); }
   }
@@ -2318,7 +2299,7 @@ export default function PetDetailPage() {
                   ESTOURA a coluna, empurrando os cartões pra fora da tela (bug da Dra. Vivian 23/07). */}
               <div className="lg:order-2 min-w-0">
                 {atdOpen ? (
-                  <PetAtendimentoPanel pet={pet} atd={atd} setAtd={setAtd} atdTipos={atdTipos} atdStatus={atdStatus} vets={vets} items={items} servicosCat={servicosCat} pickServico={pickServico} addItem={addItem} updItem={updItem} rmItem={rmItem} saving={savingAtd} onSalvar={criarAtendimento} onFechar={() => setAtdOpen(false)} />
+                  <PetAtendimentoPanel pet={pet} atd={atd} setAtd={setAtd} atdTipos={atdTipos} atdStatus={atdStatus} vets={vets} saving={savingAtd} onSalvar={criarAtendimento} onFechar={() => setAtdOpen(false)} />
                 ) : artefato === "PESO" ? (
                   <div className="bg-white">
                     <div className="flex items-center justify-between border-b pb-2.5 mb-3" style={{ borderColor: "#E8DFC8" }}>
@@ -2554,7 +2535,7 @@ export default function PetDetailPage() {
                     <div className="text-[14px] text-[#5C6B70] mb-3 font-semibold">Adicionar</div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {([
-                        { label: "Atendimento", ic: "🩺", bg: "#E1F3F5", fg: "#017E8C", act: () => { setArtefato(null); setEditId(null); setItems([]); setAtd({ ...ATD0, date: fmtLocal(new Date()), userId: meId || vets[0]?.id || "" }); setAtdOpen(true); } },
+                        { label: "Atendimento", ic: "🩺", bg: "#E1F3F5", fg: "#017E8C", act: () => { setArtefato(null); setEditId(null); setAtd({ ...ATD0, date: fmtLocal(new Date()), userId: meId || vets[0]?.id || "" }); setAtdOpen(true); } },
                         { label: "Peso", ic: "⚖️", bg: "#F3ECDD", fg: "#8A6D3B", act: () => { setPesoVal(pet?.weight ? String(pet.weight) : ""); setAtdOpen(false); setArtefato("PESO"); } },
                         { label: "Receita", ic: "💊", bg: "#EFE9FB", fg: "#6A4FB0", act: () => abrirReceita() },
                         { label: "Documento", ic: "📄", bg: "#E4F3EA", fg: "#2E7D53", act: () => abrirDocumento() },
@@ -3078,12 +3059,10 @@ export default function PetDetailPage() {
                 <div className="pt-1">
                   <div className="text-[11px] font-semibold text-gray-400 uppercase mb-1">Serviços e valores</div>
                   {editAtd ? (
-                    <EditorDeItens
-                      linhas={editItens}
-                      onMudar={setEditItens}
-                      pesoKg={verAtd.petWeight ?? (pet as any)?.pesoAtual ?? null}
-                      vazio="Nenhum item ainda — busque abaixo para lançar."
-                    />
+                    <div className="text-[11.5px] rounded px-2 py-2" style={{ background: "#FBF3E3", border: "1px solid #E8CF97", color: "#8a6400" }}>
+                      Os serviços e valores se editam <b>na venda</b>, não aqui: Vendas › Consulta de vendas › ✏️,
+                      ou pelo carrinho da ficha. Este atendimento é o prontuário.
+                    </div>
                   ) : (
                     <div className="space-y-1">
                       {(verAtd.items || []).map((it: any) => (
@@ -3098,7 +3077,7 @@ export default function PetDetailPage() {
               )}
               <div className="flex items-center justify-between border-t pt-2" style={{ borderColor: "#f0e8d4" }}>
                 <span className="text-gray-400">Total{verAtd.paymentMethod ? ` · ${verAtd.paymentMethod}` : ""}</span>
-                <span className="text-sm font-semibold" style={{ color: "#0F6E56" }}>{Number(editAtd ? totalDasLinhas(editItens) : (verAtd.value || 0)).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                <span className="text-sm font-semibold" style={{ color: "#0F6E56" }}>{Number(verAtd.value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
               {verAtd.nextReturnDate && <div><span className="text-gray-400">Próximo retorno:</span> {new Date(verAtd.nextReturnDate).toLocaleDateString("pt-BR")}</div>}
               {verAtd.followUpNotes && <div><span className="text-gray-400">Verificar:</span> {verAtd.followUpNotes}</div>}
@@ -3117,7 +3096,7 @@ export default function PetDetailPage() {
                   </>
                 ) : (
                   <>
-                    <button onClick={() => { const d = new Date(verAtd.date); const z = (n: number) => String(n).padStart(2, "0"); setEditAtdForm({ type: verAtd.type, status: verAtd.status, date: `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`, time: `${z(d.getHours())}:${z(d.getMinutes())}`, notes: verAtd.notes || "" }); setEditItens((verAtd.items || []).map((it: any) => ({ id: it.id, descricao: it.descricao || "Serviço", quantidade: Number(it.quantidade) || 1, valorUnitario: Number(it.valorUnitario) || 0, desconto: Number(it.desconto) || 0, servicoId: it.servicoId ?? undefined, productId: it.productId ?? undefined, catalogoItemId: it.catalogoItemId ?? undefined, custoUnitario: it.custoUnitario != null ? Number(it.custoUnitario) : undefined, fornecedorId: it.fornecedorId ?? undefined }))); setEditAtd(true); }} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#009AAC", color: "#00798A" }}>Editar</button>
+                    <button onClick={() => { const d = new Date(verAtd.date); const z = (n: number) => String(n).padStart(2, "0"); setEditAtdForm({ type: verAtd.type, status: verAtd.status, date: `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}`, time: `${z(d.getHours())}:${z(d.getMinutes())}`, notes: verAtd.notes || "" }); setEditAtd(true); }} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#009AAC", color: "#00798A" }}>Editar</button>
                     <button onClick={() => setVerAtd(null)} className="px-4 py-2 border rounded-lg text-sm" style={{ borderColor: "#E8DFC8", color: "#475569" }}>Fechar</button>
                   </>
                 )}
