@@ -7,71 +7,17 @@
 // não carregar, o recibo sai com o nome escrito — nunca falha por causa da imagem.
 import { fraseDoRecibo, montarDadosDoRecibo, type BaixaDoRecibo } from "@/lib/documentos/recibo";
 import { subirArquivo } from "@/lib/documentos/enviarPdfWhats";
+import { novoPdfDaCasa, nomeDeArquivo, NAVY } from "@/lib/documentos/pdfDaCasa";
 
 const BRL = (n: unknown) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const NAVY: [number, number, number] = [1, 77, 94];
-
-async function dadosDaClinica(): Promise<any> {
-  try {
-    const r = await fetch("/api/listas?lista=dadosclinica", { cache: "no-store" });
-    const d = await r.json();
-    const arr = Array.isArray(d) ? d : (d.itens || d.data || []);
-    return arr[0]?.valor ? JSON.parse(arr[0].valor) : {};
-  } catch { return {}; }
-}
-
-async function logoComoImagem(url?: string): Promise<{ dataUrl: string; w: number; h: number } | null> {
-  if (!url) return null;
-  try {
-    const blob = await fetch(url, { cache: "force-cache" }).then((r) => (r.ok ? r.blob() : null));
-    if (!blob) return null;
-    const dataUrl: string = await new Promise((ok, erro) => {
-      const fr = new FileReader();
-      fr.onload = () => ok(String(fr.result));
-      fr.onerror = erro;
-      fr.readAsDataURL(blob);
-    });
-    const tam = await new Promise<{ w: number; h: number }>((ok) => {
-      const img = new Image();
-      img.onload = () => ok({ w: img.width, h: img.height });
-      img.onerror = () => ok({ w: 0, h: 0 });
-      img.src = dataUrl;
-    });
-    if (!tam.w || !tam.h) return null;
-    return { dataUrl, w: tam.w, h: tam.h };
-  } catch { return null; }
-}
 
 /** Monta o recibo em PDF e devolve o arquivo pronto para subir ou baixar. */
 export async function gerarPdfDoRecibo(baixas: BaixaDoRecibo[]): Promise<{ blob: Blob; nome: string } | null> {
   const d = await montarDadosDoRecibo(baixas);
   if (!d) return null;
-  const { jsPDF } = await import("jspdf");
-  const autoTable = (await import("jspdf-autotable")).default;
-  const clinica = await dadosDaClinica();
-  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const { doc, autoTable, y: yTitulo } = await novoPdfDaCasa("RECIBO");
+  let y = yTitulo;
 
-  // ── timbrado: logo (quando carrega) + dados da clínica ──
-  let y = 16;
-  const logo = await logoComoImagem(clinica?.logoUrl);
-  if (logo) {
-    const alturaMm = 16;
-    const larguraMm = Math.min(70, (logo.w / logo.h) * alturaMm);
-    try { doc.addImage(logo.dataUrl, 14, 10, larguraMm, alturaMm); y = 10 + alturaMm + 5; } catch { /* segue sem logo */ }
-  }
-  doc.setFont("helvetica", "bold"); doc.setFontSize(13); doc.setTextColor(...NAVY);
-  doc.text(String(clinica?.nomeFantasia || clinica?.razaoSocial || "Empório do Pet"), logo ? 14 : 14, y);
-  doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90, 90, 90);
-  const endereco = [clinica?.rua ? `${clinica.rua}${clinica?.numero ? `, ${clinica.numero}` : ""}` : "", clinica?.bairro, clinica?.cidade ? `${clinica.cidade}${clinica?.uf ? `/${clinica.uf}` : ""}` : ""].filter(Boolean).join(" · ");
-  if (endereco) { y += 5; doc.text(endereco, 14, y); }
-  const contato = [clinica?.cnpj ? `CNPJ ${clinica.cnpj}` : "", clinica?.telefone, clinica?.whatsapp].filter(Boolean).join(" · ");
-  if (contato) { y += 4.5; doc.text(contato, 14, y); }
-
-  y += 10;
-  doc.setFont("helvetica", "bold"); doc.setFontSize(15); doc.setTextColor(...NAVY);
-  doc.text("RECIBO", 105, y, { align: "center" });
-
-  y += 9;
   doc.setFont("helvetica", "normal"); doc.setFontSize(10.5); doc.setTextColor(35, 35, 35);
   const frase = doc.splitTextToSize(fraseDoRecibo(d), 182);
   doc.text(frase, 14, y);
@@ -107,7 +53,7 @@ export async function gerarPdfDoRecibo(baixas: BaixaDoRecibo[]): Promise<{ blob:
 
   y += 14;
   doc.setFont("helvetica", "normal"); doc.setFontSize(10); doc.setTextColor(60, 60, 60);
-  const cidade = clinica?.cidade || "Fortaleza";
+  const cidade = "Fortaleza";
   doc.text(`${cidade}, ${new Date(d.data).toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Fortaleza" })}`, 105, y, { align: "center" });
   y += 20;
   doc.setDrawColor(150, 160, 165);
@@ -116,8 +62,7 @@ export async function gerarPdfDoRecibo(baixas: BaixaDoRecibo[]): Promise<{ blob:
   doc.text("Assinatura", 105, y + 5, { align: "center" });
 
   const numeros = d.vendas.map((v) => v.numero).filter(Boolean).join("-");
-  const nome = `recibo-${(d.tutorNome || "cliente").toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 28)}${numeros ? `-${numeros}` : ""}.pdf`;
-  return { blob: doc.output("blob") as Blob, nome };
+  return { blob: doc.output("blob") as Blob, nome: nomeDeArquivo("recibo", d.tutorNome, numeros || null) };
 }
 
 /** Gera o PDF e manda no WhatsApp do cliente. */

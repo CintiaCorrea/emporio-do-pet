@@ -8,6 +8,7 @@ import OrcamentosBusca from '@/components/vendas/OrcamentosBusca';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirRecibo } from '@/lib/documentos/recibo-print';
 import { enviarReciboNoWhats } from '@/lib/documentos/recibo-pdf';
+import { enviarVendaNoWhats } from '@/lib/documentos/venda-pdf';
 import { resumoDeVendas } from '@/lib/resumoDeVendas';
 import { useRolePreview } from '@/lib/ui/RolePreview';
 import { useSession } from 'next-auth/react';
@@ -90,6 +91,10 @@ const MARCAS: Record<string, { label: string; emoji: string; bg: string; fg: str
 const inp: React.CSSProperties = {
   padding: '8px 10px', border: `1px solid ${CARD_LINE}`, borderRadius: 9,
   fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', background: '#fff', color: NAVY,
+};
+const acaoDaLinha: React.CSSProperties = {
+  border: `1px solid ${CARD_LINE}`, background: '#fff', borderRadius: 7, padding: '3px 7px',
+  fontSize: 13, cursor: 'pointer', marginLeft: 4, lineHeight: 1.2,
 };
 const cardCss: React.CSSProperties = { background: '#fff', border: `1px solid ${CARD_LINE}`, borderRadius: 14 };
 
@@ -445,6 +450,7 @@ function BaixasDaVenda({ v }: { v: Venda }) {
 function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber, onReabrir, abrirJa }: { abrirJa?: boolean; v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null; isAdmin: boolean; onReceber?: (v: Venda) => void; onReabrir?: (v: Venda) => void }) {
   // Quem chega por link de UMA venda (?venda=, ex.: da tela de Recebimentos) já a vê aberta.
   const [open, setOpen] = useState(!!abrirJa);
+  const [enviando, setEnviando] = useState(false);
   const [devOpen, setDevOpen] = useState(false);
   return (
     <>
@@ -471,10 +477,31 @@ function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber,
         <td style={{ padding: '11px 12px' }}><MarcaPill marca={v.marca} /></td>
         <td style={{ padding: '11px 12px', fontSize: 13, fontWeight: 500, color: NAVY, textAlign: 'right', whiteSpace: 'nowrap' }}>{brl(v.valor)}</td>
         <td style={{ padding: '11px 12px' }}><StatusPill v={v} /></td>
+        {/* AS AÇÕES NA PRÓPRIA LINHA (Cintia, 17/09/2026) — antes era preciso abrir a venda para
+            achar imprimir, editar e excluir. Os nomes são os da venda; o recibo continua dentro da
+            linha aberta, porque é do pagamento. */}
+        <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+          <button onClick={() => imprimirVenda(v)} title="Imprimir a venda (comprovante no timbrado)" aria-label="Imprimir a venda" style={acaoDaLinha}>🖨️</button>
+          <button
+            onClick={async () => { setEnviando(true); const r = await enviarVendaNoWhats(v as any); setEnviando(false); alert(r.ok ? 'Enviado no WhatsApp: segue o relatório da sua compra.' : (r.erro || 'Não consegui enviar.')); }}
+            disabled={enviando}
+            title="Enviar a venda em PDF no WhatsApp do cliente"
+            aria-label="Enviar a venda no WhatsApp"
+            style={acaoDaLinha}
+          >{enviando ? '…' : '💬'}</button>
+          {isAdmin ? (
+            <Link href={`/dashboard/erp/ponto-de-venda?editar=${v.id}`} target="_blank" rel="noopener" title="Editar a venda no Ponto de venda" aria-label="Editar a venda" style={{ ...acaoDaLinha, display: 'inline-block', textDecoration: 'none' }}>✏️</Link>
+          ) : (
+            <span title="Só o administrativo edita venda" style={{ ...acaoDaLinha, color: '#8A9499', cursor: 'default' }}>🔒</span>
+          )}
+          {/* Excluir com dinheiro recebido: só o administrativo, e com o aviso — a regra vive em
+              lib/vendas/excluirVenda, a mesma de toda tela. */}
+          <button onClick={() => onExcluir(v)} disabled={excluindo === v.id} title="Excluir a venda" aria-label="Excluir a venda" style={{ ...acaoDaLinha, color: '#b23b39' }}>{excluindo === v.id ? '…' : '🗑️'}</button>
+        </td>
       </tr>
       {open && (
         <tr style={{ background: '#FBF9F4' }}>
-          <td colSpan={6} style={{ padding: '0 12px 14px 12px' }}>
+          <td colSpan={7} style={{ padding: '0 12px 14px 12px' }}>
             <div style={{ ...cardCss, padding: '10px 12px', background: '#fff' }}>
               <div style={{ fontSize: 11.5, color: GREY2, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.3px', marginBottom: 8 }}>
                 🧾 Itens da venda
@@ -1326,9 +1353,9 @@ O recebimento de ${brl(v.pago || 0)} sai do caixa e a venda volta a ficar em abe
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#FBF9F4' }}>
-                {['Venda', 'Cliente', 'Pet', 'Marca', 'Valor', 'Status'].map((h, i) => (
+                {['Venda', 'Cliente', 'Pet', 'Marca', 'Valor', 'Status', ''].map((h, i) => (
                   <th
-                    key={h}
+                    key={h || 'acoes'}
                     style={{
                       padding: '10px 12px', fontSize: 11, color: GREY2, fontWeight: 500,
                       textTransform: 'uppercase', letterSpacing: '.4px',
