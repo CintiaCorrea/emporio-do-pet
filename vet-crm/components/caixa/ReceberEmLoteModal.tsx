@@ -80,7 +80,7 @@ export default function ReceberEmLoteModal({
   );
   const abertoDe = (c: ComandaParaReceber) => Number(c.aberto ?? c.valor ?? 0);
   const escolhidas = useMemo(() => comandas.filter((c) => marcadas.has(c.id)), [comandas, marcadas]);
-  const total = useMemo(() => escolhidas.reduce((s, c) => s + abertoDe(c), 0), [escolhidas]);
+  const totalAberto = useMemo(() => escolhidas.reduce((s, c) => s + abertoDe(c), 0), [escolhidas]);
   const totalGeral = useMemo(() => comandas.reduce((s, c) => s + abertoDe(c), 0), [comandas]);
   const forasSelecao = comandas.length - escolhidas.length;
 
@@ -101,8 +101,20 @@ export default function ReceberEmLoteModal({
   const [formasConfig, setFormasConfig] = useState<FormaCfg[]>([]);
   const [taxas, setTaxas] = useState<TaxaRow[]>([]);
   // Abre com o total no dinheiro: é o caso mais comum e poupa digitar o valor de novo.
-  const [formasLote, setFormasLote] = useState<PagForma[]>([{ forma: "Dinheiro", valor: Number(total.toFixed(2)) }]);
+  const [formasLote, setFormasLote] = useState<PagForma[]>([{ forma: "Dinheiro", valor: Number(totalAberto.toFixed(2)) }]);
   const [baixando, setBaixando] = useState(false);
+  // DESCONTO E OBSERVAÇÃO — só o Movimento de caixa tinha. Desde que esta virou a gaveta única
+  // (16/09/2026), ficam aqui. O desconto pode ser em valor ou em %; o servidor confere pela forma
+  // de pagamento (ADM sem limite; demais até o % da forma) e divide nos itens das vendas.
+  const [descTipo, setDescTipo] = useState<"R$" | "%">("R$");
+  const [descValor, setDescValor] = useState("");
+  const [observacao, setObservacao] = useState("");
+  const desconto = useMemo(() => {
+    const n = Number(String(descValor).replace(",", ".")) || 0;
+    const v = descTipo === "%" ? (totalAberto * n) / 100 : n;
+    return Math.max(0, Math.min(totalAberto, Math.round(v * 100) / 100));
+  }, [descValor, descTipo, totalAberto]);
+  const total = Math.max(0, Number((totalAberto - desconto).toFixed(2)));
 
   // Marcar ou desmarcar uma venda REFAZ o valor sozinho — senão a pessoa escolhe 3 de 10 e o
   // campo continua com o total das 10, que é o jeito mais fácil de receber o valor errado.
@@ -141,7 +153,7 @@ export default function ReceberEmLoteModal({
     if (!meId) { alert("Só um instante — ainda estou identificando o seu usuário. Tente de novo em 2 segundos."); return; }
     if (!caixaAberto) { setAbrirCaixaMotivo(`Para receber as vendas de ${tutor || "o cliente"}`); return; }
     if (!escolhidas.length) { alert("Marque pelo menos uma venda para receber."); return; }
-    if (!confirm(`Receber ${escolhidas.length} venda(s) de ${tutor} num pagamento só? (${fmtBRL(total)})`)) return;
+    if (!confirm(`Receber ${escolhidas.length} venda(s) de ${tutor} num pagamento só? (${fmtBRL(total)}${desconto > 0.009 ? `, com ${fmtBRL(desconto)} de desconto` : ""})`)) return;
     setBaixando(true);
     try {
       // Cartão exige operadora + NSU + AUT: é o que casa a venda com a linha do extrato.
@@ -150,6 +162,8 @@ export default function ReceberEmLoteModal({
       const corpo: any = {
         appointmentIds: escolhidas.map((c) => c.id),
         formas: formasLote.filter((f) => Number(f.valor) > 0),
+        ...(desconto > 0.009 ? { desconto } : {}),
+        ...(observacao.trim() ? { observacao: observacao.trim() } : {}),
       };
       const enviar = (c: any) => fetch(`/api/caixa/${caixaAberto}/recebimento-lote`, {
         method: "POST",
@@ -225,9 +239,26 @@ export default function ReceberEmLoteModal({
             })}
           </div>
 
-          <div className="flex justify-between items-center px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
-            <span className="text-[13px] text-[#5C6B70]">Total a receber</span>
-            <span className="text-[18px] font-medium text-[#014D5E] tabular-nums">{money(total)}</span>
+          <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
+            <div className="flex items-center gap-2">
+              <label htmlFor="desconto-gaveta" className="text-[12.5px] text-[#5C6B70] flex-1">Desconto</label>
+              <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: "#E8E2D6" }}>
+                {(["R$", "%"] as const).map((t) => (
+                  <button key={t} type="button" onClick={() => setDescTipo(t)} className="px-2 py-1 text-[11.5px] font-semibold"
+                    style={{ background: descTipo === t ? "#009AAC" : "#fff", color: descTipo === t ? "#fff" : "#5C6B70" }}>{t}</button>
+                ))}
+              </div>
+              <input id="desconto-gaveta" value={descValor} onChange={(e) => setDescValor(e.target.value)} inputMode="decimal" placeholder="0"
+                className="w-20 border rounded-lg px-2 py-1 text-[12.5px] text-right tabular-nums" style={{ borderColor: "#E8E2D6" }} />
+            </div>
+            {desconto > 0.009 && (
+              <div className="flex justify-between text-[12px] text-[#5C6B70] mt-1.5"><span>Em aberto {money(totalAberto)} − desconto</span><span className="tabular-nums">− {money(desconto)}</span></div>
+            )}
+            <div className="text-[10.5px] text-[#8A857A] mt-1">Até 5% no PIX e no dinheiro; nas outras formas, só o administrativo.</div>
+            <div className="flex justify-between items-center mt-2">
+              <span className="text-[13px] text-[#5C6B70]">Total a receber</span>
+              <span className="text-[18px] font-medium text-[#014D5E] tabular-nums">{money(total)}</span>
+            </div>
           </div>
 
           {/* EM QUAL CAIXA ESTA BAIXA ENTRA. Fica FORA do `caixaAberto ?` de propósito: quando
@@ -240,6 +271,13 @@ export default function ReceberEmLoteModal({
               valor={caixaAberto}
               onEscolher={setCaixaAberto}
             />
+            {(() => {
+              // O DIA DO DINHEIRO É O DIA DO CAIXA — a data fica à vista, mesmo com um caixa só.
+              const c = meusAbertos.find((x) => x.id === caixaAberto);
+              return c ? (
+                <div className="text-[11.5px] text-[#5C6B70]">Entra no caixa nº {c.numero} de <b className="text-[#014D5E]">{new Date(c.abertura).toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" })}</b></div>
+              ) : null;
+            })()}
           </div>
 
           {caixaAberto ? (
@@ -249,6 +287,9 @@ export default function ReceberEmLoteModal({
                   Como o cliente pagou — pode dividir entre formas
                 </div>
                 <PagamentoFormas formas={formasLote} onChange={setFormasLote} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
+                <label htmlFor="obs-gaveta" className="block text-[10.5px] text-[#374151] uppercase tracking-wide mt-3 mb-1">Observação</label>
+                <textarea id="obs-gaveta" value={observacao} onChange={(e) => setObservacao(e.target.value)} rows={2} placeholder="Opcional"
+                  className="w-full border rounded-lg px-2 py-1.5 text-[12.5px] resize-y" style={{ borderColor: "#E8E2D6" }} />
                 {Math.abs(falta) < 0.01 ? (
                   <div className="mt-2 text-[12px] font-medium text-[#0F6E56]">✓ Fecha certo com o total.</div>
                 ) : falta > 0 ? (

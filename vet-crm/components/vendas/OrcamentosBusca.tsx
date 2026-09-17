@@ -100,7 +100,6 @@ export default function OrcamentosBusca() {
     finally { setEnviando(null); }
   }
 
-  async function converter(id: string) { try { const r = await fetch(`/api/orcamentos/${id}/converter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }); if (!r.ok) throw 0; toast.success("Convertido em venda"); await load(); } catch { toast.error("Erro ao converter"); } }
 
   return (
     <div>
@@ -174,7 +173,8 @@ export default function OrcamentosBusca() {
                         <button onClick={() => enviarWhats(o)} disabled={enviando === o.id} title="Enviar o orçamento pelo WhatsApp do cliente" aria-label="Enviar pelo WhatsApp" style={{ ...icone("#0F6E56"), opacity: enviando === o.id ? .45 : 1 }}><LuSend size={14} /></button>
                         {o.pet?.id && <Link href={`/dashboard/erp/pets/${o.pet.id}`} title="Abrir a ficha do pet" aria-label="Abrir a ficha do pet" style={icone(GREY2)}><LuExternalLink size={14} /></Link>}
                         {!convertido && o.status === "RASCUNHO" && <button onClick={() => aprovar(o.id)} title="Aprovar o orçamento" aria-label="Aprovar o orçamento" style={icone("#0F6E56")}><LuCheck size={14} /></button>}
-                        {!convertido && <button onClick={() => converter(o.id)} title="Transformar em venda" aria-label="Transformar em venda" style={{ ...icone("#fff"), background: TEAL, borderColor: TEAL }}><LuArrowRight size={14} /></button>}
+                        {/* Transformar em venda mora no carrinho da ficha (aba Orçamento) — um lugar só. */}
+                        {!convertido && o.pet?.id && <Link href={`/dashboard/erp/pets/${o.pet.id}?carrinho=orcamento`} title="Abrir no carrinho da ficha para transformar em venda" aria-label="Abrir para transformar em venda" style={{ ...icone("#fff"), background: TEAL, borderColor: TEAL }}><LuArrowRight size={14} /></Link>}
                         <button onClick={() => excluir(o)} title="Excluir o orçamento" aria-label="Excluir o orçamento" style={icone("#A32D2D")}><LuTrash2 size={14} /></button>
                       </div>
                     </td>

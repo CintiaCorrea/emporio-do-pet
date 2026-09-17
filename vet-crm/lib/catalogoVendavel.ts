@@ -221,3 +221,36 @@ export async function carregarCatalogoVendavel(opts?: { exames?: boolean }): Pro
 
   return out;
 }
+
+/**
+ * LANÇAR UM ITEM DO CADASTRO — a porta única das telas que vendem ou orçam.
+ *
+ * Cintia, 16/09/2026: "nada é para entrar como texto solto em vendas, tudo deve vir do catálogo",
+ * "sem preço à mão, peso tem que estar registrado" e "trazer automaticamente, conforme o peso
+ * lançado no sistema, a faixa EXATA do produto/serviço".
+ *
+ * Até ali o item cobrado por peso entrava mesmo sem peso, com a pessoa escolhendo a faixa na mão
+ * (e, na comanda, clicar no resultado da busca nem consultava o peso). Agora:
+ *   · item com faixas e pet sem peso → não entra; a tela pede o peso (motivo `sem_peso`);
+ *   · faixa sem preço no cadastro → não entra (motivo `sem_preco`) — preço inventado é prejuízo;
+ *   · o resto vira a linha pelo núcleo de sempre (`linhaDoItem`), com o preço do cadastro.
+ */
+export type ResultadoLancamento =
+  | { ok: true; linha: LinhaVendavel }
+  | { ok: false; motivo: "sem_peso" | "sem_preco"; mensagem: string };
+
+export function lancarDoCadastro(item: ItemVendavel, pesoKg: number | null | undefined, petNome?: string | null): ResultadoLancamento {
+  const faixas = lerFaixas(item._precosPorte);
+  const nome = nomeSemMarcador(item.nome);
+  if (faixas.length && !(Number(pesoKg) > 0) && !item._ehCaucao) {
+    return { ok: false, motivo: "sem_peso", mensagem: `${nome} é cobrado pelo peso. Registre o peso ${petNome ? `de ${petNome} ` : "do pet "}para lançar.` };
+  }
+  const linha = linhaDoItem(item, pesoKg);
+  if (faixas.length && linha._avisoPorte && !item._ehCaucao) {
+    return { ok: false, motivo: "sem_preco", mensagem: `${nome}: ${linha._avisoPorte} Ajuste o preço no cadastro.` };
+  }
+  if (!faixas.length && !(Number(linha.valorUnitario) > 0) && !item._ehCaucao) {
+    return { ok: false, motivo: "sem_preco", mensagem: `${nome} está sem preço no cadastro. Ajuste o cadastro antes de lançar.` };
+  }
+  return { ok: true, linha };
+}

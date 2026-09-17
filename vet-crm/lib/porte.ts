@@ -211,25 +211,19 @@ export type LinhaComPorte = {
 };
 
 /**
- * TROCAR A FAIXA DE UMA LINHA NA MAO — pet sem peso no cadastro, ou peso que caiu numa faixa
- * sem preco.
+ * O PESO DO PET MUDOU: CADA LINHA COBRADA POR FAIXA PEGA O PREÇO DA FAIXA NOVA.
  *
- * Isto vivia solto dentro do ponto de venda. Em 11/09/2026 a Cintia: "o sistema continua nao
- * lendo o peso quando vamos lancar na venda/orcamento". A comanda do cliente e o orcamento
- * rapido precisavam da mesma troca, e copiar a funcao pela terceira vez e como as tres telas
- * passam a discordar sobre o preco do mesmo item. Regra de dinheiro mora no nucleo.
+ * Substitui a troca de faixa na mão (aplicarFaixa), que saiu em 16/09/2026 — Cintia: "sem preço à
+ * mão, peso tem que estar registrado". Quem escolhe a faixa é o peso registrado; quando a recepção
+ * registra o peso na própria venda, as linhas que já estavam lá são recalculadas por aqui.
  *
- * Faixa sem preco NAO vira zero e nao herda o preco da vizinha: mantem o valor que estava e
- * avisa. Preco inventado vira prejuizo silencioso.
+ * Faixa sem preço NÃO vira zero nem herda o preço da vizinha: mantém o valor e avisa.
  */
-export function aplicarFaixa<T extends LinhaComPorte>(linha: T, rotulo: string): T {
-  const f = (linha?._faixas || []).find((x) => x.rotulo === rotulo);
-  if (!f) return linha;
-  return {
-    ...linha,
-    _faixaRotulo: f.rotulo,
-    _avisoPorte: f.preco == null ? `A faixa ${f.rotulo} não tem preço cadastrado.` : null,
-    valorUnitario: f.preco ?? linha.valorUnitario,
-    custoUnitario: f.custo ?? linha.custoUnitario,
-  };
+export function aplicarPeso<T extends LinhaComPorte>(linha: T, pesoKg: number | null | undefined): T {
+  const faixas = linha?._faixas || [];
+  if (!faixas.length) return linha;
+  const f = faixaDoPeso(pesoKg, faixas);
+  if (!f) return { ...linha, _faixaRotulo: null, _avisoPorte: 'Este item tem preço por porte e o peso do animal não está no cadastro.' };
+  if (f.preco == null) return { ...linha, _faixaRotulo: rotuloDaFaixa(f), _avisoPorte: `Este item não tem preço para o porte ${rotuloDaFaixa(f)}.` };
+  return { ...linha, _faixaRotulo: rotuloDaFaixa(f), _avisoPorte: null, valorUnitario: f.preco, custoUnitario: f.custo ?? linha.custoUnitario };
 }

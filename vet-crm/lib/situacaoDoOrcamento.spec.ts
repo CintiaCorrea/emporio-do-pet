@@ -118,11 +118,11 @@ describe("o menu e a permissão de editar venda", () => {
     expect(fonte("app/(user)/dashboard/erp/movimentos-caixa/page.tsx")).toContain('redirect("/dashboard/erp/caixa")');
   });
 
-  it("só o administrativo edita venda em Todas as vendas", () => {
-    // "Todas as vendas não é para ser editada por todos, somente pelo adm" (Cintia).
-    const src = fonte("app/(user)/dashboard/erp/vendas/page.tsx");
-    expect(src).toContain("isAdmin ? (");
-    expect(src).toContain("Só o administrativo edita venda");
+  it("Todas as vendas e Vendas em aberto saíram do ar e redirecionam para Vendas", () => {
+    // Cintia, 17/09/2026: "Pode tirar". Fora do menu, e tudo o que faziam existe em Vendas.
+    for (const rel of ["app/(user)/dashboard/erp/vendas/page.tsx", "app/(user)/dashboard/erp/comandas/page.tsx"]) {
+      expect(fonte(rel)).toContain('redirect("/dashboard/erp/consulta-vendas")');
+    }
   });
 });
 
@@ -144,16 +144,16 @@ describe("o orçamento enviado no WhatsApp fica registrado", () => {
   });
 });
 
-describe("receber dinheiro acontece numa tela só: o caixa", () => {
+describe("receber dinheiro acontece numa gaveta só", () => {
   const fonte = (rel: string) => codigoDoProjeto().find((a) => a.caminho === rel)?.src || "";
 
-  it("o ponto de venda leva a venda para o caixa, em vez de receber ali", () => {
-    // "'Registrar recebimento' — levar para a tela do caixa, sim, pois lá pode dar o desconto e
-    // a baixa corretamente" (Cintia, 10/09/2026). A gaveta do PDV era mais simples: sem
-    // desconto e sem o saldo devedor do cliente.
+  it("o ponto de venda recebe na gaveta única, ali mesmo", () => {
+    // Em 10/09/2026 o ponto de venda mandava receber no Caixa, porque a gaveta dele era mais simples
+    // (sem desconto e sem o saldo do cliente). Desde 16/09/2026 a gaveta é uma só, com tudo isso —
+    // e o ponto de venda a abre sem sair da tela. Ver lib/baixar-varias-em-toda-porta.spec.
     const pdv = fonte("app/(user)/dashboard/erp/ponto-de-venda/page.tsx");
-    expect(pdv).toContain("/dashboard/erp/caixa?venda=");
-    expect(pdv).toContain("Levar para o caixa");
+    expect(pdv).toContain("<ReceberEmLoteModal");
+    expect(pdv).not.toContain("Levar para o caixa");
   });
 
   it("e o caixa sabe abrir a venda que chega pelo link", () => {

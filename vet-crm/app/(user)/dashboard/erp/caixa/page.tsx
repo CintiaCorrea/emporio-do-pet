@@ -11,7 +11,7 @@ import { usePodeEditar } from '@/lib/permissions/context';
 import { useRolePreview } from '@/lib/ui/RolePreview';
 import { useSession } from 'next-auth/react';
 import { idDoMeuCaixa } from '@/lib/caixaAtual';
-import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
+import { ehDinheiro, carregarFormasRecebimento, PagForma, FormaCfg, TaxaRow } from '@/lib/formasPagamento';
 import { montarResumoDoCaixa, avisoDoUsoDeCredito, avisoDoAdiantamento } from '@/lib/resumoDoCaixa';
 import { agruparRecebimentos, rotuloDaVenda } from '@/lib/recebimentosDoCaixa';
 import { seloDoFechamento, coresDoSelo } from '@/lib/fechamentoDoCaixa';
@@ -19,7 +19,6 @@ import { imprimirCaixaDetalhado, imprimirResumoDeCaixas } from '@/lib/documentos
 import { trilhaDoCaixa } from '@/lib/trilhaDoCaixa';
 import { Faixa, faixaDoPreset, rotuloDoPeriodo, presetDaFaixa, ehDiaUnico, somarDias, hojeNaCasa } from '@/lib/periodoDeBusca';
 import SeletorDePeriodo from '@/components/comum/SeletorDePeriodo';
-import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
 import {
   LuPlus, LuLock, LuLockOpen, LuPrinter, LuChevronLeft, LuChevronRight,
   LuX, LuWallet, LuTrash2, LuGift, LuSettings, LuCircleDollarSign, LuEye, LuEyeOff,
@@ -49,7 +48,6 @@ interface Appointment { id: string; value: number; numeroVenda?: number | null; 
 
 const FORMAS_PADRAO = ['Dinheiro', 'Pix', 'Cartão crédito', 'Cartão débito', 'Crédito do pet'];
 const CONTAS = ['Caixa', 'Banco', 'Cofre'];
-const ehCredito = (f?: string | null) => /cr[eé]dito do pet/i.test(f || '');
 const ehEntrada = (tipo: string) => tipo === 'SUPRIMENTO';
 const tipoLabel: Record<string, string> = { SUPRIMENTO: 'Suprimento', SANGRIA: 'Sangria', DESPESA: 'Despesa', TRANSFERENCIA: 'Transferência' };
 const brl = (v: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
@@ -168,12 +166,6 @@ export default function CaixaPage() {
 
   const [abrirOpen, setAbrirOpen] = useState(false);
   const [abrirForm, setAbrirForm] = useState({ suprimento: '', observacao: '', abertura: '' });
-  const [receberOpen, setReceberOpen] = useState(false);
-  const [vendaSel, setVendaSel] = useState<Appointment | null>(null);
-  const [formas, setFormas] = useState<Forma[]>([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]);
-  const [desconto, setDesconto] = useState(0);
-  const [obsReceb, setObsReceb] = useState('');
-  const [tutorSaldo, setTutorSaldo] = useState<number | null>(null);
   // A TAXA DO CARTÃO É DO ADMINISTRATIVO (Cintia, 16/09/2026: "não quero que as informações
   // sobre o desconto do cartão de crédito apareçam para todos, somente para o adm").
   //
@@ -188,15 +180,6 @@ export default function CaixaPage() {
   const sessaoPronta = useSession().status === 'authenticated';
   const papelEfetivo = useRolePreview().effectiveRole;
   const verTaxa = sessaoPronta && papelEfetivo === 'ADMIN';
-  const [tutorAReceber, setTutorAReceber] = useState<number | null>(null); // total a receber do cliente (todas as vendas)
-  // AS VENDAS EM ABERTO DO CLIENTE, linha a linha — de qualquer dia (Cintia, 16/09/2026: "eu tinha
-  // trazido vários exemplos do simplesvet para poder baixar várias vendas simultaneamente no
-  // próprio ponto de vendas, e essa opção não aparece quando vamos fechar").
-  //
-  // O ponto de venda manda receber AQUI (decisão de 10/09: quem recebe é uma tela só). A baixa de
-  // várias tinha sido posta só na Consulta de vendas — justamente fora do caminho de fechar.
-  // null = ainda carregando; [] = não deve nada além desta.
-  const [abertasDoCliente, setAbertasDoCliente] = useState<(ComandaParaReceber & { pago?: number })[] | null>(null);
   const [loteDe, setLoteDe] = useState<{ nome: string; comandas: ComandaParaReceber[]; pre: string[] } | null>(null);
   // O FORMULARIO do movimento virou componente (components/caixa/MovimentoCaixaModal) — o mesmo
   // que o ponto de venda usa desde 07/09/2026. Aqui fica so qual tipo esta aberto.
@@ -464,20 +447,24 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
     try { const r = await fetch(`/api/caixa/${detail.id}/reabrir`, { method: 'PATCH' }); if (!r.ok) throw await erroDoServidor(r, 'Erro ao reabrir caixa'); toast.success('Caixa reaberto!'); await fetchCaixas(); await fetchDetail(detail.id); }
     catch (e: any) { toast.error(e.message || 'Erro ao reabrir caixa'); }
   };
+  // RECEBER É NA GAVETA ÚNICA (16/09/2026): a mesma do ponto de venda e de Vendas — pergunta o
+  // caixa, mostra a data dele, tem desconto e observação, e mostra as outras vendas em aberto do
+  // cliente (de qualquer dia), com esta marcada. A gaveta própria desta tela saiu: era uma segunda
+  // cópia das regras de cartão, crédito e desconto.
   const abrirReceber = async (venda: Appointment) => {
-    setVendaSel(venda); setFormas([{ forma: 'Dinheiro', valor: 0, parcelas: 1, nsu: '' }]); setDesconto(0); setObsReceb(''); setTutorSaldo(null); setTutorAReceber(null); setAbertasDoCliente(null); setReceberOpen(true);
     const tid = tutorIdDe(venda);
-    // A MESMA FONTE da Consulta de vendas e do ponto de venda (/api/caixa/vendas), filtrada no
-    // servidor pelo cliente. Uma conta só para "quanto ele deve" em todas as telas.
+    let abertas: ComandaParaReceber[] = [];
     if (tid) {
-      fetch(`/api/caixa/vendas?abertas=true&tutorId=${encodeURIComponent(tid)}`, { cache: 'no-store' })
-        .then((r) => (r.ok ? r.json() : []))
-        .then((arr) => setAbertasDoCliente((Array.isArray(arr) ? arr : [])
-          .map((x: any) => ({ id: x.id, date: x.date, pet: x.pet, origem: x.origem, numeroVenda: x.numeroVenda ?? x.codigoExterno ?? null, pago: Number(x.pago || 0), aberto: Math.max(0, Number(x.valor || 0) - Number(x.pago || 0)) }))
-          .filter((x: any) => x.aberto > 0.009)))
-        .catch(() => setAbertasDoCliente([]));
-    } else setAbertasDoCliente([]);
-    if (tid) { try { const r = await fetch(`/api/credito/tutor/${tid}/resumo`, { cache: 'no-store' }); if (r.ok) { const d = await r.json(); setTutorSaldo(Number(d.credito || 0)); setTutorAReceber(Number(d.aReceber || 0)); } } catch { /* ignore */ } }
+      try {
+        const arr = await fetch(`/api/caixa/vendas?abertas=true&tutorId=${encodeURIComponent(tid)}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : []));
+        abertas = (Array.isArray(arr) ? arr : [])
+          .map((x: any) => ({ id: x.id, date: x.date, pet: x.pet, origem: x.origem, numeroVenda: x.numeroVenda ?? x.codigoExterno ?? null, aberto: Math.max(0, Number(x.valor || 0) - Number(x.pago || 0)) }))
+          .filter((x: any) => x.aberto > 0.009);
+      } catch { /* sem a lista do cliente, recebe só esta */ }
+    }
+    const esta: ComandaParaReceber = abertas.find((x) => x.id === venda.id)
+      || { id: venda.id, date: venda.start || null, pet: venda.pet?.name || null, numeroVenda: venda.numeroVenda ?? null, aberto: Math.max(0, Number(venda.value) - (pagoPorAppt.get(venda.id) || 0)) };
+    setLoteDe({ nome: venda.tutor?.name || 'Cliente', comandas: [esta, ...abertas.filter((x) => x.id !== venda.id)], pre: [venda.id] });
   };
 
   // ---- exclusoes (apenas com caixa ABERTO) ----
@@ -500,69 +487,7 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
     toast.success('Crédito excluído'); await fetchDetail(detail.id);
   };
 
-  const somaFormas = formas.reduce((s, f) => s + Number(f.valor || 0), 0);
-  const creditoNasFormas = formas.filter((f) => ehCredito(f.forma)).reduce((s, f) => s + Number(f.valor || 0), 0);
-  const creditoExcede = tutorSaldo !== null && creditoNasFormas > tutorSaldo + 0.001;
-  // O SALDO DA VENDA É O QUE FALTA EM TODOS OS CAIXAS, não só no que está aberto na tela. Venda de
-  // 05/09 com metade paga no caixa daquele dia aparecia aqui cobrando o valor inteiro. Quando a
-  // lista do cliente já chegou, ela manda (o `pago` dela soma todos os recebimentos).
-  const linhaDaVendaSel = vendaSel ? (abertasDoCliente || []).find((x) => x.id === vendaSel.id) : undefined;
-  const valorDevido = vendaSel
-    ? (linhaDaVendaSel ? Number(linhaDaVendaSel.aberto || 0) : Number(vendaSel.value) - (pagoPorAppt.get(vendaSel.id) || 0))
-    : 0;
-  const temDinheiro = formas.some((f) => ehDinheiro(f.forma));
-  const troco = temDinheiro && somaFormas + desconto > valorDevido ? somaFormas + desconto - valorDevido : 0;
-  const valorAplicado = Math.max(0, somaFormas + desconto - troco);
-  const saldoRestante = Math.max(0, valorDevido - valorAplicado);
 
-  /**
-   * Em qual caixa a baixa entra.
-   *
-   * `detail` so' existe quando a pessoa ABRIU um caixa na tela. Recebendo direto da lista de
-   * vendas — que e' o caminho normal desde que o receber veio pra ca' — ele fica nulo, e a
-   * funcao desistia em silencio: o modal abria, a pessoa preenchia, clicava em Confirmar e
-   * NADA acontecia. Nenhum recebimento foi registrado no sistema inteiro entre 10/09 15:00 e
-   * 11/09 (Cintia: "o caixa nao esta conseguindo registrar a baixa de nenhuma venda").
-   *
-   * Agora, sem `detail`, procura o caixa ABERTO da pessoa logada — o de hoje na frente. E se
-   * nao houver, DIZ. Botao que nao faz nada e' pior que botao que recusa.
-   */
-  const caixaParaBaixa = (): { id: string } | { erro: string } => {
-    if (detail) return { id: detail.id };
-    const abertos = (caixas || []).filter((c) => c.status === 'ABERTO');
-    const meus = meId ? abertos.filter((c) => c.user?.id === meId) : [];
-    const candidatos = meus.length ? meus : abertos;
-    if (!candidatos.length) return { erro: 'Nao ha caixa aberto. Abra o seu caixa para receber.' };
-    if (!meus.length && abertos.length) {
-      return { erro: `O caixa aberto e' de ${abertos[0].user?.name || 'outra pessoa'}. Cada pessoa lanca no proprio caixa — abra o seu.` };
-    }
-    // O mais recente primeiro: o dinheiro que entra agora e' dinheiro de hoje.
-    const escolhido = [...candidatos].sort((a, b) => (a.abertura < b.abertura ? 1 : -1))[0];
-    return { id: escolhido.id };
-  };
-
-  const registrarRecebimento = async () => {
-    if (!vendaSel) { toast.error('Escolha a venda que esta sendo recebida.'); return; }
-    const alvo = caixaParaBaixa();
-    if ('erro' in alvo) { toast.error(alvo.erro); return; }
-    const caixaId = alvo.id;
-    if (somaFormas <= 0) { toast.error('Informe ao menos uma forma com valor'); return; }
-    // Cartão exige operadora + NSU + AUT: é o que casa a venda com a linha do extrato.
-    const faltaCartao = validarPagamentosCartao(formas.filter((f) => Number(f.valor) > 0), formasConfig);
-    if (faltaCartao) { toast.error(faltaCartao); return; }
-    if (creditoExcede) { toast.error('Crédito do cliente insuficiente'); return; }
-    try {
-      const corpo: any = { appointmentId: vendaSel.id, valorTotal: valorAplicado, desconto, troco, formas, observacao: obsReceb || null };
-      const enviar = (c: any) => fetch(`/api/caixa/${caixaId}/recebimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
-      const r = await enviar(corpo);
-      if (!r.ok) {
-        // Desconto acima do permitido pela forma vem recusado com a frase do servidor.
-        const e: any = await r.json().catch(() => ({}));
-        throw new Error(e.message || 'Erro ao registrar recebimento');
-      }
-      toast.success('Recebimento registrado!'); setReceberOpen(false); await fetchDetail(caixaId); await fetchAppointments(); await fetchCaixas();
-    } catch (e: any) { toast.error(e.message || 'Erro ao registrar recebimento'); }
-  };
   const abrirMov = (tipo: TipoMovimento) => { setMovTipo(tipo); setMovOpen(true); };
   const abrirCredito = () => { setCredForm({ appointmentId: appointments[0]?.id || '', tipo: 'RECARGA', valor: '', descricao: '', forma: 'Dinheiro' }); setCredOpen(true); };
   const adicionarCredito = async () => {
@@ -1184,55 +1109,6 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
         </Modal>
       )}
 
-      {receberOpen && vendaSel && (
-        <Modal title="Registrar recebimento" slide onClose={() => setReceberOpen(false)} onConfirm={registrarRecebimento} confirmLabel="Confirmar recebimento" confirmDisabled={creditoExcede}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', background: '#FBF9F4', borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>
-            <span style={{ color: '#1F2A2E' }}>{vendaSel.tutor?.name || 'Cliente'} · {vendaSel.pet?.name || 'Pet'}</span>
-            <span style={{ color: '#5C6B70', fontSize: 12 }}>Total {brl(Number(vendaSel.value))} · Saldo <b style={{ color: ORANGE }}>{brl(valorDevido)}</b></span>
-          </div>
-          {/* VENDAS EM ABERTO + BAIXAR VÁRIAS — como no SimplesVet (Cintia, 15 e 16/09/2026).
-              O texto é só "Vendas em aberto R$ X", a pedido dela. O total INCLUI esta venda: é o
-              número que se diz ao cliente no balcão. A escolha abre o MESMO componente da
-              Consulta de vendas, com esta venda marcada e as outras à vista, desmarcadas. */}
-          {(() => {
-            const todas = abertasDoCliente || [];
-            const outras = todas.filter((x) => x.id !== vendaSel.id);
-            if (!outras.length) return null;
-            const total = todas.reduce((t, x) => t + Number(x.aberto || 0), 0) + (linhaDaVendaSel ? 0 : valorDevido);
-            const abrirLote = () => {
-              const comandas: ComandaParaReceber[] = linhaDaVendaSel ? todas : [{ id: vendaSel.id, date: vendaSel.start || null, pet: vendaSel.pet?.name || null, numeroVenda: vendaSel.numeroVenda ?? null, aberto: valorDevido }, ...todas];
-              setReceberOpen(false);
-              setLoteDe({ nome: vendaSel.tutor?.name || 'Cliente', comandas, pre: [vendaSel.id] });
-            };
-            return (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: '#FDECEC', border: '1px solid #E4A5A5', borderRadius: 8, padding: '9px 12px' }}>
-                <span style={{ color: '#A32D2D', fontSize: 13, fontWeight: 600 }}>Vendas em aberto {brl(total)}</span>
-                <button onClick={abrirLote} style={{ border: 'none', background: '#A32D2D', color: '#fff', borderRadius: 7, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>Baixar várias</button>
-              </div>
-            );
-          })()}
-          {tutorSaldo !== null && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e8f7f9', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
-              <span style={{ color: '#014D5E' }}>Crédito disponível do cliente</span><b style={{ color: TEAL_DARK }}>{brl(tutorSaldo)}</b>
-            </div>
-          )}
-          <div>
-            <label style={lbl}>Formas de pagamento</label>
-            {/* FONTE ÚNICA: mesmo componente do PDV (captura modalidade/bandeira → taxa correta no Financeiro). */}
-            <PagamentoFormas formas={formas} onChange={setFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
-            {creditoExcede && <p style={{ fontSize: 11, color: ORANGE, margin: '6px 0 0' }}>Crédito usado ({brl(creditoNasFormas)}) maior que o disponível ({brl(tutorSaldo || 0)}).</p>}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1 }}><Field label="Desconto"><CampoValor valor={desconto} onValor={setDesconto} placeholder="0,00" style={inp} /></Field></div>
-            <div style={{ flex: 1 }}><Field label="Troco (auto)"><div style={{ ...inp, color: '#374151', background: '#FBF9F4' }}>{brl(troco)}</div></Field></div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', background: '#e8f7f9', borderRadius: 8, padding: '10px 12px', fontSize: 13 }}>
-            <span style={{ color: '#014D5E' }}>Total pago <b style={{ color: TEAL_DARK }}>{brl(somaFormas)}</b></span>
-            <span style={{ color: '#014D5E' }}>Saldo restante <b style={{ color: saldoRestante <= 0.001 ? GREEN : ORANGE }}>{brl(saldoRestante)}</b></span>
-          </div>
-          <Field label="Observação"><input value={obsReceb} onChange={(e) => setObsReceb(e.target.value)} style={inp} /></Field>
-        </Modal>
-      )}
       {loteDe && (
         <ReceberEmLoteModal
           tutor={loteDe.nome}

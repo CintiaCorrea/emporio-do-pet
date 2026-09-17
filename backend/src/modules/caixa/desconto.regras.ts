@@ -118,3 +118,14 @@ export function ratearDesconto<T extends { valorTotal: number; desconto?: number
     return { ...it, desconto: (cent(it.desconto) + p) / 100, valorTotal: (cent(it.valorTotal) - p) / 100 };
   });
 }
+
+/**
+ * O DESCONTO DE UM PAGAMENTO QUE QUITA VÁRIAS VENDAS — quanto cabe a cada uma.
+ *
+ * Proporcional ao valor em aberto de cada venda, em centavos; a sobra do arredondamento vai para
+ * as vendas que ainda comportam. Nenhuma venda recebe mais desconto do que tem em aberto.
+ */
+export function repartirDescontoDoLote(comandas: { id: string; aberto: number }[], desconto: number): { id: string; desconto: number }[] {
+  const partes = ratearDesconto(comandas.map((c) => ({ id: c.id, valorTotal: Number(c.aberto) || 0, desconto: 0 })), desconto);
+  return partes.filter((p) => Number(p.desconto) > 0).map((p) => ({ id: p.id, desconto: Number(p.desconto) }));
+}

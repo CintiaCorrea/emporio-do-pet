@@ -3,89 +3,100 @@ import { join } from "path";
 import { describe, it, expect } from "vitest";
 
 /**
- * TODA PORTA QUE RECEBE VENDA OFERECE BAIXAR VÁRIAS.
+ * TODA PORTA QUE RECEBE VENDA USA A GAVETA ÚNICA.
  *
- * Cintia, 16/09/2026: "ontem trabalhamos o ponto de venda e eu tinha trazido vários exemplos do
- * simplesvet para poder baixar várias vendas simultaneamente no próprio ponto de vendas, e essa
- * opção não aparece quando vamos fechar. Só conseguimos ver se formos pela aba de consulta de
- * vendas. Pode verificar por que não foi feito como pedido?"
+ * Cintia, 16/09/2026: "eu tinha trazido vários exemplos do simplesvet para poder baixar várias
+ * vendas simultaneamente no próprio ponto de vendas, e essa opção não aparece quando vamos fechar".
+ * Na mesma noite a decisão foi além: as cinco portas de receber viram UMA — o "Baixar várias"
+ * (components/caixa/ReceberEmLoteModal), que pergunta o caixa, mostra a data dele, tem desconto e
+ * observação e mostra as outras vendas em aberto do cliente. Saíram a gaveta própria do Movimento
+ * de caixa, a gaveta antiga do ponto de venda, o recebimento da venda nova sem perguntar o caixa, e
+ * as Comandas (tela fora do menu).
  *
- * O QUE ACONTECEU: a promessa de 15/09 foi "em qualquer venda, Registrar recebimento verifica se
- * o cliente tem outras em aberto". A entrega foi um botão na lista da Consulta de vendas. O
- * caminho real de fechar — Ponto de venda → Levar para o caixa → Registrar recebimento — ficou
- * recebendo uma venda só. A peça existia; só não estava onde o dinheiro entra.
- *
- * E havia um segundo defeito escondido atrás do primeiro: o Caixa procurava a venda do link SÓ
- * entre as do dia na tela. Venda de outro dia não abria nada, sem aviso.
- *
- * Este teste lista as portas. Tela nova que recebe venda entra nesta lista — e se entrar sem a
- * baixa de várias, o deploy para.
+ * Tela nova que recebe venda entra nesta lista — e se entrar com gaveta própria, o deploy para.
  */
 const RAIZ = join(__dirname, "..");
 const ler = (...p: string[]) => readFileSync(join(RAIZ, ...p), "utf8");
 
 const PORTAS: Record<string, string[]> = {
-  "Caixa (onde o ponto de venda manda receber)": ["app", "(user)", "dashboard", "erp", "caixa", "page.tsx"],
+  "Movimento de caixa": ["app", "(user)", "dashboard", "erp", "caixa", "page.tsx"],
   "Ponto de venda": ["app", "(user)", "dashboard", "erp", "ponto-de-venda", "page.tsx"],
   "Consulta de vendas": ["app", "(user)", "dashboard", "erp", "consulta-vendas", "page.tsx"],
-  "Comandas": ["app", "(user)", "dashboard", "erp", "comandas", "page.tsx"],
 };
 
-describe("cada porta de receber usa a MESMA peça de baixar várias", () => {
+describe("cada porta de receber usa a MESMA gaveta", () => {
   for (const [nome, caminho] of Object.entries(PORTAS)) {
     it(nome, () => {
       const src = ler(...caminho);
-      // Importa e monta o componente único — não uma cópia parecida.
       expect(src).toMatch(/import ReceberEmLoteModal/);
       expect(src).toContain("<ReceberEmLoteModal");
+      // Nenhuma grava recebimento de venda por conta própria.
+      expect(src).not.toMatch(/fetch\(`\/api\/caixa\/\$\{[^}]+\}\/recebimento`/);
     });
   }
+
+  it("as Comandas saíram do ar", () => {
+    expect(ler("app", "(user)", "dashboard", "erp", "comandas", "page.tsx")).toContain('redirect("/dashboard/erp/consulta-vendas")');
+  });
 });
 
-describe("o Caixa, que é onde o ponto de venda fecha", () => {
-  const caixa = ler(...PORTAS["Caixa (onde o ponto de venda manda receber)"]);
+describe("a gaveta única", () => {
+  const gaveta = ler("components", "caixa", "ReceberEmLoteModal.tsx");
 
-  it("avisa com o texto que ela pediu e oferece Baixar várias no próprio recebimento", () => {
-    expect(caixa).toContain("Vendas em aberto {brl(total)}");
-    expect(caixa).toContain("Baixar várias");
+  it("tem desconto (em R$ ou %) e observação, que só o Movimento de caixa tinha", () => {
+    expect(gaveta).toContain('useState<"R$" | "%">("R$")');
+    expect(gaveta).toContain("...(desconto > 0.009 ? { desconto } : {})");
+    expect(gaveta).toContain("observacao: observacao.trim()");
   });
 
-  it("abre com ESTA venda marcada e as outras desmarcadas", () => {
-    // Quem veio de uma venda não pode baixar as outras nove sem querer.
-    expect(caixa).toContain("pre: [vendaSel.id]");
+  it("mostra a data do caixa em que o dinheiro entra, mesmo com um caixa só", () => {
+    expect(gaveta).toContain("Entra no caixa nº {c.numero} de");
   });
 
-  it("busca as abertas do cliente de QUALQUER dia, na mesma fonte das outras telas", () => {
+  it("avisa quanto o cliente deve no total quando há outras vendas em aberto", () => {
+    expect(gaveta).toContain("Vendas em aberto {money(totalGeral)}");
+  });
+});
+
+describe("o Movimento de caixa", () => {
+  const caixa = ler(...PORTAS["Movimento de caixa"]);
+
+  it("abre a gaveta única com ESTA venda marcada e as outras do cliente à vista", () => {
+    expect(caixa).toContain("pre: [venda.id]");
     expect(caixa).toContain("/api/caixa/vendas?abertas=true&tutorId=");
   });
 
-  it("o link do ponto de venda acha venda de outro dia — e, não achando, diz", () => {
+  it("não tem mais gaveta própria", () => {
+    expect(caixa).not.toContain('title="Registrar recebimento"');
+    expect(caixa).not.toContain("const registrarRecebimento = async");
+  });
+
+  it("o link de outra tela acha venda de outro dia — e, não achando, diz", () => {
     expect(caixa).toContain("/api/appointments/${encodeURIComponent(pedida)}");
     expect(caixa).toContain("Não encontrei essa venda para receber");
   });
-
-  it("o saldo da venda considera o que já foi pago em outros caixas", () => {
-    expect(caixa).toContain("linhaDaVendaSel ? Number(linhaDaVendaSel.aberto || 0)");
-  });
-
-  it("o desconto aceita centavos", () => {
-    // "Já pedi que todos os campos com valor tenham dois dígitos após a vírgula."
-    expect(caixa).toContain("<CampoValor valor={desconto} onValor={setDesconto}");
-  });
 });
 
-describe("o Ponto de venda, nas duas portas dele", () => {
+describe("o Ponto de venda", () => {
   const pdv = ler(...PORTAS["Ponto de venda"]);
 
-  it("a lista 'Deve R$ X' do cliente baixa várias, e não só uma por vez", () => {
+  it("a lista 'Deve R$ X' do cliente baixa várias", () => {
     expect(pdv).toContain("💰 Baixar várias");
   });
 
-  it("a venda nova paga na hora avisa das outras e grava antes de escolher", () => {
-    // Gravar antes é o que permite escolher: o servidor só baixa venda que existe.
-    expect(pdv).toContain("Vendas em aberto {brl(saldoDoCliente + total)}");
-    expect(pdv).toContain("const salvarEBaixarVarias = async");
+  it("venda nova: salva e abre a gaveta com ela marcada — o servidor não escolhe o caixa sozinho", () => {
+    expect(pdv).toContain("if (!soCaucao) return salvarEBaixarVarias();");
     expect(pdv).toContain("pre: [nova.id]");
+  });
+
+  it("venda já salva: recebe ali mesmo, na gaveta, com as outras do cliente", () => {
+    expect(pdv).toContain("pre: [detVenda.id]");
+    expect(pdv).not.toContain("Levar para o caixa");
+  });
+
+  it("a gaveta antiga saiu", () => {
+    expect(pdv).not.toContain("confirmarRecVenda");
+    expect(pdv).not.toContain("recFormas");
   });
 
   it("caução nunca vira 'a receber' por esse caminho", () => {

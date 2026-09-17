@@ -1,4 +1,4 @@
-import { avaliarDesconto, percentualDaForma, percentualDoPagamento, ratearDesconto } from './desconto.regras';
+import { avaliarDesconto, percentualDaForma, percentualDoPagamento, ratearDesconto, repartirDescontoDoLote } from './desconto.regras';
 
 /**
  * DESCONTO PERMITIDO POR FORMA DE PAGAMENTO.
@@ -132,5 +132,16 @@ describe('o desconto geral dividido entre os itens', () => {
 
   it('sem desconto, nada muda', () => {
     expect(ratearDesconto(ITENS, 0)).toEqual(ITENS);
+  });
+});
+
+describe('o desconto de um pagamento que quita várias vendas', () => {
+  // As 10 vendas do Chico em aberto: um desconto no pagamento vai para cada venda pelo que ela deve.
+  it('reparte pelo valor em aberto, ao centavo', () => {
+    const r = repartirDescontoDoLote([{ id: 'a', aberto: 300 }, { id: 'b', aberto: 100 }], 20);
+    expect(r).toEqual([{ id: 'a', desconto: 15 }, { id: 'b', desconto: 5 }]);
+  });
+  it('venda já quitada não recebe desconto', () => {
+    expect(repartirDescontoDoLote([{ id: 'a', aberto: 0 }, { id: 'b', aberto: 50 }], 2.5)).toEqual([{ id: 'b', desconto: 2.5 }]);
   });
 });

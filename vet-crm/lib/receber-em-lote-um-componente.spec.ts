@@ -16,18 +16,18 @@ const raiz = join(__dirname, "..");
 const ler = (...p: string[]) => readFileSync(join(raiz, ...p), "utf8");
 
 const componente = ler("components", "caixa", "ReceberEmLoteModal.tsx");
-const comandas = ler("app", "(user)", "dashboard", "erp", "comandas", "page.tsx");
 const consulta = ler("app", "(user)", "dashboard", "erp", "consulta-vendas", "page.tsx");
 
 describe("receber em lote: um componente, duas telas", () => {
   it("so o componente chama o recebimento em lote", () => {
     expect(componente).toContain("recebimento-lote");
-    expect(comandas).not.toContain("recebimento-lote");
     expect(consulta).not.toContain("recebimento-lote");
   });
 
   it("as duas telas montam o MESMO componente", () => {
-    for (const [nome, tela] of [["comandas", comandas], ["consulta de vendas", consulta]] as const) {
+    // As Comandas saíram do ar em 17/09/2026; o Movimento de caixa e o ponto de venda usam a mesma
+    // gaveta (lib/baixar-varias-em-toda-porta.spec).
+    for (const [nome, tela] of [["consulta de vendas", consulta]] as const) {
       expect(tela, nome).toMatch(/from "@\/components\/caixa\/ReceberEmLoteModal"|from '@\/components\/caixa\/ReceberEmLoteModal'/);
       expect(tela, nome).toMatch(/<ReceberEmLoteModal/);
     }

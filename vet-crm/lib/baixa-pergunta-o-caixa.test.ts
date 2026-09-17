@@ -14,8 +14,8 @@ import { codigoDoProjeto } from "@/lib/testes/varreduraDoProjeto";
 
 // Desde 12/09/2026 o recebimento em lote mora num componente, usado pela tela de comandas e
 // pela Consulta de vendas. A trava tem que seguir a peca: e ela que pergunta o caixa agora.
+// Desde 17/09/2026 a gaveta única é a única que recebe venda (as Comandas saíram do ar).
 const TELAS_QUE_RECEBEM = [
-  "app/(user)/dashboard/erp/comandas/page.tsx",
   "components/caixa/ReceberEmLoteModal.tsx",
 ];
 

@@ -68,7 +68,23 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
 - [x] **C1** (17/09): item de orcamento guarda catalogoItemId/fornecedorId/custoUnitario; transformar em
   venda cria "Venda" COMPLETED com a ligacao ao cadastro e APAGA o orcamento; contador por mes em
   lista_itens `orcamentos_viraram_venda` (GET /orcamentos/contador).
-- [ ] C2 peca unica de lancar itens · C3 comanda com abas · C4 gaveta unica · C5 tela de Orcamentos.
+- [x] **C1 publicado** (api v852) e dados aplicados: 11 orcamentos convertidos apagados (contador
+  ago=5, set=6), 59 itens de orcamentos abertos religados ao cadastro.
+- [x] **C2** porta unica de lancar item: `lib/catalogoVendavel.lancarDoCadastro` (sem peso nao lanca
+  item com faixa; faixa sem preco nao lanca); peso registrado na propria venda
+  (`components/vendas/PesoDaVenda`, grava no bloco de peso do prontuario); `lib/porte.aplicarPeso`
+  refaz o preco. Sairam FaixaDePesoDaLinha/aplicarFaixa e todo campo de preco digitado (PDV, edicao,
+  orcamento rapido).
+- [x] **C3** carrinho da ficha (`PetComandaRail`): abas Venda/Orcamento, Salvar e Imprimir, sem
+  gravacao automatica, orcamentos salvos com Transformar em venda e Excluir; `?carrinho=orcamento`.
+- [x] **C4** gaveta unica (`ReceberEmLoteModal`): desconto R$/% e observacao (lote aceita desconto:
+  `repartirDescontoDoLote` + rateio nos itens), data do caixa sempre a vista; Movimento de caixa e PDV
+  (venda nova e venda salva) usam ela; sairam a gaveta propria do caixa, a gaveta antiga do PDV, o
+  botao de caucao da internacao; /comandas e /vendas redirecionam para Vendas.
+- [x] **C5** tela de Orcamentos: contador do mes; "Abrir orcamento" no carrinho da ficha; botoes de
+  converter sairam de Orcamentos, Consulta de vendas e PDV.
+- [ ] Proximo: B internacao (Luna internada) · D atendimento + Inbox (venda rapida falha sem userId;
+  enviar PDF e registrar na ficha) · E SimplesVet so consulta · P1 regra unica de venda nos relatorios.
 - [ ] Ao final: varredura da tela do ponto de venda (recebimento) e revisao da tabela de
   produtos e servicos (a Cintia esta fazendo fora do sistema; reintegrar junto).
 

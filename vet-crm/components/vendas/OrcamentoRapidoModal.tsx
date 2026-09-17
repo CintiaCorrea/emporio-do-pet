@@ -2,13 +2,12 @@
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { LuTrash, LuPlus, LuMessageSquare } from "react-icons/lu";
-import { carregarCatalogoVendavel, linhaDoItem, itemParaVenda, labDoItem, ItemVendavel } from "@/lib/catalogoVendavel";
+import { carregarCatalogoVendavel, linhaDoItem, lancarDoCadastro, itemParaVenda, labDoItem, ItemVendavel } from "@/lib/catalogoVendavel";
 import BuscaItemCatalogo from "@/components/vendas/BuscaItemCatalogo";
 import SeletorModeloVenda from "@/components/vendas/SeletorModeloVenda";
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from "@/lib/modelosVenda";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
-import FaixaDePesoDaLinha from "@/components/vendas/FaixaDePesoDaLinha";
-import { aplicarFaixa, type FaixaPorte } from "@/lib/porte";
+import { type FaixaPorte } from "@/lib/porte";
 
 const BRL = (n: any) => Number(n || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const ddmm = (iso: string) => { const [, m, d] = String(iso).split("-"); return d && m ? `${d}/${m}` : iso; };
@@ -91,11 +90,17 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, pesoKg
   // digitado (antes, escolher um modelo zerava a lista inteira). O preço vem do CATÁLOGO quando
   // o item existe lá: o modelo guarda o valor do dia em que foi criado.
   const aplicarModelo = (m: ModeloVenda) => {
-    const novas: Item[] = m.itens.map((it) => {
-      const c = casarNoCatalogo(it, cat);   // ItemVendavel: traz o nome e o valor de hoje
-      const valor = c?.valorPadrao != null ? Number(c.valorPadrao) : Number(it.valorUnitario) || 0;
-      return { descricao: c ? c.nome : it.descricao, qtd: String(Math.max(1, Number(it.quantidade) || 1)), valor: valor ? fmtVal(valor) : "" };
-    });
+    // Só do cadastro, pelo preço de hoje e pelo peso do pet (lib/catalogoVendavel.lancarDoCadastro).
+    const novas: Item[] = [];
+    const naoEntraram: string[] = [];
+    for (const it of m.itens) {
+      const c = casarNoCatalogo(it, cat);
+      if (!c) { naoEntraram.push(`${it.descricao || "(sem nome)"} (fora do cadastro)`); continue; }
+      const r = lancarDoCadastro(c, pesoKg, pet?.name);
+      if (!r.ok) { naoEntraram.push(r.mensagem); continue; }
+      novas.push({ descricao: c.nome, qtd: String(Math.max(1, Number(it.quantidade) || 1)), valor: fmtVal(r.linha.valorUnitario), _faixas: r.linha._faixas, _faixaRotulo: r.linha._faixaRotulo, _avisoPorte: r.linha._avisoPorte });
+    }
+    if (naoEntraram.length) toast.error(`Não entrou: ${naoEntraram.join(" · ")}`, { duration: 9000 });
     setItens((arr) => {
       const digitados = arr.filter((x) => x.descricao.trim());
       const juntos = [...digitados, ...novas];
@@ -231,35 +236,26 @@ export default function OrcamentoRapidoModal({ open, onClose, pet, tutor, pesoKg
                 rotuloDe={(c: any) => { const lab = labDoItem(c); return lab ? `${lab.veter ? "⭐ " : "🏥 "}${lab.nome}` : null; }}
                 onType={(val) => setItem(i, { descricao: val })}
                 onPick={(c: any) => {
-                  // PELO NUCLEO, COM O PESO. Antes: `c.valorPadrao` direto — o preco da faixa
-                  // mais barata, para qualquer animal. `linhaDoItem` consulta as faixas e o
-                  // peso do pet; sem peso, devolve o aviso e a linha pede a faixa na mao.
-                  const l = linhaDoItem(c, pesoKg);
+                  // PELO NUCLEO, COM O PESO (linhaDoItem por dentro de lancarDoCadastro). Item cobrado
+                  // por peso não entra sem peso registrado; faixa sem preço não entra.
+                  const r = lancarDoCadastro(c, pesoKg, pet?.name);
+                  if (!r.ok) { toast.error(r.mensagem, { duration: 7000 }); return; }
+                  const l = r.linha;
                   setItem(i, {
                     descricao: c.nome,
-                    valor: l.valorUnitario ? fmtVal(l.valorUnitario) : "",
+                    valor: fmtVal(l.valorUnitario),
                     _faixas: l._faixas, _faixaRotulo: l._faixaRotulo, _avisoPorte: l._avisoPorte,
                   });
-                  if (l._avisoPorte) toast(`⚖️ ${l._avisoPorte}`, { duration: 7000 });
                 }}
               />
               <input value={it.qtd} onChange={(e) => setItem(i, { qtd: e.target.value })} inputMode="numeric" style={{ ...inp, textAlign: "center" }} />
-              <input value={it.valor} onChange={(e) => setItem(i, { valor: e.target.value })} onBlur={(e) => setItem(i, { valor: fmtVal(e.target.value) })} inputMode="decimal" placeholder="0,00" style={{ ...inp, textAlign: "right" }} />
+              <span title="Preço do cadastro" style={{ ...inp, textAlign: "right", background: "#F7F5EF" }}>{it.valor || "—"}</span>
               <button onClick={() => delItem(i)} title="Remover" className="text-[#b23b39] flex items-center justify-center"><LuTrash size={13} /></button>
-              {/* ⚖️ so aparece em item cobrado por faixa de peso */}
-              <div style={{ gridColumn: "1 / -1" }}>
-                <FaixaDePesoDaLinha
-                  faixas={it._faixas}
-                  faixaRotulo={it._faixaRotulo}
-                  aviso={it._avisoPorte}
-                  pesoKg={pesoKg}
-                  petNome={pet?.name}
-                  onTrocar={(r) => {
-                    const l = aplicarFaixa({ _faixas: it._faixas, _faixaRotulo: it._faixaRotulo, _avisoPorte: it._avisoPorte, valorUnitario: parseVal(it.valor) }, r);
-                    setItem(i, { valor: l.valorUnitario ? fmtVal(l.valorUnitario) : "", _faixaRotulo: l._faixaRotulo, _avisoPorte: l._avisoPorte });
-                  }}
-                />
-              </div>
+              {it._faixaRotulo || it._avisoPorte ? (
+                <div style={{ gridColumn: "1 / -1", fontSize: 11, color: it._avisoPorte ? "#8a6400" : "#8A857A" }}>
+                  ⚖️ {it._avisoPorte || `faixa ${it._faixaRotulo}${pesoKg ? ` · ${String(pesoKg).replace(".", ",")} kg` : ""}`}
+                </div>
+              ) : null}
             </div>
           ))}
           <button onClick={addItem} className="self-start flex items-center gap-1 text-[11.5px] text-[#009AAC] mt-0.5"><LuPlus size={12} /> adicionar item</button>

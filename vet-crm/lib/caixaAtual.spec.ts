@@ -82,8 +82,9 @@ describe("quem não tem caixa abre o dela sem sair da venda", () => {
     expect(src).toContain("setAbrirCaixaMotivo");
   });
 
-  it("as comandas também", () => {
-    const src = lerArq("app/(user)/dashboard/erp/comandas/page.tsx");
+  it("a gaveta única também", () => {
+    // As Comandas saíram do ar em 17/09/2026; quem recebe é a gaveta única.
+    const src = lerArq("components/caixa/ReceberEmLoteModal.tsx");
     expect(src).toContain("AbrirMeuCaixaModal");
     expect(src).toContain("setAbrirCaixaMotivo");
   });

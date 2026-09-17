@@ -35,22 +35,20 @@ describe('um caixa por pessoa por dia', () => {
 });
 
 describe('registrar recebimento nunca falha calado', () => {
-  const tela = () =>
-    fs.readFileSync(
-      path.resolve(__dirname, '../../../../vet-crm/app/(user)/dashboard/erp/caixa/page.tsx'),
-      'utf8',
-    );
+  // Desde 16/09/2026 toda tela recebe venda pela GAVETA ÚNICA (vet-crm ReceberEmLoteModal); a gaveta
+  // própria do Movimento de caixa saiu. O cuidado de 10-11/09 (um `return` mudo deixou o caixa 24h
+  // sem registrar baixa) passa a valer para ela.
+  const ler = (rel: string) => fs.readFileSync(path.resolve(__dirname, '../../../../vet-crm', rel), 'utf8');
 
-  it('sem caixa aberto na tela, procura o da pessoa em vez de desistir', () => {
-    const src = tela();
-    expect(src).toContain('const caixaParaBaixa =');
-    // O `return` mudo era o defeito: some da funcao de registrar.
-    expect(src).not.toContain("if (!detail || !vendaSel) return;");
+  it('sem caixa aberto, a gaveta abre o caixa da pessoa ali mesmo em vez de desistir', () => {
+    const src = ler('components/caixa/ReceberEmLoteModal.tsx');
+    expect(src).toContain('if (!caixaAberto) { setAbrirCaixaMotivo(');
+    expect(src).toContain('<AbrirMeuCaixaModal');
   });
 
-  it('quando nao ha caixa, DIZ — botao que nao faz nada e pior que botao que recusa', () => {
-    const src = tela();
-    expect(src).toContain('Nao ha caixa aberto. Abra o seu caixa para receber.');
-    expect(src).toContain('Cada pessoa lanca no proprio caixa');
+  it('o Movimento de caixa não tem mais um caminho próprio que possa falhar calado', () => {
+    const src = ler('app/(user)/dashboard/erp/caixa/page.tsx');
+    expect(src).not.toContain("if (!detail || !vendaSel) return;");
+    expect(src).toContain('<ReceberEmLoteModal');
   });
 });

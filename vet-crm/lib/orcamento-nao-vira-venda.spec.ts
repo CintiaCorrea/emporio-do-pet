@@ -5,57 +5,51 @@ import { describe, it, expect } from "vitest";
 /**
  * QUEM ENTRA PARA ORÇAR NÃO SAI COM UMA VENDA.
  *
- * Cintia, 15/09/2026: "a tela de orçamento não está funcionando, quando clicamos para fazer
- * orçamento ele entra em vendas. Erro redundante novamente!"
+ * Cintia, 15/09/2026: "quando clicamos para fazer orçamento ele entra em vendas". E em 16/09: "Quero
+ * que possa lançar os itens e salvar, seja como orçamento ou como venda (no SimplesVet ele separa
+ * isso por abas) e as ações nesse caso são salvar e imprimir. Tem que separar orçamento e venda, só
+ * transformar quando solicitado."
  *
- * E era literal. Na ficha do pet, o botão "➕ Montar novo orçamento" fazia `setSub("VENDA")` e
- * largava a pessoa na Comanda — onde tudo diz VENDA: o título, a observação, e o botão grande,
- * destacado, em azul cheio. O orçamento era um botão pequeno, de contorno, na linha de baixo.
- *
- * O ESTRAGO NÃO É DE ROTA, É DE DINHEIRO: quem queria orçar e clicou no botão óbvio criou uma
- * VENDA — que entra em "A receber" e vira cobrança ao cliente. Um orçamento não cobra ninguém;
- * uma venda cobra. A tela não podia deixar essa diferença por conta da atenção de quem clica no
- * fim de um atendimento.
- *
- * O conserto não foi renomear o botão: foi fazer a INTENÇÃO existir e acompanhar a pessoa.
+ * O ESTRAGO ERA DE DINHEIRO: o carrinho da ficha gravava sozinho, 800 ms depois de cada item, uma
+ * VENDA de verdade — inclusive enquanto se montava um orçamento, que virava venda e orçamento ao
+ * mesmo tempo, com número de venda e "A receber".
  */
 const RAIZ = join(__dirname, "..");
 const rail = readFileSync(join(RAIZ, "components", "pets", "PetComandaRail.tsx"), "utf8");
 
-describe("a intenção acompanha quem entrou para orçar", () => {
-  it('"Montar novo orçamento" marca a intenção, não só troca de aba', () => {
-    expect(rail).toContain('setIntencao("ORCAMENTO"); setSub("VENDA")');
+describe("venda e orçamento em abas separadas", () => {
+  it("duas abas, cada uma com o seu rascunho", () => {
+    expect(rail).toContain('type Aba = "VENDA" | "ORCAMENTO"');
+    expect(rail).toContain("itensPorAba");
   });
 
-  it("o botão GRANDE é o da intenção", () => {
-    // Era sempre "Salvar a venda". O destaque visual é o que a mão segue quando a cabeça está
-    // no cliente que espera na sala.
+  it("nada vai ao servidor sem clicar em Salvar — acabou a gravação automática", () => {
+    expect(rail).not.toContain("agendarSync");
+    expect(rail).not.toContain("setTimeout(sincronizar");
+    expect(rail).not.toMatch(/fetch\(`\/api\/appointments\/\$\{[^}]+\}`, \{ method: "PATCH"/);
+  });
+
+  it("cada aba tem Salvar e Imprimir", () => {
     expect(rail).toContain("📄 Salvar orçamento");
-    expect(rail).toContain("💰 Salvar como venda");   // a venda vira a opção secundária
+    expect(rail).toContain("💰 Salvar venda");
+    expect(rail).toContain("imprimirComanda");
   });
 
   it("a tela diz o que vai acontecer ANTES do clique", () => {
-    // "não cobra o cliente" × "entra em A receber e vira cobrança" — é a única frase que importa
-    // nessa hora, e ela não existia.
-    expect(rail).toContain("Montando um ORÇAMENTO");
-    expect(rail).toContain("Montando uma VENDA");
-    expect(rail).toContain("não cobra o cliente");
-    expect(rail).toContain("vira cobrança");
+    expect(rail).toContain("Orçamento não cobra o cliente");
+    expect(rail).toContain("a venda entra em “A receber”");
   });
 
-  it("dá para mudar de ideia sem sair da tela", () => {
-    expect(rail).toContain("mudar para ");
+  it("orçamento vira venda só quando alguém pede — e some", () => {
+    expect(rail).toContain("Transformar em venda");
+    expect(rail).toContain("o orçamento deixa de existir");
   });
 
-  it("e a intenção NÃO fica grudada depois de salvar", () => {
-    // Sem isto, a próxima comanda abriria em modo orçamento sem ninguém ter pedido — o erro
-    // inverso, e igualmente calado.
-    const fn = rail.slice(rail.indexOf("async function gerarOrcamento"), rail.indexOf("async function gerarOrcamento") + 900);
-    expect(fn).toContain('setIntencao("VENDA")');
+  it("sair da página com coisa montada e não salva pergunta antes", () => {
+    expect(rail).toContain('addEventListener("beforeunload"');
   });
 
-  it("o título e a aba mudam junto — a tela inteira fala a mesma língua", () => {
-    expect(rail).toContain('{orcando ? "📄 Orçamento" : "🛒 Venda"}');
-    expect(rail).toContain('${orcando ? "📄 Montando" : "🛒 Venda"}');
+  it("o rascunho da comanda antiga não reaparece para ser salvo de novo", () => {
+    expect(rail).toContain("localStorage.removeItem(`comanda_appt_${petId}`)");
   });
 });

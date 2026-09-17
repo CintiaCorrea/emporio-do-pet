@@ -88,9 +88,11 @@ describe("uma peça só, em todas as telas", () => {
     expect(ler("components", "financeiro", "PagamentoFormas.tsx")).toContain("<CampoValor");
   });
 
-  it("o ponto de venda usa a peça — item e desconto, na venda e na edição", () => {
+  it("o ponto de venda usa a peça — desconto, na venda e na edição", () => {
+    // O preço unitário saiu dos campos editáveis em 16/09/2026 ("sem preço à mão"): vem do cadastro.
     const pdv = ler("app", "(user)", "dashboard", "erp", "ponto-de-venda", "page.tsx");
-    expect((pdv.match(/<CampoValor/g) || []).length).toBeGreaterThanOrEqual(4);
+    expect((pdv.match(/<CampoValor/g) || []).length).toBeGreaterThanOrEqual(2);
+    expect(pdv).not.toContain('placeholder="Unit." title="Valor unitário"');
   });
 
   it("e nenhum deles voltou a ler o número direto do onChange", () => {

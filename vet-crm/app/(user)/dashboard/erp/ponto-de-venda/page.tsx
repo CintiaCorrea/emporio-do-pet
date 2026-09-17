@@ -20,8 +20,9 @@ import { imprimirContasDoCliente } from '@/lib/documentos/relatorio-vendas-print
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from '@/lib/modelosVenda';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
-import { carregarCatalogoVendavel, linhaDoItem, labDoItem } from '@/lib/catalogoVendavel';
-import { rotuloDaFaixa, ordenarFaixas, aplicarFaixa, type FaixaPorte } from '@/lib/porte';
+import { carregarCatalogoVendavel, labDoItem, lancarDoCadastro } from '@/lib/catalogoVendavel';
+import { aplicarPeso, type FaixaPorte } from '@/lib/porte';
+import PesoDaVenda from '@/components/vendas/PesoDaVenda';
 import { excluirVenda as excluirVendaComum } from '@/lib/vendas/excluirVenda';
 import { ehDinheiro, carregarFormasRecebimento, validarPagamentosCartao, PagForma } from '@/lib/formasPagamento';
 import PagamentoFormas from '@/components/financeiro/PagamentoFormas';
@@ -98,6 +99,7 @@ export default function PDVPage() {
   // PESO DO PET desta venda — e ele que escolhe a faixa de preco dos itens cobrados por porte.
   // Vem do cadastro; quando falta, a tela pede a faixa na mao (nao trava a venda).
   const [pesoPet, setPesoPet] = useState<number | null>(null);
+  const [pedindoPeso, setPedindoPeso] = useState(false);
 
   const [servicos, setServicos] = useState<Servico[]>([]);
   const [itemBusca, setItemBusca] = useState('');
@@ -155,9 +157,6 @@ export default function PDVPage() {
   const [detExcluindo, setDetExcluindo] = useState(false);
   const [editItens, setEditItens] = useState<any[] | null>(null); // itens em edição no detalhe (null = modo leitura)
   const [savingEdit, setSavingEdit] = useState(false);
-  const [recOpen, setRecOpen] = useState(false);            // modal de recebimento de venda existente
-  const [recFormas, setRecFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]);
-  const [recSaving, setRecSaving] = useState(false);
 
   // Duas leituras, dois propósitos: o DIA alimenta o resumo e o relatório de comandas; as
   // ABERTAS alimentam a lista única — conta em aberto não pertence a um dia só, ela fica em pé
@@ -186,15 +185,6 @@ export default function PDVPage() {
         .map((o: any) => ({ id: o.id, tutor: o.tutor?.name || 'Cliente', pet: o.pet?.name || '', valor: Number(o.valorTotal) || 0, tutorId: o.tutorId, petId: o.petId, dia: String(o.createdAt || '').slice(0, 10), _orc: o })));
     } catch { /* */ }
   }, []);
-  async function converterOrcamento(o: { id: string; tutor: string; valor: number }) {
-    if (!confirm(`Converter o orçamento de ${o.tutor} (${brl(o.valor)}) em venda?\nEla entra na lista de contas em aberto, para receber no caixa.`)) return;
-    try {
-      const r = await fetch(`/api/orcamentos/${o.id}/converter`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      if (!r.ok) throw new Error();
-      toast.success('Orçamento virou venda ✅');
-      await Promise.all([loadVendas(), loadOrcamentos()]);
-    } catch { toast.error('Erro ao converter orçamento'); }
-  }
 
   // Abre o detalhe de uma venda (itens) num modal.
   async function abrirDetVenda(v: any) {
@@ -226,18 +216,29 @@ export default function PDVPage() {
     return () => { cancelado = true; };
   }, [petId, cliente]);
 
-  // Troca a faixa de UMA linha na mao — pet sem peso, ou peso que caiu numa faixa sem preco.
-  // A regra e do nucleo (lib/porte.aplicarFaixa) — a mesma da comanda e do orcamento rapido.
-  // Tres copias da regra de preco e como tres telas passam a discordar sobre o mesmo item.
-  const trocarFaixa = (i: number, rotulo: string) => {
-    setCarrinho((c) => c.map((x, j) => (j === i ? aplicarFaixa(x, rotulo) : x)));
+  // PESO REGISTRADO NA PRÓPRIA VENDA (components/vendas/PesoDaVenda): as linhas cobradas por faixa
+  // pegam o preço da faixa do peso novo. Não existe mais escolher a faixa na mão (Cintia,
+  // 16/09/2026: "sem preço à mão, peso tem que estar registrado").
+  const aoRegistrarPeso = (kg: number) => {
+    setPesoPet(kg); setPedindoPeso(false);
+    setCarrinho((c) => c.map((x) => aplicarPeso(x, kg)));
+  };
+  // Item cobrado por peso ainda sem preço (pet sem peso, ou faixa sem preço no cadastro): não salva.
+  const pendenciaDePreco = () => {
+    const p = carrinho.find((it) => it._avisoPorte);
+    if (!p) return false;
+    toast.error(`${p.descricao}: ${p._avisoPorte}`);
+    if (!pesoPet) setPedindoPeso(true);
+    return true;
   };
 
   // ----- Editar itens da venda existente -----
   function abrirEdicaoItens() {
     const its = (detVenda?.itens || []).map((it: any) => ({
+      id: it.id ?? undefined,
       servicoId: it.servicoId ?? undefined,
       productId: it.productId ?? undefined,
+      catalogoItemId: it.catalogoItemId ?? undefined,
       descricao: it.descricao || it.nome || '',
       quantidade: Number(it.quantidade ?? it.qtd ?? 1),
       valorUnitario: Number(it.valorUnitario ?? 0),
@@ -267,6 +268,10 @@ export default function PDVPage() {
     setSavingEdit(true);
     try {
       const items = limpos.map((it) => ({
+        // O id da linha e a ligação ao cadastro viajam: a linha que continua é a MESMA linha
+        // (appointments/linhas-da-venda.regras) e a nova nasce ligada ao cadastro.
+        id: it.id || undefined, catalogoItemId: it.catalogoItemId || undefined,
+        fornecedorId: it.fornecedorId || undefined, custoUnitario: it.custoUnitario != null ? Number(it.custoUnitario) : undefined,
         servicoId: it.servicoId || undefined, productId: it.productId || undefined,
         descricao: it.descricao, quantidade: Number(it.quantidade) || 1,
         valorUnitario: Number(it.valorUnitario) || 0, desconto: Number(it.desconto) || 0,
@@ -300,40 +305,6 @@ export default function PDVPage() {
   }, [meId]);
   // Quando a sessão carrega depois da tela, refaz a escolha do caixa.
   useEffect(() => { if (meId) recarregarMeuCaixa(); }, [meId, recarregarMeuCaixa]);
-
-  // ----- Registrar recebimento de venda existente -----
-  function abrirRecVenda() {
-    // Sem caixa próprio a baixa não acontece — então em vez de só recusar, abre o caixa aqui.
-    if (!caixaAbertoId) { setAbrirCaixaMotivo(`Para receber a venda de ${detVenda?.tutor || 'o cliente'}`); return; }
-    const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
-    setRecFormas([{ forma: 'Dinheiro', valor: Number(aReceber.toFixed(2)) }]);
-    setRecOpen(true);
-  }
-  async function confirmarRecVenda() {
-    if (!detVenda || !caixaAbertoId) return;
-    const formasValidas = recFormas.filter((f) => Number(f.valor) > 0);
-    const soma = formasValidas.reduce((s, f) => s + Number(f.valor || 0), 0);
-    if (soma <= 0.001) { toast.error('Informe o valor recebido.'); return; }
-    const faltaCartao = validarPagamentosCartao(formasValidas, formasConfig);
-    if (faltaCartao) { toast.error(faltaCartao); return; }
-    const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
-    const temDin = formasValidas.some((f) => ehDinheiro(f.forma));
-    const trocoR = temDin && soma > aReceber ? Number((soma - aReceber).toFixed(2)) : 0;
-    const valorAplicado = Math.max(0, Number((soma - trocoR).toFixed(2)));
-    setRecSaving(true);
-    try {
-      const r = await fetch(`/api/caixa/${caixaAbertoId}/recebimento`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ appointmentId: detVenda.id, valorTotal: valorAplicado, troco: trocoR, formas: formasValidas, observacao: 'Recebimento de venda' }),
-      });
-      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || 'Erro ao receber'); }
-      toast.success('Recebimento registrado!' + (trocoR ? ` · troco ${brl(trocoR)}` : ''));
-      setRecOpen(false);
-      const novoPago = Number(detVenda.pago || 0) + valorAplicado;
-      await abrirDetVenda({ ...detVenda, pago: novoPago });
-      await loadVendas();
-    } catch (e: any) { toast.error(e.message || 'Erro ao receber'); } finally { setRecSaving(false); }
-  }
 
   // Quem pode excluir a venda aberta na telinha. ADM sempre; os demais só enquanto a venda está
   // EM ABERTO (nada recebido) e dentro do caixa que está aberto agora. O backend decide de verdade —
@@ -503,8 +474,12 @@ export default function PDVPage() {
     // O peso do animal escolhe o preco quando o item cobra por porte (lib/porte). Antes, a
     // recepcao escolhia pelo NOME do item ("ACEPRAN - 11 A 20 KG") — e era assim que se cobrava
     // errado sem ninguem perceber.
-    const l = linhaDoItem(s as any, pesoPet);   // núcleo único: exame × produto/serviço, id certo, tira "🔬"
-    if (l._avisoPorte) toast(`⚖️ ${l._avisoPorte}`, { duration: 7000 });
+    // Núcleo único (lib/catalogoVendavel.lancarDoCadastro): item cobrado por peso não entra sem
+    // peso registrado, e faixa sem preço não entra — sem escolher faixa na mão.
+    const petNome = (cliente?.pets || []).find((x: any) => x.id === petId)?.name || null;
+    const r = lancarDoCadastro(s as any, pesoPet, petNome);
+    if (!r.ok) { if (r.motivo === 'sem_peso') setPedindoPeso(true); toast.error(r.mensagem, { duration: 7000 }); return false; }
+    const l = r.linha;
     // Avisa (sem travar) quando o saldo já está prometido em outra venda aberta — lib/estoqueComprometido.
     const jaNoCarrinho = carrinho.filter((x) => x.catalogoItemId === l.catalogoItemId).reduce((n, x) => n + (Number(x.quantidade) || 0), 0);
     const aviso = avisoDeEstoque(estoque, l.catalogoItemId, q, jaNoCarrinho);
@@ -527,6 +502,7 @@ export default function PDVPage() {
         : { ...base, servicoId: l.servicoId }];
     });
     setItemBusca(''); setItemAberto(false); setQtd(1);
+    return true;
   };
   const updItem = (i: number, patch: Partial<CartItem>) => setCarrinho((c) => c.map((x, j) => j === i ? { ...x, ...patch } : x));
   const rmItem = (i: number) => setCarrinho((c) => c.filter((_, j) => j !== i));
@@ -549,11 +525,11 @@ export default function PDVPage() {
     for (const it of m.itens) {
       const s = casarNoCatalogo(it, servicos as any);
       if (!s) { foraDoCatalogo.push(it.descricao || '(item sem nome)'); continue; }
-      addItem(s as Servico, Math.max(1, Number(it.quantidade) || 1));
-      entraram++;
+      if (addItem(s as Servico, Math.max(1, Number(it.quantidade) || 1))) entraram++;
+      else foraDoCatalogo.push(`${(s as any).nome} (sem peso ou sem preço)`);
     }
     setObs((o) => juntarObservacao(o, m.observacao));
-    if (foraDoCatalogo.length) toast.error(`Fora do catálogo, não entrou: ${foraDoCatalogo.join(', ')}. Cadastre o item ou lance à mão.`, { duration: 9000 });
+    if (foraDoCatalogo.length) toast.error(`Não entrou: ${foraDoCatalogo.join(', ')}.`, { duration: 9000 });
     if (entraram || m.observacao) toast.success(`Modelo "${m.nome}" aplicado${entraram ? ` · ${entraram} ${entraram > 1 ? 'itens' : 'item'}` : ''}`);
   };
 
@@ -638,9 +614,9 @@ export default function PDVPage() {
   // fechar. Só conseguimos ver se formos pela aba de consulta de vendas."
   //
   // Ela tinha razão: em 15/09 a baixa de várias foi posta só na Consulta de vendas e nas Comandas.
-  // Agora ela existe nas TRÊS portas de fechar que o ponto de venda tem — a lista "Deve R$ X" do
-  // cliente, o pagamento de uma venda nova, e (pelo "Levar para o caixa") o recebimento do Caixa.
-  // É sempre o MESMO componente: recebimento é dinheiro, e cópia parecida é conserto esquecido.
+  // Desde 16/09/2026 esta é a GAVETA ÚNICA de receber, e no ponto de venda ela abre nas três portas
+  // de fechar: a lista "Deve R$ X" do cliente, a venda nova ("Registrar recebimento") e a venda já
+  // salva ("Receber", no detalhe). Recebimento é dinheiro, e cópia parecida é conserto esquecido.
   const [loteDe, setLoteDe] = useState<{ nome: string; comandas: ComandaParaReceber[]; pre?: string[] } | null>(null);
   const paraReceber = (o: any): ComandaParaReceber => ({
     id: o.id, date: o.date, pet: o.pet, origem: o.origem,
@@ -700,17 +676,22 @@ export default function PDVPage() {
 
   const abrirRecebimento = () => {
     if (!baseValida) return;
+    if (pendenciaDePreco()) return;
     // Caução misturada com serviço na mesma venda daria uma conta meio receita, meio adiantamento —
     // e não há como dividir o pagamento entre as duas coisas sem adivinhar. Recebe separado.
     if (temCaucao && !soCaucao) { toast.error('A caução precisa ser recebida sozinha. Tire os outros itens do carrinho ou tire a caução.'); return; }
+    // RECEBER É NA GAVETA ÚNICA (16/09/2026): a venda é salva e a gaveta abre com ela marcada,
+    // perguntando o caixa e mostrando a data dele. Antes o servidor escolhia o caixa mais recente
+    // sem avisar. A caução continua com a janela dela: vira crédito do cliente, não é venda.
+    if (!soCaucao) return salvarEBaixarVarias();
     setFormas([{ forma: 'Dinheiro', valor: Number(total.toFixed(2)) }]); setModal(true);
   };
+  // A janela de recebimento do ponto de venda ficou só para a CAUÇÃO. Venda recebe na gaveta única.
   const confirmarRecebimento = () => {
-    if (soCaucao) return receberCaucao();
-    // Cartão exige operadora + NSU + AUT: é o que casa a venda com a linha do extrato.
+    // Cartão exige operadora + NSU + AUT: é o que casa a caução com a linha do extrato.
     const falta = validarPagamentosCartao(formas.filter((f) => Number(f.valor) > 0), formasConfig);
     if (falta) { toast.error(falta); return; }
-    return enviar(payload({ tipo: 'VENDA', formas: formas.filter((f) => Number(f.valor) > 0) }), 'Venda registrada!');
+    return receberCaucao();
   };
   // Salvar EDITANDO: PATCH na venda que ja existe, o mesmo endpoint que o box do lado usava.
   // Muda so de onde os itens vem — e aqui vem do buscador que funciona.
@@ -733,9 +714,10 @@ export default function PDVPage() {
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(String((e as any)?.message || '').replace(/^[A-Z_]+:\s*/, '') || 'Erro ao salvar'); }
       toast.success(`Venda ${editandoNum ? '#' + editandoNum + ' ' : ''}atualizada!`);
       reset(); loadVendas();
-    } catch (e: any) { toast.error(e?.message || 'Erro ao salvar'); } finally { setSalvando(false); }
+    } catch (e: any) { toast.error(e?.message || 'Erro ao salvar'); } finally { setSavingEdit(false); }
   };
   const salvar = () => {
+    if (pendenciaDePreco()) return;
     if (soCaucao) { toast.error('Caução não fica "a receber" — ela é dinheiro que entra agora. Use “Registrar recebimento”.'); return; }
     if (editandoId) return salvarEdicaoVenda(); if (tipo === 'ORCAMENTO') return salvarOrcamento(); return enviar(payload({ tipo }), 'Venda salva (a receber)');
   };
@@ -1015,6 +997,11 @@ export default function PDVPage() {
 
             {/* 2 produtos */}
             {step('🛒', 'Produtos e serviços')}
+            {petId && (
+              <div style={{ marginBottom: 10 }}>
+                <PesoDaVenda petId={petId} petNome={(cliente?.pets || []).find((x: any) => x.id === petId)?.name || null} pesoKg={pesoPet} onPeso={aoRegistrarPeso} pedindo={pedindoPeso} />
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 }}>
               <select value={profId} onChange={(e) => { const novo = e.target.value; setCarrinho((c) => c.map((it) => (!it.executorUserId || it.executorUserId === profId) ? { ...it, executorUserId: novo || undefined } : it)); setProfId(novo); }} style={{ ...inp, minWidth: 150 }} title="Profissional — preenche o vendedor de cada item que você adicionar (trocável por linha)">
                 <option value="">Profissional…</option>
@@ -1104,29 +1091,18 @@ export default function PDVPage() {
                       <span style={{ fontSize: 13, fontWeight: 500, color: NAVY, minWidth: 78, textAlign: 'right' }}>{brl(itemTotal(it))}</span>
                       <button onClick={() => rmItem(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                     </div>
-                    {/* ⚖️ faixa de peso — só aparece em item cobrado por porte */}
+                    {/* ⚖️ faixa de peso — só leitura: quem escolhe é o peso registrado */}
                     {(it._faixas || []).length > 0 && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 5, flexWrap: 'wrap' }}>
-                        <select value={it._faixaRotulo || ''} onChange={(e) => trocarFaixa(i, e.target.value)}
-                          title="Faixa de peso usada no preço deste item"
-                          style={{ ...inp, width: 'auto', padding: '4px 7px', fontSize: 11.5, ...(it._avisoPorte ? { borderColor: '#D9A62B', background: '#FFFBF0' } : { borderColor: SOFT, background: SUAVE }) }}>
-                          <option value="">— escolha a faixa —</option>
-                          {ordenarFaixas(it._faixas || []).map((f) => (
-                            <option key={f.rotulo} value={f.rotulo}>
-                              ⚖️ {rotuloDaFaixa(f)}{f.preco == null ? ' · sem preço' : ` · ${brl(f.preco)}`}
-                            </option>
-                          ))}
-                        </select>
-                        {it._avisoPorte
-                          ? <span style={{ fontSize: 11, color: '#8a6400' }}>{it._avisoPorte}</span>
-                          : <span style={{ fontSize: 11, color: MUT }}>pelo peso do {(cliente?.pets || []).find((x: any) => x.id === petId)?.name || 'pet'}{pesoPet ? ` · ${String(pesoPet).replace('.', ',')} kg` : ''}</span>}
+                      <div style={{ fontSize: 11, marginTop: 5, color: it._avisoPorte ? '#8a6400' : MUT }}>
+                        {it._avisoPorte ? `⚖️ ${it._avisoPorte}` : `⚖️ faixa ${it._faixaRotulo} · pelo peso do ${(cliente?.pets || []).find((x: any) => x.id === petId)?.name || 'pet'}${pesoPet ? ` (${String(pesoPet).replace('.', ',')} kg)` : ''}`}
                       </div>
                     )}
                     {/* linha 2: qtd × unit · desc · vendedor compacto */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 6, flexWrap: 'wrap' }}>
                       <input type="number" min={1} value={it.quantidade} onChange={(e) => updItem(i, { quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) })} title="Qtd" style={{ ...inp, width: 46, padding: '5px 6px', textAlign: 'center', fontSize: 12 }} />
                       <span style={{ color: MUT, fontSize: 12 }}>×</span>
-                      <CampoValor valor={it.valorUnitario} onValor={(v) => updItem(i, { valorUnitario: v })} placeholder="Unit." title="Valor unitário" style={{ ...inp, width: 96, padding: '5px 8px', fontSize: 12 }} />
+                      {/* Preço do cadastro, pela faixa do peso — não se digita (Cintia, 16/09/2026: "sem preço à mão"). */}
+                      <span title="Preço do cadastro" style={{ ...inp, width: 96, padding: '5px 8px', fontSize: 12, background: '#F7F5EF', display: 'inline-block' }}>{brl(it.valorUnitario)}</span>
                       <span style={{ display: 'inline-flex', alignItems: 'center' }}>
                         <CampoValor valor={it.desconto} placeholder="Desc." onValor={(v) => updItem(i, { desconto: v })} title="Desconto (o limite é o da forma de pagamento, conferido ao receber)" style={{ ...inp, width: 52, padding: '5px 6px', fontSize: 12, borderTopRightRadius: 0, borderBottomRightRadius: 0 }} />
                         <button type="button" onClick={() => updItem(i, { descTipo: it.descTipo === '%' ? '$' : '%' })} title="Alternar R$ / %" style={{ border: `1px solid ${SOFT}`, borderLeft: 'none', background: SUAVE, color: NAVY, fontSize: 11, fontWeight: 600, padding: '5px 6px', cursor: 'pointer', borderTopRightRadius: 7, borderBottomRightRadius: 7 }}>{it.descTipo === '%' ? '%' : 'R$'}</button>
@@ -1464,22 +1440,14 @@ export default function PDVPage() {
         <div {...fundoDeModal(() => setModal(false))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 420, maxWidth: '100%', background: SUAVE, border: `1px solid ${LINE}`, borderRadius: 16, overflow: 'hidden' }}>
             <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>💰 Registrar recebimento</span>
+              <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>💰 Receber caução</span>
               <button onClick={() => setModal(false)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
             </div>
             <div style={{ padding: 18 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, padding: '11px 14px' }}>
-                <span style={{ fontSize: 13, color: INK2 }}>Total da venda</span>
+                <span style={{ fontSize: 13, color: INK2 }}>Caução</span>
                 <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(total)}</span>
               </div>
-              {/* O total do aviso INCLUI esta venda: é o número que se diz ao cliente no balcão.
-                  Caução não entra — ela não pode ficar "a receber" (ver receberCaucao). */}
-              {saldoDoCliente > 0.009 && !temCaucao && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 14, background: ERRB, border: `1px solid ${ERR}`, borderRadius: 11, padding: '10px 14px' }}>
-                  <span style={{ fontSize: 13, color: ERR, fontWeight: 600 }}>Vendas em aberto {brl(saldoDoCliente + total)}</span>
-                  <button onClick={salvarEBaixarVarias} disabled={salvando} style={{ border: 'none', background: ERR, color: '#fff', borderRadius: 8, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: salvando ? 'default' : 'pointer', whiteSpace: 'nowrap' }}>Baixar várias</button>
-                </div>
-              )}
               <PagamentoFormas formas={formas} onChange={setFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
 
               <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
@@ -1532,7 +1500,7 @@ export default function PDVPage() {
               {detOrc.observacao && <div style={{ marginTop: 10, fontSize: 12, color: '#374151' }}><b>Obs:</b> {detOrc.observacao}</div>}
               <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                 <button onClick={() => imprimirOrcamento(detOrc)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>🖨️ Imprimir orçamento</button>
-                <button onClick={async () => { await converterOrcamento({ id: detOrc.id, tutor: detOrc.tutor?.name || 'Cliente', valor: Number(detOrc.valorTotal || 0) }); setDetOrc(null); }} style={{ marginLeft: 'auto', border: 'none', borderRadius: 9, background: '#6D28D9', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>→ Converter em venda</button>
+                {detOrc.petId && <a href={`/dashboard/erp/pets/${detOrc.petId}?carrinho=orcamento`} title="Transformar em venda no carrinho da ficha — o orçamento some e vira venda" style={{ marginLeft: 'auto', textDecoration: 'none', borderRadius: 9, background: '#6D28D9', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 500 }}>→ Abrir para transformar em venda</a>}
               </div>
             </div>
           </div>
@@ -1601,12 +1569,12 @@ export default function PDVPage() {
       )}
 
       {detVenda && (
-        <div {...fundoDeModal(() => { setDetVenda(null); setEditItens(null); setRecOpen(false); })} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
+        <div {...fundoDeModal(() => { setDetVenda(null); setEditItens(null); })} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 70, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
           <style>{`@keyframes pdvSlideOver{from{transform:translateX(100%)}to{transform:translateX(0)}}`}</style>
           <div onClick={(e) => e.stopPropagation()} style={{ width: 460, maxWidth: '100%', height: '100vh', overflowY: 'auto', background: SUAVE, borderLeft: `1px solid ${LINE}`, boxShadow: '-12px 0 30px rgba(0,0,0,.14)', animation: 'pdvSlideOver .18s ease-out' }}>
             <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>🧾 Venda {detVenda.numeroVenda ? `#${detVenda.numeroVenda}` : ''}</span>
-              <button onClick={() => { setDetVenda(null); setEditItens(null); setRecOpen(false); }} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
+              <button onClick={() => { setDetVenda(null); setEditItens(null); }} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
             </div>
             <div style={{ padding: 18 }}>
               <div style={{ fontWeight: 600, color: INK, fontSize: 14 }}>{detVenda.tutor}{detVenda.pet ? ` · ${detVenda.pet}` : ''}</div>
@@ -1635,13 +1603,13 @@ export default function PDVPage() {
                         {editItens.map((it: any, i: number) => (
                           <div key={i} style={{ borderBottom: `1px solid ${SOFT}`, padding: '8px 10px' }}>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 5 }}>
-                              <BuscaItemCatalogo value={it.descricao} itens={servicos as any} inpStyle={{ ...inp, width: '100%', padding: '6px 8px' }} placeholder="🔍 Produto ou serviço do catálogo" onType={(val) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: val } : x))} onPick={(s: any) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: s.nome, valorUnitario: Number(s.valorPadrao || 0) || x.valorUnitario } : x))} />
+                              <BuscaItemCatalogo value={it.descricao} itens={servicos as any} inpStyle={{ ...inp, width: '100%', padding: '6px 8px' }} placeholder="🔍 Produto ou serviço do catálogo" onType={(val) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, descricao: val } : x))} onPick={(s: any) => { const r = lancarDoCadastro(s, pesoPet, detVenda?.pet || null); if (!r.ok) { toast.error(r.mensagem, { duration: 7000 }); return; } const l = r.linha; setEditItens((c) => c!.map((x, j) => j === i ? { ...x, id: undefined, descricao: l.descricao, valorUnitario: l.valorUnitario, custoUnitario: l.custoUnitario, catalogoItemId: l.catalogoItemId, fornecedorId: l.fornecedorId ?? undefined, servicoId: l.servicoId, productId: l.productId } : x)); }} />
                               <button onClick={() => setEditItens((c) => c!.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 13 }} title="Remover">🗑️</button>
                             </div>
                             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                               <input type="number" min={1} value={it.quantidade} onChange={(e) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, quantidade: Math.max(1, Math.floor(Number(e.target.value) || 1)) } : x))} title="Qtd" style={{ ...inp, width: 52, padding: '6px 6px', textAlign: 'center' }} />
                               <span style={{ color: MUT, fontSize: 12 }}>×</span>
-                              <CampoValor valor={it.valorUnitario} onValor={(v) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, valorUnitario: v } : x))} placeholder="Unit." title="Valor unitário" style={{ ...inp, flex: 1, padding: '6px 8px' }} />
+                              <span title="Preço do cadastro" style={{ flex: 1, fontSize: 12.5, color: INK, padding: '6px 8px', background: '#F7F5EF', borderRadius: 8 }}>{brl(it.valorUnitario)}</span>
                               <CampoValor valor={it.desconto} onValor={(v) => setEditItens((c) => c!.map((x, j) => j === i ? { ...x, desconto: v } : x))} placeholder="Desc." title="Desconto" style={{ ...inp, width: 66, padding: '6px 8px' }} />
                               <span style={{ fontSize: 12.5, fontWeight: 500, color: NAVY, minWidth: 72, textAlign: 'right' }}>{brl(Math.max(0, it.quantidade * it.valorUnitario - (it.desconto || 0)))}</span>
                             </div>
@@ -1720,13 +1688,11 @@ export default function PDVPage() {
                           // botao simplesmente nao existir, sem ninguem entender por que.
                           <span title={exclusaoDaVenda.motivo} style={{ background: '#FBF7EF', border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 11.5, color: MUT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>🔒 {exclusaoDaVenda.motivo}</span>
                         )}
-                        {/* RECEBER ACONTECE NO CAIXA (Cintia, 10/09/2026: "levar para a tela do
-                            caixa, pois lá pode dar o desconto e a baixa corretamente"). A gaveta
-                            daqui era mais simples — sem desconto e sem o saldo devedor do
-                            cliente. Duas telas recebendo de jeitos diferentes é como a casa
-                            passa a ter dois valores para a mesma venda. */}
+                        {/* RECEBER É NA GAVETA ÚNICA, aqui mesmo (16/09/2026). A mesma do Caixa e de
+                            Vendas: pergunta o caixa, mostra a data, tem desconto e observação, e
+                            mostra as outras vendas em aberto do cliente. */}
                         {aReceber > 0.001 && (
-                          <a href={`/dashboard/erp/caixa?venda=${detVenda.id}`} title="Abre esta venda no caixa, com desconto, formas de pagamento e o saldo do cliente" style={{ marginLeft: 'auto', textDecoration: 'none', background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap' }}>💵 Levar para o caixa</a>
+                          <button onClick={() => { const outras = outrasEmAberto(detVenda).map(paraReceber); setLoteDe({ nome: detVenda.tutor || 'Cliente', comandas: [paraReceber(detVenda), ...outras], pre: [detVenda.id] }); }} title="Receber esta venda — e ver as outras em aberto do cliente" style={{ marginLeft: 'auto', background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer' }}>💰 Receber</button>
                         )}
                       </div>
                     )}
@@ -1737,74 +1703,6 @@ export default function PDVPage() {
           </div>
         </div>
       )}
-
-      {/* ===== RECEBIMENTO DE VENDA EXISTENTE ===== */}
-      {recOpen && detVenda && (() => {
-        const aReceber = Math.max(0, Number(detVenda.valor || 0) - Number(detVenda.pago || 0));
-        const soma = recFormas.reduce((s, f) => s + Number(f.valor || 0), 0);
-        const temDin = recFormas.some((f) => ehDinheiro(f.forma));
-        const trocoR = temDin && soma > aReceber ? soma - aReceber : 0;
-        const pagoR = Math.max(0, soma - trocoR);
-        const restanteR = Math.max(0, aReceber - pagoR);
-        return (
-          <div {...fundoDeModal(() => setRecOpen(false))} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)', zIndex: 80, display: 'flex', alignItems: 'stretch', justifyContent: 'flex-end' }}>
-            <div onClick={(e) => e.stopPropagation()} style={{ width: 440, maxWidth: '100%', height: '100vh', overflowY: 'auto', background: SUAVE, borderLeft: `1px solid ${LINE}`, boxShadow: '-12px 0 30px rgba(0,0,0,.14)', animation: 'pdvSlideOver .18s ease-out' }}>
-              <div style={{ padding: '13px 18px', borderBottom: `1px solid ${LINE}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>💰 Registrar recebimento</span>
-                <button onClick={() => setRecOpen(false)} style={{ border: 'none', background: 'none', color: MUT, cursor: 'pointer', fontSize: 16 }} aria-label="Fechar">✕</button>
-              </div>
-              <div style={{ padding: 18 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 11, padding: '11px 14px' }}>
-                  <span style={{ fontSize: 13, color: INK2 }}>Saldo a receber</span>
-                  <span style={{ fontSize: 20, fontWeight: 500, color: NAVY }}>{brl(aReceber)}</span>
-                </div>
-
-                {/* 💰 O SALDO DEVEDOR DO CLIENTE — só aqui, na hora de receber (Cintia, 07/09/2026:
-                    "não precisa manter o acumulado no ponto de venda, ele pode aparecer somente
-                    quando clicamos para receber a venda aparecer o saldo devedor"). São as OUTRAS
-                    contas em aberto do mesmo cliente, de qualquer dia. */}
-                {(() => {
-                  const outras = outrasEmAberto(detVenda);
-                  if (!outras.length) return null;
-                  return (
-                    <div style={{ marginBottom: 14, background: ERRB, border: `1px solid ${ERR}`, borderRadius: 11, padding: '11px 14px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
-                        <span style={{ fontSize: 12.5, color: ERR, fontWeight: 600 }}>Saldo devedor de {detVenda.tutor}</span>
-                        <span style={{ fontSize: 16, fontWeight: 600, color: ERR, fontVariantNumeric: 'tabular-nums' }}>{brl(somaEmAberto(outras))}</span>
-                      </div>
-                      <div style={{ fontSize: 11, color: MUT, margin: '2px 0 6px' }}>
-                        {outras.length === 1 ? 'mais 1 conta em aberto' : `mais ${outras.length} contas em aberto`}, além desta
-                      </div>
-                      {/* TODAS as contas, com rolagem. Antes cortava em 4 e dizia "+ N nao
-                          listadas" — escondendo justamente a conta que se foi procurar. */}
-                      <div style={{ maxHeight: 132, overflowY: 'auto' }}>
-                        {outras.map((o: any) => (
-                          <div key={o.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: INK2, padding: '2px 0' }}>
-                            <span>{new Date(o.date).toLocaleDateString('pt-BR')}{o.pet ? ` · ${o.pet}` : ''}</span>
-                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{brl(Math.max(0, Number(o.valor || 0) - Number(o.pago || 0)))}</span>
-                          </div>
-                        ))}
-                      </div>
-                      <button onClick={() => imprimirContasDoTutor(detVenda.tutor, [detVenda, ...outras])} disabled={imprimindoDia} title="Imprime as contas em aberto deste cliente, por dia e com o descritivo de cada uma" style={{ marginTop: 8, width: '100%', border: `1px solid ${ERR}`, background: '#fff', color: ERR, borderRadius: 9, padding: '7px', fontSize: 12, fontWeight: 600, cursor: imprimindoDia ? 'default' : 'pointer' }}>
-                        {imprimindoDia ? 'Montando…' : '🖨️ Imprimir as contas deste cliente'}
-                      </button>
-                    </div>
-                  );
-                })()}
-                <PagamentoFormas formas={recFormas} onChange={setRecFormas} formasList={formasList} formasConfig={formasConfig} taxas={taxas} />
-
-                <div style={{ marginTop: 12, fontSize: 13, lineHeight: 2, borderTop: `1px solid ${SOFT}`, paddingTop: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Recebido agora</span><b style={{ color: NAVY }}>{brl(pagoR)}</b></div>
-                  {trocoR > 0 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Troco</span><b style={{ color: OK }}>{brl(trocoR)}</b></div>}
-                  {restanteR > 0.001 && <div style={{ display: 'flex', justifyContent: 'space-between' }}><span style={{ color: INK2 }}>Ainda faltará</span><b style={{ color: WARN }}>{brl(restanteR)}</b></div>}
-                </div>
-
-                <button onClick={confirmarRecVenda} disabled={recSaving} style={{ width: '100%', marginTop: 14, background: TEAL, color: '#fff', border: 'none', fontSize: 14, fontWeight: 500, padding: 12, borderRadius: 9, cursor: 'pointer' }}>{recSaving ? 'Registrando…' : '✓ Confirmar recebimento'}</button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
     </div>
   );

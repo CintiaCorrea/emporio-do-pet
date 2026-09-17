@@ -13,7 +13,7 @@ import { ehVendaDeVerdade } from './lista-de-vendas.regras';
 import { distribuirPagamento, repartirFormas, totalEmAberto } from './recebimento-lote.regras';
 import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
 import { nomeNormalizado, percentualClassificado, sugerirVinculo } from './vinculo-itens.regras';
-import { avaliarDesconto, ratearDesconto } from './desconto.regras';
+import { avaliarDesconto, ratearDesconto, repartirDescontoDoLote } from './desconto.regras';
 import { estornarRecebimento, limparReceitaDaVenda } from '../../common/estornar-recebimento';
 import { estaSemForma, erroNasFormasPreenchidas, ehCreditoDoCliente } from './forma-que-faltou.regras';
 
@@ -1413,21 +1413,45 @@ export class CaixaService {
       if (saldo < creditoUsado - 0.001) throw new BadRequestException('Credito insuficiente do cliente.');
     }
 
-    // DESCONTO: conferido para CADA venda, com as formas do pagamento, ANTES de gravar qualquer
-    // uma. Uma venda salva com 5% e paga agora no cartão (0%) não pode passar só porque veio
-    // junto com outras — e recusar no meio deixaria metade baixada.
-    for (const a of aps) {
-      const dv = await this.descontoDaVenda(a.id);
-      if (dv.importada || dv.desconto <= 0.009) continue;
-      await this.conferirDesconto({
-        userId, papel, bruto: dv.bruto, desconto: dv.desconto, formas,
-        rotulo: dv.numero != null ? `Venda #${dv.numero}` : 'Uma das vendas',
-      });
+    // DESCONTO DADO AGORA, NA GAVETA (16/09/2026 — a gaveta única ganhou o campo que só o
+    // Movimento de caixa tinha). Conferido sobre o TOTAL escolhido, somando o que as vendas já
+    // tinham de desconto, com as formas deste pagamento. Depois é repartido entre as vendas pelo
+    // valor em aberto de cada uma e dividido nos itens (ratearDescontoNaVenda).
+    const descontoAgora = Math.round(Number(dto?.desconto || 0) * 100) / 100;
+    if (descontoAgora > 0.009) {
+      if (descontoAgora > devido + 0.009) throw new BadRequestException('O desconto é maior que o valor em aberto.');
+      let bruto = 0, jaDado = 0;
+      for (const a of aps) {
+        const dv = await this.descontoDaVenda(a.id);
+        bruto += dv.bruto;
+        if (!dv.importada) jaDado += dv.desconto;
+      }
+      await this.conferirDesconto({ userId, papel, bruto, desconto: jaDado + descontoAgora, formas, rotulo: 'Desconto deste pagamento' });
+      const partesDoDesconto = repartirDescontoDoLote(comandas, descontoAgora);
+      for (const p of partesDoDesconto) {
+        // O que não coube nos itens (venda sem itens do cliente) não abate o valor da venda.
+        const naoCoube = await this.ratearDescontoNaVenda(p.id, p.desconto);
+        const c = comandas.find((x) => x.id === p.id);
+        if (c) c.aberto = Math.max(0, Number((c.aberto - (p.desconto - naoCoube)).toFixed(2)));
+      }
+    } else {
+      // DESCONTO JÁ DADO nas vendas: conferido para CADA uma, com as formas do pagamento, ANTES de
+      // gravar qualquer uma. Uma venda salva com 5% e paga agora no cartão (0%) não pode passar só
+      // porque veio junto com outras — e recusar no meio deixaria metade baixada.
+      for (const a of aps) {
+        const dv = await this.descontoDaVenda(a.id);
+        if (dv.importada || dv.desconto <= 0.009) continue;
+        await this.conferirDesconto({
+          userId, papel, bruto: dv.bruto, desconto: dv.desconto, formas,
+          rotulo: dv.numero != null ? `Venda #${dv.numero}` : 'Uma das vendas',
+        });
+      }
     }
+    const devidoAgora = totalEmAberto(comandas);
 
-    const { partes, sobra } = distribuirPagamento(comandas, Math.min(valorPago, devido));
+    const { partes, sobra } = distribuirPagamento(comandas, Math.min(valorPago, devidoAgora));
     const comFormas = repartirFormas(formas, partes);
-    const troco = Number(Math.max(0, valorPago - devido).toFixed(2)) + sobra;
+    const troco = Number(Math.max(0, valorPago - devidoAgora).toFixed(2)) + sobra;
 
     // Marca compartilhada: e' o que faz o caixa e o extrato mostrarem como UM pagamento.
     const referencia = `LOTE-${Date.now().toString(36).toUpperCase()}`;

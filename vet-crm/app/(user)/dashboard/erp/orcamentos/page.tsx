@@ -34,7 +34,9 @@ export default function OrcamentosPage() {
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<"TODOS" | Situacao>("ABERTO");
   const [busca, setBusca] = useState("");
-  const [convertendo, setConvertendo] = useState<string | null>(null);
+  // QUANTOS VIRARAM VENDA, POR MÊS. O orçamento transformado some (Cintia, 16/09/2026); fica o
+  // contador (backend orcamentos/contador-de-orcamentos.regras).
+  const [contador, setContador] = useState<{ mes: string; quantidade: number }[]>([]);
   const [profs, setProfs] = useState<{ id: string; name: string }[]>([]);
   const [fuAberto, setFuAberto] = useState<any | null>(null);
   const [fuAtual, setFuAtual] = useState<FuResp>(null);
@@ -51,6 +53,7 @@ export default function OrcamentosPage() {
     jaCarregou.current = true; setLoading(false);
   };
   useEffect(() => { load(); }, []);
+  useEffect(() => { fetch("/api/orcamentos/contador", { cache: "no-store" }).then((r) => (r.ok ? r.json() : [])).then((d) => setContador(Array.isArray(d) ? d : [])).catch(() => {}); }, []);
   useEffect(() => {
     (async () => {
       try {
@@ -83,17 +86,6 @@ export default function OrcamentosPage() {
     [orcs],
   );
 
-  async function converter(o: any) {
-    if (!confirm(`Converter o orçamento de ${o.tutor?.name || "cliente"} (${brl(o.valorTotal)}) em venda?\n\nEla vai para "não paga" para receber no caixa.`)) return;
-    setConvertendo(o.id);
-    try {
-      const r = await fetch(`/api/orcamentos/${o.id}/converter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e?.message || "Não consegui converter."); }
-      toast.success("Orçamento virou venda ✅");
-      await load();
-    } catch (e: any) { toast.error(e?.message || "Não consegui converter."); }
-    setConvertendo(null);
-  }
 
   async function abrirFollowUp(o: any) {
     setFuAberto(o); setFuAtual(null);
@@ -120,7 +112,12 @@ export default function OrcamentosPage() {
     <div className="p-6 w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="text-[13px]" style={{ color: INK }}>
-          {lista.length} orçamento(s) · {brl(emAberto)} ainda não viraram venda
+          {lista.length} orçamento(s) · {brl(emAberto)} em aberto
+          {contador.length > 0 && (
+            <span className="ml-2 text-[12px] font-medium px-2 py-0.5 rounded-full" style={{ background: "#E7F6EF", color: "#0F6E56" }}>
+              {contador[0].quantidade} viraram venda em {new Date(`${contador[0].mes}-15T12:00:00`).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}
+            </span>
+          )}
         </div>
         <input
           value={busca} onChange={(e) => setBusca(e.target.value)}
@@ -131,7 +128,7 @@ export default function OrcamentosPage() {
       </div>
 
       <div className="flex gap-2 mb-5 flex-wrap">
-        {([["TODOS", "Todos"], ["ABERTO", "Em aberto"], ["APROVADO", "Aprovados"], ["VENCIDO", "Vencidos"], ["VENDA", "Viraram venda"]] as const).map(([k, l]) => (
+        {([["TODOS", "Todos"], ["ABERTO", "Em aberto"], ["APROVADO", "Aprovados"], ["VENCIDO", "Vencidos"]] as const).map(([k, l]) => (
           <button
             key={k} onClick={() => setFiltro(k as any)}
             className="text-[12px] font-medium px-3 py-1.5 rounded-full border transition-colors"
@@ -150,7 +147,7 @@ export default function OrcamentosPage() {
         <div className="bg-white border rounded-[14px] px-6 py-14 text-center" style={{ borderColor: LINE }}>
           <div className="text-3xl mb-2">📄</div>
           <div className="text-sm" style={{ color: MUT }}>Nenhum orçamento nesta situação.</div>
-          <div className="text-[12px] mt-1" style={{ color: INK }}>Orçamentos são criados na ficha do pet e no ponto de venda.</div>
+          <div className="text-[12px] mt-1" style={{ color: INK }}>Orçamentos são criados no carrinho da ficha do pet e no ponto de venda.</div>
         </div>
       ) : (
         <div className="bg-white border rounded-[14px] overflow-hidden" style={{ borderColor: LINE }}>
@@ -192,10 +189,10 @@ export default function OrcamentosPage() {
                           {o.petId && o._sit !== "VENDA" && (
                             <button onClick={() => abrirFollowUp(o)} className="text-[11.5px] font-medium px-2.5 py-1.5 rounded-lg" style={{ background: "#EDE9FE", color: "#6D28D9" }}>👤 Follow-up</button>
                           )}
-                          {o._sit !== "VENDA" && (
-                            <button onClick={() => converter(o)} disabled={convertendo === o.id} className="text-[11.5px] font-medium px-2.5 py-1.5 rounded-lg text-white" style={{ background: TEAL }}>
-                              {convertendo === o.id ? "Convertendo…" : "Virar venda"}
-                            </button>
+                          {/* ABRE NO CARRINHO DA FICHA, na aba Orçamento: lá estão os modelos, imprimir,
+                              "Transformar em venda" (o orçamento some) e excluir — um lugar só. */}
+                          {o.petId && (
+                            <Link href={`/dashboard/erp/pets/${o.petId}?carrinho=orcamento`} className="text-[11.5px] font-medium px-2.5 py-1.5 rounded-lg text-white" style={{ background: TEAL }}>Abrir orçamento</Link>
                           )}
                         </div>
                       </td>

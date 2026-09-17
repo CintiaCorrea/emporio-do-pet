@@ -262,8 +262,6 @@ export default function FichaInternacaoPage() {
   const [itemOpen, setItemOpen] = useState(false);
   const [itemForm, setItemForm] = useState<any>({ id: "", descricao: "", categoria: "Procedimento", quantidade: "1", valorUnitario: "", servicoId: "", productId: "", quando: "" });
   const [itemSaving, setItemSaving] = useState(false);
-  const [caucaoOpen, setCaucaoOpen] = useState(false);
-  const [caucaoForm, setCaucaoForm] = useState<any>({ valor: "", descricao: "Caução de internação", forma: "Dinheiro" });
   const [finBusy, setFinBusy] = useState("");
 
   // Opções de frequência: vêm de Config › Listas (lista `internacao_frequencia`), com as
@@ -755,24 +753,6 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
   };
   const excluirItem = async (i: any) => { if (!confirm(`Remover ${i.descricao} da conta?`)) return; try { await fetch(`/api/listas/${i.id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
-  const adicionarCaucao = async () => {
-    const valor = Number(caucaoForm.valor);
-    if (!valor || valor <= 0) { alert("Informe o valor da caução."); return; }
-    setFinBusy("caucao");
-    try {
-      // Caixa aberto: a caução ENTRA no caixa (vira suprimento, conta na gaveta se dinheiro) — igual à do Caixa.
-      let caixaId: string | null = null;
-      // A caução entra no caixa de QUEM ESTÁ LOGADA (núcleo lib/caixaAtual), não no caixa da colega.
-      caixaId = (await carregarMeuCaixa((session?.user as any)?.id)).meu?.id || null;
-      const res = await fetch("/api/credito", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, appointmentId: id, tipo: "RECARGA", valor, descricao: caucaoForm.descricao || "Caução de internação", forma: caucaoForm.forma || "Dinheiro", ...(caixaId ? { caixaSessaoId: caixaId } : {}) }) });
-      if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e?.message || ""); }
-      setCaucaoOpen(false); setCaucaoForm({ valor: "", descricao: "Caução de internação", forma: "Dinheiro" });
-      alert(caixaId ? "Caução adicionada — entrou no caixa ✅" : "Caução adicionada. ⚠️ Você não tem caixa aberto, então ela NÃO entrou na gaveta — abra o seu caixa e registre lá se precisar conferir.");
-      load();
-    } catch (e: any) { alert(e?.message || "Erro ao adicionar caução."); }
-    finally { setFinBusy(""); }
-  };
-  const aplicarCaucao = () => { const { totalFaturavel } = contaCalc(); setCaucaoAplicada(caucaoAplicada > 0 ? 0 : Math.min(caucaoSaldo, totalFaturavel)); };
 
   const enviarCaixa = async () => {
     const { dias, diariaVU, itensFat, totalFaturavel } = contaCalc();
@@ -2437,16 +2417,16 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
             <div className="bg-white border rounded-[13px]" style={{ borderColor: "#E8E2D6" }}>
               <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}>
                 <h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">💳 Caução (crédito do tutor)</h3>
-                {!alta && podeEditar && <button onClick={() => setCaucaoOpen(true)} className="text-[12px] font-medium text-[#5C6B70] bg-white border px-3 py-1.5 rounded-lg" style={{ borderColor: "#E8E2D6" }}>➕ Adicionar caução</button>}
+                {/* A caução é recebida no ponto de venda, pelo item "Caução" do cadastro, na gaveta de
+                    receber (Cintia, 16/09/2026). O botão daqui nunca foi usado e, sem caixa aberto,
+                    gravava o crédito sem o dinheiro entrar na gaveta. */}
+                <span className="text-[11px] text-[#8A857A]">Receber caução: ponto de venda, item “Caução”</span>
               </div>
               <div className="px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
                 <div>
                   <div className="text-[10.5px] text-[#374151] uppercase tracking-wide">Saldo disponível de {h.tutor?.name || "tutor"}</div>
                   <div className="text-[22px] font-medium tabular-nums" style={{ color: "#5a3b9b" }}>{fmtBRL(caucaoSaldo)}</div>
                 </div>
-                {caucaoSaldo > 0 && cc.totalFaturavel > 0 && !alta && podeEditar && (
-                  <button onClick={aplicarCaucao} className="text-[12.5px] font-medium px-3.5 py-2 rounded-lg" style={caucaoAplicada > 0 ? { background: "#EDE9FA", color: "#5a3b9b" } : { background: "#009AAC", color: "#fff" }}>{caucaoAplicada > 0 ? "✓ Caução aplicada — remover" : "Aplicar à conta"}</button>
-                )}
               </div>
             </div>
 
@@ -2852,32 +2832,6 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
         </div>
       )}
 
-      {/* ===== POPUP CAUÇÃO ===== */}
-      {caucaoOpen && (
-        <div className="fixed inset-0 bg-black/45 flex items-center justify-center p-4 z-50 print:hidden" {...fundoDeModal(() => setCaucaoOpen(false))}>
-          <div className="rounded-2xl shadow-xl max-w-sm w-full" style={{ background: "#FBF9F4", border: "1px solid #E8E2D6" }} onClick={(e) => e.stopPropagation()}>
-            <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "#E8E2D6" }}>
-              <h3 className="text-base font-medium text-[#014D5E]">💳 Adicionar caução</h3>
-              <button onClick={() => setCaucaoOpen(false)} className="text-[#374151]">✕</button>
-            </div>
-            <div className="p-5 space-y-3 text-[13px]">
-              <div className="flex gap-2">
-                <div className="flex-1"><label className="text-[11px] text-[#374151] block mb-1">Valor (R$) *</label>
-                  <input type="number" min={0} step="0.01" value={caucaoForm.valor} onChange={(e) => setCaucaoForm({ ...caucaoForm, valor: e.target.value })} placeholder="0,00" className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-                <div className="flex-1"><label className="text-[11px] text-[#374151] block mb-1">Forma (entra no caixa)</label>
-                  <select value={caucaoForm.forma} onChange={(e) => setCaucaoForm({ ...caucaoForm, forma: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] bg-white focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }}>{["Dinheiro", "Pix", "Cartão crédito", "Cartão débito"].map((fx) => <option key={fx} value={fx}>{fx}</option>)}</select></div>
-              </div>
-              <div><label className="text-[11px] text-[#374151] block mb-1">Descrição</label>
-                <input value={caucaoForm.descricao} onChange={(e) => setCaucaoForm({ ...caucaoForm, descricao: e.target.value })} className="w-full border rounded-lg px-3 py-2 text-[13px] focus:outline-none focus:border-[#009AAC]" style={{ borderColor: "#E8E2D6" }} /></div>
-              <div className="text-[10.5px] text-[#374151]">Adiciona crédito ao tutor {h.tutor?.name}. Fica como saldo e pode abater da conta.</div>
-            </div>
-            <div className="px-5 py-4 border-t flex justify-end gap-2" style={{ borderColor: "#E8E2D6" }}>
-              <button onClick={() => setCaucaoOpen(false)} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Cancelar</button>
-              <button onClick={adicionarCaucao} disabled={finBusy === "caucao"} className="px-4 py-2 text-[13px] text-white bg-[#009AAC] rounded-lg disabled:opacity-60">{finBusy === "caucao" ? "Salvando..." : "Adicionar"}</button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

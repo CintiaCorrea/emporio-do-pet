@@ -102,9 +102,10 @@ describe("o acumulado aparece na hora de receber", () => {
   });
 
   it("o recebimento mostra o saldo devedor do cliente", () => {
+    // A gaveta única recebe esta venda com as outras em aberto do cliente e diz quanto ele deve.
     const src = ler(PDV);
-    expect(src).toContain("outrasEmAberto");
-    expect(src).toContain("Saldo devedor de");
+    expect(src).toContain("outrasEmAberto(detVenda)");
+    expect(ler("components/caixa/ReceberEmLoteModal.tsx")).toContain("Vendas em aberto {money(totalGeral)}");
   });
 
   it("e de lá dá pra imprimir as contas desse cliente, com descritivo", () => {
