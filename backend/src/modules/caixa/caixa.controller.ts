@@ -77,18 +77,9 @@ export class CaixaController {
     return this.service.estoqueComprometido();
   }
 
-  // Recebimentos gravados SEM forma de pagamento (defeito corrigido em 16/09) — os "Outros".
-  @Get('recebimentos-sem-forma')
-  recebimentosSemForma(@Query() query: any) {
-    return this.service.recebimentosSemForma(query);
-  }
-
-  /** Preenche a forma que faltou. So o administrativo; so recebimento sem forma. */
-  @Patch('recebimento/:id/forma')
-  definirForma(@Param('id') id: string, @Body() dto: any, @CurrentUser('id') userId: string, @CurrentUser('role') papel: string) {
-    return this.service.definirFormaDoRecebimento(id, dto, userId, papel);
-  }
-
+  // A TELA "RECEBIMENTOS SEM FORMA" SAIU (17/09/2026): ela existia para preencher a forma que um
+  // defeito apagou em 16/09. Os 34 recebimentos foram preenchidos e hoje nao ha nenhum sem forma;
+  // a gaveta unica ja exige a forma na hora de receber.
   // Itens vendidos que nao dizem de que item do catalogo sao — a lista de arrumacao.
   @Get('itens-sem-vinculo')
   itensSemVinculo(@Query() query: any) {

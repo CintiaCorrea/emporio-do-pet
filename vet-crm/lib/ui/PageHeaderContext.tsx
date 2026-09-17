@@ -3,6 +3,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { usePathname } from "next/navigation";
+import { tituloDoMenu } from "@/lib/ui/tituloDoMenu";
 
 interface PageHeader {
   title: string;
@@ -71,6 +72,11 @@ const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subti
 
 function resolveTitle(pathname: string | null): PageHeader {
   if (!pathname) return { title: "" };
+  // O MENU MANDA NO NOME (17/09/2026): toda tela mostra o nome que está no menu, e as que ficam
+  // dentro de um grupo mostram "Aba principal › Sub aba" embaixo. Só cai no mapa antigo quando a
+  // rota não está no menu (ex.: fichas abertas por link).
+  const doMenu = tituloDoMenu(pathname);
+  if (doMenu) return { title: doMenu.titulo, subtitle: doMenu.caminho || undefined };
   for (const r of ROUTE_TITLES) {
     if (r.exact && pathname === r.match) {
       return { title: r.title, subtitle: r.subtitle };

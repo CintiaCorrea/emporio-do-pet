@@ -19,7 +19,6 @@ import { nomeNormalizado, percentualClassificado, sugerirVinculo } from './vincu
 import { avaliarDesconto, ratearDesconto, repartirDescontoDoLote } from './desconto.regras';
 import { estornarRecebimento, limparReceitaDaVenda } from '../../common/estornar-recebimento';
 import { devolverEstoqueDaVenda } from '../../common/estoque-da-venda';
-import { estaSemForma, erroNasFormasPreenchidas, ehCreditoDoCliente } from './forma-que-faltou.regras';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
 // Ver caixa.regras.faixaDoDia: caixa aberto as 21h30 nascia no dia seguinte e sumia da
@@ -140,96 +139,8 @@ export class CaixaService {
   //
   // Cintia, 16/09/2026: "tem alguns recebimentos que estão entrando como Outros". Um defeito da
   // validação do servidor apagava a forma (corrigido em 009aac8c); 34 dos 59 de setembro ficaram
-  // sem ela. Ver forma-que-faltou.regras.
-  async recebimentosSemForma(query: any = {}) {
-    const { gte, lte } = periodoDoQuery(query);
-    const recs = await this.prisma.recebimento.findMany({
-      where: { data: { gte, lte } },
-      select: {
-        id: true, data: true, valorTotal: true, desconto: true, troco: true, formas: true, observacao: true, createdById: true,
-        caixaSessao: { select: { numero: true, status: true, user: { select: { name: true } } } },
-        appointment: { select: { id: true, numeroVenda: true, tutor: { select: { id: true, name: true } }, pet: { select: { name: true } } } },
-      },
-      orderBy: { data: 'asc' },
-    });
-    const semForma = recs.filter((r) => estaSemForma(r.formas));
-    const quemIds = [...new Set(semForma.map((r) => r.createdById).filter(Boolean))] as string[];
-    const quem = quemIds.length
-      ? await this.prisma.user.findMany({ where: { id: { in: quemIds } }, select: { id: true, name: true } })
-      : [];
-    const nomeDe = new Map(quem.map((u) => [u.id, u.name]));
-    return {
-      total: semForma.length,
-      valor: semForma.reduce((s, r) => s + Number(r.valorTotal || 0), 0),
-      recebimentos: semForma.map((r) => ({
-        id: r.id, data: r.data,
-        valorTotal: Number(r.valorTotal || 0), desconto: Number(r.desconto || 0), troco: Number(r.troco || 0),
-        observacao: r.observacao,
-        caixa: r.caixaSessao ? { numero: r.caixaSessao.numero, status: r.caixaSessao.status, dona: r.caixaSessao.user?.name ?? null } : null,
-        venda: r.appointment ? { id: r.appointment.id, numero: r.appointment.numeroVenda, cliente: r.appointment.tutor?.name ?? null, pet: r.appointment.pet?.name ?? null } : null,
-        recebidoPor: r.createdById ? nomeDe.get(r.createdById) ?? null : null,
-      })),
-    };
-  }
-
-  /**
-   * PREENCHER a forma de um recebimento que ficou sem ela — e só isso.
-   *
-   * Valor, desconto, troco, data, caixa e venda não mudam. Recebimento que já tem forma é recusado:
-   * trocar a forma de um recebimento certo é reabrir a venda, com o rastro que isso deixa.
-   *
-   * Os dois efeitos que a forma tem no recebimento normal acontecem aqui também: "Crédito do
-   * cliente" debita o saldo, e o lançamento financeiro da venda é refeito com a conta certa.
-   */
-  async definirFormaDoRecebimento(id: string, dto: any, userId: string, papel?: string) {
-    const operador = await this.prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
-    if (String(operador?.role || papel || '').toUpperCase() !== 'ADMIN') {
-      throw new BadRequestException('Preencher a forma de um recebimento antigo é do administrativo.');
-    }
-    const rec = await this.prisma.recebimento.findUnique({
-      where: { id },
-      select: { id: true, formas: true, valorTotal: true, troco: true, caixaSessaoId: true, appointmentId: true, appointment: { select: { tutorId: true } } },
-    });
-    if (!rec) throw new NotFoundException('Recebimento não encontrado.');
-    if (!estaSemForma(rec.formas)) {
-      throw new BadRequestException('Este recebimento já tem forma de pagamento. Para trocar, reabra a venda e receba de novo.');
-    }
-    const lista = (Array.isArray(dto?.formas) ? dto.formas : [])
-      .filter((f: any) => f && typeof f === 'object' && !Array.isArray(f))
-      .map((f: any) => ({ ...f, forma: String(f.forma || '').trim(), valor: Number(Number(f.valor).toFixed(2)) }));
-    const erro = erroNasFormasPreenchidas(lista, Number(rec.valorTotal || 0), Number(rec.troco || 0));
-    if (erro) throw new BadRequestException(erro);
-
-    const creditoUsado = lista.filter((f: any) => ehCreditoDoCliente(f.forma)).reduce((s: number, f: any) => s + Number(f.valor), 0);
-    const tutorId = rec.appointment?.tutorId || null;
-    if (creditoUsado > 0.001) {
-      if (!tutorId) throw new BadRequestException('Recebimento sem cliente: não há saldo de crédito para debitar.');
-      const saldo = await this.saldoTutor(tutorId);
-      if (saldo < creditoUsado - 0.001) throw new BadRequestException('Crédito insuficiente do cliente para esta forma.');
-    }
-
-    const atualizado = await this.prisma.recebimento.update({ where: { id }, data: { formas: lista } });
-    if (creditoUsado > 0.001 && tutorId) {
-      await this.prisma.creditoMovimento.create({
-        data: {
-          tutorId, tipo: 'USO', valor: creditoUsado, descricao: 'Uso em recebimento (forma preenchida depois)',
-          caixaSessaoId: rec.caixaSessaoId, appointmentId: rec.appointmentId, recebimentoId: rec.id, createdById: userId,
-        },
-      });
-    }
-    this.logger.log(`Forma preenchida no recebimento ${id}: ${lista.map((f: any) => `${f.forma} ${f.valor}`).join(' + ')}`);
-    if (rec.appointmentId) this.recebimentos.processar(rec.appointmentId).catch(() => undefined);
-    return atualizado;
-  }
-
-  // ── ITENS VENDIDOS SEM VÍNCULO COM O CATÁLOGO ───────────────────────────────────────────
-  //
-  // Cintia, 15/09/2026: "organize tudo de uma forma que eu possa arrumar sem perder tudo, e sem
-  // bagunçar o caixa, as vendas, orçamentos e os recebimentos".
-  //
-  // A lista é por NOME, e não linha a linha, porque é assim que o trabalho acontece: "Diária de
-  // internação" aparece 33 vezes; ela decide uma vez e as 33 são ligadas. Linha a linha seriam
-  // 260 decisões idênticas, e ninguém termina isso.
+  // A LISTA E O PREENCHIMENTO DA FORMA QUE FALTOU SAIRAM (17/09/2026): nao ha mais recebimento
+  // sem forma, e receber sem dizer como o cliente pagou nao passa mais pela gaveta unica.
   async itensSemVinculo(query: any = {}) {
     const { gte, lte } = periodoDoQuery(query);
     const linhas = await this.prisma.appointmentItem.findMany({

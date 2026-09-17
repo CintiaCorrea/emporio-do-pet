@@ -121,6 +121,10 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Faxina + nome das telas** (17/09): tela "Recebimentos sem forma" REMOVIDA (pagina, rota, menu,
+  endpoints e forma-que-faltou.regras) — medido: 0 recebimentos sem forma desde 01/08. Menu: "Importar
+  vendas" virou "Importar cadastro (SimplesVet)". Titulo de toda pagina passa a sair do MENU
+  (`lib/ui/tituloDoMenu` + PageHeaderContext): nome direto, e "Aba principal › Sub aba" no subtitulo.
 - [x] **P1 — a regra de venda nos relatorios** (17/09): graficos de vendas (vendasResumo) e ranking de
   clientes passam a usar `ondeEVenda()`; o "a receber" do painel usa `ondeEntraNaCobranca()`. Medido em
   setembro: graficos 125 registros / R$ 56.042,95 -> 122 vendas / R$ 55.592,95 (saem 1 registro de
