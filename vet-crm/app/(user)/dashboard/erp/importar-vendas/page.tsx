@@ -128,7 +128,9 @@ const brl = (n: number) =>
 /* Tela                                                                */
 /* ------------------------------------------------------------------ */
 export default function ImportarVendasPage() {
-  usePageTitle("Importar vendas", "SimplesVet → CRM");
+  // SIMPLESVET É SÓ CONSULTA (Cintia, 16/09/2026). A importação traz o CADASTRO (cliente e pet);
+  // a venda antiga não entra no caixa nem no faturamento daqui.
+  usePageTitle("Importar cadastro do SimplesVet", "Clientes e pets — a venda antiga fica só no SimplesVet");
 
   const linhasRef = useRef<Linha[]>([]);
   const [arquivo, setArquivo] = useState<string>("");
@@ -227,7 +229,7 @@ export default function ImportarVendasPage() {
     if (!dryRun) {
       if (
         !window.confirm(
-          `Efetivar a importação de ${linhas.length} linha(s) de venda no CRM?\n\nO backend não vai duplicar vendas já importadas.`,
+          `Importar o cadastro de ${linhas.length} linha(s) do SimplesVet?\n\nEntram cliente e pet. A VENDA ANTIGA NÃO É GRAVADA: o SimplesVet é só consulta.`,
         )
       )
         return;

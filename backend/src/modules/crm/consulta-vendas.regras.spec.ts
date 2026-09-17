@@ -90,3 +90,12 @@ describe('o que conta como VENDA no campo type', () => {
   });
 
 });
+
+// 🛡️ SIMPLESVET É SÓ CONSULTA (Cintia, 16/09/2026): o importador traz o cadastro, não a venda.
+describe('o importador do SimplesVet não cria venda', () => {
+  const svc = require('fs').readFileSync(require('path').join(__dirname, 'crm-integration.service.ts'), 'utf8');
+  it('não existe mais criação de Appointment com origem SIMPLESVET', () => {
+    expect(svc).not.toContain("origem: 'SIMPLESVET',");
+    expect(svc).toContain('vendaNaoImportada: true');
+  });
+});

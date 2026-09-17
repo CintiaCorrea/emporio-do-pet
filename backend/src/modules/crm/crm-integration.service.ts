@@ -514,6 +514,8 @@ export class CrmIntegrationService {
     },
   ): Promise<{
     jaImportada?: boolean;
+    /** SimplesVet é só consulta: o cadastro entra, a venda antiga não (17/09/2026). */
+    vendaNaoImportada?: boolean;
     itens: number;
     valorLiquido: number;
     novoCliente: boolean;
@@ -654,25 +656,14 @@ export class CrmIntegrationService {
     }
     petId = pet.id;
 
-    // 8) Criar Appointment + itens
-    await this.prisma.appointment.create({
-      data: {
-        tutorId,
-        petId,
-        userId,
-        date: parseDataBR(primeira.DataHora),
-        value: valorLiquido,
-        status: appointmentStatus,
-        paymentStatus,
-        type: 'VENDA',
-        paymentMethod: G(primeira.FormaPagamento),
-        codigoExterno: String(venda),
-        origem: 'SIMPLESVET',
-        items: { create: itensData },
-      },
-    });
-
+    // 8) O SIMPLESVET É SÓ CONSULTA (Cintia, 16/09/2026: "SimplesVet só para consulta").
+    //
+    // Até aqui o importador criava uma VENDA de verdade para cada linha do sistema antigo: ela
+    // entrava no caixa, no faturamento e na conta do cliente, misturada com as vendas de hoje —
+    // e foi assim que dívidas antigas (a #1005 do Hulk, paga fora daqui) viraram cobrança viva.
+    // O cliente e o pet continuam sendo criados: o cadastro é nosso. A venda antiga, não.
     return {
+      vendaNaoImportada: true,
       itens: itensData.length,
       valorLiquido,
       novoCliente,

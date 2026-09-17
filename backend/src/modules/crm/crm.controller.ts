@@ -128,7 +128,7 @@ export class CrmController {
 
   @Post('importar-vendas')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Importa vendas do SimplesVet como Appointments (venda por venda), com dryRun' })
+  @ApiOperation({ summary: 'Importa o CADASTRO das vendas do SimplesVet (cliente e pet). A venda em si não é gravada — SimplesVet é só consulta (17/09/2026).' })
   async importarVendas(
     @Body() body: { linhas: any[]; dryRun?: boolean; mapaMarca?: Record<string, string>; importadorUserId?: string },
     @CurrentUser() user: { id: string; userId?: string },

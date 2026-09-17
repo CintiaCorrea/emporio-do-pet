@@ -121,6 +121,9 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **E — SimplesVet so para consulta** (17/09): o importador (crm-integration.importarVendas) NAO
+  cria mais Appointment/venda — cliente e pet continuam entrando. A tela virou "Importar cadastro do
+  SimplesVet" e o aviso diz que a venda antiga nao e gravada. Trava nos dois lados.
 - [x] **D2 — atendimento nunca vira venda** (17/09): a edicao do atendimento na ficha do pet perdeu a
   caixa de itens (EditorDeItens saiu do projeto); salvar o atendimento nao manda mais items nem value;
   criar atendimento tambem nao (o painel ja nao tinha a caixa) — saiu junto o atalho do pacote de
