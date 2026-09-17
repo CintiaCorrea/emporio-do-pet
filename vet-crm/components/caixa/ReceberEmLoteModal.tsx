@@ -18,8 +18,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { carregarMeuCaixa, carregarMeusCaixasAbertos, caixaParaReceber, CaixaAberto } from "@/lib/caixaAtual";
+import { carregarMeuCaixa, carregarMeusCaixasAbertos, carregarCaixasAbertosDeTodos, caixaParaReceber, CaixaAberto } from "@/lib/caixaAtual";
 import EscolhaDoCaixa from "@/components/caixa/EscolhaDoCaixa";
+import EscolhaDeQualquerCaixa from "@/components/caixa/EscolhaDeQualquerCaixa";
+import { dentroDaJanelaDeAjuste } from "@/lib/janelaDeAjuste";
 import AbrirMeuCaixaModal from "@/components/caixa/AbrirMeuCaixaModal";
 import PagamentoFormas from "@/components/financeiro/PagamentoFormas";
 import { carregarFormasRecebimento, validarPagamentosCartao, type PagForma, type FormaCfg, type TaxaRow } from "@/lib/formasPagamento";
@@ -71,6 +73,11 @@ export default function ReceberEmLoteModal({
 }) {
   const { data: session } = useSession();
   const meId = (session?.user as any)?.id || "";
+  // O ADMINISTRATIVO LANÇA EM QUALQUER CAIXA ABERTO (Cintia, 17/09/2026), sem abrir o dela. Vale
+  // enquanto o servidor aceita (caixa.regras.podeLancarNoCaixa: ADMIN dentro da janela de ajuste);
+  // passada a data, a tela volta sozinha para "só os seus caixas", junto com o servidor.
+  const qualquerCaixa = String((session?.user as any)?.role || "").toUpperCase() === "ADMIN" && dentroDaJanelaDeAjuste();
+  const [todosAbertos, setTodosAbertos] = useState<CaixaAberto[]>([]);
 
   // ESCOLHER O QUE BAIXAR (Cintia, 15/09/2026, com os prints do SimplesVet: "Selecione as vendas
   // que serão baixadas"). O Lucas tem 10 vendas do Chico em aberto, R$ 3.842,25 — receber tudo
@@ -125,13 +132,15 @@ export default function ReceberEmLoteModal({
 
   useEffect(() => {
     if (!meId) return;
+    // Nada vem marcado para o administrativo: cada dia tem dois caixas, e quem escolhe é ela.
+    if (qualquerCaixa) { carregarCaixasAbertosDeTodos().then(setTodosAbertos); return; }
     carregarMeuCaixa(meId).then((m) => {
       // Três casos (lib/caixaAtual): o meu; ou o único aberto; ou recusa se há mais de um
       // e nenhum é meu.
       setCaixaAberto(caixaParaReceber(m).caixa?.id || null);
     });
     carregarMeusCaixasAbertos(meId).then(setMeusAbertos);
-  }, [meId]);
+  }, [meId, qualquerCaixa]);
 
   useEffect(() => {
     // O mesmo carregador do ponto de venda: as formas e as taxas são as configuradas na casa.
@@ -151,6 +160,7 @@ export default function ReceberEmLoteModal({
   const receber = async () => {
     if (baixando) return;   // trava no primeiro clique: dinheiro não se lança duas vezes
     if (!meId) { alert("Só um instante — ainda estou identificando o seu usuário. Tente de novo em 2 segundos."); return; }
+    if (!caixaAberto && qualquerCaixa) { alert("Escolha em qual caixa este recebimento entra."); return; }
     if (!caixaAberto) { setAbrirCaixaMotivo(`Para receber as vendas de ${tutor || "o cliente"}`); return; }
     if (!escolhidas.length) { alert("Marque pelo menos uma venda para receber."); return; }
     if (!confirm(`Receber ${escolhidas.length} venda(s) de ${tutor} num pagamento só? (${fmtBRL(total)}${desconto > 0.009 ? `, com ${fmtBRL(desconto)} de desconto` : ""})`)) return;
@@ -265,22 +275,31 @@ export default function ReceberEmLoteModal({
               a pessoa não tem caixa de hoje mas tem um de outro dia reaberto, é esta faixa
               que descobre isso e destrava o recebimento. Some sozinha quando só há um caixa. */}
           <div className="px-5 pt-3">
-            <EscolhaDoCaixa
-              meusAbertos={meusAbertos}
-              dataDaVenda={comandas.map((c) => c.date || "").filter(Boolean).sort()[0] || null}
-              valor={caixaAberto}
-              onEscolher={setCaixaAberto}
-            />
+            {qualquerCaixa ? (
+              <EscolhaDeQualquerCaixa
+                abertos={todosAbertos}
+                dataDaVenda={escolhidas.map((c) => c.date || "").filter(Boolean).sort()[0] || null}
+                valor={caixaAberto}
+                onEscolher={setCaixaAberto}
+              />
+            ) : (
+              <EscolhaDoCaixa
+                meusAbertos={meusAbertos}
+                dataDaVenda={comandas.map((c) => c.date || "").filter(Boolean).sort()[0] || null}
+                valor={caixaAberto}
+                onEscolher={setCaixaAberto}
+              />
+            )}
             {(() => {
               // O DIA DO DINHEIRO É O DIA DO CAIXA — a data fica à vista, mesmo com um caixa só.
-              const c = meusAbertos.find((x) => x.id === caixaAberto);
+              const c = (qualquerCaixa ? todosAbertos : meusAbertos).find((x) => x.id === caixaAberto);
               return c ? (
-                <div className="text-[11.5px] text-[#5C6B70]">Entra no caixa nº {c.numero} de <b className="text-[#014D5E]">{new Date(c.abertura).toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" })}</b></div>
+                <div className="text-[11.5px] text-[#5C6B70]">Entra no caixa nº {c.numero} de <b className="text-[#014D5E]">{new Date(c.abertura).toLocaleDateString("pt-BR", { timeZone: "America/Fortaleza" })}</b>{qualquerCaixa ? <> · {c.operadorNome}</> : null}</div>
               ) : null;
             })()}
           </div>
 
-          {caixaAberto ? (
+          {caixaAberto || qualquerCaixa ? (
             <>
               <div className="px-5 py-3 border-t" style={{ borderColor: "#F0EBE0" }}>
                 <div className="text-[10.5px] text-[#374151] uppercase tracking-wide mb-2">
@@ -302,7 +321,8 @@ export default function ReceberEmLoteModal({
                 <button onClick={onFechar} className="px-4 py-2 text-[13px] text-[#5C6B70] bg-white border rounded-lg" style={{ borderColor: "#E8E2D6" }}>Fechar</button>
                 <button
                   onClick={receber}
-                  disabled={baixando || lancado <= 0.009}
+                  disabled={baixando || lancado <= 0.009 || !caixaAberto}
+                  title={!caixaAberto ? "Escolha o caixa acima" : undefined}
                   className="px-5 py-2 text-[13px] font-medium text-white bg-[#009AAC] rounded-lg disabled:opacity-60"
                 >{baixando ? "Recebendo..." : "💰 Receber num pagamento só"}</button>
               </div>

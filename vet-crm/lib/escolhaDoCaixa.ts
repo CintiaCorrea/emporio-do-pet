@@ -99,3 +99,58 @@ export function escolhaDoCaixa(
 
   return { opcoes, sugeridoId, precisaEscolher: opcoes.length > 1, aviso };
 }
+
+// ── O ADMINISTRATIVO ESCOLHE QUALQUER CAIXA ABERTO ────────────────────────────────────────
+//
+// A Cintia, 17/09/2026, com o print da gaveta da #1177: "não quero abrir o caixa, quero lançar
+// nos que já estão abertos. Nessa tela não me dá opção de escolher o caixa." O servidor já
+// aceitava (caixa.regras.podeLancarNoCaixa: ADMIN dentro da janela de ajuste); a tela só
+// enxergava os caixas da própria pessoa — e ela não tem caixa, os abertos são da Victoria e da
+// Maria Gabriela (22 caixas, de 01/09 a 15/09).
+//
+// Aqui NADA vem marcado: cada dia tem dois caixas, de pessoas diferentes, e escolher por ela
+// seria cara ou coroa. Os caixas do dia da venda sobem para a frente, porque é o palpite certo
+// na maior parte das vezes — mas quem clica é ela.
+
+export type CaixaDeQualquerUm = CaixaAbertoRef & { operadorNome: string };
+
+export type OpcaoDeQualquerCaixa = OpcaoDeCaixa & { operadorNome: string };
+
+export type EscolhaDeQualquerCaixa = {
+  /** Um grupo por dia, do mais antigo para o mais novo (é a ordem do acerto de setembro). */
+  dias: { dia: string; rotulo: string; opcoes: OpcaoDeQualquerCaixa[] }[];
+  /** Caixas abertos no mesmo dia da venda — atalho, nunca escolha automática. */
+  doDiaDaVenda: OpcaoDeQualquerCaixa[];
+};
+
+export function escolhaDeQualquerCaixa(
+  abertos: CaixaDeQualquerUm[],
+  dataDaVenda?: string | Date | null,
+  hoje: string = hojeNaClinicaISO(),
+): EscolhaDeQualquerCaixa {
+  const diaDaVenda = dataDaVenda ? diaNaClinicaISO(dataDaVenda) : null;
+  const opcoes: OpcaoDeQualquerCaixa[] = (abertos || [])
+    .filter((c) => c && c.id)
+    .map((c) => {
+      const dia = diaNaClinicaISO(c.abertura);
+      const nome = (c.operadorNome || "sem nome").split(" ").slice(0, 2).join(" ");
+      return {
+        id: c.id,
+        numero: Number(c.numero) || 0,
+        dia,
+        rotulo: `nº ${Number(c.numero) || 0} · ${nome}`,
+        operadorNome: c.operadorNome || "sem nome",
+        ehDeHoje: dia === hoje,
+        ehDoDiaDaVenda: !!diaDaVenda && dia === diaDaVenda,
+      };
+    })
+    .sort((a, b) => (a.dia < b.dia ? -1 : a.dia > b.dia ? 1 : a.numero - b.numero));
+
+  const dias: EscolhaDeQualquerCaixa["dias"] = [];
+  for (const o of opcoes) {
+    const ultimo = dias[dias.length - 1];
+    if (ultimo && ultimo.dia === o.dia) ultimo.opcoes.push(o);
+    else dias.push({ dia: o.dia, rotulo: o.dia === hoje ? `hoje (${ddmm(o.dia)})` : ddmm(o.dia), opcoes: [o] });
+  }
+  return { dias, doDiaDaVenda: opcoes.filter((o) => o.ehDoDiaDaVenda) };
+}

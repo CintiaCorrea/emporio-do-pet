@@ -84,11 +84,15 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
 - [x] **C5** tela de Orcamentos: contador do mes; "Abrir orcamento" no carrinho da ficha; botoes de
   converter sairam de Orcamentos, Consulta de vendas e PDV.
 - [x] **C publicada** 17/09/2026 (api v853, web v1683).
-- [x] **Apagar pelo mesmo caminho** (17/09, nao publicado ate o ok): agenda, tela do atendimento e
+- [x] **Apagar pelo mesmo caminho** publicado 17/09/2026 (api v854, web v1684): agenda, tela do atendimento e
   documentos/card de exame da ficha apagam por `apagarAtendimento` com `naoApagarVenda` (servidor
   recusa E_VENDA se tiver numero de venda); recebimento guarda `descontoItens` e o estorno devolve o
   desconto a venda; estoque volta (`common/estoque-da-venda`) ao apagar venda paga e quando o
   estorno tira a venda de paga; rotina de estoque so baixa venda PAGA e nao repete a baixa da venda.
+- [x] **ADM escolhe qualquer caixa aberto na gaveta** (17/09, pedido com print da #1177): o ADM,
+  dentro da janela de ajuste (ate 19/09), ve todos os caixas abertos de qualquer pessoa e dia
+  (select por dia + atalho "do dia da venda"), nada vem marcado, e nao precisa abrir caixa proprio.
+  O servidor ja aceitava (podeLancarNoCaixa). Demais perfis: igual antes.
 - [ ] Proximo: B internacao (Luna internada) · D atendimento + Inbox (venda rapida falha sem userId;
   enviar PDF e registrar na ficha) · E SimplesVet so consulta · P1 regra unica de venda nos relatorios.
 - [ ] Ao final: varredura da tela do ponto de venda (recebimento) e revisao da tabela de

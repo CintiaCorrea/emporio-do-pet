@@ -76,3 +76,32 @@ describe("escolhaDoCaixa", () => {
     expect(e.opcoes[0].ehDeHoje).toBe(false);
   });
 });
+
+// O CASO DE 17/09/2026: a Cintia (administrativo, sem caixa próprio) quer lançar a #1177, do dia
+// 03/09, num dos caixas que já estão abertos. Os números e donos são os do banco.
+import { escolhaDeQualquerCaixa } from "./escolhaDoCaixa";
+
+const ABERTOS_EM_SETEMBRO = [
+  { id: "v31", numero: 31, abertura: "2026-09-17T15:00:00.000Z", operadorNome: "Victoria Sharon" },
+  { id: "g8", numero: 8, abertura: "2026-09-03T12:00:00.000Z", operadorNome: "Maria Gabriela da Cruz Araujo" },
+  { id: "g2", numero: 2, abertura: "2026-09-01T12:00:00.000Z", operadorNome: "Maria Gabriela da Cruz Araujo" },
+  { id: "v1", numero: 1, abertura: "2026-09-01T12:00:00.000Z", operadorNome: "Victoria Sharon" },
+];
+
+describe("escolhaDeQualquerCaixa (administrativo)", () => {
+  const e = escolhaDeQualquerCaixa(ABERTOS_EM_SETEMBRO, "2026-09-03T13:00:00.000Z", "2026-09-17");
+
+  it("mostra os caixas de todas as pessoas, agrupados por dia, do mais antigo ao mais novo", () => {
+    expect(e.dias.map((d) => d.rotulo)).toEqual(["01/09", "03/09", "hoje (17/09)"]);
+    expect(e.dias[0].opcoes.map((o) => o.rotulo)).toEqual(["nº 1 · Victoria Sharon", "nº 2 · Maria Gabriela"]);
+  });
+
+  it("destaca o caixa do dia da venda, sem escolher por ela", () => {
+    expect(e.doDiaDaVenda.map((o) => o.id)).toEqual(["g8"]);
+    expect(e).not.toHaveProperty("sugeridoId");
+  });
+
+  it("sem caixa aberto, não há o que mostrar", () => {
+    expect(escolhaDeQualquerCaixa([], null, "2026-09-17")).toEqual({ dias: [], doDiaDaVenda: [] });
+  });
+});

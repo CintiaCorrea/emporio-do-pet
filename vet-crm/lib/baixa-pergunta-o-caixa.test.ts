@@ -45,6 +45,17 @@ describe("a baixa pergunta em qual caixa entra", () => {
     ).toBe(true);
   });
 
+  // Cintia, 17/09/2026: "não quero abrir o caixa, quero lançar nos que já estão abertos."
+  it("o administrativo escolhe entre TODOS os caixas abertos, e nada vem marcado por ela", () => {
+    const src = acha("components/caixa/ReceberEmLoteModal.tsx");
+    expect(src).toContain("EscolhaDeQualquerCaixa");
+    expect(src).toContain("carregarCaixasAbertosDeTodos");
+    expect(src).toContain('=== "ADMIN" && dentroDaJanelaDeAjuste()');
+    expect(src).toContain("if (qualquerCaixa) { carregarCaixasAbertosDeTodos().then(setTodosAbertos); return; }");
+    const peca = acha("components/caixa/EscolhaDeQualquerCaixa.tsx");
+    expect(peca).toContain('<option value="">Escolha o caixa…</option>');
+  });
+
   it("o componente da escolha some quando só há um caixa — o caso comum não ganha pergunta", () => {
     const src = acha("components/caixa/EscolhaDoCaixa.tsx");
     expect(src).toContain("if (!e.precisaEscolher) return null;");

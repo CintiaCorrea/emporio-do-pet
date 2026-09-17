@@ -122,6 +122,30 @@ export function caixaParaReceber(m: MeuCaixa): CaixaParaReceber {
 }
 
 /**
+ * TODOS OS CAIXAS ABERTOS, DE QUALQUER PESSOA E DIA. Só para o administrativo escolher onde lançar
+ * (Cintia, 17/09/2026). O servidor confere de novo: fora do administrativo, recusa caixa alheio.
+ */
+export async function carregarCaixasAbertosDeTodos(): Promise<CaixaAberto[]> {
+  try {
+    const r = await fetch('/api/caixa/grade?status=ABERTO', { cache: 'no-store' });
+    if (!r.ok) return [];
+    const d = await r.json();
+    const arr: any[] = Array.isArray(d) ? d : (d.data || []);
+    return arr
+      .filter((c) => String(c?.status || '').toUpperCase() === 'ABERTO')
+      .map((c) => ({
+        id: c.id,
+        numero: Number(c.numero) || 0,
+        abertura: c.abertura,
+        operadorId: c.user?.id ?? c.userId ?? null,
+        operadorNome: c.user?.name || 'sem nome',
+      }));
+  } catch {
+    return [];
+  }
+}
+
+/**
  * MEUS CAIXAS ABERTOS DE QUALQUER DIA — não só os de hoje.
  *
  * `carregarMeuCaixa` acima lê `/api/caixa`, que devolve os caixas DO DIA. Isso está certo para
