@@ -3051,10 +3051,8 @@ export default function PetDetailPage() {
               </div>
               {editAtd && <div><span className="text-gray-400 block mb-0.5">Observações:</span><textarea value={editAtdForm.notes || ""} onChange={(e) => setEditAtdForm((f: any) => ({ ...f, notes: e.target.value }))} placeholder="Acrescente uma observação da sessão…" className="w-full px-2 py-1.5 border rounded text-xs" style={{ borderColor: "#E8DFC8", minHeight: 44 }} /></div>}
               {([["Queixa principal", "chiefComplaint"], ["Anamnese", "anamnesis"], ["Exame físico", "physicalExam"], ["Diagnóstico", "diagnosis"], ["Conduta", "conduct"], ["Prescrição", "prescription"], ["Exames solicitados", "examsRequested"]] as [string, string][]).map(([l, k]) => (verAtd as any)[k] ? <div key={k}><span className="text-gray-400">{l}:</span> {k === "prescription" ? <DocConteudo text={(verAtd as any)[k]} style={{ color: "#0E2244", display: "inline-block" }} /> : <span style={{ color: "#0E2244" }}>{(verAtd as any)[k]}</span>}</div> : null)}
-              {/* SERVIÇOS E VALORES — em leitura mostra; em edição, EDITA (components/vendas/
-                  EditorDeItens, o mesmo componente que as outras telas de lançamento vão usar).
-                  Antes, corrigir um item lançado errado obrigava a apagar o atendimento inteiro
-                  e refazer — e refazer perde a data, o profissional e a observação. */}
+              {/* SERVIÇOS E VALORES — só leitura. O atendimento é prontuário; a venda se edita no
+                  carrinho da ficha ou pela Consulta de vendas (Cintia, 17/09/2026). */}
               {(editAtd || (Array.isArray(verAtd.items) && verAtd.items.length > 0)) && (
                 <div className="pt-1">
                   <div className="text-[11px] font-semibold text-gray-400 uppercase mb-1">Serviços e valores</div>

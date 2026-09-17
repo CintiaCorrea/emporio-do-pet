@@ -109,7 +109,7 @@ const NAV: Entry[] = [
       //   Todas as vendas    -> excluir venda, agora na linha da venda daqui;
       //   Vendas em aberto   -> receber num pagamento so e cobrar por WhatsApp, agora no
       //                         cabecalho do cliente;
-      //   Orcamentos         -> converter em venda ja morava aqui (OrcamentosBusca).
+      //   Orcamentos         -> a lista mora dentro da Consulta de vendas (ListaDeOrcamentos).
       // Os dois enderecos continuam existindo para quem tem link salvo; sairam do menu.
       // Orcamentos FICA com aba propria: o follow-up com responsavel e rotina de quem
       // persegue orcamento e nao cabe numa tela de consulta.
