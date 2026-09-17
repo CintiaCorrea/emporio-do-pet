@@ -31,3 +31,23 @@ describe('a conta da internação', () => {
     expect(jaEstaNaConta(CONTA, { descricao: 'Transfusão de sangue', at: '2026-09-16T15:35:00.000Z' })).toBe(false);
   });
 });
+
+// Cintia, 16/09/2026: "item lançado depois de fechar ou pagar o dia vai para venda complementar".
+import { novosDepoisDaCobranca } from './conta-da-internacao.regras';
+
+describe('o que chegou depois de o dia ser cobrado', () => {
+  const COBRADO_EM = '2026-09-16T18:00:00.000Z';
+  const ITENS = [
+    { descricao: 'Diária', _criadoEm: '2026-09-16T12:00:00.000Z' },
+    { descricao: 'DIPIRONA', _criadoEm: '2026-09-16T20:30:00.000Z' },
+    { descricao: 'CERENIA (já cobrada)', baixado: true, _criadoEm: '2026-09-16T21:00:00.000Z' },
+  ];
+
+  it('só entra na complementar o que foi lançado depois da cobrança', () => {
+    expect(novosDepoisDaCobranca(ITENS, COBRADO_EM).map((i) => i.descricao)).toEqual(['DIPIRONA']);
+  });
+
+  it('sem hora de cobrança, ninguém é complementar (evita cobrar de novo o que já entrou)', () => {
+    expect(novosDepoisDaCobranca(ITENS, null)).toEqual([]);
+  });
+});

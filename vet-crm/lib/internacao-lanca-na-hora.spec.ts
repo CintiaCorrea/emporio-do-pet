@@ -17,3 +17,11 @@ describe("a internação lança pela porta única", () => {
     expect(usos.length).toBeGreaterThanOrEqual(5);
   });
 });
+
+describe("a tela da internação não cobra por dois caminhos", () => {
+  it("saiu o botão 'Gerar comanda do dia' e o 'Enviar pro Caixa'", () => {
+    expect(src).not.toContain("Gerar comanda do dia");
+    expect(src).not.toContain("const gerarComandaDia");
+    expect(src).not.toContain("const enviarCaixa");
+  });
+});

@@ -52,12 +52,6 @@ export class HospitalizationsController {
     return this.hospitalizationsService.create(dto);
   }
 
-  @Post(':id/comanda-dia')
-  @ApiOperation({ summary: 'Gera a comanda do dia (diária + itens abertos) como venda no caixa' })
-  gerarComandaDia(@Param('id') id: string, @CurrentUser('id') userId: string) {
-    return this.hospitalizationsService.gerarComandaDia(id, userId);
-  }
-
   // ── A CONTA DA INTERNACAO (construcao B, 17/09/2026) ────────────────────────────────
   // Porta unica de lancar, editar e apagar item: carimba a data, barra o lancamento repetido e
   // atualiza a venda do dia NA HORA (antes, so quando alguem abria a ficha).

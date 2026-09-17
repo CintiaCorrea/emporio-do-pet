@@ -757,64 +757,13 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
   const excluirItem = async (i: any) => { if (!confirm(`Remover ${i.descricao} da conta?`)) return; try { await fetch(`/api/hospitalizations/${id}/conta/${i.id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
 
-  const enviarCaixa = async () => {
-    const { dias, diariaVU, itensFat, totalFaturavel } = contaCalc();
-    if (totalFaturavel <= 0) { alert("Não há itens faturáveis para enviar."); return; }
-    const cauc = Math.min(caucaoAplicada, totalFaturavel);
-    if (!confirm(`Enviar pro Caixa a venda de ${fmtBRL(totalFaturavel)}${cauc > 0 ? ` (caução ${fmtBRL(cauc)} aplicada · saldo a receber ${fmtBRL(totalFaturavel - cauc)})` : ""}?`)) return;
-    setFinBusy("caixa");
-    try {
-      const itens = [
-        { descricao: `Diária internação (${dias}×)`, quantidade: dias, valorUnitario: diariaVU, desconto: 0 },
-        ...itensFat.map((i) => ({ ...itemParaVenda(i), quantidade: Number(i.quantidade) || 1, desconto: 0 })), // núcleo único: leva custo+fornecedor do exame → a-pagar
-      ].filter((it: any) => it.quantidade > 0 && (it.valorUnitario > 0 || it.descricao));
-      const body = {
-        tutorId: h.tutor?.id, petId: h.pet?.id, userId: (session as any)?.user?.id || h.veterinarian?.id || undefined, date: new Date().toISOString(),
-        itens, tipo: "VENDA", observacao: `Internação${boxCodigo ? ` · Box ${boxCodigo}` : ""} · ${h.pet?.name}`,
-        formas: cauc > 0 ? [{ forma: "Crédito", valor: Number(cauc.toFixed(2)) }] : [],
-      };
-      const res = await fetch("/api/caixa/pdv", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(body) });
-      const dd = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(dd?.message || "Erro ao enviar pro Caixa");
-      const now = new Date();
-      await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intfechamento_${id}`, valor: JSON.stringify({ at: now.toISOString(), tipo: "caixa", total: totalFaturavel, caucao: cauc, por: userName }) }) });
-      alert("Venda enviada pro Caixa! ✅");
-      setCaucaoAplicada(0); load();
-    } catch (e: any) { alert((e?.message || "Erro ao enviar pro Caixa.") + "\nConfira se há um caixa aberto."); }
-    finally { setFinBusy(""); }
-  };
+  // "ENVIAR PRO CAIXA" SAIU (construção B, 17/09/2026). Era um segundo caminho de cobrança, que
+  // montava a venda na tela e cobrava a diária por quantidade — a conta de cada dia já vira venda
+  // sozinha, pela conta da internação.
 
-  // 📅 Comanda do dia: diária(s) não faturada(s) + itens abertos → uma VENDA no "a pagar" do caixa.
-  // Não precisa de caixa aberto (é venda a receber). 1 diária por dia é controlada no backend.
-  const gerarComandaDia = async () => {
-    if (!confirm("Gerar a venda do dia (diária de hoje + itens abertos ainda não faturados) e mandar pro 'a receber' do caixa?")) return;
-    setFinBusy("comanda");
-    try {
-      const res = await fetch(`/api/hospitalizations/${id}/comanda-dia`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: "{}" });
-      const dd = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(dd?.message || "Erro ao gerar a venda do dia");
-      load();
-      // 🧾 Fatia 2 — resumo do dia + saldo (crédito/débito) pro tutor acompanhar, junto com o boletim.
-      const saldo = Number(caucaoSaldo) - Number(dd.totalFaturado || 0); // +: crédito a favor · −: a pagar
-      const linhas = [
-        `🧾 *Conta do dia — ${h?.pet?.name || "seu pet"}* (${new Date().toLocaleDateString("pt-BR")})`,
-        ...(dd.itensResumo || []).map((i: any) => `• ${i.descricao}: ${fmtBRL(Number(i.total) || 0)}`),
-        `*Total do dia: ${fmtBRL(Number(dd.total) || 0)}*`,
-        `━━━━━━━━━━`,
-        `Internação até agora: ${fmtBRL(Number(dd.totalFaturado) || 0)}`,
-        caucaoSaldo > 0 ? `Caução em conta: ${fmtBRL(caucaoSaldo)}` : null,
-        saldo >= 0 ? `✅ Saldo a favor: ${fmtBRL(saldo)}` : `Saldo a pagar: ${fmtBRL(Math.abs(saldo))}`,
-      ].filter(Boolean);
-      const texto = linhas.join("\n");
-      if (confirm(`Venda do dia gerada! ✅${dd.numeroVenda ? ` (venda nº ${dd.numeroVenda})` : ""}\nTotal do dia ${fmtBRL(Number(dd.total) || 0)} — está no “a pagar” do caixa.\n\nEnviar o resumo do dia + saldo pro tutor no WhatsApp (junto com o boletim)?`)) {
-        try {
-          const r2 = await fetch("/api/survey-avaliacao/mensagem-tutor", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ tutorId: h.tutor?.id, texto }) });
-          alert(r2.ok ? "Resumo do dia enviado pro tutor ✅" : "Comanda gerada, mas não consegui enviar o resumo (confira a conversa do WhatsApp).");
-        } catch { alert("Comanda gerada, mas não consegui enviar o resumo."); }
-      }
-    } catch (e: any) { alert(e?.message || "Erro ao gerar a comanda do dia."); }
-    finally { setFinBusy(""); }
-  };
+  // "GERAR COMANDA DO DIA" SAIU (Cintia, 16/09/2026: cobrava de novo a diária e os itens que já
+  // estavam nas vendas automáticas de cada dia). A conta do dia vira venda sozinha a cada
+  // lançamento, pela porta única da conta (hospitalizations/:id/conta).
 
   const baixarInsumos = async () => {
     const insumos = conta.filter((i) => i.categoria === "Insumo" && i.productId && !i.baixado);
@@ -2438,7 +2387,6 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
               <div className="px-4 py-3 border-b" style={{ borderColor: "#F0EBE0" }}><h3 className="text-[13px] font-medium text-[#014D5E] flex items-center gap-2">📤 Fechamento</h3></div>
               <div className="p-4">
                 <div className="flex gap-2 flex-wrap">
-                  {!alta && <button onClick={gerarComandaDia} disabled={!!finBusy} className="text-[13px] font-medium text-white bg-[#009AAC] px-4 py-2 rounded-lg disabled:opacity-60">{finBusy === "comanda" ? "Gerando..." : "📅 Gerar comanda do dia"}</button>}
                   {!alta && <button onClick={baixarInsumos} disabled={!!finBusy} className="text-[13px] font-medium text-[#5C6B70] bg-white border px-4 py-2 rounded-lg disabled:opacity-60" style={{ borderColor: "#E8E2D6" }}>{finBusy === "estoque" ? "Baixando..." : "📦 Baixar insumos"}</button>}
                   {(() => {
                     // O MESMO boletim em texto ou em PDF — a opcao de anexo passa a existir aqui
@@ -2477,7 +2425,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
                     ))}
                   </div>
                 )}
-                <div className="text-[10.5px] text-[#374151] mt-2.5">“Gerar comanda do dia” fatura a diária de hoje + os itens abertos numa venda (a receber) no caixa — 1 diária por dia, sem repetir. A caução do cliente é aplicada quando a recepção recebe a comanda no caixa. “Baixar insumos” dá saída no estoque dos itens vinculados a produto.</div>
+                <div className="text-[10.5px] text-[#374151] mt-2.5">Cada dia da internação já vira uma venda sozinha, a cada lançamento. Item lançado depois de o dia ser fechado ou pago entra numa venda complementar do mesmo dia. “Baixar insumos” dá saída no estoque dos itens vinculados a produto.</div>
               </div>
             </div>
           </div>

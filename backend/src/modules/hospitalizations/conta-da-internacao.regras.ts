@@ -47,3 +47,23 @@ export function jaEstaNaConta(itens: ItemParaConta[], novo: ItemParaConta): bool
     return semAcento(i?.descricao) === nome && minuto(i?.at) === quando;
   });
 }
+
+/**
+ * O QUE CHEGOU DEPOIS DE O DIA JÁ TER SIDO COBRADO (construção B, 17/09/2026).
+ *
+ * Dia fechado ou venda do dia já paga: o lançamento novo não pode entrar naquela venda (mexer em
+ * dinheiro que já entrou) nem sumir — era o que acontecia, "item lançado depois de fechar o dia é
+ * marcado como cobrado e não entra na venda". Ele vai para uma VENDA COMPLEMENTAR do mesmo dia.
+ */
+export function novosDepoisDaCobranca<T extends { baixado?: boolean; _criadoEm?: string | Date | null }>(
+  itensDoDia: T[],
+  cobradoEm: string | Date | null | undefined,
+): T[] {
+  const corte = cobradoEm ? new Date(cobradoEm as any).getTime() : NaN;
+  if (!Number.isFinite(corte)) return [];
+  return (itensDoDia || []).filter((i) => {
+    if (i?.baixado) return false;
+    const t = i?._criadoEm ? new Date(i._criadoEm as any).getTime() : NaN;
+    return Number.isFinite(t) && t > corte;
+  });
+}

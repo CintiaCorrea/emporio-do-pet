@@ -31,3 +31,18 @@ describe('a porta única da conta da internação', () => {
     expect(trecho).toContain('jaEstaNaConta(');
   });
 });
+
+// Cintia, 16/09/2026: "Gerar comanda do dia cobra de novo". O botão e o caminho saíram — cada dia
+// já vira venda sozinha, e o que chega depois da cobrança entra numa venda complementar.
+describe('o caminho que cobrava em dobro saiu', () => {
+  it('não existe mais comanda do dia no servidor', () => {
+    expect(ctrl).not.toContain("comanda-dia");
+    expect(svc).not.toContain('async gerarComandaDia');
+  });
+
+  it('o que chega depois do dia cobrado vira venda complementar', () => {
+    expect(svc).toContain('novosDepoisDaCobranca(');
+    expect(svc).toContain('vendasComplementares');
+    expect(svc).toContain('Venda complementar da internação');
+  });
+});

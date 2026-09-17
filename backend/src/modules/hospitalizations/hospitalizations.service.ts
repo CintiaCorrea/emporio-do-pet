@@ -1,4 +1,4 @@
-import { comData, jaEstaNaConta } from './conta-da-internacao.regras';
+import { comData, jaEstaNaConta, novosDepoisDaCobranca } from './conta-da-internacao.regras';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BoardsService } from '../boards/boards.service';
@@ -39,68 +39,9 @@ export class HospitalizationsService {
   // 📅 COMANDA DO DIA (Fatia 1): junta a(s) diária(s) ainda não faturada(s) + os itens abertos da conta
   // (medicações auto + manuais, exclui Insumo) numa VENDA nova (com número) que cai no "a pagar" do caixa.
   // 1 diária por dia (controla via metadata.diariasFaturadas). Marca os itens como baixados p/ não repetir.
-  async gerarComandaDia(id: string, userId: string) {
-    const appt = await this.prisma.appointment.findUnique({ where: { id }, select: { id: true, tutorId: true, petId: true, date: true, notes: true } });
-    if (!appt) throw new NotFoundException('Internação não encontrada');
-    const meta: any = this.parseMetadata(appt.notes);
-    if (!meta) throw new BadRequestException('Este atendimento não é uma internação');
-
-    // Diárias ainda não faturadas — 1 a cada 24 HORAS COMEÇADAS desde a entrada (regra
-    // confirmada pela Cintia em 04/09: 25 h = 2 diárias).
-    //
-    // A CONTA PARA NA ALTA. Antes contava sempre até AGORA: um animal que teve alta no dia 1º
-    // e cuja ficha fosse aberta no dia 10 aparecia com nove diárias a mais, e quem faturasse
-    // naquele momento cobrava as nove. A conta mudava de valor sozinha, com o passar dos dias,
-    // sem ninguém ter tocado nela.
-    const admissao = new Date(appt.date);
-    const alta = meta?.actualDischargeDate ? new Date(meta.actualDischargeDate).getTime() : null;
-    const diasCorridos = diariasDevidas(admissao.getTime(), Date.now(), alta);
-    const jaFaturadas = Number(meta.diariasFaturadas || 0);
-    const diariasNovas = diariasAFaturar(diasCorridos, jaFaturadas);
-    const dailyRate = Number(meta.dailyRate) || 0;
-
-    // Itens abertos da conta (intconta_<id>) — não baixados e que não são Insumo.
-    const contaRaw = await this.prisma.listaItem.findMany({ where: { lista: `intconta_${id}` } });
-    const abertos = contaRaw
-      .map((li) => { try { return { li, d: JSON.parse(li.valor) }; } catch { return null; } })
-      .filter((x): x is { li: any; d: any } => !!x && !x.d.baixado && x.d.categoria !== 'Insumo');
-
-    const items: any[] = [];
-    if (diariasNovas > 0 && dailyRate > 0) {
-      // Diária vinda do catálogo quando configurada (leva servicoId/produto + custo → margem no DRE); senão, item livre.
-      items.push({ descricao: `Diária de internação${diariasNovas > 1 ? ` (${diariasNovas} dias)` : ''}`, quantidade: diariasNovas, valorUnitario: dailyRate, valorTotal: diariasNovas * dailyRate,
-        servicoId: meta.diariaServicoId || undefined, catalogoItemId: meta.diariaCatalogoItemId || undefined,
-        custoUnitario: meta.diariaCusto != null ? Number(meta.diariaCusto) : undefined });
-    }
-    for (const x of abertos) {
-      const q = Number(x.d.quantidade) || 1; const vu = Number(x.d.valorUnitario) || 0;
-      items.push({ descricao: x.d.descricao || 'Item', quantidade: q, valorUnitario: vu, valorTotal: q * vu,
-        servicoId: x.d.servicoId || undefined, productId: x.d.productId || undefined,
-        custoUnitario: x.d.custoUnitario != null ? Number(x.d.custoUnitario) : undefined,
-        fornecedorId: x.d.fornecedorId || undefined });
-    }
-    if (!items.length) throw new BadRequestException('Nada novo para faturar hoje (sem diária pendente nem itens abertos).');
-
-    const value = items.reduce((s, i) => s + Number(i.valorTotal), 0);
-    // Reusa o fluxo de venda (numeroVenda + validação de servicoId + itens). type='Venda' e SEM notes de
-    // internação → cai no "a pagar" do caixa (a exclusão de INTERNACAO olha as notes HOSPITALIZATION).
-    const venda: any = await this.appointmentsService.create({
-      tutorId: appt.tutorId, petId: appt.petId || undefined, userId,
-      date: new Date().toISOString(), type: 'Venda', status: 'COMPLETED', value, items,
-    } as any);
-
-    // Marca os itens como faturados (não repetem) + registra as diárias faturadas.
-    for (const x of abertos) {
-      await this.prisma.listaItem.update({ where: { id: x.li.id }, data: { valor: JSON.stringify({ ...x.d, baixado: true, comandaId: venda.id, faturadoEm: new Date().toISOString() }) } }).catch(() => undefined);
-    }
-    meta.diariasFaturadas = jaFaturadas + diariasNovas;
-    (meta as any).totalFaturado = Number((meta as any).totalFaturado || 0) + value; // acumulado da internação (p/ saldo)
-    await this.prisma.appointment.update({ where: { id }, data: { notes: JSON.stringify(meta) } });
-
-    const itensResumo = items.map((i) => ({ descricao: i.descricao, total: Number(i.valorTotal) }));
-    return { ok: true, vendaId: venda.id, numeroVenda: venda.numeroVenda ?? null, diariasFaturadas: diariasNovas, itens: abertos.length, total: value, totalFaturado: (meta as any).totalFaturado, itensResumo };
-  }
-
+  // "COMANDA DO DIA" SAIU (construção B, 17/09/2026). Era o segundo caminho de cobrança da
+  // internação: faturava de novo a diária e os itens que as vendas de cada dia já cobram
+  // (sincronizarVendasDosDiasAbertos). A Cintia viu a conta dobrada em Chico, Kate e Luna.
   /**
    * LANCAR ITEM NA CONTA — a porta unica (construcao B, 17/09/2026).
    *
@@ -151,7 +92,8 @@ export class HospitalizationsService {
   private async lerConta(id: string): Promise<Array<ItemDaConta & { _listaId: string }>> {
     const raw = await this.prisma.listaItem.findMany({ where: { lista: `intconta_${id}` } });
     return raw
-      .map((li) => { try { return { ...JSON.parse(li.valor), _listaId: li.id }; } catch { return null; } })
+      // `_criadoEm` é o que separa o que já foi cobrado do que chegou depois (venda complementar).
+      .map((li) => { try { return { ...JSON.parse(li.valor), _listaId: li.id, _criadoEm: li.createdAt }; } catch { return null; } })
       .filter(Boolean) as any[];
   }
 
@@ -250,7 +192,57 @@ export class HospitalizationsService {
         || (itensDoDia.length > 0 && itensDoDia.every((i: any) => i.baixado));
 
       const acao = acaoDaVendaDoDia({ temAlgoACobrar: !!f, vendaId, vendaRecebeu, diaFechado });
-      if (acao === 'NADA') continue;
+      if (acao === 'NADA') {
+        // DIA JÁ COBRADO (fechado ou pago): o que chegar depois vai para uma VENDA COMPLEMENTAR
+        // do mesmo dia (Cintia, 16/09/2026). Antes o item ficava na conta sem nunca ser cobrado.
+        if (!diaFechado && !vendaRecebeu) continue;
+        const cobradoEm: Record<string, string> = { ...((meta as any).cobradoEm || {}) };
+        if (!cobradoEm[dia]) {
+          // Primeira vez que vejo este dia cobrado: o que existe agora já está na venda paga.
+          cobradoEm[dia] = new Date().toISOString();
+          (meta as any).cobradoEm = cobradoEm;
+          mudou = true;
+          continue;
+        }
+        const complementares: Record<string, string> = { ...((meta as any).vendasComplementares || {}) };
+        const compId = complementares[dia] || null;
+        if (compId) {
+          const comp = await this.prisma.appointment.findUnique({
+            where: { id: compId },
+            select: { id: true, recebimentos: { select: { id: true }, take: 1 } },
+          }).catch(() => null);
+          // A complementar sumiu ou já foi paga: o próximo item abre outra, do zero.
+          if (!comp || (comp.recebimentos || []).length > 0) {
+            delete complementares[dia];
+            cobradoEm[dia] = new Date().toISOString();
+            (meta as any).vendasComplementares = complementares;
+            (meta as any).cobradoEm = cobradoEm;
+            mudou = true;
+            continue;
+          }
+        }
+        const novos = novosDepoisDaCobranca(itensDoDia as any, cobradoEm[dia]);
+        if (!novos.length) continue;
+        const itensComp = this.itensDaVendaDoDia({ itens: novos }, dia, meta);
+        const valorComp = itensComp.reduce((t, i) => t + Number(i.valorTotal || 0), 0);
+        if (compId) {
+          await this.appointmentsService.update(compId, { value: valorComp, items: itensComp } as any).catch(() => undefined);
+        } else {
+          const nova: any = await this.appointmentsService.create({
+            tutorId: appt.tutorId, petId: appt.petId || undefined, userId: userId || appt.userId || undefined,
+            date: new Date(`${dia}T12:00:00-03:00`).toISOString(),
+            type: 'Venda', status: 'COMPLETED', value: valorComp, items: itensComp,
+            notes: `Venda complementar da internação — ${dia.slice(8)}/${dia.slice(5, 7)}`,
+          } as any).catch(() => null);
+          if (nova?.id) {
+            complementares[dia] = nova.id;
+            (meta as any).vendasComplementares = complementares;
+            mudou = true;
+            if (appt.petId) await ligarCardsSoltosDoPet(this.prisma as any, appt.petId, nova.id);
+          }
+        }
+        continue;
+      }
 
       if (acao === 'APAGAR') {
         await this.prisma.appointment.delete({ where: { id: vendaId as string } }).catch(() => undefined);

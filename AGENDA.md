@@ -121,6 +121,12 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **B3 — venda complementar** (17/09): dia fechado ou venda do dia ja paga -> o que for lancado
+  depois entra numa VENDA COMPLEMENTAR do mesmo dia (`novosDepoisDaCobranca`, meta.cobradoEm e
+  meta.vendasComplementares). Complementar paga fecha e a proxima abre outra.
+- [x] **B4 — sai o caminho que cobrava em dobro** (17/09): botao "Gerar comanda do dia", a rota
+  `POST /hospitalizations/:id/comanda-dia`, o metodo `gerarComandaDia` e o "Enviar pro Caixa" morto
+  sairam. A conta de cada dia vira venda sozinha pela porta unica.
 - [x] **B1+B2 — a conta da internacao tem porta unica** (17/09): `POST/PATCH/DELETE
   /hospitalizations/:id/conta` carimba a data (`comData`), recusa lancamento repetido
   (`jaEstaNaConta`: mesmo medLogId ou mesmo item no mesmo minuto) e sincroniza a venda do dia NA
