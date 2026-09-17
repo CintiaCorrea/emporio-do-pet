@@ -6,6 +6,7 @@ import { AppointmentsService } from '../appointments/appointments.service';
 import { ExamesService } from '../exames/exames.service';
 import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
 import { dentroDaJanelaDeAjuste } from '../../common/janela-de-ajuste';
+import { somarNoContador, LISTA_CONTADOR } from './contador-de-orcamentos.regras';
 
 function calcItemTotal(it: any): number {
   const q = Number(it.quantidade ?? 1);
@@ -18,6 +19,9 @@ function mapItens(itens: any[] | undefined) {
   return (itens ?? []).map((it) => ({
     servicoId: it.servicoId ?? null,
     productId: it.productId ?? null,
+    catalogoItemId: it.catalogoItemId ?? null,
+    fornecedorId: it.fornecedorId ?? null,
+    custoUnitario: it.custoUnitario != null ? Number(it.custoUnitario) : null,
     descricao: it.descricao ?? null,
     quantidade: Number(it.quantidade ?? 1),
     valorUnitario: Number(it.valorUnitario ?? 0),
@@ -145,7 +149,7 @@ export class OrcamentosService {
       let productId = it.productId && prSet.has(it.productId) ? it.productId : null;
       // servicoId veio como id de produto (comanda/PDV) → move pra productId
       if (!servicoId && !productId && it.servicoId && prSet.has(it.servicoId)) productId = it.servicoId;
-      return { servicoId, productId, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: it.desconto, valorTotal: it.valorTotal };
+      return { servicoId, productId, catalogoItemId: it.catalogoItemId ?? null, fornecedorId: it.fornecedorId ?? null, custoUnitario: it.custoUnitario ?? null, descricao: it.descricao, quantidade: it.quantidade, valorUnitario: it.valorUnitario, desconto: it.desconto, valorTotal: it.valorTotal };
     });
   }
 
@@ -196,10 +200,22 @@ export class OrcamentosService {
     return { ok: true };
   }
 
+  /**
+   * TRANSFORMAR O ORÇAMENTO EM VENDA — e o orçamento some.
+   *
+   * Cintia, 16/09/2026: no SimplesVet "ao transformar em venda o orçamento some, conseguimos seguir
+   * esse padrão aqui? Mesmo porque o banco vai ficando inchado e sem necessidade." Fica só um
+   * contador por mês (contador-de-orcamentos.regras).
+   *
+   * Até aqui a conversão criava a venda com o nome "CONSULTA", agendada, e sem a ligação com o
+   * cadastro (o item do orçamento nem tinha o campo) — sem card de exame, sem estoque, "sem
+   * vínculo". Agora a venda nasce "Venda", com os itens ligados ao cadastro, o laboratório e o
+   * custo; o card do exame nasce pelo ponto único (venda.itens.gravados), como em qualquer venda.
+   */
   async converter(id: string, dto: { userId?: string; date?: string } = {}, currentUserId?: string) {
     const orc = await this.prisma.orcamento.findUnique({ where: { id }, include: { itens: true } });
     if (!orc) throw new NotFoundException('Orçamento não encontrado');
-    if (orc.appointmentId) throw new BadRequestException('Orçamento já convertido em venda');
+    if (orc.appointmentId) throw new BadRequestException('Orçamento já transformado em venda');
 
     const pet = await this.prisma.pet.findUnique({ where: { id: orc.petId }, select: { tutorId: true } });
     const tutorId = orc.tutorId ?? pet?.tutorId;
@@ -207,14 +223,13 @@ export class OrcamentosService {
     const userId = dto.userId ?? currentUserId;
     if (!userId) throw new BadRequestException('Profissional (userId) é obrigatório');
 
-    // Identidade dos exames do orçamento (orcexa_) carregada ANTES — pra injetar fornecedor + custo do
-    // lab no AppointmentItem (alimenta o a-pagar) e depois iniciar o ciclo do exame.
-    let examItemsRaw: any[] = [];
+    // Orçamentos antigos guardavam o laboratório do exame num registro-companheiro (orcexa_).
     const examPorNome: Record<string, any> = {};
     try {
       const orcExa = await this.prisma.listaItem.findMany({ where: { lista: `orcexa_${id}` }, select: { valor: true } });
-      examItemsRaw = orcExa.map((r) => { try { return JSON.parse(r.valor); } catch { return null; } }).filter(Boolean);
-      for (const e of examItemsRaw) { if (e?.descricao) examPorNome[String(e.descricao).toLowerCase().trim()] = e; }
+      for (const r of orcExa) {
+        try { const e = JSON.parse(r.valor); if (e?.descricao) examPorNome[String(e.descricao).toLowerCase().trim()] = e; } catch { /* linha ilegível */ }
+      }
     } catch { /* sem companheiro */ }
 
     const appointment = await this.appointmentsService.create({
@@ -222,39 +237,43 @@ export class OrcamentosService {
       petId: orc.petId,
       userId,
       date: dto.date ?? new Date().toISOString(),
+      type: 'Venda',
+      status: 'COMPLETED',
       value: orc.valorTotal,
-      items: orc.itens.map((it) => {
+      notes: orc.observacao ?? null,
+      items: orc.itens.map((it: any) => {
         const ex = examPorNome[String(it.descricao || '').toLowerCase().trim()];
         return {
           servicoId: it.servicoId ?? undefined,
-          productId: (it as any).productId ?? undefined,
+          productId: it.productId ?? undefined,
+          catalogoItemId: it.catalogoItemId ?? undefined,
           descricao: it.descricao ?? undefined,
           quantidade: it.quantidade,
           valorUnitario: it.valorUnitario,
           desconto: it.desconto,
           valorTotal: it.valorTotal,
-          ...(ex ? { fornecedorId: ex.fornecedorId ?? undefined, custoUnitario: ex.custoUnitario != null ? Number(ex.custoUnitario) : undefined } : {}),
+          fornecedorId: it.fornecedorId ?? ex?.fornecedorId ?? undefined,
+          custoUnitario: it.custoUnitario != null ? Number(it.custoUnitario) : ex?.custoUnitario != null ? Number(ex.custoUnitario) : undefined,
         };
       }),
     } as any);
 
-    await this.prisma.orcamento.update({
-      where: { id },
-      data: { appointmentId: (appointment as any).id, status: 'APROVADO' },
-    });
-
-    // 🔬 O CARD DO EXAME NÃO NASCE MAIS AQUI.
-    //
-    // A conversão cria a venda por `appointmentsService.create` logo acima, e é ELA que dispara
-    // `venda.itens.gravados` — o ponto único que cria o card e o liga ao item da venda.
-    //
-    // Este bloco criava o card também, e virou duplicata quando o ponto único entrou (15/09/2026):
-    // dois cards por exame, no mesmo segundo. O mesmo defeito do ponto de venda, pela mesma razão —
-    // acrescentar o criador central sem remover os antigos troca "faltar card" por "sobrar card".
-    //
-    // O vínculo com o item da venda, que era o motivo deste bloco existir (Cintia, 12/09/2026),
-    // continua garantido: o ponto único liga pelo id do item, sem depender de casar por nome.
+    // A venda existe: o orçamento sai, e o mês ganha +1 no contador.
+    await this.prisma.listaItem.deleteMany({ where: { lista: `orcexa_${id}` } }).catch(() => undefined);
+    await this.prisma.orcamento.delete({ where: { id } });
+    await somarNoContador(this.prisma as any).catch(() => undefined);
 
     return appointment;
+  }
+
+  /** Quantos orçamentos viraram venda, por mês (os 12 mais recentes). */
+  async contador() {
+    const linhas = await this.prisma.listaItem.findMany({
+      where: { lista: LISTA_CONTADOR },
+      select: { valor: true, ordem: true },
+      orderBy: { valor: 'desc' },
+      take: 12,
+    });
+    return linhas.map((l) => ({ mes: l.valor, quantidade: Number(l.ordem) || 0 }));
   }
 }

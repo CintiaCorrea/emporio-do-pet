@@ -33,6 +33,12 @@ export class OrcamentosController {
     return this.orcamentosService.findAll({ status, busca, tutorId });
   }
 
+  @Get('contador')
+  @ApiOperation({ summary: 'Quantos orçamentos viraram venda, por mês' })
+  contador() {
+    return this.orcamentosService.contador();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Detalhe do orçamento' })
   findOne(@Param('id') id: string) {
@@ -58,7 +64,7 @@ export class OrcamentosController {
   }
 
   @Post(':id/converter')
-  @ApiOperation({ summary: 'Converter orçamento em venda (cria atendimento com os itens)' })
+  @ApiOperation({ summary: 'Transformar orçamento em venda (cria a venda e apaga o orçamento)' })
   converter(@Param('id') id: string, @Body() dto: ConverterOrcamentoDto, @CurrentUser('id') userId: string) {
     return this.orcamentosService.converter(id, dto, userId);
   }

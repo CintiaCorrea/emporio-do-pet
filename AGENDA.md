@@ -64,6 +64,11 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   recebimentos no mesmo passo (`common/estornar-recebimento`, o mesmo do Caixa): credito usado volta,
   taxa/receita saem do DRE. Caixa FECHADO recusa (reabrir o caixa antes). Estoque ja baixado NAO
   volta (igual ao reabrir venda).
+- [x] **A2 blocos 3 e 4 publicados** em 17/09/2026 (api v851, web v1681); trava de desconto por item saiu.
+- [x] **C1** (17/09): item de orcamento guarda catalogoItemId/fornecedorId/custoUnitario; transformar em
+  venda cria "Venda" COMPLETED com a ligacao ao cadastro e APAGA o orcamento; contador por mes em
+  lista_itens `orcamentos_viraram_venda` (GET /orcamentos/contador).
+- [ ] C2 peca unica de lancar itens · C3 comanda com abas · C4 gaveta unica · C5 tela de Orcamentos.
 - [ ] Ao final: varredura da tela do ponto de venda (recebimento) e revisao da tabela de
   produtos e servicos (a Cintia esta fazendo fora do sistema; reintegrar junto).
 

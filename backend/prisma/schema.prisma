@@ -2960,6 +2960,11 @@ model OrcamentoItem {
   servico       Servico?  @relation(fields: [servicoId], references: [id], onDelete: SetNull)
   productId     String? // catálogo unificado (Fase 1 da unificação)
   product       Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  // Ligação com o cadastro novo (cat_itens), o laboratório e o custo — sem eles o orçamento
+  // virava venda sem vínculo, sem card de exame e sem a-pagar do laboratório (16/09/2026).
+  catalogoItemId String?
+  fornecedorId   String?
+  custoUnitario  Float?
   descricao     String?
   quantidade    Float     @default(1)
   valorUnitario Float     @default(0)
