@@ -121,6 +121,13 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **B1+B2 — a conta da internacao tem porta unica** (17/09): `POST/PATCH/DELETE
+  /hospitalizations/:id/conta` carimba a data (`comData`), recusa lancamento repetido
+  (`jaEstaNaConta`: mesmo medLogId ou mesmo item no mesmo minuto) e sincroniza a venda do dia NA
+  HORA. A tela da internacao (lancar, editar, apagar, marcar/desmarcar aplicacao) passou a usar essa
+  porta; nao grava mais na lista generica. Medido na Luna: 38 itens, todos COM data; 4 grupos
+  repetidos no mesmo minuto (CERENIA 3x, DIPIRONA, ATROPINA, DEXAMETASONA) = R$ 268,55 — ela pediu
+  para NAO corrigir os dados agora. Auditoria nao guarda o conteudo do que foi apagado (sugerido).
 - [x] **Etapa 2 — UM CARRINHO SO** (17/09): o carrinho da ficha (PetComandaRail) aceita ser aberto de
   fora (props aberto/aoFechar/abaInicial) e o INBOX passa a usar ele na aba Orcamento — a janela
   OrcamentoRapidoModal SAIU (era estreita e cortava a lista). Editar orcamento acontece dentro do

@@ -58,6 +58,27 @@ export class HospitalizationsController {
     return this.hospitalizationsService.gerarComandaDia(id, userId);
   }
 
+  // ── A CONTA DA INTERNACAO (construcao B, 17/09/2026) ────────────────────────────────
+  // Porta unica de lancar, editar e apagar item: carimba a data, barra o lancamento repetido e
+  // atualiza a venda do dia NA HORA (antes, so quando alguem abria a ficha).
+  @Post(':id/conta')
+  @ApiOperation({ summary: 'Lançar item na conta da internação (atualiza a venda do dia na hora)' })
+  lancarNaConta(@Param('id') id: string, @Body() body: any, @CurrentUser('id') userId: string) {
+    return this.hospitalizationsService.lancarNaConta(id, body, userId);
+  }
+
+  @Patch(':id/conta/:itemId')
+  @ApiOperation({ summary: 'Editar item da conta da internação' })
+  editarNaConta(@Param('id') id: string, @Param('itemId') itemId: string, @Body() body: any, @CurrentUser('id') userId: string) {
+    return this.hospitalizationsService.editarNaConta(id, itemId, body, userId);
+  }
+
+  @Delete(':id/conta/:itemId')
+  @ApiOperation({ summary: 'Apagar item da conta da internação' })
+  apagarDaConta(@Param('id') id: string, @Param('itemId') itemId: string, @CurrentUser('id') userId: string) {
+    return this.hospitalizationsService.apagarDaConta(id, itemId, userId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar internação por ID' })
   get(@Param('id') id: string) {

@@ -1,3 +1,4 @@
+import { comData, jaEstaNaConta } from './conta-da-internacao.regras';
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { BoardsService } from '../boards/boards.service';
@@ -98,6 +99,52 @@ export class HospitalizationsService {
 
     const itensResumo = items.map((i) => ({ descricao: i.descricao, total: Number(i.valorTotal) }));
     return { ok: true, vendaId: venda.id, numeroVenda: venda.numeroVenda ?? null, diariasFaturadas: diariasNovas, itens: abertos.length, total: value, totalFaturado: (meta as any).totalFaturado, itensResumo };
+  }
+
+  /**
+   * LANCAR ITEM NA CONTA — a porta unica (construcao B, 17/09/2026).
+   *
+   * A tela gravava direto na lista generica e o servidor so via quando alguem abria a ficha: a
+   * venda do dia aparecia atrasada ("a recepcao nao ve o valor do dia em tempo real") e a mesma
+   * aplicacao entrava duas vezes. Aqui o item nasce com data, e repetido nao entra — e a venda
+   * do dia e atualizada NA HORA.
+   */
+  async lancarNaConta(id: string, item: any, userId?: string) {
+    const appt = await this.prisma.appointment.findUnique({ where: { id }, select: { id: true, notes: true } });
+    if (!appt) throw new NotFoundException('Internação não encontrada');
+    if (!this.parseMetadata(appt.notes)) throw new BadRequestException('Este atendimento não é uma internação');
+    if (!String(item?.descricao || '').trim()) throw new BadRequestException('O item precisa de descrição.');
+
+    const comDataCerta = comData(item);
+    const conta = await this.lerConta(id);
+    if (jaEstaNaConta(conta as any, comDataCerta)) {
+      // Repetido nao e erro de quem clicou: e o sistema devolvendo o que ja esta lancado.
+      return { ok: true, repetido: true, item: conta.find((i: any) => i?.descricao === comDataCerta.descricao) ?? null };
+    }
+    const criado = await this.prisma.listaItem.create({
+      data: { lista: `intconta_${id}`, valor: JSON.stringify(comDataCerta) },
+    });
+    // A venda do dia acompanha o lancamento, sem depender de alguem abrir a ficha.
+    await this.sincronizarVendasDosDiasAbertos(id, userId).catch((e: any) => console.error('[internacao] sincronizar:', e?.message));
+    return { ok: true, repetido: false, id: criado.id, item: comDataCerta };
+  }
+
+  /** Apagar item da conta pela porta unica: a venda do dia acompanha na hora. */
+  async apagarDaConta(id: string, itemId: string, userId?: string) {
+    const li = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true } });
+    if (!li || li.lista !== `intconta_${id}`) throw new NotFoundException('Item não encontrado nesta internação');
+    await this.prisma.listaItem.delete({ where: { id: itemId } });
+    await this.sincronizarVendasDosDiasAbertos(id, userId).catch((e: any) => console.error('[internacao] sincronizar:', e?.message));
+    return { ok: true };
+  }
+
+  /** Editar item da conta pela porta unica (mesma sincronizacao na hora). */
+  async editarNaConta(id: string, itemId: string, item: any, userId?: string) {
+    const li = await this.prisma.listaItem.findUnique({ where: { id: itemId }, select: { id: true, lista: true } });
+    if (!li || li.lista !== `intconta_${id}`) throw new NotFoundException('Item não encontrado nesta internação');
+    await this.prisma.listaItem.update({ where: { id: itemId }, data: { valor: JSON.stringify(comData(item)) } });
+    await this.sincronizarVendasDosDiasAbertos(id, userId).catch((e: any) => console.error('[internacao] sincronizar:', e?.message));
+    return { ok: true };
   }
 
   /** Le a conta da internacao (listas intconta_<id>) ja com o id de cada linha. */

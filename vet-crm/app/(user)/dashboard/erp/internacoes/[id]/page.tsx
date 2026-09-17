@@ -518,7 +518,8 @@ export default function FichaInternacaoPage() {
         // Desmarcou (foi engano): apaga o log E o lançamento automático dessa aplicação, se houver.
         await fetch(`/api/listas/${slot.log.id}`, { method: "DELETE", credentials: "include" });
         const autoItem = conta.find((c: any) => c.medLogId === slot.log.id);
-        if (autoItem?.id) await fetch(`/api/listas/${autoItem.id}`, { method: "DELETE", credentials: "include" }).catch(() => undefined);
+        // Pela porta única: tirar o lançamento também acerta a venda do dia na hora.
+        if (autoItem?.id) await fetch(`/api/hospitalizations/${id}/conta/${autoItem.id}`, { method: "DELETE", credentials: "include" }).catch(() => undefined);
       } else {
         const now = new Date();
         const valor = JSON.stringify({ prescId: slot.p.id, med: slot.p.medicamento, via: slot.p.via, dose: slot.p.dose, slot: slot.hhmm, date: hojeISO(), at: now.toISOString(), por: userName });
@@ -547,7 +548,9 @@ export default function FichaInternacaoPage() {
               return d.toISOString();
             })(),
           };
-          await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(itemPayload) }) }).catch(() => undefined);
+          // PORTA ÚNICA DA CONTA (construção B, 17/09/2026): o servidor carimba a data, recusa a
+          // mesma aplicação duas vezes e atualiza a venda do dia NA HORA.
+          await fetch(`/api/hospitalizations/${id}/conta`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(itemPayload) }).catch(() => undefined);
         }
       }
       load();
@@ -718,9 +721,9 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
       const quandoI = itemForm.quando ? new Date(itemForm.quando) : new Date();
       const emQueI = Number.isNaN(quandoI.getTime()) ? new Date() : quandoI;
       const payload = { descricao: itemForm.descricao.trim(), categoria: itemForm.categoria, quantidade: Number(itemForm.quantidade) || 1, valorUnitario: insumo ? 0 : (Number(itemForm.valorUnitario) || 0), servicoId: itemForm.servicoId || "", productId: itemForm.productId || "", at: emQueI.toISOString(), baixado: !!origItem?.baixado, ...(origItem?.comandaId ? { comandaId: origItem.comandaId, faturadoEm: origItem.faturadoEm } : {}), ...(itemForm.custoUnitario != null ? { custoUnitario: Number(itemForm.custoUnitario) } : {}), ...(itemForm.fornecedorId ? { fornecedorId: itemForm.fornecedorId } : {}), ...(itemForm._exame ? { _exame: true, catalogoExameId: itemForm.catalogoExameId } : {}), ...(itemForm.catalogoItemId ? { catalogoItemId: itemForm.catalogoItemId } : {}) };
-      if (itemForm.id) await fetch(`/api/listas/${itemForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
+      if (itemForm.id) await fetch(`/api/hospitalizations/${id}/conta/${itemForm.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
       else {
-        await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: `intconta_${id}`, valor: JSON.stringify(payload) }) });
+        await fetch(`/api/hospitalizations/${id}/conta`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
         // 🔬 EXAME LANÇADO AQUI ENTRA NO KANBAN, igual ao exame vendido no balcão.
         //
         // Até 05/09/2026 ele ficava só na conta: era cobrado, mas ninguém sabia que havia
@@ -751,7 +754,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
     } catch { alert("Erro ao salvar item."); }
     finally { setItemSaving(false); }
   };
-  const excluirItem = async (i: any) => { if (!confirm(`Remover ${i.descricao} da conta?`)) return; try { await fetch(`/api/listas/${i.id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
+  const excluirItem = async (i: any) => { if (!confirm(`Remover ${i.descricao} da conta?`)) return; try { await fetch(`/api/hospitalizations/${id}/conta/${i.id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
 
   const enviarCaixa = async () => {
@@ -1446,7 +1449,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
           ...(l._exame ? { _exame: true, catalogoExameId: l.catalogoExameId } : {}),
         };
         if (l._apagar && l.id) await fetch("/api/listas/" + l.id, { method: "DELETE", credentials: "include" }).catch(() => undefined);
-        else if (l._novo) await fetch("/api/listas", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ lista: "intconta_" + id, valor: JSON.stringify(payload) }) });
+        else if (l._novo) await fetch(`/api/hospitalizations/${id}/conta`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify(payload) });
         else if (l.id) await fetch("/api/listas/" + l.id, { method: "PATCH", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ valor: JSON.stringify(payload) }) });
       }
       // DIA JÁ FECHADO: a venda no caixa acompanha a correção, em vez de ser cancelada.
