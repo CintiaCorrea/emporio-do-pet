@@ -1,3 +1,4 @@
+import { ondeEVenda } from '../crm/consulta-vendas.regras';
 import { abertoDaCobranca, ehHistorico, ondeEntraNaCobranca } from '../../common/cobranca.regras';
 import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -401,7 +402,8 @@ export class CaixaService {
     const d90 = new Date(now - 90 * 86400000);
     const d30 = new Date(now - 30 * 86400000);
     const appts = await this.prisma.appointment.findMany({
-      where: { value: { gt: 0 }, date: { gte: d365 }, status: { not: 'CANCELLED' } },
+      // A MESMA REGRA DE VENDA dos gráficos (17/09/2026): o ranking mede compra, não atendimento.
+      where: { value: { gt: 0 }, date: { gte: d365 }, status: { not: 'CANCELLED' }, AND: ondeEVenda().AND },
       select: { tutorId: true, value: true, date: true, tutor: { select: { name: true } }, pet: { select: { name: true, species: true } } },
     });
     const map = new Map<string, any>();
@@ -746,7 +748,11 @@ export class CaixaService {
     const fOrigem = query?.origem || '', fCidade = query?.cidade || '', fBairro = query?.bairro || '';
     const hasClienteFilter = !!(fPerfil || fNps || fOrigem || fCidade || fBairro);
 
-    const where: any = { value: { gt: 0 }, status: { not: 'CANCELLED' } };
+    // SÓ VENDA ENTRA NOS GRÁFICOS (Cintia, 17/09/2026 — a regra única de "o que é venda"):
+    // tem número de venda, não é orçamento nem registro de internação, e não foi cancelada.
+    // Antes contava "qualquer atendimento com valor", e os registros de internação (R$ 532,80)
+    // apareciam como venda.
+    const where: any = { value: { gt: 0 }, status: { not: 'CANCELLED' }, AND: ondeEVenda().AND };
     if (from || to) { where.date = {}; if (from) where.date.gte = new Date(String(from) + 'T00:00:00'); if (to) where.date.lte = new Date(String(to) + 'T23:59:59'); }
     const appts = await this.prisma.appointment.findMany({
       where,

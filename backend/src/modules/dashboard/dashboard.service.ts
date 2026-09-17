@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { ondeEntraNaCobranca } from '../../common/cobranca.regras';
 
 export interface DashboardSummary {
   // ERP
@@ -141,10 +142,13 @@ export class DashboardService {
         },
       }),
 
-      // Comissões pendentes (appointments com paymentStatus PENDING)
+      // A RECEBER: só venda de verdade, pela regra única de cobrança (common/cobranca.regras,
+      // 17/09/2026). Antes somava QUALQUER atendimento pendente — orçamento, registro de
+      // internação e as vendas de agosto (mês de teste) entravam no número do painel.
       this.prisma.appointment.aggregate({
         where: {
           paymentStatus: 'PENDING',
+          AND: ondeEntraNaCobranca().AND,
         },
         _sum: {
           value: true,

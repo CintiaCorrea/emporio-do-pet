@@ -121,6 +121,10 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **P1 — a regra de venda nos relatorios** (17/09): graficos de vendas (vendasResumo) e ranking de
+  clientes passam a usar `ondeEVenda()`; o "a receber" do painel usa `ondeEntraNaCobranca()`. Medido em
+  setembro: graficos 125 registros / R$ 56.042,95 -> 122 vendas / R$ 55.592,95 (saem 1 registro de
+  internacao e 2 consultas sem numero, R$ 450,00).
 - [x] **E — SimplesVet so para consulta** (17/09): o importador (crm-integration.importarVendas) NAO
   cria mais Appointment/venda — cliente e pet continuam entrando. A tela virou "Importar cadastro do
   SimplesVet" e o aviso diz que a venda antiga nao e gravada. Trava nos dois lados.

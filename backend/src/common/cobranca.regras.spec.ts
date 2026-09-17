@@ -37,3 +37,20 @@ describe('o que entra na cobrança', () => {
     expect(w.AND).toContainEqual({ status: { not: 'CANCELLED' } });
   });
 });
+
+// P1 (17/09/2026): a regra de venda chegou aos relatórios. Antes, gráficos, ranking e painel
+// contavam "qualquer atendimento com valor" — os registros de internação (R$ 532,80) entravam.
+describe('os relatórios usam a regra única', () => {
+  const ler = (p: string[]) => require('fs').readFileSync(require('path').join(__dirname, '..', ...p), 'utf8');
+  const caixa = ler(['modules', 'caixa', 'caixa.service.ts']);
+  const dash = ler(['modules', 'dashboard', 'dashboard.service.ts']);
+
+  it('gráficos de vendas e ranking de clientes só contam venda', () => {
+    expect(caixa).toContain("status: { not: 'CANCELLED' }, AND: ondeEVenda().AND }");
+    expect(caixa).toContain("date: { gte: d365 }, status: { not: 'CANCELLED' }, AND: ondeEVenda().AND }");
+  });
+
+  it('o a receber do painel usa a regra de cobrança', () => {
+    expect(dash).toContain('ondeEntraNaCobranca().AND');
+  });
+});
