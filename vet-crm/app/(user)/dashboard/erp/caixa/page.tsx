@@ -27,7 +27,6 @@ import {
 import MovimentoCaixaModal, { TipoMovimento } from '@/components/caixa/MovimentoCaixaModal';
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import CampoValor from '@/components/comum/CampoValor';
-import { useLiberacaoGerente, precisaDeLiberacao } from '@/components/caixa/LiberacaoGerente';
 import ReceberEmLoteModal, { type ComandaParaReceber } from '@/components/caixa/ReceberEmLoteModal';
 
 const TEAL = '#009AAC';
@@ -189,8 +188,6 @@ export default function CaixaPage() {
   const sessaoPronta = useSession().status === 'authenticated';
   const papelEfetivo = useRolePreview().effectiveRole;
   const verTaxa = sessaoPronta && papelEfetivo === 'ADMIN';
-  // Desconto acima do permitido pela forma pede o gerente (components/caixa/LiberacaoGerente).
-  const { pedirLiberacao, modalLiberacao } = useLiberacaoGerente();
   const [tutorAReceber, setTutorAReceber] = useState<number | null>(null); // total a receber do cliente (todas as vendas)
   // AS VENDAS EM ABERTO DO CLIENTE, linha a linha — de qualquer dia (Cintia, 16/09/2026: "eu tinha
   // trazido vários exemplos do simplesvet para poder baixar várias vendas simultaneamente no
@@ -557,17 +554,11 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
     try {
       const corpo: any = { appointmentId: vendaSel.id, valorTotal: valorAplicado, desconto, troco, formas, observacao: obsReceb || null };
       const enviar = (c: any) => fetch(`/api/caixa/${caixaId}/recebimento`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
-      let r = await enviar(corpo);
+      const r = await enviar(corpo);
       if (!r.ok) {
-        let e: any = await r.json().catch(() => ({}));
-        // Desconto acima do permitido pela forma: pede o gerente e manda de novo, uma vez.
-        if (precisaDeLiberacao(e?.message)) {
-          const lib = await pedirLiberacao(e.message);
-          if (!lib) return;
-          r = await enviar({ ...corpo, liberacaoEmail: lib.email, liberacaoSenha: lib.senha });
-          if (!r.ok) e = await r.json().catch(() => ({}));
-        }
-        if (!r.ok) throw new Error(e.message || 'Erro ao registrar recebimento');
+        // Desconto acima do permitido pela forma vem recusado com a frase do servidor.
+        const e: any = await r.json().catch(() => ({}));
+        throw new Error(e.message || 'Erro ao registrar recebimento');
       }
       toast.success('Recebimento registrado!'); setReceberOpen(false); await fetchDetail(caixaId); await fetchAppointments(); await fetchCaixas();
     } catch (e: any) { toast.error(e.message || 'Erro ao registrar recebimento'); }
@@ -1242,7 +1233,6 @@ Só dá para apagar caixa SEM movimento. Não dá para desfazer.`)) return;
           <Field label="Observação"><input value={obsReceb} onChange={(e) => setObsReceb(e.target.value)} style={inp} /></Field>
         </Modal>
       )}
-      {modalLiberacao}
       {loteDe && (
         <ReceberEmLoteModal
           tutor={loteDe.nome}

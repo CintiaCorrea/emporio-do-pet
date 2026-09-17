@@ -24,7 +24,6 @@ import AbrirMeuCaixaModal from "@/components/caixa/AbrirMeuCaixaModal";
 import PagamentoFormas from "@/components/financeiro/PagamentoFormas";
 import { carregarFormasRecebimento, validarPagamentosCartao, type PagForma, type FormaCfg, type TaxaRow } from "@/lib/formasPagamento";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
-import { useLiberacaoGerente, precisaDeLiberacao } from "@/components/caixa/LiberacaoGerente";
 
 const FORMAS_PADRAO = ["Dinheiro", "Pix", "Cartão de crédito", "Cartão de débito", "Crédito do cliente"];
 const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v || 0);
@@ -72,8 +71,6 @@ export default function ReceberEmLoteModal({
 }) {
   const { data: session } = useSession();
   const meId = (session?.user as any)?.id || "";
-  // Venda salva com desconto e paga agora numa forma que não permite: o servidor pede o gerente.
-  const { pedirLiberacao, modalLiberacao } = useLiberacaoGerente();
 
   // ESCOLHER O QUE BAIXAR (Cintia, 15/09/2026, com os prints do SimplesVet: "Selecione as vendas
   // que serão baixadas"). O Lucas tem 10 vendas do Chico em aberto, R$ 3.842,25 — receber tudo
@@ -160,15 +157,9 @@ export default function ReceberEmLoteModal({
         credentials: "include",
         body: JSON.stringify(c),
       });
-      let res = await enviar(corpo);
-      let dd: any = await res.json().catch(() => ({} as any));
+      const res = await enviar(corpo);
+      const dd: any = await res.json().catch(() => ({} as any));
       // O servidor confere o desconto de TODAS antes de gravar a primeira; recusado, nada foi baixado.
-      if (!res.ok && precisaDeLiberacao(dd?.message)) {
-        const lib = await pedirLiberacao(dd.message);
-        if (!lib) { setBaixando(false); return; }
-        res = await enviar({ ...corpo, liberacaoEmail: lib.email, liberacaoSenha: lib.senha });
-        dd = await res.json().catch(() => ({} as any));
-      }
       if (!res.ok) throw new Error(dd?.message || "Erro ao receber");
       if (Array.isArray(dd?.falhou) && dd.falhou.length) {
         alert(`Recebi ${dd.quitadas} de ${dd.comandas} comanda(s). Não consegui: ${dd.falhou.length}. Confira a lista antes de tentar de novo.`);
@@ -294,7 +285,6 @@ export default function ReceberEmLoteModal({
           onAberto={(c) => { setCaixaAberto(c.id); setMeusAbertos((a) => [c, ...a.filter((x) => x.id !== c.id)]); }}
         />
       )}
-      {modalLiberacao}
     </>
   );
 }

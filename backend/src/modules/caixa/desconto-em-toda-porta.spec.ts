@@ -22,7 +22,7 @@ const corpoDe = (inicio: string, fim: string) => {
 describe('o desconto é conferido em toda porta de receber', () => {
   it('existe UMA conferência, e ela usa a regra por forma', () => {
     expect(svc).toContain('private async conferirDesconto(');
-    expect(svc).toContain('avaliarDesconto({ bruto: p.bruto, desconto: p.desconto, formas, formasCadastradas, limiteGeral: cfg.limiteDesconto })');
+    expect(svc).toContain('avaliarDesconto({ bruto: p.bruto, desconto: p.desconto, formas, formasCadastradas })');
   });
 
   it('a venda nova do ponto de venda', () => {
@@ -43,10 +43,27 @@ describe('o desconto é conferido em toda porta de receber', () => {
     expect(svc).toContain('}, userId, papel, { descontoJaConferido: true });');
   });
 
-  it('a liberação do gerente consegue chegar ao recebimento avulso', () => {
-    // Sem isto o ValidationPipe (forbidNonWhitelisted) recusaria o pedido inteiro.
-    const dto = readFileSync(join(__dirname, 'dto', 'recebimento.dto.ts'), 'utf8');
-    expect(dto).toContain('liberacaoEmail?: string;');
-    expect(dto).toContain('liberacaoSenha?: string;');
+  it('não existe mais liberação por senha de gerente', () => {
+    // Cintia, 16/09/2026: "adm não tem limite e todos os outros são livres até 5% no PIX e em
+    // dinheiro. São essas as regras, qualquer outra coisa não."
+    expect(svc).not.toContain('liberacaoSenha');
+    expect(svc).not.toContain('bcrypt');
+    const conferir = corpoDe('private async conferirDesconto(', 'private async ratearDescontoNaVenda(');
+    expect(conferir).toContain("papelReal === 'ADMIN'");
+    expect(conferir).not.toContain('permissoes');
   });
+
+  it('o desconto geral da venda nova vai dividido para os itens', () => {
+    const corpo = corpoDe('async vendaDireta(', 'async deleteMovimento(');
+    expect(corpo).toContain('ratearDesconto(items, descontoGlobal)');
+    expect(corpo).toContain('items: itensVenda');
+    // e a observação (a do modelo inclusive) é gravada na venda
+    expect(corpo).toContain('notes: dto.observacao ? String(dto.observacao) : null');
+  });
+
+  it('o desconto dado na hora de receber também vai para os itens', () => {
+    const corpo = corpoDe('async registrarRecebimento(', 'const rec = await this.prisma.recebimento.create(');
+    expect(corpo).toContain('this.ratearDescontoNaVenda(appointmentId');
+  });
+
 });

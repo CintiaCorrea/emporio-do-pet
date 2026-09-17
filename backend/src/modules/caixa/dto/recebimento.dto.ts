@@ -24,8 +24,10 @@ export class RecebimentoDto {
   @Transform(({ obj }) => obj?.formas)
   formas?: any[];
   @IsOptional() @IsString() observacao?: string;
-  // Liberação do gerente para desconto acima do permitido pela forma (desconto.regras). Sem
-  // declarar aqui, o ValidationPipe (forbidNonWhitelisted) recusaria o pedido inteiro.
+  // ACEITOS E IGNORADOS. A liberação do gerente saiu em 16/09/2026 (regra de desconto da Cintia:
+  // ADM sem limite, demais até o % da forma). Continuam declarados só para uma tela antiga ainda
+  // aberta no navegador não ter o recebimento inteiro recusado pelo ValidationPipe
+  // (forbidNonWhitelisted). Podem sair depois de 30/09/2026.
   @IsOptional() @IsString() liberacaoEmail?: string;
   @IsOptional() @IsString() liberacaoSenha?: string;
 }

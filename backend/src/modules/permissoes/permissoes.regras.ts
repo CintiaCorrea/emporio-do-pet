@@ -28,7 +28,6 @@ export const ACOES_DINHEIRO = [
   'acao:venda.reabrir',
   'acao:venda.excluir',
   'acao:venda.alterar_data',
-  'acao:venda.conceder_desconto',
   'acao:caixa.reabrir',
   'acao:caixa.lancar_em_caixa_alheio',
 ] as const;

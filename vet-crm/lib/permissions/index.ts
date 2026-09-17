@@ -195,7 +195,6 @@ export const PERM_SECTIONS: PermSection[] = [
       { key: "acao:venda.reabrir", label: "Reabrir venda (estorna o recebimento)", emoji: "🔓" },
       { key: "acao:venda.excluir", label: "Excluir venda", emoji: "🗑️" },
       { key: "acao:venda.alterar_data", label: "Alterar data da venda", emoji: "📅" },
-      { key: "acao:venda.conceder_desconto", label: "Conceder desconto", emoji: "🏷️" },
       { key: "acao:caixa.reabrir", label: "Reabrir caixa fechado", emoji: "💵" },
       { key: "acao:caixa.lancar_em_caixa_alheio", label: "Lançar no caixa de outra pessoa", emoji: "👥" },
     ],
@@ -208,7 +207,6 @@ export const ACOES_DINHEIRO = [
   "acao:venda.reabrir",
   "acao:venda.excluir",
   "acao:venda.alterar_data",
-  "acao:venda.conceder_desconto",
   "acao:caixa.reabrir",
   "acao:caixa.lancar_em_caixa_alheio",
 ];
@@ -224,7 +222,7 @@ export const ACOES_SO_ADMIN = [
   // As de dinheiro seguem a mesma lógica, e o servidor concorda (backend/permissoes.regras):
   // o que ninguém decidiu, ninguém pode.
   "acao:venda.editar_recebida", "acao:venda.reabrir", "acao:venda.excluir",
-  "acao:venda.alterar_data", "acao:venda.conceder_desconto",
+  "acao:venda.alterar_data",
   "acao:caixa.reabrir", "acao:caixa.lancar_em_caixa_alheio",
 ];
 

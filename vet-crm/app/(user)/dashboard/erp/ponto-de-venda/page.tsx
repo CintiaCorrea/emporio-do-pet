@@ -29,7 +29,6 @@ import { hojeNaClinicaISO } from "@/lib/datas";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
 import CampoValor from '@/components/comum/CampoValor';
 import SaldoDevedorTag from '@/components/comum/SaldoDevedorTag';
-import { useLiberacaoGerente, precisaDeLiberacao } from '@/components/caixa/LiberacaoGerente';
 import ReceberEmLoteModal, { type ComandaParaReceber } from '@/components/caixa/ReceberEmLoteModal';
 
 const TEAL = '#009AAC';
@@ -159,10 +158,6 @@ export default function PDVPage() {
   const [recOpen, setRecOpen] = useState(false);            // modal de recebimento de venda existente
   const [recFormas, setRecFormas] = useState<PagForma[]>([{ forma: 'Dinheiro', valor: 0 }]);
   const [recSaving, setRecSaving] = useState(false);
-  // 🔓 Liberação de gerente (desconto acima do limite) — modal com senha mascarada
-  // A liberação do gerente virou peça única (components/caixa/LiberacaoGerente) em 16/09/2026,
-  // quando o Caixa e o Baixar várias também passaram a conferir desconto.
-  const { pedirLiberacao, modalLiberacao } = useLiberacaoGerente();
 
   // Duas leituras, dois propósitos: o DIA alimenta o resumo e o relatório de comandas; as
   // ABERTAS alimentam a lista única — conta em aberto não pertence a um dia só, ela fica em pé
@@ -636,16 +631,10 @@ export default function PDVPage() {
   const enviar = async (body: any, msg: string) => {
     setSalvando(true);
     try {
-      let r = await fetch('/api/caixa/pdv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-      let d = await r.json().catch(() => ({}));
-      // 🔓 Desconto acima do limite → pede LIBERAÇÃO de um gerente (admin) e reenvia 1 vez.
-      if (!r.ok && precisaDeLiberacao(d?.message)) {
-        const lib = await pedirLiberacao(d?.message);
-        if (lib?.email && lib?.senha) {
-          r = await fetch('/api/caixa/pdv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, liberacaoEmail: lib.email, liberacaoSenha: lib.senha }) });
-          d = await r.json().catch(() => ({}));
-        }
-      }
+      // Desconto acima do permitido pela forma volta recusado com a frase do servidor; não há
+      // liberação por senha de gerente (regra da Cintia, 16/09/2026).
+      const r = await fetch('/api/caixa/pdv', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.message || 'Erro ao salvar');
       toast.success(msg + (d.troco ? ` · troco ${brl(d.troco)}` : ''));
       setModal(false); reset(); loadVendas();
@@ -1828,7 +1817,6 @@ export default function PDVPage() {
         );
       })()}
 
-      {modalLiberacao}
     </div>
   );
 }

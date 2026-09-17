@@ -28,7 +28,6 @@ describe('cada ação de dinheiro tem uma trava no servidor', () => {
     'acao:venda.reabrir': ['caixa', 'caixa.service.ts'],
     'acao:venda.excluir': ['appointments', 'appointments.service.ts'],
     'acao:venda.alterar_data': ['appointments', 'appointments.service.ts'],
-    'acao:venda.conceder_desconto': ['caixa', 'caixa.service.ts'],
     'acao:caixa.reabrir': ['caixa', 'caixa.service.ts'],
     'acao:caixa.lancar_em_caixa_alheio': ['caixa', 'caixa.service.ts'],
   };
@@ -59,24 +58,16 @@ describe('o administrativo nunca se tranca para fora', () => {
   }
 });
 
-describe('os três níveis do desconto', () => {
-  const D = 'acao:venda.conceder_desconto';
-
-  it('sem configurar: não está liberado, mas também não está negado', () => {
-    // Este é o estado em que a casa inteira está hoje, e é o que faz a recepção continuar
-    // dando 5% num banho amanhã de manhã: o desconto segue o limite em %, como sempre seguiu.
-    expect(podeAcao({}, D, 'RECEPTIONIST')).toBe(false);
-    expect(acaoNegada({}, D, 'RECEPTIONIST')).toBe(false);
+describe('desconto não é mais ação da matriz', () => {
+  // Cintia, 16/09/2026: "adm não tem limite e todos os outros são livres até 5% no PIX e em
+  // dinheiro. São essas as regras, qualquer outra coisa não." A ação "Conceder desconto" liberava
+  // sem limite (Admin) ou fechava todo desconto (Veterinário e Recepção estavam assim) — as duas
+  // coisas contrariam a regra. O desconto é conferido só pela forma de pagamento (caixa/desconto.regras).
+  it('a chave saiu da lista de ações de dinheiro', () => {
+    expect((ACOES_DINHEIRO as readonly string[]).includes('acao:venda.conceder_desconto')).toBe(false);
   });
-
-  it('liberado: passa por cima do limite, igual gerente', () => {
-    expect(podeAcao({ [D]: 'EDITA' }, D, 'RECEPTIONIST')).toBe(true);
-    expect(acaoNegada({ [D]: 'EDITA' }, D, 'RECEPTIONIST')).toBe(false);
-  });
-
-  it('fechado de propósito: não dá desconto nenhum, nem dentro do limite', () => {
-    expect(acaoNegada({ [D]: 'OCULTO' }, D, 'RECEPTIONIST')).toBe(true);
-    expect(acaoNegada({ [D]: 'VISUALIZA' }, D, 'RECEPTIONIST')).toBe(true);
+  it('e o caixa não consulta mais a matriz para dar desconto', () => {
+    expect(ler('caixa', 'caixa.service.ts')).not.toContain('conceder_desconto');
   });
 });
 

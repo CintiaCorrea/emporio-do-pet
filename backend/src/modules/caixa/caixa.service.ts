@@ -8,13 +8,12 @@ import { CatalogoService } from '../catalogo/catalogo.service';
 import { ensureNumeroVenda } from '../../common/venda-numero';
 import { PermissoesService } from '../permissoes/permissoes.service';
 import { numeroDoProximoCaixa, resolverCaixaDoRecebimento, podeLancarNoCaixa, podeFecharCaixa, podeApagarCaixa, contaQueFaltaNoMovimento, podeReabrirVenda, podeTransferirEntreCaixas } from './caixa.regras';
-import * as bcrypt from 'bcryptjs';
 import { faixaDoDia, aberturaRetroativa, podeAbrirCaixa, meuCaixaJaAberto } from './caixa.regras';
 import { ehVendaDeVerdade } from './lista-de-vendas.regras';
 import { distribuirPagamento, repartirFormas, totalEmAberto } from './recebimento-lote.regras';
 import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
 import { nomeNormalizado, percentualClassificado, sugerirVinculo } from './vinculo-itens.regras';
-import { avaliarDesconto } from './desconto.regras';
+import { avaliarDesconto, ratearDesconto } from './desconto.regras';
 import { estaSemForma, erroNasFormasPreenchidas, ehCreditoDoCliente } from './forma-que-faltou.regras';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
@@ -1239,43 +1238,58 @@ export class CaixaService {
   /**
    * O DESCONTO CABE NO QUE A FORMA DE PAGAMENTO PERMITE? — a conferência única.
    *
-   * Cintia, 16/09/2026: "o caixa tem autorização de dar 5% de desconto nas vendas à vista e no
-   * PIX". A conta mora em desconto.regras (com teste); aqui só entra quem pode passar por cima:
+   * Cintia, 16/09/2026: "adm não tem limite e todos os outros são livres até 5% no PIX e em
+   * dinheiro. São essas as regras, qualquer outra coisa não." A conta mora em desconto.regras (com
+   * teste). Aqui só existe UMA exceção: o administrativo, sem limite.
    *
-   *   · matriz FECHADA de propósito para o perfil → nenhum desconto, nem dentro do permitido;
-   *   · administrativo, ou perfil LIBERADO na matriz → sem limite;
-   *   · o resto → o permitido pela forma, ou a liberação de um gerente (e-mail e senha de admin).
+   * Saíram no mesmo dia: a liberação por e-mail e senha do gerente, a ação "Conceder desconto" da
+   * matriz de permissões (que liberava sem limite ou fechava tudo) e o "Limite geral".
    *
    * O papel vem do BANCO, e não só da requisição: o Baixar várias chama o recebimento por dentro,
-   * sem papel, e o gerente não pode virar recepção no meio do caminho.
+   * sem papel.
    */
-  private async conferirDesconto(p: {
-    userId: string; papel?: string; bruto: number; desconto: number;
-    formas: any[]; liberacaoEmail?: string; liberacaoSenha?: string; rotulo?: string;
-  }): Promise<void> {
+  private async conferirDesconto(p: { userId: string; papel?: string; bruto: number; desconto: number; formas: any[]; rotulo?: string }): Promise<void> {
     if (!(Number(p.desconto) > 0.009)) return;
-    if (await this.permissoes.negada(p.userId, p.papel, 'acao:venda.conceder_desconto')) {
-      throw new BadRequestException('SEM_PERMISSAO: Seu perfil nao concede desconto. Chame o administrativo para liberar esta venda.');
-    }
     const operador = await this.prisma.user.findUnique({ where: { id: p.userId }, select: { role: true } });
     const papelReal = String(operador?.role || p.papel || '').toUpperCase();
     if (papelReal === 'ADMIN') return;
-    if (await this.permissoes.pode(p.userId, papelReal, 'acao:venda.conceder_desconto')) return;
 
-    const cfg = await this.getConfigVendas();
     const formasCadastradas = (await this.prisma.listaItem.findMany({ where: { lista: 'formasrecebimento' }, select: { valor: true } }))
       .map((i) => { try { return JSON.parse(i.valor); } catch { return null; } })
       .filter(Boolean);
     const formas = (Array.isArray(p.formas) ? p.formas.flat() : []).filter((f: any) => f && typeof f === 'object' && !Array.isArray(f));
-    const r = avaliarDesconto({ bruto: p.bruto, desconto: p.desconto, formas, formasCadastradas, limiteGeral: cfg.limiteDesconto });
+    const r = avaliarDesconto({ bruto: p.bruto, desconto: p.desconto, formas, formasCadastradas });
     if (r.ok) return;
-
-    if (p.liberacaoEmail && p.liberacaoSenha) {
-      const g = await this.prisma.user.findUnique({ where: { email: String(p.liberacaoEmail).toLowerCase().trim() }, select: { password: true, role: true } });
-      if (g?.password && String(g.role || '').toUpperCase() === 'ADMIN' && await bcrypt.compare(String(p.liberacaoSenha), g.password)) return;
-      throw new BadRequestException('Liberação recusada: e-mail ou senha do gerente não conferem. ' + r.mensagem);
-    }
     throw new BadRequestException((p.rotulo ? p.rotulo + ': ' : '') + r.mensagem);
+  }
+
+  /**
+   * O DESCONTO DADO NA HORA DE RECEBER VAI PARA OS ITENS DA VENDA (ver desconto.regras, ratearDesconto).
+   *
+   * Devolve quanto NÃO coube nos itens (venda sem itens do cliente) — esse resto continua no
+   * recebimento, como antes. A venda passa a valer a soma dos itens, e "paga" confere de verdade.
+   */
+  private async ratearDescontoNaVenda(appointmentId: string, desconto: number): Promise<number> {
+    const d = Math.round((Number(desconto) || 0) * 100) / 100;
+    if (d <= 0.009) return 0;
+    const itens = await this.prisma.appointmentItem.findMany({
+      where: { appointmentId }, orderBy: { createdAt: 'asc' },
+      select: { id: true, valorTotal: true, desconto: true, convenioId: true },
+    });
+    const novos = ratearDesconto(itens, d);
+    let aplicado = 0;
+    for (let i = 0; i < itens.length; i++) {
+      const parte = Math.round((Number(itens[i].valorTotal) - Number(novos[i].valorTotal)) * 100) / 100;
+      if (parte <= 0) continue;
+      await this.prisma.appointmentItem.update({ where: { id: itens[i].id }, data: { desconto: novos[i].desconto ?? 0, valorTotal: novos[i].valorTotal } });
+      aplicado += parte;
+    }
+    aplicado = Math.round(aplicado * 100) / 100;
+    if (aplicado > 0) {
+      const ap = await this.prisma.appointment.findUnique({ where: { id: appointmentId }, select: { value: true } });
+      await this.prisma.appointment.update({ where: { id: appointmentId }, data: { value: Math.max(0, Math.round((Number(ap?.value || 0) - aplicado) * 100) / 100) } });
+    }
+    return Math.round((d - aplicado) * 100) / 100;
   }
 
   /** O bruto e o desconto já abatido de uma venda — itens do tutor, fora os do convênio. */
@@ -1406,7 +1420,6 @@ export class CaixaService {
       if (dv.importada || dv.desconto <= 0.009) continue;
       await this.conferirDesconto({
         userId, papel, bruto: dv.bruto, desconto: dv.desconto, formas,
-        liberacaoEmail: dto?.liberacaoEmail, liberacaoSenha: dto?.liberacaoSenha,
         rotulo: dv.numero != null ? `Venda #${dv.numero}` : 'Uma das vendas',
       });
     }
@@ -1467,7 +1480,6 @@ export class CaixaService {
       if (agora > 0.009 || (!dv.importada && dv.desconto > 0.009)) {
         await this.conferirDesconto({
           userId, papel, bruto: dv.bruto, desconto: dv.desconto + agora, formas,
-          liberacaoEmail: dto.liberacaoEmail, liberacaoSenha: dto.liberacaoSenha,
         });
       }
     }
@@ -1504,11 +1516,14 @@ export class CaixaService {
       try { await this.prisma.appointment.update({ where: { id: appointmentId }, data: { date: caixaData } }); } catch { /* nao trava o recebimento */ }
     }
 
+    // O desconto dado agora vai para os itens da venda (dividido); só o que não couber fica aqui.
+    const descontoQueSobra = appointmentId ? await this.ratearDescontoNaVenda(appointmentId, Number(dto.desconto || 0)) : Number(dto.desconto || 0);
+
     const rec = await this.prisma.recebimento.create({
       data: {
         caixaSessaoId: caixaId, appointmentId,
         valorTotal: Number(dto.valorTotal || 0),
-        desconto: Number(dto.desconto || 0),
+        desconto: descontoQueSobra,
         troco: Number(dto.troco || 0),
         formas,
         observacao: dto.observacao || null,
@@ -1919,10 +1934,13 @@ export class CaixaService {
       await this.conferirDesconto({
         userId, papel, bruto, desconto: descItens + descontoGlobal,
         formas: Array.isArray(dto.formas) ? dto.formas : [],
-        liberacaoEmail: dto.liberacaoEmail, liberacaoSenha: dto.liberacaoSenha,
       });
     }
-    const valorVenda = Math.max(0, Number((itensTotal - descontoGlobal).toFixed(2)));
+    // O desconto geral vai DIVIDIDO para os itens (desconto.regras, ratearDesconto): a venda passa a
+    // bater com a soma dos itens, e o desconto de cada linha aparece onde a venda é lida.
+    const itensVenda = ratearDesconto(items, descontoGlobal);
+    const valorVenda = Math.max(0, Number(itensVenda.reduce((s: number, it: any) => s + (it.convenioId ? 0 : it.valorTotal), 0).toFixed(2)));
+    const descontoForaDosItens = Math.max(0, Number((descontoGlobal - (itensTotal - valorVenda)).toFixed(2)));
 
     const orcamento = String(dto.tipo || 'VENDA').toUpperCase() === 'ORCAMENTO';
 
@@ -1959,7 +1977,9 @@ export class CaixaService {
       // type/status marcam que é VENDA/ORÇAMENTO (não agendamento) — senão a trava de horário da
       // agenda bloqueia a venda por falso conflito (mesmo padrão da comanda da ficha).
       type: orcamento ? 'Orçamento' : 'Venda', status: 'COMPLETED',
-      value: valorVenda, items,
+      value: valorVenda, items: itensVenda,
+      // A observação da venda (inclusive a que vem do modelo) — a mesma que a tela lê em `notes`.
+      notes: dto.observacao ? String(dto.observacao) : null,
     } as any);
 
     // 🔬 O CARD DO EXAME NÃO NASCE MAIS AQUI.
@@ -1986,7 +2006,7 @@ export class CaixaService {
     if (caixaId) {
       recebimento = await this.registrarRecebimento(caixaId, {
         appointmentId: appointment.id, valorTotal: valorAplicado,
-        desconto: descontoGlobal, troco, formas,
+        desconto: descontoForaDosItens, troco, formas,
         observacao: dto.observacao || 'Venda PDV',
       }, userId);
     }
