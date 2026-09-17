@@ -18,6 +18,8 @@ type LinhaParaConferir = {
   valorUnitario: number;
 };
 import { ehTipoDeOrcamento } from '../crm/consulta-vendas.regras';
+import { estornarRecebimento, limparReceitaDaVenda } from '../../common/estornar-recebimento';
+import { podeReabrirVenda } from '../caixa/caixa.regras';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PermissoesService } from '../permissoes/permissoes.service';
@@ -1266,6 +1268,22 @@ export class AppointmentsService {
       if (aviso) throw new ConflictException(`TEM_RECEBIMENTO: ${aviso}`);
     }
 
+    // O DINHEIRO SAI DO CAIXA JUNTO (Cintia, 16/09/2026: "ele sai do caixa"). Até aqui o banco só
+    // soltava a ligação e o recebimento ficava no caixa sem venda. Caixa já FECHADO não é mexido
+    // por baixo: a gaveta daquele dia bateu e deixaria de bater — reabre-se o caixa antes (mesma
+    // regra de reabrir venda, caixa.regras.podeReabrirVenda).
+    const recebimentosDaVenda = await this.prisma.recebimento.findMany({
+      where: { appointmentId: id },
+      select: { id: true, caixaSessao: { select: { numero: true, status: true } } },
+    });
+    if (recebimentosDaVenda.length) {
+      const r = podeReabrirVenda(true, recebimentosDaVenda.map((rec) => ({
+        caixaFechado: String(rec.caixaSessao?.status || '').toUpperCase() === 'FECHADO',
+        caixaNumero: rec.caixaSessao?.numero ?? null,
+      })));
+      if (!r.ok) throw new BadRequestException(r.erro);
+    }
+
     // 🔗 APAGAR A VENDA SOLTA OS ITENS DA INTERNACAO QUE APONTAVAM PRA ELA.
     //
     // Sem isto o item continuava marcado como "ja cobrado", apontando pra uma venda que
@@ -1291,8 +1309,11 @@ export class AppointmentsService {
       }
     } catch { /* a exclusao da venda nao pode depender disto */ }
 
-    const removido = await this.prisma.appointment.delete({
-      where: { id },
+    // Estorno e exclusão no mesmo passo: ou sai tudo, ou nada muda.
+    const removido = await this.prisma.$transaction(async (tx: PrismaTransactionClient) => {
+      for (const rec of recebimentosDaVenda) await estornarRecebimento(tx as any, rec.id);
+      if (recebimentosDaVenda.length) await limparReceitaDaVenda(tx as any, id);
+      return tx.appointment.delete({ where: { id } });
     });
     this.eventsService.emitAppointmentChanged(); // tempo real da agenda
     return removido;

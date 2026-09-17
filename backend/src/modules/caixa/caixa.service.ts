@@ -14,6 +14,7 @@ import { distribuirPagamento, repartirFormas, totalEmAberto } from './recebiment
 import { ligarAoItemDaVenda } from '../exames/vincular-item-da-venda';
 import { nomeNormalizado, percentualClassificado, sugerirVinculo } from './vinculo-itens.regras';
 import { avaliarDesconto, ratearDesconto } from './desconto.regras';
+import { estornarRecebimento, limparReceitaDaVenda } from '../../common/estornar-recebimento';
 import { estaSemForma, erroNasFormasPreenchidas, ehCreditoDoCliente } from './forma-que-faltou.regras';
 
 // O DIA DO CAIXA E O DIA DE FORTALEZA, e nao o do servidor (que roda em UTC).
@@ -2026,11 +2027,9 @@ export class CaixaService {
   async deleteRecebimento(caixaId: string, itemId: string) {
     const rec = await this.prisma.recebimento.findUnique({ where: { id: itemId } });
     if (!rec || rec.caixaSessaoId !== caixaId) throw new NotFoundException('Recebimento nao encontrado');
-    await this.prisma.creditoMovimento.deleteMany({ where: { recebimentoId: itemId } });
-    await this.prisma.recebimento.delete({ where: { id: itemId } });
-    // 🧹 Limpa os lançamentos DESTE recebimento no DRE (senão ficam órfãos: taxa de cartão + baixa de crédito).
-    await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: { startsWith: `taxa:${itemId}:` } } }).catch(() => undefined);
-    await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: `credito-uso:${itemId}` } }).catch(() => undefined);
+    // 🧹 Estorno único (common/estornar-recebimento): o crédito usado volta, a taxa do cartão e a
+    // baixa de crédito saem do DRE. É o mesmo que apagar venda paga usa.
+    await estornarRecebimento(this.prisma as any, itemId);
     if (rec.appointmentId) {
       const ap = await this.prisma.appointment.findUnique({ where: { id: rec.appointmentId }, include: { recebimentos: true } });
       if (ap) {
@@ -2038,8 +2037,7 @@ export class CaixaService {
         await this.prisma.appointment.update({ where: { id: ap.id }, data: { paymentStatus: pago >= Number(ap.value) - 0.001 ? 'PAID' : 'PENDING' } });
         // Se a venda ficou SEM nenhum recebimento, a receita não deve ser reconhecida → remove receita e desconto do DRE.
         if (ap.recebimentos.length === 0) {
-          await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: { startsWith: `venda:${ap.id}:` } } }).catch(() => undefined);
-          await this.prisma.lancamento.deleteMany({ where: { origem: 'CRM' as any, externalId: `desconto:${ap.id}` } }).catch(() => undefined);
+          await limparReceitaDaVenda(this.prisma as any, ap.id).catch(() => undefined);
         }
       }
     }

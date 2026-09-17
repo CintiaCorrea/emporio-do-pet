@@ -54,8 +54,16 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
 - [x] **A2 bloco 2**: o servidor confere o preco de toda linha lancada ou alterada contra o
   cadastro e a faixa do peso do pet (`conferirPreco`) e anota em `porteiro_vendas` com o motivo
   (sem_cadastro, sem_peso, sem_preco, preco_diferente). Caucao e convenio nao sao conferidos.
-- [ ] A2 bloco 3 — desconto e observacao ·
-  bloco 4 — apagar venda paga leva os recebimentos.
+- [x] **A2 bloco 2 publicado** em 16/09/2026 (api v850). A1 aplicado (490 linhas religadas).
+- [x] **A2 bloco 3**: desconto = ADM sem limite; demais ate o % da forma (forma sem % = 0; sem
+  forma ainda = maior % cadastrado, confere de novo ao receber). Sairam: senha de gerente
+  (LiberacaoGerente), acao "Conceder desconto" da matriz, "Limite geral". Desconto geral e o dado
+  no recebimento vao divididos para os itens (`ratearDesconto`). Observacao do PDV grava em notes.
+  DTO do recebimento ainda aceita liberacaoEmail/Senha (ignorados) — remover depois de 30/09.
+- [x] **A2 bloco 4**: apagar venda paga (so ADM, com aviso TEM_RECEBIMENTO) estorna os
+  recebimentos no mesmo passo (`common/estornar-recebimento`, o mesmo do Caixa): credito usado volta,
+  taxa/receita saem do DRE. Caixa FECHADO recusa (reabrir o caixa antes). Estoque ja baixado NAO
+  volta (igual ao reabrir venda).
 - [ ] Ao final: varredura da tela do ponto de venda (recebimento) e revisao da tabela de
   produtos e servicos (a Cintia esta fazendo fora do sistema; reintegrar junto).
 
