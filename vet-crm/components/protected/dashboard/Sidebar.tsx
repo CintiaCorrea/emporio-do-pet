@@ -212,7 +212,28 @@ const NAV: Entry[] = [
   },
 
   // ───────── SISTEMA ─────────
-  { href: "/dashboard/academia", label: "Academia", emoji: "🎓", roles: ALL, section: "SISTEMA" },
+  // A ACADEMIA ABRE AQUI, PARTE POR PARTE (Cintia, 18/09/2026: "o menu da academia não era para
+  // estar no menu lateral onde já está academia?"). Era um segundo menu, desenhado dentro da
+  // própria tela, que roubava 236px do conteúdo — justo o que a maquete precisa para mostrar o
+  // desenho e a explicação lado a lado.
+  {
+    group: true, key: "academia", label: "Academia", emoji: "🎓", roles: ALL, section: "SISTEMA",
+    children: [
+      // O WhatsApp é a primeira parte, e mora no endereço curto da Academia: assim a tela
+      // continua tendo porta no menu (lib/tela-nova-tem-porta) e o link antigo segue valendo.
+      { href: "/dashboard/academia", label: "WhatsApp", emoji: "📲", roles: ALL, exact: true },
+      { href: "/dashboard/academia/agenda", label: "Agenda", emoji: "📅", roles: ALL },
+      { href: "/dashboard/academia/ficha", label: "Ficha do pet", emoji: "🐾", roles: ALL },
+      { href: "/dashboard/academia/fisio", label: "Boletim de fisio", emoji: "🌿", roles: ALL },
+      { href: "/dashboard/academia/gravacao", label: "Gravação de consulta", emoji: "🎤", roles: ALL },
+      { href: "/dashboard/academia/exames", label: "Exames", emoji: "🔬", roles: ALL },
+      { href: "/dashboard/academia/vendas", label: "Vendas", emoji: "🛒", roles: ALL },
+      { href: "/dashboard/academia/financeiro", label: "Financeiro", emoji: "💰", roles: ALL },
+      { href: "/dashboard/academia/veterinario", label: "Veterinário", emoji: "🩺", roles: ALL },
+      { href: "/dashboard/academia/regras", label: "Regras da empresa", emoji: "📋", roles: ALL },
+      { href: "/dashboard/academia/docs", label: "Documentação do sistema", emoji: "📘", roles: ALL },
+    ],
+  },
   { href: "/dashboard/minha-senha", label: "Minha senha", emoji: "🔑", roles: ALL, section: "SISTEMA" },
   {
     group: true, key: "cadastros", label: "Cadastros", emoji: "📁", roles: ["ADMIN", "RECEPTIONIST"], section: "SISTEMA",

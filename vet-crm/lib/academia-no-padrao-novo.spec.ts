@@ -9,12 +9,22 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-const pag = fs.readFileSync(path.join(process.cwd(), "app/(user)/dashboard/academia/page.tsx"), "utf8");
+const pag = fs.readFileSync(path.join(process.cwd(), "components/academia/Academia.tsx"), "utf8");
+const sidebar = fs.readFileSync(path.join(process.cwd(), "components/protected/dashboard/Sidebar.tsx"), "utf8");
 
 describe("o menu da Academia", () => {
-  it("é lateral, com os grupos do menu de trabalho", () => {
-    expect(pag).toContain("<aside");
-    for (const grupo of ["Dia a dia", "Gestão", "A empresa"]) expect(pag).toContain(grupo);
+  // O MENU SAIU DE DENTRO DA TELA (18/09/2026): quem lista as partes agora é a barra lateral do
+  // sistema, onde a Academia já morava. A tela ficou com a largura inteira, que é o que a maquete
+  // precisa para mostrar o desenho e a explicação lado a lado.
+  it("mora na barra lateral do sistema, com as partes como filhas", () => {
+    expect(sidebar).toContain('key: "academia"');
+    for (const parte of ["/dashboard/academia/vendas", "/dashboard/academia/agenda", "/dashboard/academia/exames"]) {
+      expect(sidebar).toContain(parte);
+    }
+  });
+
+  it("a tela não desenha um segundo menu dentro dela", () => {
+    expect(pag).not.toContain("<aside");
   });
 
   it("não usa mais pílulas para navegar", () => {
@@ -38,6 +48,10 @@ describe("dentro da janela, aba sublinhada", () => {
 describe("margem e título", () => {
   it("a margem é a p-6 das outras telas", () => {
     expect(pag).toContain('className="p-6 min-h-screen"');
+  });
+
+  it("o conteúdo usa a largura inteira", () => {
+    expect(pag).toContain('className="w-full min-w-0"');
   });
 
   it("o título vem do menu, e a tela não desenha o seu", () => {

@@ -49,6 +49,10 @@ const ROUTE_TITLES: Array<{ match: string; exact?: boolean; title: string; subti
   { match: "/dashboard/internacao", title: "Internacao", subtitle: "Pacientes em internacao" },
   { match: "/dashboard/configuracoes", title: "Configurações", subtitle: "Cadastros base que alimentam o CRM" },
   { match: "/dashboard/perfil", exact: true, title: "Meu perfil" },
+  // A ACADEMIA FALTAVA AQUI, e por isso o cabeçalho dizia "Dashboard" (Cintia, 18/09/2026:
+  // "o nome no alto da página está dashboard"). Quem não está nesta lista cai no nome genérico:
+  // o usePageTitle da própria tela roda ANTES deste efeito e é sobrescrito por ele.
+  { match: "/dashboard/academia", title: "Academia", subtitle: "Como o sistema funciona e as regras da empresa" },
   { match: "/dashboard/erp/tutores", title: "Clientes" },
   { match: "/dashboard/erp/pets", title: "Pets" },
   { match: "/dashboard/erp/atendimentos", title: "Atendimentos" },

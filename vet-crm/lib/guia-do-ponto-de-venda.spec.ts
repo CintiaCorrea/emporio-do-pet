@@ -35,7 +35,7 @@ describe("as regras que a recepção erra no balcão estão escritas", () => {
 
 describe("a Academia mostra a página", () => {
   it("o tema Vendas abre no Ponto de venda", () => {
-    const pag = fs.readFileSync(path.join(process.cwd(), "app/(user)/dashboard/academia/page.tsx"), "utf8");
+    const pag = fs.readFileSync(path.join(process.cwd(), "components/academia/Academia.tsx"), "utf8");
     expect(pag).toContain("/academia/guia-vendas-ponto-de-venda.html");
     expect(pag).toContain("📖 Ponto de venda");
     expect(pag).toContain("/academia/maquete-ponto-de-venda.html");

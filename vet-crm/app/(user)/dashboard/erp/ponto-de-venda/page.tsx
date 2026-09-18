@@ -19,6 +19,7 @@ import MovimentoCaixaModal, { TipoMovimento, ROTULO_MOVIMENTO } from '@/componen
 import { imprimirContasDoCliente } from '@/lib/documentos/relatorio-vendas-print';
 import { casarNoCatalogo, juntarObservacao, ModeloVenda } from '@/lib/modelosVenda';
 import { imprimirVenda } from '@/lib/documentos/venda-print';
+import { enviarVendaNoWhats } from '@/lib/documentos/venda-pdf';
 import { imprimirOrcamento } from '@/lib/documentos/orcamento-print';
 import { carregarCatalogoVendavel, labDoItem, lancarDoCadastro, linhaDoItem } from '@/lib/catalogoVendavel';
 import { imprimirRecibo } from '@/lib/documentos/recibo-print';
@@ -176,6 +177,48 @@ export default function PDVPage() {
   // 💰 ORÇAMENTO VIRA VENDA SEM SAIR DAQUI (Cintia, 18/09/2026). Mesma porta do servidor que o
   // carrinho da ficha e a lista da Consulta de vendas usam.
   const [virandoOrc, setVirandoOrc] = useState(false);
+
+  // AS MESMAS AÇÕES DA CONSULTA DE VENDAS, AQUI DENTRO (Cintia, 18/09/2026: "podemos ter nessa
+  // tela, além das opções que já temos, as opções que temos na tela de vendas para facilitar
+  // para a equipe?"). A gaveta tinha devolver, excluir, recibo e receber; faltavam imprimir o
+  // comprovante, mandar no WhatsApp e virar orçamento — e a recepção tinha que abrir outra tela
+  // para isso, com o cliente esperando.
+  const [enviandoVenda, setEnviandoVenda] = useState(false);
+  async function enviarVendaNoWhatsDaGaveta(v: any) {
+    if (!v?.tutorId) { toast.error('Esta venda não tem cliente ligado — não sei para quem enviar.'); return; }
+    setEnviandoVenda(true);
+    const r = await enviarVendaNoWhats({
+      id: v.id, numeroVenda: v.numeroVenda ?? null, date: v.date,
+      cliente: v.tutor, clienteId: v.tutorId, pet: v.pet || null,
+      valor: Number(v.valor || 0), pago: Number(v.pago || 0),
+      itens: (v.itens || []).map((it: any) => ({
+        descricao: it.descricao ?? it.nome ?? 'Item',
+        quantidade: Number(it.quantidade ?? 1) || 1,
+        valorUnitario: Number(it.valorUnitario ?? 0),
+        valorTotal: Number(it.valorTotal ?? (Number(it.quantidade ?? 1) || 1) * Number(it.valorUnitario ?? 0)),
+      })),
+    });
+    setEnviandoVenda(false);
+    if (r.ok) toast.success('Venda enviada no WhatsApp'); else toast.error(r.erro || 'Não consegui enviar.');
+  }
+
+  // A CHAVINHA tambem daqui: venda feita por engano volta a ser orçamento, desde que nada tenha
+  // sido recebido. Mesma porta do servidor que a Consulta de vendas usa.
+  const [virandoVendaEmOrc, setVirandoVendaEmOrc] = useState(false);
+  async function virarOrcamentoDaGaveta(v: any) {
+    if (!confirm(`A venda #${v.numeroVenda ?? ''} de ${v.tutor} vira orçamento, com os mesmos itens.\n\nEla sai da lista de contas a receber. Confirma?`)) return;
+    setVirandoVendaEmOrc(true);
+    try {
+      const r = await fetch(`/api/orcamentos/da-venda/${v.id}`, { method: 'POST' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || 'Não consegui transformar em orçamento.');
+      setDetVenda(null);
+      await loadVendas();
+      await loadOrcamentos();
+      toast.success('A venda virou orçamento 📄');
+    } catch (e: any) { toast.error(e?.message || 'Não consegui transformar em orçamento.'); }
+    finally { setVirandoVendaEmOrc(false); }
+  }
   async function virarVendaDoOrcamento(o: any) {
     const quem = `${o?.tutor?.name || 'cliente'}${o?.pet?.name ? ` (${o.pet.name})` : ''}`;
     if (!confirm(`Virar venda o orçamento de ${quem}, ${brl(Number(o?.valorTotal || 0))}?
@@ -1738,6 +1781,13 @@ Vira uma venda concluída, com os mesmos itens. O orçamento sai da lista.`)) re
                             <button onClick={() => reciboDaVenda(detVenda, 'imprimir')} title="Recibo do pagamento, no timbrado" style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>🧾 Recibo</button>
                             <button onClick={() => reciboDaVenda(detVenda, 'whats')} title="Enviar o recibo em PDF no WhatsApp do cliente" style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 Recibo no WhatsApp</button>
                           </>
+                        )}
+                        {/* IMPRIMIR E ENVIAR VALEM SEMPRE — antes de pagar é o comprovante da
+                            compra; depois de pago, o recibo acima é que vale. */}
+                        <button onClick={() => imprimirVenda(detVenda)} title="Imprimir o comprovante da venda, no timbrado" style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨️ Imprimir</button>
+                        <button onClick={() => enviarVendaNoWhatsDaGaveta(detVenda)} disabled={enviandoVenda} title="Enviar a venda em PDF no WhatsApp do cliente" style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: enviandoVenda ? 0.6 : 1 }}>{enviandoVenda ? 'Enviando…' : '💬 Enviar'}</button>
+                        {podeEditar && Number(detVenda.pago || 0) <= 0.009 && (
+                          <button onClick={() => virarOrcamentoDaGaveta(detVenda)} disabled={virandoVendaEmOrc} title="Vendeu por engano? A venda vira orçamento, com os mesmos itens" style={{ background: '#fff', color: NAVY, border: `1px solid ${NAVY}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: virandoVendaEmOrc ? 0.6 : 1 }}>{virandoVendaEmOrc ? 'Virando…' : '📄 Virar orçamento'}</button>
                         )}
                         {aReceber > 0.001 && (
                           <button onClick={() => { const outras = outrasEmAberto(detVenda).map(paraReceber); setLoteDe({ nome: detVenda.tutor || 'Cliente', comandas: [paraReceber(detVenda), ...outras], pre: [detVenda.id] }); }} title="Receber esta venda — e ver as outras em aberto do cliente" style={{ marginLeft: 'auto', background: TEAL, color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', cursor: 'pointer' }}>💰 Receber</button>
