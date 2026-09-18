@@ -305,11 +305,42 @@ todo `/api/...` chamado exista — testada apagando a rota nova, quebra e diz o 
 - [ ] **Aviso de cadastro incompleto / revisao anual** (ideia da Cintia, 18/09): bloqueio ou
   aviso sempre que o cadastro estiver incompleto ou sem atualizar ha 1 ano, "para que TODOS
   comecassem a fazer esse trabalho". Desenho a apresentar antes de codar.
-- [ ] **Os numeros da ficha nao batem entre si.** KPI "🛒 Compras" e "💰 Total gasto" contam TODO
-  atendimento realizado (inclusive CANCELADO no passado, porque `realizadas` filtra por
-  `date < now` sem excluir cancelado), enquanto a aba Compras filtra por `ehCompra`. O LTV da
-  lista exclui cancelado; a ficha nao. **"A receber" encosta na regra de cobranca de vendas —
-  PERGUNTAR ANTES.**
+- [ ] **F1 — os numeros da ficha nao batem entre si.** APROVADO pela Cintia em 18/09 ("meche em
+  vendas mas nao altera o que foi construido"). Confirmado antes de codar: F1 so IMPORTA
+  `ehVenda`/`ondeEVenda` de `crm/consulta-vendas.regras.ts`, nao altera arquivo de vendas
+  nenhum. `valorAReceber` ja usa a regra de cobranca certa desde 17/09 — nao mexer.
+  **PARADO em 18/09 a pedido dela: "vamos finalizar agenda primeiro e depois voltamos."**
+
+  O que medi e que vale para quando retomar:
+
+  1. **Metade A (pronta para fazer, nao depende de ninguem).** `profileStats` monta `realizadas`
+     com `status === 'COMPLETED' || 'DONE' || date < now` — entra consulta, receita, documento,
+     orcamento e registro de internacao. "Total gasto", "🛒 Compras" e "Ticket medio" saem dai,
+     enquanto a aba Compras filtra por `ehCompra`. Separar dois conjuntos: VISITAS (para "ultima
+     visita" e futuras) e VENDAS (para os tres numeros de dinheiro). Sugestao: devolver
+     `totalCompras` novo em vez de trocar o sentido de `totalAppointments`.
+  2. **Metade B (depende da Agenda).** `Appointment.status` e TEXTO LIVRE, nao lista fechada —
+     o enum `AppointmentStatus` do schema nao governa a coluna. Medido no codigo: 'CANCELLED'
+     (41x), 'CANCELED' (21x), 'CANCELADO' (18x), 'CANCELADA' (6x), 'MISSED' (6x), 'NO_SHOW' (3x).
+     `profileStats` linha ~626 filtra `a.status !== 'CANCELLED'` (dois L) e por isso **conta
+     cancelado como agendamento futuro**; `getScoreClient` linha ~473 ja acerta (checa as duas
+     grafias). A regra certa e `common/status-do-atendimento.regras.ts`, escrita pela varredura
+     da AGENDA em 18/09 — usar ELA, nao inventar uma terceira lista. Esperar aquela sessao
+     guardar o arquivo.
+  3. **Gemeo do mesmo defeito na ficha do PET:** `pets.service.ts` linhas 398 e 400 filtram
+     `status: { not: 'CANCELLED' }`. Mesma correcao, outra tela — PERGUNTAR antes (nao foi
+     aprovado).
+  4. **LTV da lista de Clientes** vem de `/api/appointments?limit=3000` no navegador, a cada
+     abertura da tela. Alem de pesado, TRUNCA: passando de 3000 o numero fica errado calado. O
+     jeito certo e o servidor devolver o total por tutor em `tutors/lista-simples`, via
+     `groupBy` com `ondeEVenda()` — mata a truncagem e a descarga de 3000 registros de uma vez.
+
+- [ ] **Duas sessoes na mesma pasta (18/09).** A varredura da Agenda escreveu
+  `common/status-do-atendimento.regras.ts` e `vet-crm/lib/statusDoAtendimento.ts` (+ specs) nesta
+  mesma pasta, as 16:39 e 16:44, enquanto eu trabalhava em Clientes. Vendas, financeiro e portal
+  tem pasta propria; a Agenda nao. **Enquanto for assim: `git add` so com caminho explicito,
+  NUNCA `-A`** — senao um commit leva o trabalho pela metade do outro para o GitHub, e do
+  GitHub para o ar.
 - [ ] Ficha: "Excluir" aparece para todo perfil (a lista esconde por `acao:cliente.excluir`).
 - [ ] Ficha: aba Pets nao mostra os pets em que ele e 2º responsavel (a Visao geral mostra).
 - [ ] Ficha: filtro de compras por NOME do pet (dois pets com mesmo nome se misturam).
