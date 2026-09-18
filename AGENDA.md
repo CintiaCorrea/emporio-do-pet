@@ -34,7 +34,7 @@ Estado hoje:
 | | |
 |---|---|
 | `main` | `06914d5a` — reforma das vendas (42 commits) publicada ate 17/09 |
-| Testes | 960 no front (91 arquivos) |
+| Testes | 968 no front (92 arquivos) · 816 no backend (66 arquivos) |
 | Catraca de tipos | trava em **30** (`vet-crm/.catraca-tipos`) |
 | Producao | 1 maquina de atendimento + 1 de rotinas · banco com 4 GB |
 | Nao publicado | 1 commit de academia parado em `D:\emporio-vendas` (`d42f2715`) |
@@ -292,11 +292,16 @@ todo `/api/...` chamado exista — testada apagando a rota nova, quebra e diz o 
 
 ### Fila desta frente (varredura de 18/09, por ordem combinada)
 
-- [ ] **Cadastros recebidos nao perde dado.** `aprovar`/`vincular` usam `.catch(() => null)` no
-  criar-pet e no patch, nao conferem o resultado e apagam a submissao do mesmo jeito, dizendo
-  "Cliente criado! 🎉". Pet que falha some para sempre. Junto: o ✓ verde da comparacao lado a
-  lado so aparece em campo com digito, entao e-mail e nome de pet identicos nunca marcam; e a
-  seta de voltar ainda vai para Configuracoes (a tela mudou para Clientes em 15/09).
+- [x] **Cadastros recebidos nao perde dado** (18/09). `criarPetSe` e `limparSub` passaram a
+  RESPONDER se gravaram; `aprovar` e `vincular` so apagam a ficha recebida depois de confirmar.
+  Caso dificil resolvido: cliente criado e pet falhou — a ficha FICA, passa a apontar para o
+  cliente recem-criado, ganha aviso "falta o pet" e o botao Aprovar SOME dali (clicar de novo
+  criaria cliente repetido); o caminho vira Vincular, que grava so o que faltou. Junto: o ✓ da
+  comparacao saiu para `lib/mesmoCadastro.ts` (8 testes) e deixou de exigir digito — e-mail e
+  nome de pet identicos voltam a marcar, e o campo Pets compara contra a LISTA do cadastro
+  antigo. O lado antigo de "Nascimento" usava `new Date().toLocaleDateString()` e mostrava o dia
+  anterior, entao o ✓ de nascimento tambem nunca batia: agora usa `fmtDataBR`. A seta de voltar
+  aponta para Clientes, nao mais para Configuracoes.
 - [ ] **Aviso de cadastro incompleto / revisao anual** (ideia da Cintia, 18/09): bloqueio ou
   aviso sempre que o cadastro estiver incompleto ou sem atualizar ha 1 ano, "para que TODOS
   comecassem a fazer esse trabalho". Desenho a apresentar antes de codar.

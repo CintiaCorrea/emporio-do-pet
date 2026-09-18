@@ -3,6 +3,8 @@ import { useEffect, useState, useCallback, Fragment } from "react";
 import Link from "next/link";
 import { LuArrowLeft, LuCopy, LuTrash2, LuRefreshCw, LuChevronDown, LuTriangleAlert } from "react-icons/lu";
 import toast from "react-hot-toast";
+import { mesmoValor } from "@/lib/mesmoCadastro";
+import { fmtDataBR } from "@/lib/datas";
 
 const onlyDigits = (s: string) => (s || "").replace(/\D/g, "");
 const last8 = (s: string) => onlyDigits(s).slice(-8);
@@ -29,16 +31,20 @@ const toISO = (s: string) => {
  * O telefone não entra: foi ele que levantou a suspeita, então aparecer igual não informa nada.
  * O que decide é o resto — CPF é o mais forte, e-mail vem logo depois, e os pets costumam ser o
  * que a recepção reconhece primeiro ("ah, esse é o Beagle da Thais").
+ *
+ * COMO se compara mora em lib/mesmoCadastro (com teste) — aqui fica só O QUE se compara.
  */
-const COMPARAR: { rotulo: string; novo: (s: any) => string; velho: (t: any) => string }[] = [
+const COMPARAR: { rotulo: string; novo: (s: any) => string; velho: (t: any) => string; modo?: "lista" }[] = [
   { rotulo: "CPF", novo: (s) => s.tutor?.cpf || "", velho: (t) => t?.cpf || t?.document || t?.cpfCnpj || "" },
   { rotulo: "E-mail", novo: (s) => s.tutor?.email || "", velho: (t) => t?.email || "" },
-  { rotulo: "Nascimento", novo: (s) => s.tutor?.birthDate || "", velho: (t) => (t?.birthDate ? new Date(t.birthDate).toLocaleDateString("pt-BR") : "") },
+  // fmtDataBR (lib/datas) e nao new Date(): nascimento e' gravado a meia-noite UTC e, lido no fuso
+  // do Brasil, virava o dia anterior — a ficha dizia 29/08, o cadastro antigo 28/08, e o ✓ nunca batia.
+  { rotulo: "Nascimento", novo: (s) => s.tutor?.birthDate || "", velho: (t) => fmtDataBR(t?.birthDate) },
   { rotulo: "Endereço", novo: (s) => s.tutor?.address || "", velho: (t) => [t?.street, t?.number, t?.neighborhood].filter(Boolean).join(", ") || t?.address || "" },
-  { rotulo: "Pets", novo: (s) => s.pet?.name || "", velho: (t) => (t?.pets || []).map((p: any) => p.name).join(", ") },
+  { rotulo: "Pets", novo: (s) => s.pet?.name || "", velho: (t) => (t?.pets || []).map((p: any) => p.name).join(", "), modo: "lista" },
 ];
 
-interface Sub { _id: string; status?: string; receivedAt?: string; tutor: any; pet: any; dupNome?: string | null; dupId?: string | null; dup?: any }
+interface Sub { _id: string; status?: string; receivedAt?: string; tutor: any; pet: any; dupNome?: string | null; dupId?: string | null; dup?: any; parcial?: string }
 
 export default function CadastrosRecebidosPage() {
   const [subs, setSubs] = useState<Sub[]>([]);
@@ -83,9 +89,16 @@ export default function CadastrosRecebidosPage() {
   const [buscaVinc, setBuscaVinc] = useState<Record<string, string>>({}); // busca de cliente por submissão
   const [resVinc, setResVinc] = useState<Record<string, any[]>>({});
 
-  // Cria o pet da submissão sob o tutor informado (se houver nome do pet).
-  async function criarPetSe(s: Sub, tutorId: string) {
-    if (!s.pet?.name?.trim()) return;
+  // NADA SE APAGA ANTES DE A GRAVAÇÃO SER CONFIRMADA (18/09/2026).
+  //
+  // Esta função terminava em `.catch(() => null)` e ninguém olhava o resultado: quem aprovava
+  // via "Cliente criado! 🎉", a ficha recebida era apagada do mesmo jeito, e o pet que o cliente
+  // preencheu sumia para sempre — sem deixar rastro de que tinha existido.
+  //
+  // Agora ela RESPONDE. Quem chama decide, e o combinado é: pet que não gravou = ficha recebida
+  // continua na tela.
+  async function criarPetSe(s: Sub, tutorId: string): Promise<{ ok: boolean; motivo?: string }> {
+    if (!s.pet?.name?.trim()) return { ok: true }; // não veio pet: nada a gravar, nada a perder
     const petBirth = toISO(s.pet.birthDate);
     const body: any = {
       tutorId, name: s.pet.name.trim(),
@@ -95,9 +108,24 @@ export default function CadastrosRecebidosPage() {
       birthDate: petBirth,
       observations: (!petBirth && s.pet.age?.trim()) ? `Idade informada no cadastro: ${s.pet.age.trim()}` : undefined,
     };
-    await fetch("/api/pets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
+    try {
+      const r = await fetch("/api/pets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (r.ok) return { ok: true };
+      const err = await r.json().catch(() => null);
+      const msg = err?.message ? (Array.isArray(err.message) ? err.message.join(" ") : err.message) : err?.error;
+      return { ok: false, motivo: String(msg || `erro ${r.status}`) };
+    } catch { return { ok: false, motivo: "sem conexão" }; }
   }
-  async function limparSub(id: string) { await fetch(`/api/listas/${id}`, { method: "DELETE" }).catch(() => null); setSubs((s) => s.filter((x) => x._id !== id)); }
+
+  /** Tira a ficha recebida da fila. Só some da tela se o servidor confirmar que apagou. */
+  async function limparSub(id: string): Promise<boolean> {
+    try {
+      const r = await fetch(`/api/listas/${id}`, { method: "DELETE" });
+      if (!r.ok) return false;
+      setSubs((s) => s.filter((x) => x._id !== id));
+      return true;
+    } catch { return false; }
+  }
 
   // UTM → registra na ficha (como nota) de qual campanha o cadastro veio, quando o link do formulário tinha utm_*.
   async function registrarOrigem(tutorId: string, origem: any) {
@@ -132,9 +160,24 @@ export default function CadastrosRecebidosPage() {
       const r = await fetch("/api/tutors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const novo = await r.json().catch(() => null);
       if (!r.ok || !novo?.id) { const msg = novo?.message ? (Array.isArray(novo.message) ? novo.message.join(" ") : novo.message) : `Erro (${r.status})`; toast.error(msg); setBusy(null); return; }
-      await criarPetSe(s, novo.id);
+
+      // O CLIENTE JÁ EXISTE daqui pra baixo. Se o pet falhar, a ficha recebida NÃO se apaga — mas
+      // também não pode ficar oferecendo "Aprovar" de novo, senão a próxima tentativa cria um
+      // cliente repetido. Então ela passa a apontar para o cliente recém-criado, e o caminho de
+      // completar vira o "Vincular", que só grava o que faltou.
+      const pet = await criarPetSe(s, novo.id);
+      if (!pet.ok) {
+        setSubs((lista) => lista.map((x) => x._id === s._id
+          ? { ...x, dupNome: novo.name || s.tutor.name, dupId: novo.id, dup: novo, parcial: `O cliente foi criado, mas o pet não: ${pet.motivo}` }
+          : x));
+        toast.error(`Cliente criado, mas o pet "${s.pet?.name}" não gravou (${pet.motivo}). A ficha continua aqui — use "Vincular" para tentar só o pet.`, { duration: 9000 });
+        return;
+      }
       await registrarOrigem(novo.id, (s as any).origem);
-      await limparSub(s._id);
+      if (!(await limparSub(s._id))) {
+        toast.success("Cliente e pet criados — mas não consegui tirar a ficha da fila. Atualize a tela.", { duration: 8000 });
+        return;
+      }
       toast.success("Cliente criado! 🎉");
     } catch { toast.error("Erro ao aprovar"); } finally { setBusy(null); }
   }
@@ -148,10 +191,27 @@ export default function CadastrosRecebidosPage() {
       add("cpf", onlyDigits(s.tutor.cpf || "") || null); add("email", s.tutor.email?.trim());
       add("cep", onlyDigits(s.tutor.cep || "") || null); add("address", s.tutor.address?.trim());
       add("howFoundUs", s.tutor.howFoundUs?.trim()); const bd = toISO(s.tutor.birthDate); if (bd) patch.birthDate = bd;
-      if (Object.keys(patch).length) await fetch(`/api/tutors/${tutorId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).catch(() => null);
-      await criarPetSe(s, tutorId);
+      // Mesma regra do aprovar: se a gravação falhar, a ficha recebida fica. O patch também era
+      // `.catch(() => null)` — CPF, e-mail e endereço podiam não entrar e a tela dizia "Vinculado ✓".
+      if (Object.keys(patch).length) {
+        const rp = await fetch(`/api/tutors/${tutorId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) }).catch(() => null);
+        if (!rp || !rp.ok) {
+          const err = rp ? await rp.json().catch(() => null) : null;
+          const msg = err?.message ? (Array.isArray(err.message) ? err.message.join(" ") : err.message) : (err?.error || "sem conexão");
+          toast.error(`Não consegui atualizar a ficha de ${tutorNome || "cliente"}: ${msg}. Nada foi apagado.`, { duration: 9000 });
+          return;
+        }
+      }
+      const pet = await criarPetSe(s, tutorId);
+      if (!pet.ok) {
+        toast.error(`Ficha atualizada, mas o pet "${s.pet?.name}" não gravou (${pet.motivo}). A ficha recebida continua aqui.`, { duration: 9000 });
+        return;
+      }
       await registrarOrigem(tutorId, (s as any).origem);
-      await limparSub(s._id);
+      if (!(await limparSub(s._id))) {
+        toast.success("Vinculado — mas não consegui tirar a ficha da fila. Atualize a tela.", { duration: 8000 });
+        return;
+      }
       toast.success(`Vinculado a ${tutorNome || "cliente"} ✓`);
     } catch { toast.error("Erro ao vincular"); } finally { setBusy(null); }
   }
@@ -177,7 +237,8 @@ export default function CadastrosRecebidosPage() {
     <div className="min-h-screen" style={{ background: "#F6F2EA" }}>
       <div className="bg-white border-b" style={{ borderColor: "#E8DFC8" }}>
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-3">
-          <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
+          {/* A tela saiu de Configurações para Clientes em 15/09/2026; a seta tinha ficado para trás. */}
+          <Link href="/dashboard/erp/tutores" title="Voltar para Clientes" className="p-2 rounded-lg hover:bg-gray-100"><LuArrowLeft size={18} /></Link>
           <div className="flex-1">
             <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>📥 Cadastros recebidos</h1>
             <p className="text-sm text-gray-500">Fichas enviadas pelos clientes pelo link público — revise antes de virar cliente.</p>
@@ -203,7 +264,9 @@ export default function CadastrosRecebidosPage() {
                     <div className="flex-1 min-w-0">
                       <div className="text-[14px] font-medium text-[#0E2244] flex items-center gap-2 flex-wrap">{s.tutor?.name || "Sem nome"}
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#FBF3E3", color: "#8a6400" }}>🆕 novo</span>
-                        {s.dupNome && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "#FCEBEB", color: "#A32D2D" }}><LuTriangleAlert size={11} /> possível duplicado: {s.dupNome}</span>}
+                        {s.parcial
+                          ? <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "#FBF3E3", color: "#8a6400" }}><LuTriangleAlert size={11} /> falta o pet</span>
+                          : s.dupNome && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1" style={{ background: "#FCEBEB", color: "#A32D2D" }}><LuTriangleAlert size={11} /> possível duplicado: {s.dupNome}</span>}
                       </div>
                       <div className="text-[12px] text-[#5C6B70]">{s.tutor?.phone || "sem telefone"}{s.pet?.name ? ` · 🐾 ${s.pet.name}` : ""}{s.receivedAt ? ` · ${new Date(s.receivedAt).toLocaleDateString("pt-BR")}` : ""}</div>
                     </div>
@@ -233,8 +296,7 @@ export default function CadastrosRecebidosPage() {
                             <div className="font-semibold" style={{ color: "#5C6B70" }}>👤 {s.dupNome}</div>
                             {COMPARAR.map((c) => {
                               const a = c.novo(s), b = c.velho(s.dup);
-                              const igual = !!a && !!b && String(a).toLowerCase().replace(/\D/g, "") !== "" &&
-                                String(a).toLowerCase().replace(/[^a-z0-9]/gi, "") === String(b).toLowerCase().replace(/[^a-z0-9]/gi, "");
+                              const igual = mesmoValor(a, b, c.modo);
                               return (
                                 <Fragment key={c.rotulo}>
                                   <div style={{ color: "#8A9499" }}>{c.rotulo}</div>
@@ -254,8 +316,17 @@ export default function CadastrosRecebidosPage() {
                           </Link>
                         </div>
                       )}
+                      {/* GRAVAÇÃO PELA METADE: o cliente já existe, o pet não. "Aprovar" some daqui de
+                          propósito — clicar de novo criaria um cliente repetido. O caminho é Vincular,
+                          que grava só o que faltou. */}
+                      {s.parcial && (
+                        <div className="md:col-span-2 mt-2 p-2.5 rounded-lg text-[12px]" style={{ background: "#FBF3E3", border: "1px solid #F0DCB0", color: "#7a6330" }}>
+                          <b>{s.parcial}</b><br />
+                          Nada foi apagado. Clique em <b>🔗 Vincular a {s.dupNome}</b> aqui embaixo para gravar só o pet — não use Aprovar, senão o cliente entra duas vezes.
+                        </div>
+                      )}
                       <div className="md:col-span-2 mt-2 pt-2 border-t flex flex-wrap items-center gap-2" style={{ borderColor: "#F0EBE0" }}>
-                        <button onClick={() => aprovar(s)} disabled={busy === s._id} className="px-3 py-2 rounded-lg text-[13px] text-white font-medium disabled:opacity-60" style={{ background: "#0F6E56" }}>{busy === s._id ? "Processando…" : "✅ Aprovar (novo cliente)"}</button>
+                        {!s.parcial && <button onClick={() => aprovar(s)} disabled={busy === s._id} className="px-3 py-2 rounded-lg text-[13px] text-white font-medium disabled:opacity-60" style={{ background: "#0F6E56" }}>{busy === s._id ? "Processando…" : "✅ Aprovar (novo cliente)"}</button>}
                         {s.dupId && <button onClick={() => vincular(s, s.dupId!, s.dupNome || undefined)} disabled={busy === s._id} className="px-3 py-2 rounded-lg text-[13px] font-medium border disabled:opacity-60" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#fff" }}>🔗 Vincular a {s.dupNome}</button>}
                       </div>
                       <div className="md:col-span-2">
