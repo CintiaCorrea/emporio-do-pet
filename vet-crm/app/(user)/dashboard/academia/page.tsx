@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 
 // 🎓 Academia — centro de treinamento da equipe: aprender o sistema (tela por tela)
 // e as regras da empresa. Cada TEMA é uma aba; começa com WhatsApp.
@@ -11,55 +12,96 @@ type ConteudoWa = "guia" | "maquete" | "api";
 type ConteudoAg = "guia" | "maquete";
 type ConteudoVd = "pdv" | "maquete" | "geral";
 
+// ABA SUBLINHADA — o jeito de trocar de seção DENTRO da janela (diretriz de UX, 18/09/2026).
+// Substitui as pílulas: uma linha só, sublinhado turquesa na ativa, sem borda nem fundo.
+function Abas<T extends string>({ opcoes, valor, aoTrocar }: { opcoes: [T, string][]; valor: T; aoTrocar: (v: T) => void }) {
+  return (
+    <div className="flex flex-wrap -mb-[13px]">
+      {opcoes.map(([k, lbl]) => {
+        const on = valor === k;
+        return (
+          <button
+            key={k}
+            onClick={() => aoTrocar(k)}
+            className="text-[13px] px-3.5 py-2.5 transition"
+            style={{ color: on ? "#014D5E" : "#5F5E5A", fontWeight: on ? 700 : 500, borderBottom: `2px solid ${on ? "#009AAC" : "transparent"}` }}
+          >{lbl}</button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AcademiaPage() {
+  usePageTitle("Academia", "Como o sistema funciona e as regras da empresa");
   const [tema, setTema] = useState<Tema>("whatsapp");
   const [wa, setWa] = useState<ConteudoWa>("guia");
   const [ag, setAg] = useState<ConteudoAg>("guia");
   const [vd, setVd] = useState<ConteudoVd>("pdv");
 
-  const temas: { key: Tema; label: string; emoji: string }[] = [
-    { key: "whatsapp", label: "WhatsApp", emoji: "📲" },
-    { key: "agenda", label: "Agenda", emoji: "📅" },
-    { key: "ficha", label: "Ficha do Pet", emoji: "🐾" },
-    { key: "fisio", label: "Boletim de Fisio", emoji: "🌿" },
-    { key: "gravacao", label: "Gravação de consulta", emoji: "🎤" },
-    { key: "veterinario", label: "Veterinário", emoji: "🩺" },
-    { key: "financeiro", label: "Financeiro", emoji: "💰" },
-    { key: "vendas", label: "Vendas", emoji: "🛒" },
-    { key: "exames", label: "Exames & Laboratório", emoji: "🔬" },
-    { key: "docs", label: "Documentação do sistema", emoji: "📘" },
-    { key: "regras", label: "Regras da empresa", emoji: "📋" },
+  // MENU LATERAL, COM OS GRUPOS DO MENU DE TRABALHO (Cintia, 18/09/2026: "não ter esses menus em
+  // formato de pílulas, e sim em abas dentro da própria janela ou no menu lateral"). Eram 11
+  // pílulas em duas fileiras, ocupando meia tela. Quem sabe onde trabalha sabe onde estudar.
+  const GRUPOS: { titulo: string; itens: { key: Tema; label: string; emoji: string }[] }[] = [
+    {
+      titulo: "Dia a dia", itens: [
+        { key: "whatsapp", label: "WhatsApp", emoji: "📲" },
+        { key: "agenda", label: "Agenda", emoji: "📅" },
+        { key: "ficha", label: "Ficha do pet", emoji: "🐾" },
+        { key: "fisio", label: "Boletim de fisio", emoji: "🌿" },
+        { key: "gravacao", label: "Gravação de consulta", emoji: "🎤" },
+        { key: "exames", label: "Exames", emoji: "🔬" },
+      ],
+    },
+    {
+      titulo: "Gestão", itens: [
+        { key: "vendas", label: "Vendas", emoji: "🛒" },
+        { key: "financeiro", label: "Financeiro", emoji: "💰" },
+        { key: "veterinario", label: "Veterinário", emoji: "🩺" },
+      ],
+    },
+    {
+      titulo: "A empresa", itens: [
+        { key: "regras", label: "Regras da empresa", emoji: "📋" },
+        { key: "docs", label: "Documentação do sistema", emoji: "📘" },
+      ],
+    },
   ];
 
-  return (
-    <div className="p-4 md:p-6 min-h-screen" style={{ background: "#F6F2EA" }}>
-      {/* Cabeçalho */}
-      <div className="mb-4">
-        <h1 className="text-[22px] font-extrabold flex items-center gap-2" style={{ color: "#014D5E" }}>
-          🎓 Academia
-        </h1>
-        <p className="text-[13.5px] mt-0.5" style={{ color: "#5F5E5A" }}>
-          Aprenda como o sistema funciona e as regras da empresa. Material sempre disponível pra toda a equipe.
-        </p>
-      </div>
 
-      {/* Abas de tema */}
-      <div className="flex gap-1.5 flex-wrap mb-4">
-        {temas.map((t) => {
-          const on = tema === t.key;
-          return (
-            <button
-              key={t.key}
-              onClick={() => setTema(t.key)}
-              className="text-[13px] font-semibold px-3.5 py-2 rounded-lg border transition"
-              style={on
-                ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" }
-                : { background: "#fff", color: "#5F5E5A", borderColor: "#E8DFC8" }}>
-              {t.emoji} {t.label}
-            </button>
-          );
-        })}
-      </div>
+  return (
+    <div className="p-6 min-h-screen" style={{ background: "#F6F2EA" }}>
+      <div className="grid grid-cols-1 md:grid-cols-[236px_minmax(0,1fr)] gap-4">
+
+        {/* O MENU — os mesmos grupos e nomes do menu de trabalho */}
+        <aside className="bg-white border rounded-[13px] p-2 self-start md:sticky md:top-20" style={{ borderColor: "#E8DFC8" }}>
+          <div className="px-2.5 pt-1.5 pb-2.5">
+            <div className="text-[15px] font-extrabold flex items-center gap-1.5" style={{ color: "#014D5E" }}>🎓 Academia</div>
+            <p className="text-[11.5px] mt-0.5 leading-snug" style={{ color: "#8A8778" }}>Como o sistema funciona e as regras da casa.</p>
+          </div>
+          {GRUPOS.map((g) => (
+            <div key={g.titulo} className="mb-1.5 last:mb-0">
+              <div className="text-[10.5px] font-bold uppercase tracking-[.07em] px-2.5 py-1.5" style={{ color: "#8A8778" }}>{g.titulo}</div>
+              {g.itens.map((t) => {
+                const on = tema === t.key;
+                return (
+                  <button
+                    key={t.key}
+                    onClick={() => setTema(t.key)}
+                    className="w-full text-left text-[13px] px-2.5 py-2 rounded-lg flex items-center gap-2 transition"
+                    style={on ? { background: "#E0F4F6", color: "#014D5E", fontWeight: 700 } : { color: "#5F5E5A" }}
+                  >
+                    <span aria-hidden>{t.emoji}</span>
+                    <span className="truncate">{t.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </aside>
+
+        {/* O CONTEÚDO */}
+        <div className="min-w-0">
 
       {/* TEMA: WhatsApp */}
       {tema === "whatsapp" && (
@@ -67,18 +109,7 @@ export default function AcademiaPage() {
           {/* sub-abas: Guia / Maquete */}
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Caixa de WhatsApp</span>
-            {([["guia", "📖 Guia visual"], ["maquete", "🖱️ Maquete interativa"], ["api", "📡 API & Modelos"]] as [ConteudoWa, string][]).map(([k, lbl]) => {
-              const on = wa === k;
-              return (
-                <button key={k} onClick={() => setWa(k)}
-                  className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border transition"
-                  style={on
-                    ? { background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }
-                    : { background: "#fff", color: "#5F5E5A", borderColor: "#E8DFC8" }}>
-                  {lbl}
-                </button>
-              );
-            })}
+            <Abas opcoes={[["guia", "📖 Guia visual"], ["maquete", "🖱️ Maquete interativa"], ["api", "📡 API & Modelos"]]} valor={wa} aoTrocar={setWa} />
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>
               {wa === "maquete" ? "Passe o mouse (ou toque) nos itens." : wa === "api" ? "A regra das 24h e os modelos." : "Melhor lido com calma. Dá pra imprimir."}
             </span>
@@ -98,18 +129,7 @@ export default function AcademiaPage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Agenda</span>
-            {([["guia", "📖 Guia visual"], ["maquete", "🖱️ Maquete interativa"]] as [ConteudoAg, string][]).map(([k, lbl]) => {
-              const on = ag === k;
-              return (
-                <button key={k} onClick={() => setAg(k)}
-                  className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border transition"
-                  style={on
-                    ? { background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }
-                    : { background: "#fff", color: "#5F5E5A", borderColor: "#E8DFC8" }}>
-                  {lbl}
-                </button>
-              );
-            })}
+            <Abas opcoes={[["guia", "📖 Guia visual"], ["maquete", "🖱️ Maquete interativa"]]} valor={ag} aoTrocar={setAg} />
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>
               {ag === "maquete" ? "Passe o mouse (ou toque) nos itens." : "Melhor lido com calma. Dá pra imprimir."}
             </span>
@@ -129,7 +149,6 @@ export default function AcademiaPage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Ficha do Pet</span>
-            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>🐾 Guia interativo</span>
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Passe o mouse nos termos. Clique nos passos da jornada.</span>
           </div>
           <iframe
@@ -147,7 +166,6 @@ export default function AcademiaPage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Boletim de Fisioterapia</span>
-            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>📖 Guia visual</span>
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Como preencher e enviar. Dá pra imprimir.</span>
           </div>
           <iframe
@@ -164,7 +182,6 @@ export default function AcademiaPage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Gravação de consulta</span>
-            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>📖 Passo a passo</span>
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Como gravar, transcrever e onde tudo fica salvo.</span>
           </div>
           <iframe
@@ -181,7 +198,6 @@ export default function AcademiaPage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Veterinário</span>
-            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>🩺 Guia interativo</span>
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Passe o mouse nos termos. Clique nos passos do atendimento.</span>
           </div>
           <iframe
@@ -198,7 +214,6 @@ export default function AcademiaPage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Financeiro</span>
-            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>💰 Guia interativo</span>
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Passe o mouse nos termos. Experimente o botão Caixa / Competência.</span>
           </div>
           <iframe
@@ -218,18 +233,7 @@ export default function AcademiaPage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Vendas</span>
-            {([["pdv", "📖 Ponto de venda"], ["maquete", "🖱️ Maquete interativa"], ["geral", "📚 Visão geral"]] as [ConteudoVd, string][]).map(([k, lbl]) => {
-              const on = vd === k;
-              return (
-                <button key={k} onClick={() => setVd(k)}
-                  className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border transition"
-                  style={on
-                    ? { background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }
-                    : { background: "#fff", color: "#5F5E5A", borderColor: "#E8DFC8" }}>
-                  {lbl}
-                </button>
-              );
-            })}
+            <Abas opcoes={[["pdv", "📖 Ponto de venda"], ["maquete", "🖱️ Maquete interativa"], ["geral", "📚 Visão geral"]]} valor={vd} aoTrocar={setVd} />
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>
               {vd === "pdv" ? "A tela do balcão, botão por botão. Dá pra imprimir."
                 : vd === "maquete" ? "Clique em cada parte da tela para ver a regra e o porquê dela."
@@ -252,7 +256,6 @@ export default function AcademiaPage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Exames &amp; Laboratório</span>
-            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>🔬 Guia interativo</span>
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Da solicitação ao a-pagar. Como nunca mais perguntar "a mensagem foi?".</span>
           </div>
           <iframe
@@ -269,7 +272,6 @@ export default function AcademiaPage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Documentação do sistema</span>
-            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>📘 Consulta</span>
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Tudo que existe, onde fica e como usar.</span>
           </div>
           <iframe
@@ -294,6 +296,8 @@ export default function AcademiaPage() {
           </span>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }
