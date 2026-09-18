@@ -37,6 +37,7 @@ describe("a Academia mostra a página", () => {
   it("o tema Vendas abre no Ponto de venda", () => {
     const pag = fs.readFileSync(path.join(process.cwd(), "app/(user)/dashboard/academia/page.tsx"), "utf8");
     expect(pag).toContain("/academia/guia-vendas-ponto-de-venda.html");
-    expect(pag).toContain("🛒 Ponto de venda");
+    expect(pag).toContain("📖 Ponto de venda");
+    expect(pag).toContain("/academia/maquete-ponto-de-venda.html");
   });
 });

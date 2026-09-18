@@ -9,7 +9,7 @@ import { useState } from "react";
 type Tema = "whatsapp" | "agenda" | "ficha" | "fisio" | "gravacao" | "veterinario" | "financeiro" | "vendas" | "exames" | "docs" | "regras";
 type ConteudoWa = "guia" | "maquete" | "api";
 type ConteudoAg = "guia" | "maquete";
-type ConteudoVd = "pdv" | "geral";
+type ConteudoVd = "pdv" | "maquete" | "geral";
 
 export default function AcademiaPage() {
   const [tema, setTema] = useState<Tema>("whatsapp");
@@ -218,7 +218,7 @@ export default function AcademiaPage() {
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Vendas</span>
-            {([["pdv", "🛒 Ponto de venda"], ["geral", "📖 Visão geral"]] as [ConteudoVd, string][]).map(([k, lbl]) => {
+            {([["pdv", "📖 Ponto de venda"], ["maquete", "🖱️ Maquete interativa"], ["geral", "📚 Visão geral"]] as [ConteudoVd, string][]).map(([k, lbl]) => {
               const on = vd === k;
               return (
                 <button key={k} onClick={() => setVd(k)}
@@ -231,11 +231,15 @@ export default function AcademiaPage() {
               );
             })}
             <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>
-              {vd === "pdv" ? "A tela do balcão, botão por botão. Dá pra imprimir." : "O módulo inteiro em uma página. Dá pra imprimir."}
+              {vd === "pdv" ? "A tela do balcão, botão por botão. Dá pra imprimir."
+                : vd === "maquete" ? "Clique em cada parte da tela para ver a regra e o porquê dela."
+                : "O módulo inteiro em uma página. Dá pra imprimir."}
             </span>
           </div>
           <iframe
-            src={vd === "pdv" ? "/academia/guia-vendas-ponto-de-venda.html" : "/academia/guia-vendas.html"}
+            src={vd === "pdv" ? "/academia/guia-vendas-ponto-de-venda.html"
+              : vd === "maquete" ? "/academia/maquete-ponto-de-venda.html"
+              : "/academia/guia-vendas.html"}
             title="Guia de Vendas"
             className="w-full block"
             style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}

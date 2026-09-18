@@ -1,0 +1,631 @@
+<!doctype html><html lang="pt-BR" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Maquete — Ponto de venda</title></head><body>
+<style>
+  :root{
+    --turq:#009AAC;--marinho:#014D5E;--verde:#0F6E56;--verm:#A32D2D;--roxo:#7C3AED;--ambar:#8A5A0B;
+    --bg:#F6F2EA;--panel:#fff;--line:#e8e1d2;--soft:#FBF9F4;--ink:#14253a;--muted:#5F5E5A;--faint:#8A8778;
+    --bege:#F3EEE2;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#0e1516;--panel:#16201f;--line:#26332f;--soft:#131c1b;--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bege:#1d241f;--ambar:#D9A441;}
+  }
+  :root[data-theme="light"]{--bg:#F6F2EA;--panel:#fff;--line:#e8e1d2;--soft:#FBF9F4;--ink:#14253a;--muted:#5F5E5A;--faint:#8A8778;--bege:#F3EEE2;--ambar:#8A5A0B;}
+  :root[data-theme="dark"]{--bg:#0e1516;--panel:#16201f;--line:#26332f;--soft:#131c1b;--ink:#eaf1f2;--muted:#b8c2c4;--faint:#8f9a9c;--bege:#1d241f;--ambar:#D9A441;}
+
+  *{box-sizing:border-box;}
+  body{margin:0;}
+  .page{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);padding:22px 16px 90px;-webkit-font-smoothing:antialiased;}
+  .head{max-width:1320px;margin:0 auto 14px;}
+  .head h1{margin:0 0 4px;font-size:22px;font-weight:800;color:var(--marinho);}
+  .head p{margin:0;font-size:13.5px;color:var(--muted);}
+  @media (prefers-color-scheme:dark){.head h1{color:var(--turq);}}
+  :root[data-theme="dark"] .head h1{color:var(--turq);}
+  .banner{max-width:1320px;margin:0 auto 14px;display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,var(--marinho),var(--turq));color:#fff;padding:11px 16px;border-radius:12px;font-size:13.5px;font-weight:600;flex-wrap:wrap;}
+  .banner .pulse{width:9px;height:9px;border-radius:50%;background:#fff;box-shadow:0 0 0 0 rgba(255,255,255,.7);animation:pl 1.8s infinite;flex-shrink:0;}
+  @keyframes pl{0%{box-shadow:0 0 0 0 rgba(255,255,255,.6);}70%{box-shadow:0 0 0 9px rgba(255,255,255,0);}100%{box-shadow:0 0 0 0 rgba(255,255,255,0);}}
+  @media (prefers-reduced-motion:reduce){.banner .pulse{animation:none;}}
+
+  /* ── a tela + o painel lado a lado ── */
+  .layout{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:16px;align-items:start;}
+  @media (max-width:1100px){.layout{grid-template-columns:1fr;}}
+
+  .frame{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(1,77,94,.08);}
+  .scroller{overflow-x:auto;}
+  .screen{display:grid;grid-template-columns:minmax(430px,1fr) 300px;min-width:760px;background:var(--bg);gap:12px;padding:12px;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  .card + .card{margin-top:12px;}
+  .ch{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);}
+  .ch .tt{font-size:13px;font-weight:700;color:var(--marinho);}
+  .ch .sub{font-size:10px;color:var(--faint);}
+  .body{padding:10px 12px;}
+
+  /* hotspots */
+  [data-tip]{cursor:pointer;transition:outline .12s;border-radius:8px;}
+  [data-tip]:hover,[data-tip].on{outline:2px solid var(--turq);outline-offset:2px;}
+  [data-tip]:focus-visible{outline:2px solid var(--turq);outline-offset:2px;}
+  [data-tip].on{background:color-mix(in srgb,var(--turq) 9%,transparent);}
+
+  /* peças da tela */
+  .selo{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;display:inline-flex;align-items:center;gap:4px;}
+  .selo.ok{background:#E7F7EF;color:var(--verde);}
+  .selo.warn{background:#FCF0E0;color:var(--ambar);}
+  :root[data-theme="dark"] .selo.ok{background:#122a22;}
+  :root[data-theme="dark"] .selo.warn{background:#302716;}
+  .linha{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:9px;}
+  .rot{font-size:10.5px;color:var(--faint);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 4px;}
+  .inp{border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-size:12px;color:var(--ink);background:var(--panel);}
+  .inp.g{background:var(--bege);color:var(--muted);}
+  .inp.busca{flex:1;color:var(--faint);}
+  .segb{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .segb span{font-size:11.5px;padding:5px 11px;color:var(--muted);background:var(--panel);}
+  .segb span.on{background:var(--turq);color:#fff;}
+  .cli{display:flex;align-items:center;gap:10px;background:#EAF6F7;border:1px solid #CFE9EC;border-radius:10px;padding:9px 11px;}
+  :root[data-theme="dark"] .cli{background:#12292a;border-color:#1d3b3c;}
+  .av{width:32px;height:32px;border-radius:50%;background:var(--turq);color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .cli .nm{font-size:12.5px;font-weight:700;}
+  .cli .sub{font-size:10.5px;color:var(--muted);}
+  .deve{background:var(--verm);color:#fff;border-radius:9px;padding:6px 10px;font-size:11.5px;font-weight:700;text-align:left;}
+  .deve span{display:block;font-weight:500;font-size:9.5px;opacity:.9;}
+  .peso{display:flex;align-items:center;gap:7px;background:#FCF0E0;border:1px solid #EBD9B4;border-radius:9px;padding:7px 10px;font-size:11.5px;color:var(--ambar);flex-wrap:wrap;}
+  :root[data-theme="dark"] .peso{background:#302716;border-color:#4a3c1d;}
+  .mini{font-size:10.5px;border:1px solid var(--line);border-radius:7px;padding:3px 8px;background:var(--panel);color:var(--muted);}
+  .qtd{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+  .qtd b{font-size:12px;padding:4px 10px;background:var(--panel);}
+  .qtd i{font-style:normal;font-size:13px;padding:4px 9px;background:var(--soft);color:var(--muted);}
+  .cart{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:4px;}
+  .cl{padding:8px 10px;border-bottom:1px solid var(--line);}
+  .cl:last-child{border-bottom:none;}
+  .cl .r1{display:flex;align-items:center;gap:7px;}
+  .cl .desc{flex:1;background:var(--bege);border:1px solid var(--line);border-radius:7px;padding:5px 8px;font-size:11.5px;color:var(--ink);}
+  .cl .tot{font-size:12.5px;font-weight:700;color:var(--marinho);}
+  .cl .r2{display:flex;align-items:center;gap:6px;margin-top:6px;flex-wrap:wrap;}
+  .lab{font-size:9.5px;font-weight:700;padding:2px 6px;border-radius:6px;background:#E1F3F5;color:var(--marinho);}
+  .faixa{font-size:10px;color:var(--ambar);margin-top:5px;}
+  .vend{font-size:10.5px;border:1px solid var(--line);border-radius:999px;padding:3px 9px;color:var(--muted);background:var(--soft);}
+  .barra{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-top:1px solid var(--line);font-size:11.5px;color:var(--muted);flex-wrap:wrap;}
+  .totbar{display:flex;align-items:center;justify-content:space-between;padding:9px 11px;background:var(--soft);border-top:1px solid var(--line);}
+  .totbar .t{font-size:12px;color:var(--muted);}
+  .totbar .v{font-size:17px;font-weight:800;color:var(--marinho);}
+  .btns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px;}
+  .b{font-size:12px;font-weight:700;border-radius:9px;padding:8px 13px;border:1px solid var(--line);background:var(--panel);color:var(--ink);}
+  .b.p{background:var(--turq);color:#fff;border-color:var(--turq);}
+  .b.g{color:var(--faint);}
+
+  /* coluna direita */
+  .day{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px;}
+  .day .nav{font-size:12px;border:1px solid var(--line);border-radius:8px;padding:3px 9px;color:var(--muted);}
+  .day .hoje{flex:1;text-align:center;font-size:11.5px;font-weight:700;border:1px solid var(--line);border-radius:8px;padding:4px 6px;}
+  .vl{border-left:3px solid var(--verde);background:var(--soft);border-radius:8px;padding:7px 9px;margin-bottom:7px;display:flex;gap:8px;align-items:flex-start;}
+  .vl.atr{border-left-color:var(--verm);}
+  .vl.orc{border-left-color:#9aa0a8;}
+  .vl.fut{border-left-color:var(--ambar);}
+  .vl .av{width:26px;height:26px;font-size:10px;}
+  .vl .who{flex:1;min-width:0;}
+  .vl .n{font-size:11.5px;font-weight:700;}
+  .vl .s{font-size:10px;color:var(--muted);}
+  .vl .acum{font-size:10px;margin-top:2px;}
+  .vl .acum b{color:var(--verm);}
+  .vl .val{font-size:11.5px;font-weight:700;color:var(--marinho);flex-shrink:0;}
+  .tag{font-size:8.5px;font-weight:700;padding:1px 5px;border-radius:5px;background:var(--bege);color:var(--muted);margin-left:4px;}
+  .ops{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+  .op{border:1px solid var(--line);border-radius:9px;padding:8px;text-align:center;font-size:11px;color:var(--ink);background:var(--panel);}
+  .fechar{grid-column:1/-1;border:1px solid var(--line);border-radius:9px;padding:8px;text-align:center;font-size:11px;color:var(--muted);background:var(--soft);}
+  .outros{margin-top:8px;font-size:10px;color:var(--faint);}
+  .outros .pil{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin:3px 4px 0 0;color:var(--muted);}
+
+  /* ── painel da explicação ── */
+  .painel{position:sticky;top:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 6px 24px rgba(1,77,94,.08);min-height:320px;}
+  .painel .vazio{color:var(--faint);font-size:13px;line-height:1.5;}
+  .painel .vazio b{color:var(--muted);display:block;margin-bottom:5px;font-size:14px;}
+  .painel h3{margin:0 0 12px;font-size:16px;font-weight:800;color:var(--marinho);line-height:1.25;}
+  @media (prefers-color-scheme:dark){.painel h3{color:var(--turq);}}
+  :root[data-theme="dark"] .painel h3{color:var(--turq);}
+  .bloco{margin:0 0 13px;}
+  .bloco .lbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.09em;color:var(--faint);margin-bottom:3px;}
+  .bloco p{margin:0;font-size:13px;color:var(--muted);line-height:1.5;}
+  .bloco.regra{background:var(--soft);border-left:4px solid var(--ambar);border-radius:0 10px 10px 0;padding:11px 13px;}
+  .bloco.regra .lbl{color:var(--ambar);}
+  .bloco.regra p{color:var(--ink);}
+  .bloco.regra .quando{display:block;margin-top:7px;font-size:11.5px;color:var(--faint);}
+  .painel .dica{margin-top:14px;padding-top:11px;border-top:1px solid var(--line);font-size:11.5px;color:var(--faint);}
+
+  /* tooltip curto */
+  #tip{position:fixed;z-index:99;max-width:250px;background:var(--marinho);color:#fff;font-size:12.5px;line-height:1.45;padding:8px 11px;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.28);opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s;pointer-events:none;}
+  #tip.show{opacity:1;transform:translateY(0);}
+  #tip b{color:#BFF0F5;}
+  #tip::after{content:"";position:absolute;width:10px;height:10px;background:var(--marinho);transform:rotate(45deg);}
+  #tip[data-pos="top"]::after{bottom:-5px;left:var(--ax,20px);}
+  #tip[data-pos="bottom"]::after{top:-5px;left:var(--ax,20px);}
+
+  /* as regras, todas juntas */
+  .regras{max-width:1320px;margin:20px auto 0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 24px;box-shadow:0 6px 24px rgba(1,77,94,.08);}
+  .regras h2{margin:0 0 4px;font-size:19px;font-weight:800;color:var(--marinho);}
+  @media (prefers-color-scheme:dark){.regras h2{color:var(--turq);}}
+  :root[data-theme="dark"] .regras h2{color:var(--turq);}
+  .regras .lead{margin:0 0 16px;font-size:13.5px;color:var(--muted);}
+  .rlist{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:820px){.rlist{grid-template-columns:1fr;}}
+  .r{border:1px solid var(--line);border-radius:11px;padding:13px 15px;background:var(--soft);}
+  .r b{display:block;font-size:13.5px;margin-bottom:4px;}
+  .r p{margin:0;font-size:12.5px;color:var(--muted);line-height:1.5;}
+  .r .q{display:block;margin-top:6px;font-size:11px;color:var(--faint);}
+
+  .legend{max-width:1320px;margin:16px auto 0;font-size:12px;color:var(--faint);text-align:center;}
+
+  @media print{
+    .page{background:#fff;padding:0;}
+    .frame,.painel,.regras{box-shadow:none;}
+    .layout{grid-template-columns:1fr;}
+    .painel{display:none;}
+  }
+</style>
+
+<div class="page">
+  <div class="head">
+    <h1>🛒 Ponto de venda — a tela por dentro</h1>
+    <p>O desenho da tela de verdade. Cada parte marcada explica o que é, como se usa e a regra que está por trás.</p>
+  </div>
+
+  <div class="banner">
+    <span class="pulse"></span>
+    <span>Passe o mouse para reconhecer · <b>Clique</b> em qualquer parte para ver a regra e o porquê dela</span>
+  </div>
+
+  <div class="layout">
+    <div class="frame">
+      <div class="scroller">
+        <div class="screen">
+
+          <!-- ───────────── COLUNA ESQUERDA: NOVA VENDA ───────────── -->
+          <div>
+            <div class="card">
+              <div class="ch">
+                <div>
+                  <div class="tt">🛒 Nova venda</div>
+                  <div class="sub">quinta-feira, 18 de setembro</div>
+                </div>
+                <span class="selo ok"
+                  data-tip="<b>Selo do caixa</b> — diz se você pode receber agora."
+                  data-t="✅ O selo do caixa"
+                  data-o="Mostra se você tem caixa aberto. Verde com o número e o seu nome: pode receber. Âmbar dizendo “Você não tem caixa aberto”: dá para salvar a venda, mas não para receber."
+                  data-c="Se estiver âmbar, abra o seu caixa no cartão 💵 Caixa, ali na coluna da direita. Você não sai da venda que está montando."
+                  data-r="O caixa é individual: cada pessoa lança no próprio, administrativo inclusive. Antes, quando havia um caixa aberto e ele não era o seu, o sistema lançava nele mesmo assim — o dinheiro entrava na gaveta de quem não recebeu, e a diferença só aparecia no fechamento, para a pessoa errada."
+                  data-d="08/09/2026">✅ Caixa 31 · Gabriela</span>
+              </div>
+              <div class="body">
+
+                <div class="linha">
+                  <div data-tip="<b>Data</b> — o dia com que a venda é gravada."
+                    data-t="📅 A data da venda"
+                    data-o="O dia em que a venda é registrada. Já vem com hoje."
+                    data-c="Só mude se estiver lançando uma venda de outro dia. Ela vai aparecer na lista daquele dia, não na de hoje."
+                    data-r="A venda aparece no dia em que foi lançada — o seletor de dia da coluna da direita manda na lista. Venda com data para a frente não some: sai da lista de agora e vai para a faixa “A cobrar em breve”. Antes ela não aparecia para ninguém cobrar."
+                    data-d="07/09/2026">
+                    <div class="rot">📅 Data</div>
+                    <div class="inp">18/09/2026</div>
+                  </div>
+                  <div data-tip="<b>Tipo</b> — venda cobra; orçamento não cobra nada."
+                    data-t="Venda ou Orçamento"
+                    data-o="Dois botões grudados. “Venda” é o que vira conta a receber. “Orçamento” é só uma proposta para o cliente pensar."
+                    data-c="Trocar aqui muda o nome do botão de salvar e desliga o “Salvar e receber” — orçamento não recebe dinheiro."
+                    data-r="Venda e orçamento são coisas separadas, e uma só vira a outra quando alguém pede. O orçamento aprovado vira venda pelo botão “💰 Virar venda”; a venda feita por engano volta a ser orçamento pelo “📄 Virar orçamento”, desde que nada tenha sido recebido."
+                    data-d="16/09/2026">
+                    <div class="rot">Tipo</div>
+                    <div class="segb"><span class="on">Venda</span><span>Orçamento</span></div>
+                  </div>
+                </div>
+
+                <div class="rot">👤 Cliente</div>
+                <div class="cli" style="margin-bottom:9px"
+                  data-tip="<b>Cliente e pet</b> — busca cruzada: nome do dono, do animal, ou os dois."
+                  data-t="👤 Achar o cliente"
+                  data-o="Duas caixinhas: “Buscar cliente” e “Buscar pet”. Dá para usar uma só ou as duas juntas, para cruzar (“Maria” + “Luna”)."
+                  data-c="Digite pelo menos 2 letras. Cada linha da lista já traz o par pet · dono — clicar preenche os dois de uma vez. Cliente com um pet só já vem com o pet escolhido."
+                  data-r="A busca é a mesma em todas as telas do sistema, num componente só. Quando cada tela tinha a sua, a recepção não achava o cliente numa e achava na outra."
+                  data-d="17/09/2026">
+                  <div class="av">MC</div>
+                  <div style="flex:1">
+                    <div class="nm">Maria Clara Souza</div>
+                    <div class="sub">2 pets cadastrados · Luna</div>
+                  </div>
+                  <div class="mini">↺ trocar</div>
+                </div>
+
+                <div class="deve" style="margin-bottom:9px"
+                  data-tip="<b>Deve R$</b> — o que o cliente já tem em aberto, de qualquer dia."
+                  data-t="⚠️ O botão vermelho “Deve R$”"
+                  data-o="Aparece quando o cliente tem conta em aberto — de qualquer dia, não só de hoje. Clicando, abre a lista das contas dele."
+                  data-c="Olhe antes de lançar. Dentro da lista dá para imprimir todas as contas ou receber todas de uma vez, em “💰 Baixar várias”."
+                  data-r="Saber que o cliente tem R$ 3.842 em aberto muda a conversa no balcão — e o Ponto de venda era justamente a tela em que isso não aparecia. A lista vem inteira e rola: cortar em oito e escrever “+ 5 não listadas” esconde justamente a conta que a pessoa foi procurar."
+                  data-d="17/09/2026">⚠️ Deve R$ 3.842,00 <span>5 contas em aberto · clique para ver</span></div>
+
+                <div class="peso" style="margin-bottom:10px"
+                  data-tip="<b>A faixa do peso</b> — é o peso que escolhe o preço."
+                  data-t="⚖️ A faixa do peso"
+                  data-o="Mostra o peso do pet e deixa registrar um peso novo sem sair da venda. Fica âmbar quando falta peso."
+                  data-c="Digite os quilos (com vírgula: 8,4) e clique em Registrar peso. O peso vai para o prontuário do animal e as linhas do carrinho cobradas por faixa se recalculam sozinhas."
+                  data-r="Quem escolhe a faixa é o peso registrado, nunca a pessoa. Item cobrado por peso não entra sem peso. Antes a recepção escolhia pelo NOME do item (“ACEPRAN — 11 A 20 KG”) — e era assim que se cobrava errado sem ninguém perceber. O Artrosan vai de R$ 80 (até 10 kg) a R$ 280 (acima de 50)."
+                  data-d="16/09/2026">⚖️ <b>Luna:</b> 8,4 kg <span class="mini">registrar pesagem nova</span></div>
+
+                <div class="rot">🛒 Produtos e serviços</div>
+                <div class="linha">
+                  <div class="inp g" data-tip="<b>Profissional</b> — preenche o vendedor dos itens que você lançar."
+                    data-t="👤 O profissional"
+                    data-o="Preenche o vendedor de cada item que você adicionar dali em diante."
+                    data-c="Escolha antes de lançar. Trocando aqui, as linhas que estavam sem vendedor (ou com o anterior) passam a ter o novo; a linha que você escolheu à mão não é tocada."
+                    data-r="É o que liga a comissão a quem atendeu. Existe uma configuração que torna o profissional obrigatório em cada item — quando ligada, a venda não salva sem ele."
+                    data-d="">Profissional…</div>
+                  <div class="qtd" data-tip="<b>Quantidade</b> — volta para 1 depois de cada item."
+                    data-t="＋ − A quantidade"
+                    data-o="Quantas unidades do próximo item que você lançar. O mínimo é 1."
+                    data-c="Ajuste antes de escolher o item. Depois de lançar, ela volta sozinha para 1 — e dá para mudar a quantidade direto na linha do carrinho."
+                    data-r="Lançar o mesmo item duas vezes soma a quantidade na linha que já existe, em vez de criar uma linha repetida."
+                    data-d=""><i>−</i><b>1</b><i>+</i></div>
+                  <div class="inp" data-tip="<b>Modelo</b> — lança vários itens de uma vez."
+                    data-t="📄 Usar um modelo"
+                    data-o="Lança de uma vez os itens de um modelo salvo (castração, pré-anestésico, pacote de exames) e acrescenta a observação dele."
+                    data-c="Escolha o modelo depois do pet, para os itens já entrarem com a faixa de peso certa. A observação do modelo se soma à sua, sem apagar o que você escreveu."
+                    data-r="O modelo guarda os itens, não os preços: eles entram sempre com o valor de hoje. Se o modelo mandasse no preço, um modelo antigo cobraria barato para sempre. Item que saiu do catálogo não entra, e a tela diz o nome de quem ficou de fora em vez de calar."
+                    data-d="06/09/2026">📄 Usar um modelo…</div>
+                </div>
+                <div class="inp busca" style="margin-bottom:9px"
+                  data-tip="<b>Busca do item</b> — mostra o preço já para este animal."
+                  data-t="🔍 A busca do item"
+                  data-o="Onde se acha o que vai ser cobrado: produto, serviço, medicamento, vacina ou exame. A lista mostra o nome, o laboratório quando é exame, e o preço."
+                  data-c="Digite uma palavra só. A busca ignora acento e aceita as palavras fora de ordem. Item cobrado por faixa mostra o preço DAQUELE animal; sem peso registrado mostra “⚖️ pelo peso · registre o peso”."
+                  data-r="Item de venda só sai do catálogo — não dá para escrever à mão. É isso que faz o relatório saber o que a clínica vendeu, e é o que liga a venda ao estoque e à comissão."
+                  data-d="16/09/2026">🔍 Produto, serviço ou pacote</div>
+
+                <div class="cart">
+                  <div class="cl">
+                    <div class="r1">
+                      <span>🏷️</span>
+                      <div class="desc" data-tip="<b>Descrição</b> — vem do catálogo e não se digita."
+                        data-t="🏷️ A linha do carrinho"
+                        data-o="O item lançado. A descrição é só leitura: ela vem do catálogo."
+                        data-c="Dá para mudar a quantidade, dar desconto e trocar o vendedor. Para tirar a linha, o 🗑️ ao lado."
+                        data-r="Item escrito à mão não casa com o cadastro — e sem esse casamento o relatório não sabe o que foi vendido, o estoque não baixa e a comissão não sai. Por isso a descrição é travada."
+                        data-d="16/09/2026">HEMOGRAMA COMPLETO CANINO</div>
+                      <span class="lab" data-tip="<b>Laboratório</b> — de onde sai o exame."
+                        data-t="⭐ O selo do laboratório"
+                        data-o="Em exames, mostra para qual laboratório o pedido vai. A estrela é o laboratório preferido da casa."
+                        data-c="Só conferir. Quem define é o cadastro do exame."
+                        data-r="O laboratório viaja junto com a linha vendida: é o que permite conferir depois quanto custou o exame e qual a margem."
+                        data-d="">⭐ Veter</span>
+                      <span class="tot">R$ 80,00</span>
+                      <span class="mini">🗑️</span>
+                    </div>
+                    <div class="faixa" data-tip="<b>A faixa</b> — só leitura: quem escolhe é o peso."
+                      data-t="⚖️ A faixa na linha"
+                      data-o="Mostra por qual faixa de peso aquele item foi cobrado, e de qual peso ela saiu."
+                      data-c="Nada a fazer aqui — é informação. Se a faixa estiver errada, o que está errado é o peso do animal."
+                      data-r="A faixa é só leitura porque quem escolhe é o peso registrado no prontuário. Se ela pudesse ser trocada à mão, voltaríamos ao problema de cobrar pela faixa errada."
+                      data-d="16/09/2026">⚖️ faixa 5–10 kg · pelo peso da Luna (8,4 kg)</div>
+                    <div class="r2">
+                      <span class="inp" style="padding:3px 8px">1</span>
+                      <span>×</span>
+                      <span class="inp g" style="padding:3px 8px"
+                        data-tip="<b>Preço</b> — do cadastro. Não se digita."
+                        data-t="🔒 O preço unitário"
+                        data-o="O valor de tabela do item, já pela faixa de peso do animal. O campo é cinza e travado."
+                        data-c="Se o preço estiver errado, o conserto é no cadastro do item — não na venda. O que dá para fazer aqui é desconto."
+                        data-r="Preço digitado à mão é a porta por onde entra a cobrança errada e o desconto sem controle. O valor vem do cadastro, e o desconto tem limite por forma de pagamento."
+                        data-d="16/09/2026">R$ 80,00</span>
+                      <span class="inp" style="padding:3px 8px"
+                        data-tip="<b>Desconto do item</b> — em R$ ou em %."
+                        data-t="🏷️ O desconto"
+                        data-o="Desconto naquela linha, em reais ou em porcentagem (o botão alterna). O rodapé do carrinho tem o desconto da venda inteira."
+                        data-c="Dê o desconto e siga. Ele é conferido no momento de receber, não agora."
+                        data-r="O limite do desconto é POR FORMA DE PAGAMENTO — dinheiro e Pix aceitam mais que cartão, porque a maquininha cobra taxa. Não existe liberação por senha de gerente: se passar do limite, o recebimento volta recusado com o motivo."
+                        data-d="16/09/2026">Desc. 0,00</span>
+                      <span class="vend" data-tip="<b>Vendedor da linha</b> — dá para ser diferente do profissional do topo."
+                        data-t="👤 O vendedor da linha"
+                        data-o="Quem vendeu aquele item. Nasce com o profissional escolhido lá em cima, e pode ser trocado linha a linha."
+                        data-c="Use quando a venda tem itens de gente diferente — a consulta da veterinária e o banho da auxiliar, por exemplo."
+                        data-r="A pílula fica destacada quando o vendedor da linha é diferente do profissional do topo, para não passar batido."
+                        data-d="">👤 Dra. Vivian</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="barra">
+                  <span data-tip="<b>Só do catálogo</b> — item não se escreve à mão."
+                    data-t="🔒 Itens vêm do catálogo"
+                    data-o="O aviso de que não existe item escrito à mão nesta tela."
+                    data-c="Não achou na busca? Tente uma palavra só. Se realmente não existir, peça o cadastro ao administrativo."
+                    data-r="É a regra da casa: nada entra como texto solto em vendas, tudo vem do catálogo. É o que sustenta relatório, estoque, comissão e o acompanhamento do quanto do faturamento está classificado."
+                    data-d="16/09/2026">🔒 Itens vêm do catálogo (busca acima)</span>
+                  <span data-tip="<b>Desconto da venda</b> — vale sobre o total."
+                    data-t="🏷️ Desconto da venda inteira"
+                    data-o="Um desconto sobre o total, em R$ ou em %, além dos descontos de cada linha."
+                    data-c="Use para o arredondamento do balcão. Para desconto em um item só, use o campo da linha."
+                    data-r="O desconto em % incide sobre o subtotal, e o total nunca fica negativo. Itens de convênio ficam de fora da conta do desconto: eles não são pagos pelo tutor."
+                    data-d="">Desconto 0,00 R$</span>
+                </div>
+                <div class="totbar">
+                  <span class="t">Total da venda</span>
+                  <span class="v">R$ 255,00</span>
+                </div>
+
+                <div style="margin-top:11px" data-tip="<b>Observações</b> — saem impressas para o cliente."
+                  data-t="📝 Observações"
+                  data-o="Um texto livre que sai impresso no demonstrativo da venda ou no orçamento."
+                  data-c="Use para combinados com o cliente: retorno, jejum, prazo de entrega do laudo."
+                  data-r="Escolher um modelo acrescenta a observação dele aqui, sem apagar o que você escreveu e sem repetir o mesmo texto duas vezes."
+                  data-d="06/09/2026">
+                  <div class="rot">📝 Observações</div>
+                  <div class="inp" style="color:var(--faint)">Retorno em 7 dias · trazer em jejum</div>
+                </div>
+
+                <div class="btns">
+                  <span class="b p" data-tip="<b>Salvar e receber</b> — salva e abre o recebimento."
+                    data-t="💰 Salvar e receber"
+                    data-o="Salva a venda e abre na hora a gaveta de recebimento, com esta venda já marcada e as outras contas em aberto do cliente listadas embaixo."
+                    data-c="É o botão do balcão, para quando o cliente está pagando agora. Fica apagado enquanto faltar cliente, pet ou item, e some quando o Tipo é Orçamento."
+                    data-r="Receber é sempre na mesma gaveta, que pergunta em qual caixa o dinheiro entra e mostra a data dele. Antes o servidor escolhia o caixa mais recente sem avisar ninguém."
+                    data-d="16/09/2026">💰 Salvar e receber</span>
+                  <span class="b" data-tip="<b>Salvar</b> — deixa a venda como “a receber”."
+                    data-t="💾 Salvar"
+                    data-o="Guarda a venda para receber depois. Ela entra na lista da direita como conta em aberto."
+                    data-c="O nome muda sozinho: “💾 Salvar orçamento” quando o Tipo é Orçamento, e “💾 Salvar alterações” quando você abriu uma venda para editar."
+                    data-r="Caução é a exceção: ela não pode ficar “a receber”, porque é dinheiro que entra agora e vira crédito do cliente. Tentando salvar só caução, o sistema recusa e manda usar o recebimento."
+                    data-d=""> 💾 Salvar</span>
+                  <span class="b" data-tip="<b>Imprimir</b> — funciona antes mesmo de salvar."
+                    data-t="🖨️ Imprimir venda"
+                    data-o="Imprime o que está na tela, mesmo antes de salvar."
+                    data-c="Serve para mostrar o valor ao cliente antes de fechar. Com o carrinho vazio ele fica apagado."
+                    data-r="O papel muda de nome conforme o momento: antes de pagar é demonstrativo de venda ou orçamento; depois de pago é recibo, que sai no timbrado e pode ir em PDF pelo WhatsApp."
+                    data-d="17/09/2026">🖨️ Imprimir venda</span>
+                  <span class="b g" data-tip="<b>Cancelar</b> — limpa a tela, não apaga nada salvo."
+                    data-t="✕ Cancelar"
+                    data-o="Limpa tudo o que está na tela: cliente, pet, itens, descontos e observação."
+                    data-c="Use para recomeçar. Não apaga nenhuma venda já salva."
+                    data-r="Nada vai para o servidor antes de você clicar em salvar. O que está montado fica só neste computador até então."
+                    data-d="16/09/2026">✕ Cancelar</span>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- ───────────── COLUNA DIREITA ───────────── -->
+          <div>
+            <div class="card">
+              <div class="ch">
+                <div class="tt">🧾 Vendas</div>
+                <span class="mini" data-tip="<b>Atualizar</b> — recarrega a lista."
+                  data-t="🔄 Atualizar"
+                  data-o="Recarrega as vendas e os orçamentos do dia escolhido."
+                  data-c="Use se outra pessoa lançou algo agora e você quer ver aparecer."
+                  data-r=""
+                  data-d="">🔄</span>
+              </div>
+              <div class="body">
+                <div class="day" data-tip="<b>O dia</b> — a lista mostra o dia escolhido."
+                  data-t="‹ › O seletor de dia"
+                  data-o="Escolhe de que dia é a lista abaixo. Clicando na data, abre o calendário."
+                  data-c="Para achar uma venda sem saber a data, não fique adivinhando aqui: use “🔍 Localizar venda”."
+                  data-r="A conta aparece no dia em que foi aberta, e o orçamento no dia em que foi feito — não acumulados no dia de hoje. Sem esse filtro, o orçamento de qualquer data reaparecia todo santo dia e empurrava a venda do dia para fora da tela."
+                  data-d="07/09/2026">
+                  <span class="nav">‹</span>
+                  <span class="hoje">Hoje · 18/09/2026</span>
+                  <span class="nav">›</span>
+                </div>
+                <div class="inp" style="margin-bottom:9px;font-size:11.5px;color:var(--muted)"
+                  data-tip="<b>Localizar venda</b> — de qualquer dia, por número ou cliente."
+                  data-t="🔍 Localizar venda"
+                  data-o="Acha uma venda de qualquer dia pelo número, pelo cliente, pelo pet, por período ou por situação (em aberto / paga)."
+                  data-c="A venda encontrada abre no mesmo painel de detalhe da lista — inclusive com o saldo devedor do cliente na hora de receber."
+                  data-r="Foi pedido olhando o SimplesVet: achar uma venda sem ter que adivinhar a data no seletor."
+                  data-d="07/09/2026">🔍 Localizar venda</div>
+
+                <div class="vl"
+                  data-tip="<b>Verde</b> — conta a pagar do dia."
+                  data-t="🟢 A linha verde"
+                  data-o="Conta a receber do dia escolhido. À direita, o que ainda falta receber."
+                  data-c="Clique para abrir a venda: dá para ver os itens, receber, imprimir recibo, devolver ou excluir."
+                  data-r="A lista é uma só, colorida pela situação — não duas abas. Nela fica o que está EM PÉ: venda paga sai da lista e vira recebimento."
+                  data-d="07/09/2026">
+                  <div class="av">MC</div>
+                  <div class="who"><div class="n">Maria Clara Souza</div><div class="s">Luna</div></div>
+                  <div class="val">R$ 255,00</div>
+                </div>
+
+                <div class="vl atr"
+                  data-tip="<b>Vermelho</b> — conta de dia anterior, em aberto."
+                  data-t="🔴 A linha vermelha"
+                  data-o="Conta de dia anterior que ainda não foi paga. Traz “em aberto desde” com a data."
+                  data-c="É a que precisa de cobrança. Quando o mesmo cliente tem duas ou mais contas, aparece uma terceira linha com o total acumulado."
+                  data-r="A palavra é “em aberto”, não “atrasada”: é o mesmo vocabulário da venda e do orçamento, sem soar como cobrança de inadimplente — quem lê isso está com o cliente na frente. E o dinheiro vem primeiro na frase, porque era tudo vermelho e nada se destacava."
+                  data-d="10/09/2026">
+                  <div class="av">JP</div>
+                  <div class="who">
+                    <div class="n">João Pedro Lima <span class="tag">INTERNAÇÃO</span></div>
+                    <div class="s">Chico · em aberto desde 12/09</div>
+                    <div class="acum"><b>R$ 3.288,00 em aberto</b> · 5 contas · a mais antiga de 12/09</div>
+                  </div>
+                  <div class="val">R$ 382,00</div>
+                </div>
+
+                <div class="vl orc"
+                  data-tip="<b>Cinza</b> — orçamento: ainda não cobra nada."
+                  data-t="⚪ A linha cinza do orçamento"
+                  data-o="Orçamento feito naquele dia. Não é venda e não cobra nada."
+                  data-c="Clique para abrir: de dentro dele dá para imprimir, editar os itens e usar o “💰 Virar venda” quando o cliente aprovar."
+                  data-r="Converter em venda só ao ABRIR o orçamento, nunca por um clique na lista — para ninguém transformar sem querer. Aparecem no máximo oito; o resto vira uma linha dizendo quantos não couberam."
+                  data-d="07/09/2026">
+                  <div class="av" style="background:#9aa0a8">📄</div>
+                  <div class="who"><div class="n">Ana Beatriz</div><div class="s">Thor · orçamento</div></div>
+                  <div class="val" style="color:var(--muted)">R$ 1.180,00</div>
+                </div>
+
+                <div class="vl fut"
+                  data-tip="<b>A cobrar em breve</b> — venda com data para a frente."
+                  data-t="🗓️ A cobrar em breve"
+                  data-o="Vendas lançadas com data futura. Saem da lista de hoje e ficam nesta faixa."
+                  data-c="Serve para o que já foi combinado e será cobrado depois. No dia marcado, a conta entra na lista normal."
+                  data-r="Antes, venda com data para a frente simplesmente não aparecia para ninguém cobrar."
+                  data-d="">
+                  <div class="av" style="background:#B8860B">🗓️</div>
+                  <div class="who"><div class="n">Carlos Eduardo</div><div class="s">Mel · 22/09</div></div>
+                  <div class="val" style="color:var(--ambar)">R$ 420,00</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="ch">
+                <div class="tt">💵 Caixa nº 31</div>
+                <span class="sub">aberto 18/09</span>
+              </div>
+              <div class="body">
+                <div class="ops">
+                  <span class="op" data-tip="<b>Suprimento</b> — dinheiro entrando no caixa."
+                    data-t="Suprimento"
+                    data-o="Dinheiro que ENTRA no caixa vindo de uma conta — o reforço de troco, por exemplo."
+                    data-c="Informe o valor e de qual conta o dinheiro saiu. A conta de origem é obrigatória."
+                    data-r="A conta era opcional, e quem deixasse em branco tinha o movimento gravado no caixa sem nenhum lançamento no financeiro, em silêncio: em setembro foram 9 movimentações, R$ 1.040,54, que saíram do caixa e não entraram em conta nenhuma."
+                    data-d="16/09/2026">Suprimento</span>
+                  <span class="op" data-tip="<b>Sangria</b> — dinheiro saindo do caixa."
+                    data-t="Sangria"
+                    data-o="Dinheiro que SAI do caixa para uma conta — o malote do banco, por exemplo."
+                    data-c="Informe o valor e para qual conta o dinheiro foi. A conta de destino é obrigatória: “o dinheiro precisa entrar em algum lugar”."
+                    data-r="É o mesmo formulário da tela de Caixa, não uma segunda via escrita aqui. Formulário de dinheiro repetido é como a busca de item ficou quebrada em três telas."
+                    data-d="07/09/2026">Sangria</span>
+                  <span class="op" data-tip="<b>Despesa</b> — pagamento feito pelo caixa."
+                    data-t="Despesa"
+                    data-o="Uma conta paga com o dinheiro do caixa."
+                    data-c="Pede a forma e a CATEGORIA — é a categoria que leva a despesa para o DRE."
+                    data-r="Sem categoria a despesa entra sem classificação e some do relatório. Por isso a tela avisa quando não há categorias cadastradas."
+                    data-d="">Despesa</span>
+                  <span class="op" data-tip="<b>Transferência</b> — de uma conta para outra."
+                    data-t="Transferência"
+                    data-o="Move dinheiro de uma conta para outra."
+                    data-c="Escolha origem e destino. Não podem ser a mesma conta — “a transferência não sairia do lugar”."
+                    data-r="Transferência entre caixas não trava por saldo: a conferência é do fechamento, não do lançamento."
+                    data-d="">Transferência</span>
+                  <span class="fechar" data-tip="<b>Fechar o caixa</b> — conferir a gaveta e encerrar."
+                    data-t="🔒 Fechar o caixa"
+                    data-o="Leva para a tela de Caixa, onde se confere o dinheiro da gaveta e se encerra o caixa."
+                    data-c="Feche você mesma se quiser conferir o dinheiro. Se esquecer, o sistema encerra sozinho."
+                    data-r="Todo caixa é encerrado automaticamente à meia-noite, sem conferência de gaveta. Não é configuração, é regra da casa: caixa aberto atravessando o dia é a origem da confusão toda, porque a tela lista o caixa do DIA e o de ontem some dela."
+                    data-d="08/09/2026">🔒 Fechar o caixa · conferir</span>
+                </div>
+                <div class="outros" data-tip="<b>Outros caixas</b> — informação, não destino."
+                  data-t="Outros caixas abertos"
+                  data-o="Quem mais está com caixa aberto agora."
+                  data-c="É só informação — você continua recebendo no seu."
+                  data-r="A clínica opera com dois caixas abertos ao mesmo tempo, um por funcionária. Saber quem está com o caixa aberto ajuda a recepção a se organizar, mas ninguém lança no caixa de outra pessoa."
+                  data-d="02/09/2026">
+                  Outros caixas abertos
+                  <span class="pil">CX 32 · Victoria · 18/09</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <aside class="painel" id="painel">
+      <div class="vazio" id="vazio">
+        <b>👈 Clique em uma parte da tela</b>
+        As partes marcadas explicam o que são, como se usam e a regra que está por trás — com a data em que a regra foi decidida e o problema que ela resolveu.
+      </div>
+      <div id="conteudo" hidden>
+        <h3 id="p-titulo"></h3>
+        <div class="bloco"><div class="lbl">O que é</div><p id="p-oque"></p></div>
+        <div class="bloco"><div class="lbl">Como usar</div><p id="p-como"></p></div>
+        <div class="bloco regra" id="p-regrabox"><div class="lbl">📜 A regra — e por quê</div><p id="p-regra"></p><span class="quando" id="p-quando"></span></div>
+        <div class="dica">Clique em outra parte da tela para continuar.</div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="regras">
+    <h2>📜 As regras desta tela, todas juntas</h2>
+    <p class="lead">O raciocínio por trás do que foi construído. Cada uma nasceu de um problema real da clínica — está aqui para a equipe entender a limitação, em vez de achar que o sistema está com defeito.</p>
+    <div class="rlist">
+      <div class="r"><b>⚖️ O peso escolhe o preço</b><p>Item cobrado por faixa só entra com o peso registrado. Ninguém escolhe a faixa na mão.</p><span class="q">16/09/2026 — antes se escolhia pelo nome do item, e era assim que se cobrava errado.</span></div>
+      <div class="r"><b>🔒 Preço não se digita</b><p>O valor vem do cadastro, pela faixa do peso. Preço errado se conserta no cadastro.</p><span class="q">16/09/2026 — "sem preço à mão".</span></div>
+      <div class="r"><b>📚 Item só sai do catálogo</b><p>Nada entra como texto solto numa venda.</p><span class="q">16/09/2026 — é o que faz relatório, estoque e comissão funcionarem.</span></div>
+      <div class="r"><b>💵 O caixa é individual</b><p>Cada pessoa lança no próprio caixa, administrativo inclusive. Abrir o seu custa um clique.</p><span class="q">08/09/2026 — o dinheiro entrava na gaveta de quem não recebeu.</span></div>
+      <div class="r"><b>🕛 O caixa encerra à meia-noite</b><p>Todo caixa aberto é encerrado às 00:00, com ou sem conferência de gaveta.</p><span class="q">08/09/2026 — caixa aberto atravessando o dia sumia da tela do dia seguinte.</span></div>
+      <div class="r"><b>🏷️ Desconto é por forma de pagamento</b><p>Dinheiro e Pix aceitam mais que cartão, porque a maquininha cobra taxa. Não há liberação por senha.</p><span class="q">16/09/2026 — o limite passou a ser conferido no recebimento.</span></div>
+      <div class="r"><b>🎨 Uma lista só, colorida pela situação</b><p>Verde é do dia, vermelho é de dia anterior, cinza é orçamento, âmbar é a cobrar em breve.</p><span class="q">07/09/2026 — "não quero duas abas no ponto de venda".</span></div>
+      <div class="r"><b>📄 Orçamento fica no dia em que foi feito</b><p>Não se acumula no dia de hoje, igual à venda.</p><span class="q">07/09/2026 — senão o orçamento antigo empurrava a venda do dia para fora da tela.</span></div>
+      <div class="r"><b>💰 Caução é adiantamento</b><p>Recebida sozinha, nunca "a receber": vira crédito no nome do cliente.</p><span class="q">Vendida como item comum, o cliente pagava duas vezes.</span></div>
+      <div class="r"><b>📦 Estoque avisa, não trava</b><p>Lançar sem saldo mostra aviso amarelo e deixa seguir — a decisão é de quem está com o cliente na frente.</p><span class="q">02/09/2026 — sem reserva de estoque.</span></div>
+      <div class="r"><b>🗑️ Excluir venda tem dono</b><p>Administrador sempre pode; os demais só enquanto nada foi recebido e dentro do caixa aberto.</p><span class="q">A clínica já perdeu R$ 40 mil de histórico por exclusão.</span></div>
+      <div class="r"><b>🗄️ Agosto é histórico</b><p>O que é anterior a 31/08 às 23:59 não aparece como conta a receber: fica só para consulta.</p><span class="q">17/09/2026 — as vendas em aberto caíram de 90 para 34.</span></div>
+    </div>
+  </div>
+
+  <p class="legend">Esta é uma maquete: uma cópia desenhada da tela, feita para treinar. Os números são de exemplo.</p>
+</div>
+
+<div id="tip" role="tooltip"></div>
+
+<script>
+(function(){
+  var tip=document.getElementById('tip');
+  var current=null;
+
+  /* ── balãozinho curto: passar o mouse para reconhecer ── */
+  function show(el){
+    var html=el.getAttribute('data-tip'); if(!html) return;
+    tip.innerHTML=html; tip.classList.add('show');
+    var r=el.getBoundingClientRect();
+    var tw=Math.min(250, tip.offsetWidth||250), th=tip.offsetHeight;
+    var below=r.top < th+16;
+    tip.setAttribute('data-pos', below?'bottom':'top');
+    var x=r.left; if(x+tw>window.innerWidth-8) x=window.innerWidth-tw-8; if(x<8) x=8;
+    tip.style.left=x+'px';
+    tip.style.top=(below? r.bottom+9 : r.top-th-9)+'px';
+    tip.style.setProperty('--ax', Math.max(12, Math.min(r.left - x + r.width/2, tw-20))+'px');
+  }
+  function hide(){ tip.classList.remove('show'); }
+  document.addEventListener('pointerover',function(e){ var el=e.target.closest('[data-tip]'); if(el) show(el); });
+  document.addEventListener('pointerout',function(e){ var el=e.target.closest('[data-tip]'); if(el && !el.contains(e.relatedTarget)) hide(); });
+  window.addEventListener('scroll',hide,true);
+  window.addEventListener('resize',hide);
+
+  /* ── o painel: clicar abre a explicação inteira, e ela FICA ── */
+  var vazio=document.getElementById('vazio');
+  var conteudo=document.getElementById('conteudo');
+  var regrabox=document.getElementById('p-regrabox');
+  function texto(id,v){ document.getElementById(id).textContent=v||''; }
+
+  function abrir(el){
+    if(current) current.classList.remove('on');
+    current=el; el.classList.add('on');
+    texto('p-titulo', el.getAttribute('data-t') || '');
+    texto('p-oque',   el.getAttribute('data-o') || '');
+    texto('p-como',   el.getAttribute('data-c') || '');
+    var regra=el.getAttribute('data-r')||'', quando=el.getAttribute('data-d')||'';
+    texto('p-regra', regra);
+    texto('p-quando', quando ? ('Decidido em ' + quando) : '');
+    regrabox.hidden = !regra;          /* parte sem regra própria não mostra a caixa vazia */
+    vazio.hidden = true; conteudo.hidden = false;
+    /* no celular o painel fica embaixo: leva a pessoa até ele */
+    if(window.matchMedia('(max-width:1100px)').matches){
+      document.getElementById('painel').scrollIntoView({behavior:'smooth', block:'nearest'});
+    }
+  }
+
+  document.addEventListener('click',function(e){
+    var el=e.target.closest('[data-tip]');
+    if(el){ hide(); abrir(el); e.stopPropagation(); }
+  });
+  /* teclado: Tab para andar, Enter ou espaço para abrir */
+  document.querySelectorAll('[data-tip]').forEach(function(el){
+    if(!el.hasAttribute('tabindex')) el.setAttribute('tabindex','0');
+    el.setAttribute('role','button');
+    el.addEventListener('keydown',function(ev){
+      if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); abrir(el); }
+    });
+    el.addEventListener('focus',function(){ show(el); });
+    el.addEventListener('blur',hide);
+  });
+})();
+</script>
+</body></html>
