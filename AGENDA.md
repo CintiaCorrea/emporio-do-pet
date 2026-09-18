@@ -121,6 +121,12 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Menu de Vendas arrumado** (17/09, ela apontou): a barra lateral (Sidebar.tsx) e uma SEGUNDA
+  lista, separada da matriz — "Recebimentos sem forma" (tela ja removida) e "Orcamentos" continuavam
+  la. Sairam das duas. "Vendas — graficos" mudou para o grupo Inteligencia e nasce so para ADMIN.
+  Modelo de orcamento, Modelo de demonstrativo e Formas de recebimento viraram ABAS de Configuracao de
+  vendas (componentes em components/vendas/config; os enderecos antigos redirecionam com ?aba=). O
+  desconto por forma continua editavel na aba "Formas de recebimento". Trava: `menu-de-vendas.spec.ts`.
 - [x] **Guia de Vendas do Academy refeito** (17/09): `vet-crm/public/academia/guia-vendas.html` no MESMO
   formato do guia do WhatsApp (mesmo <style>), contando o sistema como ele e hoje: 4 portas, item e preco
   do cadastro, gaveta unica de receber, credito/troco, orcamento e a volta (venda vira orcamento),

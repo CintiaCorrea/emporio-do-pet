@@ -128,10 +128,8 @@ const NAV: Entry[] = [
       // "Recebimentos sem forma" saiu do sistema em 17/09/2026 (não há mais recebimento sem forma).
       { href: "/dashboard/erp/pacotes", label: "Pacotes vendidos", emoji: "📦", roles: ALL },
       { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ALL },
-      { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN", "RECEPTIONIST"] },
-      { href: "/dashboard/erp/modelos-orcamento", label: "Modelo de orçamento", emoji: "📄", roles: ALL },
-      { href: "/dashboard/erp/modelo-demonstrativo", label: "Modelo de demonstrativo", emoji: "🧾", roles: ["ADMIN"] },
-      { href: "/dashboard/erp/formas-recebimento", label: "Formas de recebimento", emoji: "💳", roles: ["ADMIN"] },
+      // Modelo de orçamento, Modelo de demonstrativo e Formas de recebimento viraram ABAS desta
+      // tela em 17/09/2026 — é aqui que se edita o desconto permitido por forma de pagamento.
       { href: "/dashboard/erp/configuracoes-vendas", label: "Configuração de vendas", emoji: "⚙️", roles: ["ADMIN"] },
       { href: "/dashboard/erp/importar-vendas", label: "Importar vendas", emoji: "📥", roles: ["ADMIN"] },
     ],
@@ -147,6 +145,9 @@ const NAV: Entry[] = [
   {
     group: true, key: "inteligencia", label: "Inteligência", emoji: "💡", roles: ALL, section: "GESTAO",
     children: [
+      // "Vendas — gráficos" mudou de casa em 17/09/2026 (Cintia): é estudo, não é balcão. E nasce
+      // FECHADO para quem não é administrativo — dinheiro da clínica não é assunto do balcão.
+      { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN"] },
       { href: "/dashboard/erp/minhas-vendas", label: "Produtividade", emoji: "📈", roles: ALL },
       { href: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆", roles: ["ADMIN", "RECEPTIONIST"] },
       { href: "/dashboard/erp/retencao", label: "Retenção e Churn", emoji: "🔄", roles: ["ADMIN", "RECEPTIONIST"] },

@@ -15,7 +15,7 @@ const ler = (...p: string[]) => readFileSync(join(RAIZ, ...p), "utf8");
 
 describe("onde se define", () => {
   it("cada forma de recebimento tem o seu desconto permitido", () => {
-    const src = ler("app", "(user)", "dashboard", "erp", "formas-recebimento", "page.tsx");
+    const src = ler("components", "vendas", "config", "FormasDeRecebimento.tsx");
     expect(src).toContain("Desconto permitido (%)");
     expect(src).toContain('descontoMax: String(form.descontoMax ?? "").trim().replace(",", ".")');
   });

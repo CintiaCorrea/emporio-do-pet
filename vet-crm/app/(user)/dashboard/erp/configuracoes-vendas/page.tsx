@@ -5,6 +5,9 @@
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import { usePodeEditar } from "@/lib/permissions/context";
+import ModelosDeOrcamento from "@/components/vendas/config/ModelosDeOrcamento";
+import ModeloDeDemonstrativo from "@/components/vendas/config/ModeloDeDemonstrativo";
+import FormasDeRecebimento from "@/components/vendas/config/FormasDeRecebimento";
 
 const DEFAULTS = {
   obrigarProfissionalItem: false,
@@ -81,10 +84,54 @@ export default function ConfigVendasPage() {
     </div>
   );
 
+  // TUDO DE CONFIGURAÇÃO NUM LUGAR SÓ (Cintia, 17/09/2026). Eram quatro entradas no menu para o
+  // mesmo assunto: regras, formas de recebimento e os dois modelos. Agora são abas — e o desconto
+  // por forma de pagamento continua editável, na aba "Formas de recebimento".
+  const ABAS = [
+    { k: "regras", l: "⚙️ Regras da venda" },
+    { k: "formas", l: "💳 Formas de recebimento" },
+    { k: "orcamento", l: "📄 Modelo de orçamento" },
+    { k: "demonstrativo", l: "🧾 Modelo de demonstrativo" },
+  ] as const;
+  type Aba = (typeof ABAS)[number]["k"];
+  const [aba, setAba] = useState<Aba>("regras");
+  useEffect(() => {
+    try {
+      const q = (new URLSearchParams(window.location.search).get("aba") || "").toLowerCase();
+      if (ABAS.some((a) => a.k === q)) setAba(q as Aba);
+    } catch { /* sem parâmetro: abre nas regras */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const abasHtml = (
+    <div className="flex gap-2 flex-wrap mb-4">
+      {ABAS.map((a) => (
+        <button
+          key={a.k}
+          onClick={() => setAba(a.k)}
+          className="text-[13px] font-semibold px-3.5 py-2 rounded-lg border"
+          style={aba === a.k
+            ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" }
+            : { background: "#fff", color: "#5F5E5A", borderColor: "#E8DFC8" }}
+        >{a.l}</button>
+      ))}
+    </div>
+  );
+
   if (loading) return <div className="p-6 text-center text-sm text-[#374151]">Carregando...</div>;
+
+  if (aba !== "regras") {
+    return (
+      <div className="p-4 md:p-6 w-full">
+        {abasHtml}
+        {aba === "formas" ? <FormasDeRecebimento /> : aba === "orcamento" ? <ModelosDeOrcamento /> : <ModeloDeDemonstrativo />}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
+      {abasHtml}
       <div className="text-[12.5px] text-[#374151] mb-4">As regras do módulo de vendas. Cada ajuste é salvo e passa a valer no Ponto de venda, atendimento e caixa.</div>
 
       <Card titulo="💵 Caixa">

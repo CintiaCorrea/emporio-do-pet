@@ -66,10 +66,7 @@ export const PERM_SECTIONS: PermSection[] = [
           { key: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦" },
           { key: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾" },
           { key: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛" },
-          { key: "/dashboard/erp/formas-recebimento", label: "Formas de recebimento", emoji: "💳" },
           { key: "/dashboard/erp/configuracoes-vendas", label: "Configuração de vendas", emoji: "⚙️" },
-          { key: "/dashboard/erp/modelos-orcamento", label: "Modelo de orçamento", emoji: "📄" },
-          { key: "/dashboard/erp/modelo-demonstrativo", label: "Modelo de demonstrativo", emoji: "🧾" },
           { key: "/dashboard/erp/importar-vendas", label: "Importar cadastro (SimplesVet)", emoji: "📥" },
         ],
       },
@@ -84,7 +81,6 @@ export const PERM_SECTIONS: PermSection[] = [
         key: "inteligencia", label: "Inteligência", emoji: "💡", children: [
           { key: "/dashboard/erp/minhas-vendas", label: "Produtividade", emoji: "📈" },
           { key: "/dashboard/erp/ranking-clientes", label: "Ranking de clientes", emoji: "🏆" },
-          { key: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊" },
         ],
       },
       {
