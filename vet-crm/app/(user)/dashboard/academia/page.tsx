@@ -9,11 +9,13 @@ import { useState } from "react";
 type Tema = "whatsapp" | "agenda" | "ficha" | "fisio" | "gravacao" | "veterinario" | "financeiro" | "vendas" | "exames" | "docs" | "regras";
 type ConteudoWa = "guia" | "maquete" | "api";
 type ConteudoAg = "guia" | "maquete";
+type ConteudoVd = "pdv" | "geral";
 
 export default function AcademiaPage() {
   const [tema, setTema] = useState<Tema>("whatsapp");
   const [wa, setWa] = useState<ConteudoWa>("guia");
   const [ag, setAg] = useState<ConteudoAg>("guia");
+  const [vd, setVd] = useState<ConteudoVd>("pdv");
 
   const temas: { key: Tema; label: string; emoji: string }[] = [
     { key: "whatsapp", label: "WhatsApp", emoji: "📲" },
@@ -209,15 +211,31 @@ export default function AcademiaPage() {
       )}
 
       {/* TEMA: Vendas (guia interativo — catálogo, PDV, orçamento, comissão) */}
+      {/* VENDAS EM PARTES (18/09/2026). O material de vendas estava numa página só, tentando
+          explicar PDV, caixa, orçamento e internação juntos — por isso ficava raso. Cada parte
+          passa a ter a sua página, no molde do guia do WhatsApp. A primeira é o Ponto de venda. */}
       {tema === "vendas" && (
         <div className="bg-white rounded-2xl border overflow-hidden" style={{ borderColor: "#E8DFC8" }}>
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Vendas</span>
-            <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>🛒 Guia interativo</span>
-            <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Reescrito em 17/09/2026, com a reforma das vendas. Dá pra imprimir.</span>
+            {([["pdv", "🛒 Ponto de venda"], ["geral", "📖 Visão geral"]] as [ConteudoVd, string][]).map(([k, lbl]) => {
+              const on = vd === k;
+              return (
+                <button key={k} onClick={() => setVd(k)}
+                  className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border transition"
+                  style={on
+                    ? { background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }
+                    : { background: "#fff", color: "#5F5E5A", borderColor: "#E8DFC8" }}>
+                  {lbl}
+                </button>
+              );
+            })}
+            <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>
+              {vd === "pdv" ? "A tela do balcão, botão por botão. Dá pra imprimir." : "O módulo inteiro em uma página. Dá pra imprimir."}
+            </span>
           </div>
           <iframe
-            src="/academia/guia-vendas.html"
+            src={vd === "pdv" ? "/academia/guia-vendas-ponto-de-venda.html" : "/academia/guia-vendas.html"}
             title="Guia de Vendas"
             className="w-full block"
             style={{ height: "calc(100vh - 250px)", minHeight: 520, border: 0 }}

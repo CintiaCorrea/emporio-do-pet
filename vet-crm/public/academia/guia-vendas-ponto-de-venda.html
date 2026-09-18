@@ -1,0 +1,413 @@
+<!doctype html><html lang="pt-BR" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Guia — Ponto de venda</title></head><body>
+<style>
+  :root {
+    --turq: #009AAC; --marinho: #014D5E; --bege: #E8DFC8;
+    --verde: #0F6E56; --vermelho: #A32D2D; --roxo: #7C3AED; --ambar: #8A5A0B;
+    --ink: #14253a; --muted: #5F5E5A; --faint: #8A8778;
+    --bg: #F6F2EA; --card: #ffffff; --line: #e8e1d2; --soft: #FBF9F4;
+    --shadow: 0 1px 3px rgba(1,77,94,.07), 0 6px 20px rgba(1,77,94,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink: #eaf1f2; --muted: #b8c2c4; --faint: #8f9a9c;
+      --bg: #0e1516; --card: #16201f; --line: #26332f; --soft: #131c1b;
+      --bege: #2a2a22; --ambar: #D9A441;
+      --shadow: 0 1px 3px rgba(0,0,0,.3), 0 6px 20px rgba(0,0,0,.25);
+    }
+  }
+  :root[data-theme="light"] {
+    --ink: #14253a; --muted: #5F5E5A; --faint: #8A8778;
+    --bg: #F6F2EA; --card: #ffffff; --line: #e8e1d2; --soft: #FBF9F4; --bege: #E8DFC8; --ambar: #8A5A0B;
+  }
+  :root[data-theme="dark"] {
+    --ink: #eaf1f2; --muted: #b8c2c4; --faint: #8f9a9c;
+    --bg: #0e1516; --card: #16201f; --line: #26332f; --soft: #131c1b; --bege: #2a2a22; --ambar: #D9A441;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; }
+  .wrap {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg); color: var(--ink);
+    line-height: 1.55; -webkit-font-smoothing: antialiased;
+    padding: 0 20px 80px;
+  }
+  .container { max-width: 860px; margin: 0 auto; }
+
+  /* Cabeçalho */
+  header.hero {
+    background: linear-gradient(135deg, var(--marinho), var(--turq));
+    color: #fff; border-radius: 20px; padding: 34px 30px 30px;
+    margin: 28px auto 26px; max-width: 860px; box-shadow: var(--shadow);
+  }
+  header.hero .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 700; opacity: .85; margin: 0 0 8px; }
+  header.hero h1 { margin: 0 0 8px; font-size: 30px; line-height: 1.15; font-weight: 800; text-wrap: balance; }
+  header.hero p { margin: 0; font-size: 15px; opacity: .92; max-width: 60ch; }
+  header.hero .meta { margin-top: 16px; font-size: 12px; opacity: .8; display: flex; gap: 14px; flex-wrap: wrap; }
+
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 24px 26px; margin: 0 0 18px; box-shadow: var(--shadow); }
+  section > h2 { margin: 0 0 4px; font-size: 20px; color: var(--marinho); font-weight: 800; display: flex; align-items: center; gap: 9px; }
+  @media (prefers-color-scheme: dark) { section > h2 { color: var(--turq); } }
+  :root[data-theme="dark"] section > h2 { color: var(--turq); }
+  section > .lead { margin: 0 0 18px; color: var(--muted); font-size: 14px; }
+  h3 { font-size: 15px; margin: 20px 0 8px; color: var(--ink); font-weight: 700; }
+  p { text-wrap: pretty; }
+
+  /* Diagrama das áreas */
+  .cols3 { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 10px; }
+  .colbox { border: 1.5px solid var(--line); border-radius: 12px; padding: 14px; background: var(--soft); }
+  .colbox .num { width: 22px; height: 22px; border-radius: 50%; background: var(--turq); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-bottom: 8px; }
+  .colbox b { display: block; font-size: 13.5px; color: var(--ink); margin-bottom: 3px; }
+  .colbox span { font-size: 12.5px; color: var(--muted); }
+  @media (max-width: 620px) { .cols3 { grid-template-columns: 1fr; } }
+
+  /* Passo a passo */
+  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
+  ol.steps > li { counter-increment: s; position: relative; padding: 4px 0 16px 44px; border-left: 2px solid var(--line); margin-left: 15px; }
+  ol.steps > li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: -15px; top: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--marinho); color: #fff; font-size: 14px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  ol.steps > li b { color: var(--ink); }
+  ol.steps > li p { margin: 3px 0 0; color: var(--muted); font-size: 13.5px; }
+
+  /* Chips que imitam os botões da tela */
+  .ui { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); vertical-align: middle; white-space: nowrap; }
+  .ui.turq { background: var(--turq); color: #fff; border-color: var(--turq); }
+  .ui.verde { background: var(--verde); color: #fff; border-color: var(--verde); }
+  .ui.vermelho { background: var(--vermelho); color: #fff; border-color: var(--vermelho); }
+  .ui.ghost { background: var(--soft); color: var(--muted); }
+
+  /* Lista de botões explicados */
+  .btnlist { display: grid; gap: 10px; }
+  .btnrow { display: grid; grid-template-columns: 170px 1fr; gap: 14px; align-items: start; padding: 11px 0; border-bottom: 1px dashed var(--line); }
+  .btnrow:last-child { border-bottom: none; }
+  .btnrow .what { color: var(--muted); font-size: 13.5px; }
+  .btnrow .what b { color: var(--ink); }
+  @media (max-width: 560px) { .btnrow { grid-template-columns: 1fr; gap: 5px; } }
+
+  /* Caixa de atenção (as nuances) */
+  .note { border-left: 4px solid var(--ambar); background: color-mix(in srgb, var(--ambar) 8%, var(--card)); border-radius: 0 11px 11px 0; padding: 12px 15px; margin: 12px 0 0; font-size: 13.5px; color: var(--muted); }
+  .note b { color: var(--ink); }
+  .note.teal { border-left-color: var(--turq); background: color-mix(in srgb, var(--turq) 8%, var(--card)); }
+  .note.red { border-left-color: var(--vermelho); background: color-mix(in srgb, var(--vermelho) 7%, var(--card)); }
+
+  /* Cartões lado a lado */
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .pcard { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; background: var(--soft); }
+  .pcard h4 { margin: 0 0 6px; font-size: 14px; display: flex; align-items: center; gap: 7px; }
+  .pcard p { margin: 0; font-size: 13px; color: var(--muted); }
+  @media (max-width: 560px) { .pair { grid-template-columns: 1fr; } }
+
+  /* Linhas de contexto */
+  .ctx { display: grid; gap: 9px; }
+  .ctxrow { display: flex; gap: 11px; align-items: baseline; font-size: 13.5px; }
+  .ctxrow .ic { font-size: 15px; width: 22px; text-align: center; flex-shrink: 0; }
+  .ctxrow b { color: var(--ink); }
+  .ctxrow span { color: var(--muted); }
+
+  /* O que dá errado */
+  table.fix { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.fix th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); padding: 0 10px 8px 0; font-weight: 700; }
+  table.fix td { padding: 11px 10px 11px 0; border-top: 1px solid var(--line); vertical-align: top; color: var(--muted); }
+  table.fix td.msg { color: var(--ink); width: 47%; }
+  table.fix td.msg i { font-style: normal; display: block; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font-size: 12.5px; }
+  @media (max-width: 620px) { table.fix, table.fix tbody, table.fix tr, table.fix td { display: block; width: 100%; } table.fix thead { display: none; } table.fix td { border-top: none; padding: 4px 0; } table.fix tr { border-top: 1px solid var(--line); padding: 10px 0; display: block; } }
+
+  /* Regras de ouro */
+  .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .rule { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: 11px; font-size: 13.5px; }
+  .rule.do { background: color-mix(in srgb, var(--verde) 10%, var(--card)); border: 1px solid color-mix(in srgb, var(--verde) 25%, var(--line)); }
+  .rule.dont { background: color-mix(in srgb, var(--vermelho) 9%, var(--card)); border: 1px solid color-mix(in srgb, var(--vermelho) 22%, var(--line)); }
+  .rule .mk { font-size: 15px; flex-shrink: 0; }
+  .rule b { color: var(--ink); }
+  .rule span { color: var(--muted); display: block; margin-top: 1px; font-size: 12.5px; }
+  @media (max-width: 560px) { .rules { grid-template-columns: 1fr; } }
+
+  footer.foot { text-align: center; color: var(--faint); font-size: 12px; margin-top: 26px; }
+
+  @media print {
+    .wrap { background: #fff; padding: 0; }
+    section, header.hero { box-shadow: none; break-inside: avoid; }
+    header.hero { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">🐾 Empório do Pet · Guia da equipe · Vendas 1 de 8</p>
+    <h1>O Ponto de venda, do começo ao fim</h1>
+    <p>A tela do balcão: escolher o cliente, lançar o que foi feito, receber. Aqui está cada botão, cada regra e o que fazer quando o sistema recusa alguma coisa.</p>
+    <div class="meta">
+      <span>📍 Menu: <b>Vendas › Ponto de venda</b></span>
+      <span>Atualizado em 18/09/2026</span>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <section>
+      <h2>🗺️ A tela tem 3 áreas</h2>
+      <p class="lead">Uma grande à esquerda, onde você monta a venda, e duas estreitas à direita, que mostram como está o dia.</p>
+      <div class="cols3">
+        <div class="colbox">
+          <div class="num">1</div>
+          <b>🛒 Nova venda</b>
+          <span>Onde tudo acontece: a data, o cliente e o pet, os itens, o desconto e os botões de salvar. É a única área em que você escreve.</span>
+        </div>
+        <div class="colbox">
+          <div class="num">2</div>
+          <b>🧾 Vendas</b>
+          <span>O que está em pé no dia escolhido: contas a receber, orçamentos e as vendas com data marcada para a frente. Venda paga sai daqui.</span>
+        </div>
+        <div class="colbox">
+          <div class="num">3</div>
+          <b>💵 Caixa</b>
+          <span>O seu caixa: abrir, suprimento, sangria, despesa, transferência e fechar. Mostra também quem mais está com caixa aberto.</span>
+        </div>
+      </div>
+      <div class="note teal">
+        <b>No alto do cartão de venda tem um selo que você deve olhar sempre:</b>
+        <span class="ui verde">✅ Caixa 31 · Gabriela</span> quer dizer que você tem caixa aberto e pode receber.
+        <span class="ui">⚠️ Você não tem caixa aberto</span> quer dizer que dá para salvar a venda, mas não para receber ainda.
+      </div>
+    </section>
+
+    <section>
+      <h2>▶️ Uma venda no balcão, passo a passo</h2>
+      <ol class="steps">
+        <li>
+          <b>Confira a data e o tipo.</b> A data já vem com o dia de hoje. O <b>Tipo</b> tem dois botões: <span class="ui turq">Venda</span> e <span class="ui">Orçamento</span>.
+          <p>Venda cobra; orçamento não cobra nada — é só uma proposta. Trocar aqui muda o nome do botão de salvar e desliga o "Salvar e receber".</p>
+        </li>
+        <li>
+          <b>Ache o cliente.</b> São duas caixinhas: <b>Buscar cliente</b> e <b>Buscar pet</b>. Pode usar só uma, ou as duas juntas para cruzar ("Maria" + "Luna").
+          <p>Precisa de pelo menos 2 letras. Cada linha da lista já traz o par <b>pet · dono</b> — clicar preenche os dois de uma vez. Se o cliente tiver um pet só, ele entra sozinho.</p>
+        </li>
+        <li>
+          <b>Olhe o botão vermelho antes de lançar.</b> Se o cliente deve alguma coisa, aparece <span class="ui vermelho">⚠️ Deve R$ 3.842,00</span> com "clique para ver".
+          <p>Clicando, abre a lista das contas em aberto dele, de qualquer dia. Dá para imprimir todas ou receber todas de uma vez. Saber disso <b>antes</b> muda a conversa com o cliente.</p>
+        </li>
+        <li>
+          <b>Veja a faixa do peso.</b> Assim que o pet entra, aparece <b>⚖️ Luna: 8,4 kg</b>.
+          <p>Se estiver escrito "sem peso registrado", registre ali mesmo: digite os quilos e clique em <span class="ui">Registrar peso</span>. O peso vai para o prontuário do pet e passa a valer para todo mundo.</p>
+        </li>
+        <li>
+          <b>Escolha o profissional.</b> O seletor <b>Profissional…</b> preenche o vendedor de cada item que você lançar dali em diante.
+          <p>É o que liga a comissão a quem atendeu. Dá para trocar linha por linha depois, na pílula <span class="ui ghost">👤 vendedor</span> do item.</p>
+        </li>
+        <li>
+          <b>Lance os itens.</b> Ajuste a quantidade nos botões <b>−</b> e <b>+</b> e digite na busca <b>🔍 Produto, serviço ou pacote</b>.
+          <p>A lista mostra o nome, o laboratório quando é exame e <b>o preço para aquele animal</b>. Item repetido soma na linha que já existe, em vez de criar outra.</p>
+        </li>
+        <li>
+          <b>Confira os totais e o desconto.</b> Cada linha tem um campo <b>Desc.</b> que alterna entre <span class="ui">R$</span> e <span class="ui">%</span>, e o rodapé tem o desconto da venda inteira.
+          <p>O limite do desconto é o da <b>forma de pagamento</b>, e ele é conferido na hora de receber — não aqui.</p>
+        </li>
+        <li>
+          <b>Escreva a observação, se precisar.</b> O que você escrever sai impresso no demonstrativo da venda ou no orçamento.
+        </li>
+        <li>
+          <b>Feche.</b> <span class="ui turq">💰 Salvar e receber</span> salva e já abre a gaveta de recebimento com esta venda marcada — e as outras contas do cliente logo abaixo, para você receber tudo junto se ele quiser.
+          <p><span class="ui">💾 Salvar</span> guarda como "a receber", para receber depois. Os dois gravam a mesma venda; muda só o que acontece em seguida.</p>
+        </li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>🔘 Os botões do fim da tela</h2>
+      <p class="lead">São quatro, sempre na mesma ordem.</p>
+      <div class="btnlist">
+        <div class="btnrow">
+          <div><span class="ui turq">💰 Salvar e receber</span></div>
+          <div class="what"><b>Salva e abre o recebimento.</b> Fica apagado enquanto faltar cliente, pet ou item — e some quando o Tipo é Orçamento (orçamento não recebe) ou quando você está editando uma venda que já existe.</div>
+        </div>
+        <div class="btnrow">
+          <div><span class="ui">💾 Salvar</span></div>
+          <div class="what"><b>Guarda a venda como "a receber".</b> O nome muda sozinho conforme a situação: <b>💾 Salvar orçamento</b> quando o Tipo é Orçamento, e <b>💾 Salvar alterações</b> quando você abriu uma venda para editar.</div>
+        </div>
+        <div class="btnrow">
+          <div><span class="ui">🖨️ Imprimir venda</span></div>
+          <div class="what"><b>Imprime o que está na tela, mesmo antes de salvar.</b> Serve para mostrar o valor ao cliente antes de fechar. Com o carrinho vazio ele fica apagado.</div>
+        </div>
+        <div class="btnrow">
+          <div><span class="ui ghost">✕ Cancelar</span></div>
+          <div class="what"><b>Limpa tudo</b> — cliente, pet, itens, descontos e observação — e sai do modo de edição. Não apaga nada que já tenha sido salvo.</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>⚖️ O peso manda no preço</h2>
+      <p class="lead">Esta é a regra que mais gera dúvida no balcão, e a que mais evita cobrança errada.</p>
+      <div class="ctx">
+        <div class="ctxrow"><span class="ic">1️⃣</span><span><b>Quem escolhe a faixa é o peso registrado</b>, não a pessoa. Não existe mais escolher "11 a 20 kg" na mão.</span></div>
+        <div class="ctxrow"><span class="ic">2️⃣</span><span><b>Sem peso, o item não entra.</b> O sistema recusa e acende a caixinha do peso, pedindo o registro.</span></div>
+        <div class="ctxrow"><span class="ic">3️⃣</span><span><b>Na busca, o preço já é o daquele animal.</b> Quando falta peso aparece "⚖️ pelo peso · registre o peso"; com peso, aparece o valor e a faixa embaixo.</span></div>
+        <div class="ctxrow"><span class="ic">4️⃣</span><span><b>Registrou o peso depois?</b> Todas as linhas do carrinho cobradas por faixa se recalculam sozinhas.</span></div>
+      </div>
+      <div class="note">
+        <b>Por que é assim:</b> antes a recepção escolhia o item pelo nome ("ACEPRAN — 11 A 20 KG") e era assim que se cobrava errado sem ninguém perceber. O Artrosan, por exemplo, vai de R$ 80 (até 10 kg) a R$ 280 (acima de 50 kg).
+      </div>
+    </section>
+
+    <section>
+      <h2>⚠️ As nuances que confundem</h2>
+      <p class="lead">Coisas que a tela faz e não são óbvias na primeira vez.</p>
+
+      <h3>O preço não se digita</h3>
+      <p style="margin:0;color:var(--muted);font-size:13.5px;">O campo do preço unitário é cinza e travado: ele vem do cadastro, pela faixa do peso. Se o preço está errado, o conserto é no cadastro do item — não na venda. O que você pode mexer é a <b>quantidade</b> e o <b>desconto</b>.</p>
+
+      <h3>Item só entra se vier do catálogo</h3>
+      <p style="margin:0;color:var(--muted);font-size:13.5px;">Não dá para escrever um item à mão. É isso que faz o relatório saber o que foi vendido. Se não achar na busca, tente <b>uma palavra só</b> — a busca ignora acento e aceita as palavras fora de ordem.</p>
+
+      <h3>O modelo lança com o preço de hoje</h3>
+      <p style="margin:0;color:var(--muted);font-size:13.5px;">O seletor <b>📄 Usar um modelo…</b> lança vários itens de uma vez e acrescenta a observação, sem apagar o que você escreveu. Os preços são sempre os de hoje, não os do dia em que o modelo foi criado. Se algum item saiu do catálogo, a tela avisa o nome de quem ficou de fora.</p>
+
+      <h3>O estoque avisa, mas não trava</h3>
+      <p style="margin:0;color:var(--muted);font-size:13.5px;">Lançar um produto sem saldo mostra um aviso amarelo — inclusive quando a quantidade já está comprometida por outra venda aberta. A venda continua; a decisão é sua, com o cliente na frente.</p>
+
+      <h3>Caução é dinheiro adiantado, não serviço</h3>
+      <p style="margin:0;color:var(--muted);font-size:13.5px;">Caução <b>tem que ser recebida sozinha</b>, sem nenhum outro item junto, e não pode ficar "a receber". O dinheiro entra no seu caixa e vira <b>crédito no nome do cliente</b>, para abater contas depois.</p>
+
+      <h3>Convênio sai do total do tutor</h3>
+      <p style="margin:0;color:var(--muted);font-size:13.5px;">Quando o pet tem convênio, aparece o bloco <b>🏥 … paga</b>. O item escolhido ali não entra no que o tutor paga agora: vira a-receber mensal do convênio, e a tela passa a mostrar "👤 Tutor paga agora" separado.</p>
+
+      <h3>A data da venda manda na lista</h3>
+      <p style="margin:0;color:var(--muted);font-size:13.5px;">A venda aparece no dia em que foi lançada. Lançou com data para a frente? Ela sai da lista de hoje e vai para a faixa <b>🗓️ A cobrar em breve</b> — não some, mas também não cobra hoje.</p>
+    </section>
+
+    <section>
+      <h2>🧾 A coluna do meio — as cores da lista</h2>
+      <p class="lead">Uma lista só, colorida pela situação. Nela fica o que está <b>em pé</b>: venda paga sai da lista.</p>
+      <div class="pair">
+        <div class="pcard">
+          <h4>🟢 Verde</h4>
+          <p>A pagar <b>do dia</b>. O cliente está aí, a conta é de hoje.</p>
+        </div>
+        <div class="pcard">
+          <h4>🔴 Vermelho</h4>
+          <p>A pagar de <b>dia anterior</b> — aparece "em aberto desde 12/09". É a que precisa de cobrança.</p>
+        </div>
+        <div class="pcard">
+          <h4>⚪ Cinza</h4>
+          <p><b>Orçamento</b> feito naquele dia. Ainda não é venda e não cobra nada.</p>
+        </div>
+        <div class="pcard">
+          <h4>🗓️ Âmbar</h4>
+          <p>A cobrar <b>em breve</b>: venda lançada com data para a frente.</p>
+        </div>
+      </div>
+      <div class="note teal">
+        <b>Duas marcas que explicam a linha sem itens:</b> <span class="ui ghost">ATENDIMENTO</span> veio do atendimento clínico e <span class="ui ghost">INTERNAÇÃO</span> é conta de internação. As duas entram no caixa com valor, mas <b>sem a lista do que foi cobrado</b> — não adianta abrir esperando encontrar itens.
+      </div>
+      <div class="note">
+        <b>Quando o mesmo cliente tem 2 ou mais contas</b>, a linha ganha uma terceira frase: "R$ 3.288,00 em aberto · 5 contas · a mais antiga de 12/09". A lista mostra uma venda por linha; sem essa frase, dá para receber R$ 382 sem saber que o cliente deve R$ 3.288.
+      </div>
+      <p style="margin:14px 0 0;color:var(--muted);font-size:13.5px;">Para achar venda de <b>outro dia</b>, use <span class="ui">🔍 Localizar venda</span>: procura por número, cliente, pet, período e situação — e abre a venda no mesmo painel de sempre.</p>
+    </section>
+
+    <section>
+      <h2>💵 O caixa, sem sair da venda</h2>
+      <p class="lead">O caixa é individual: cada pessoa lança no próprio. Ninguém recebe na gaveta da colega.</p>
+      <div class="btnlist">
+        <div class="btnrow">
+          <div><span class="ui verde">＋ Abrir o meu caixa</span></div>
+          <div class="what">Aparece quando você <b>não</b> tem caixa aberto. Pede o fundo de troco e abre na hora, sem você sair da venda que está montando.</div>
+        </div>
+        <div class="btnrow">
+          <div><span class="ui">Suprimento</span></div>
+          <div class="what"><b>Dinheiro entrando</b> no caixa vindo de uma conta (reforço de troco, por exemplo). A conta de origem é obrigatória.</div>
+        </div>
+        <div class="btnrow">
+          <div><span class="ui">Sangria</span></div>
+          <div class="what"><b>Dinheiro saindo</b> do caixa para uma conta. A conta de destino é obrigatória — dinheiro precisa entrar em algum lugar.</div>
+        </div>
+        <div class="btnrow">
+          <div><span class="ui">Despesa</span></div>
+          <div class="what">Pagamento feito pelo caixa. Pede a <b>forma</b> e a <b>categoria</b>, que é o que leva a despesa para o DRE.</div>
+        </div>
+        <div class="btnrow">
+          <div><span class="ui">Transferência</span></div>
+          <div class="what">Dinheiro de uma conta para outra. Origem e destino não podem ser a mesma conta.</div>
+        </div>
+        <div class="btnrow">
+          <div><span class="ui">🔒 Fechar o caixa</span></div>
+          <div class="what">Leva para a tela de Caixa, onde se confere a gaveta e se encerra. <b>Todo caixa é encerrado automaticamente à meia-noite</b>, com ou sem conferência.</div>
+        </div>
+      </div>
+      <div class="note">
+        <b>"Outros caixas abertos" é informação, não destino.</b> Saber que a colega está com o caixa 32 aberto ajuda a se organizar — mas você continua recebendo no seu.
+      </div>
+    </section>
+
+    <section>
+      <h2>❌ Quando o sistema recusa — e o que fazer</h2>
+      <p class="lead">As mensagens que mais aparecem no balcão, com o conserto de cada uma.</p>
+      <table class="fix">
+        <thead><tr><th>A tela diz</th><th>O que fazer</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="msg"><i>"Artrosan é cobrado pelo peso. Registre o peso de Luna para lançar."</i></td>
+            <td>Registre o peso na caixinha ⚖️ que acendeu, ali mesmo. O item entra em seguida, já no preço da faixa certa.</td>
+          </tr>
+          <tr>
+            <td class="msg"><i>"Este item não tem preço para o porte 11–20 kg. Ajuste o preço no cadastro."</i></td>
+            <td>O peso está certo, o cadastro é que está incompleto. Fale com o administrativo: o conserto é no cadastro do item, não na venda.</td>
+          </tr>
+          <tr>
+            <td class="msg"><i>"… está sem preço no cadastro. Ajuste o cadastro antes de lançar."</i></td>
+            <td>Mesma coisa: item sem preço não entra em venda. Não invente um valor — o preço tem que vir do cadastro.</td>
+          </tr>
+          <tr>
+            <td class="msg"><i>"Nenhum item com 'hemograma canino'. Tente uma palavra só."</i></td>
+            <td>Digite só "hemo". A busca ignora acento e aceita palavras fora de ordem, mas quanto menos você digita, mais ela acha.</td>
+          </tr>
+          <tr>
+            <td class="msg"><i>"A caução precisa ser recebida sozinha. Tire os outros itens do carrinho ou tire a caução."</i></td>
+            <td>Faça duas vendas: uma só da caução e outra dos serviços. Caução é adiantamento, serviço é receita — não dá para misturar na mesma conta.</td>
+          </tr>
+          <tr>
+            <td class="msg"><i>"Caução não fica 'a receber' — ela é dinheiro que entra agora."</i></td>
+            <td>Use <b>💰 Salvar e receber</b>, nunca o <b>💾 Salvar</b>.</td>
+          </tr>
+          <tr>
+            <td class="msg"><i>"Nenhum caixa aberto. Abra o seu em Vendas › Caixa para receber."</i></td>
+            <td>Clique em <b>＋ Abrir o meu caixa</b>, ali na coluna da direita. Leva um clique e você continua na mesma venda.</td>
+          </tr>
+          <tr>
+            <td class="msg"><i>"O caixa aberto é de Gabriela. Cada pessoa lança no próprio caixa."</i></td>
+            <td>Abra o seu. Receber no caixa da colega faz o dinheiro entrar na gaveta errada, e a diferença só aparece no fechamento — para a pessoa errada.</td>
+          </tr>
+          <tr>
+            <td class="msg"><i>Uma mensagem sobre desconto acima do permitido, ao receber.</i></td>
+            <td>O limite é <b>da forma de pagamento</b> (dinheiro e Pix aceitam mais que cartão). Troque a forma, reduza o desconto ou chame o administrativo.</td>
+          </tr>
+          <tr>
+            <td class="msg"><i>"Nenhum item foi lançado nesta venda."</i></td>
+            <td>Leia a frase seguinte: ela diz se a conta veio do atendimento clínico ou da internação. Se for venda de balcão, use <b>✏️ Editar</b> e lance o que foi cobrado.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>⭐ Regras de ouro</h2>
+      <div class="rules">
+        <div class="rule do"><span class="mk">✅</span><div><b>Peso antes do item</b><span>Todo item cobrado por faixa só entra com o peso do dia registrado.</span></div></div>
+        <div class="rule do"><span class="mk">✅</span><div><b>Olhe o "Deve R$" antes de lançar</b><span>Você fica sabendo o que o cliente já deve enquanto ele ainda está na sua frente.</span></div></div>
+        <div class="rule do"><span class="mk">✅</span><div><b>Cada um no seu caixa</b><span>Abrir o seu custa um clique e evita fechamento errado no fim do dia.</span></div></div>
+        <div class="rule do"><span class="mk">✅</span><div><b>Profissional em cada item</b><span>É o que liga a comissão a quem atendeu.</span></div></div>
+        <div class="rule dont"><span class="mk">🚫</span><div><b>Não digite preço</b><span>O valor vem do cadastro. Preço errado se conserta no cadastro.</span></div></div>
+        <div class="rule dont"><span class="mk">🚫</span><div><b>Não misture caução com serviço</b><span>Uma venda para cada coisa.</span></div></div>
+        <div class="rule dont"><span class="mk">🚫</span><div><b>Não lance item fora do catálogo</b><span>É o que faz o relatório saber o que a clínica vendeu.</span></div></div>
+        <div class="rule dont"><span class="mk">🚫</span><div><b>Não deixe orçamento como venda</b><span>Orçamento não cobra. Se o cliente aprovou, use "💰 Virar venda".</span></div></div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      Empório do Pet · Academia · Vendas, parte 1 de 8: Ponto de venda<br>
+      Próximas partes: Receber · Orçamento · Consulta de vendas · Caixa · Internação · Papéis · Quando dá errado
+    </footer>
+
+  </div>
+</div>
+</body></html>
