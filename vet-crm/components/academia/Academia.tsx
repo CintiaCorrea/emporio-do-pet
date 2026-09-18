@@ -65,8 +65,6 @@ const GRUPOS: { titulo: string; itens: { key: Tema; label: string; emoji: string
 ];
 
 export default function Academia({ temaInicial }: { temaInicial?: string }) {
-  const nomeDoTema = GRUPOS.flatMap((g) => g.itens).find((i) => i.key === tema)?.label;
-  usePageTitle("Academia", nomeDoTema || "Como o sistema funciona e as regras da empresa");
   // O TEMA VEM DO MENU LATERAL DO SISTEMA (Cintia, 18/09/2026: "o menu da academia não era para
   // estar no menu lateral onde já está academia? Dessa forma ao clicar nas coisas a explicação
   // caberá ao lado das imagens"). Sem o menu de dentro, o conteúdo usa a largura inteira — que é
@@ -74,6 +72,9 @@ export default function Academia({ temaInicial }: { temaInicial?: string }) {
   const tema: Tema = (GRUPOS.flatMap((g) => g.itens).some((i) => i.key === temaInicial)
     ? (temaInicial as Tema)
     : "whatsapp");
+
+  const nomeDoTema = GRUPOS.flatMap((g) => g.itens).find((i) => i.key === tema)?.label;
+  usePageTitle("Academia", nomeDoTema || "Como o sistema funciona e as regras da empresa");
   const [wa, setWa] = useState<ConteudoWa>("guia");
   const [ag, setAg] = useState<ConteudoAg>("guia");
   const [vd, setVd] = useState<ConteudoVd>("pdv");
