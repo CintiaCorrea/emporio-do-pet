@@ -114,7 +114,8 @@ const NAV: Entry[] = [
       // Orcamentos FICA com aba propria: o follow-up com responsavel e rotina de quem
       // persegue orcamento e nao cabe numa tela de consulta.
       { href: "/dashboard/erp/consulta-vendas", label: "Vendas", emoji: "🔎", roles: ALL },
-      { href: "/dashboard/erp/orcamentos", label: "Orçamentos", emoji: "📄", roles: ALL },
+      // "Orçamentos" saiu do menu em 17/09/2026: a lista mora dentro de Vendas (Consulta de vendas),
+      // com os mesmos botões da venda. O endereço antigo continua levando para lá.
       // UMA TELA SO DE CAIXA. Havia duas entradas com o mesmo assunto: "Caixa" (a tela
       // completa — lista de caixas, detalhe, conferencia, papel) e "Movimentos de caixa" (120
       // linhas que so listavam suprimento/sangria/despesa, ja dentro da outra). A Cintia, em
@@ -124,7 +125,7 @@ const NAV: Entry[] = [
       { href: "/dashboard/erp/caixa", label: "Movimento de caixa", emoji: "💵", roles: ALL },
       { href: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾", roles: ALL },
       // Os "Outros" do caixa: recebimentos que o defeito de 16/09/2026 gravou sem forma. So adm preenche.
-      { href: "/dashboard/erp/recebimentos-sem-forma", label: "Recebimentos sem forma", emoji: "❓", roles: ["ADMIN"] },
+      // "Recebimentos sem forma" saiu do sistema em 17/09/2026 (não há mais recebimento sem forma).
       { href: "/dashboard/erp/pacotes", label: "Pacotes vendidos", emoji: "📦", roles: ALL },
       { href: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛", roles: ALL },
       { href: "/dashboard/erp/vendas-graficos", label: "Vendas — gráficos", emoji: "📊", roles: ["ADMIN", "RECEPTIONIST"] },

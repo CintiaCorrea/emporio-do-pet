@@ -14,9 +14,13 @@ describe("recebimento nasce com forma de pagamento", () => {
     expect(existsSync(join(RAIZ, "app", "api", "caixa", "recebimentos-sem-forma"))).toBe(false);
   });
 
-  it("nem no menu", () => {
-    const menu = readFileSync(join(RAIZ, "lib", "permissions", "index.ts"), "utf8");
-    expect(menu).not.toContain("recebimentos-sem-forma");
+  it("nem no menu — nos DOIS lugares que desenham o menu", () => {
+    // A matriz de permissões e a barra lateral são listas diferentes: tirar de uma só deixa o item
+    // clicável apontando para uma tela que não existe (Cintia viu isso em 17/09/2026).
+    expect(readFileSync(join(RAIZ, "lib", "permissions", "index.ts"), "utf8")).not.toContain("recebimentos-sem-forma");
+    const sidebar = readFileSync(join(RAIZ, "components", "protected", "dashboard", "Sidebar.tsx"), "utf8");
+    expect(sidebar).not.toContain('"/dashboard/erp/recebimentos-sem-forma"');
+    expect(sidebar).not.toContain('"/dashboard/erp/orcamentos"');
   });
 
   it("a gaveta única continua exigindo como o cliente pagou", () => {

@@ -63,7 +63,6 @@ export const PERM_SECTIONS: PermSection[] = [
           // aberto", que sairam do menu com as acoes ja mudadas de casa.
           { key: "/dashboard/erp/consulta-vendas", label: "Vendas", emoji: "🔎" },
           { key: "/dashboard/erp/caixa", label: "Movimento de caixa", emoji: "💵" },
-          { key: "/dashboard/erp/orcamentos", label: "Orçamentos", emoji: "📋" },
           { key: "/dashboard/erp/pacotes", label: "Pacotes", emoji: "📦" },
           { key: "/dashboard/erp/recebimentos", label: "Recebimentos", emoji: "🧾" },
           { key: "/dashboard/erp/saldo-clientes", label: "Saldo dos clientes", emoji: "👛" },
