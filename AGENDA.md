@@ -121,6 +121,14 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Varredura do ponto de venda — bloco 1** (17/09): corrigidos 7 defeitos — botao "Salvar
+  alteracoes" travado em "Salvando…"; orcamento salvo nao aparecia sem 🔄; etiqueta do caixa verde
+  dizendo "voce nao tem caixa"; busca do carrinho passou a mostrar o preco pela faixa do peso; frase
+  falsa "+N vendas nao couberam"; "A cobrar em breve" cortava em 6 sem avisar; motivo de nao poder
+  excluir saia cortado. Decisoes dela: campo "Tipo de venda" REMOVIDO (nao ia a lugar nenhum) e fica
+  so o botao vermelho "Deve R$" (a etiqueta SaldoDevedorTag saiu do cartao do cliente). Botao virou
+  "💰 Salvar e receber". Codigo morto: busca antiga de cliente e selCliente. Trava:
+  `varredura-do-ponto-de-venda.spec.ts`.
 - [x] **Blindagem (3 reforcos)** (17/09): (1) `REGRAS-VENDAS.md` — uma pagina com as 10 regras do
   modulo e o teste que guarda cada uma; (2) `lib/portas-de-venda.spec.ts` — trava que falha se aparecer
   uma porta nova de criar venda, de vender pelo caixa ou de receber; (3) catraca de tipos 46 -> 30.

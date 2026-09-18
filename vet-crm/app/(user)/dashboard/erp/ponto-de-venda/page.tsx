@@ -92,9 +92,6 @@ export default function PDVPage() {
   const [profs, setProfs] = useState<Prof[]>([]);
   const [profId, setProfId] = useState('');
 
-  const [cliBusca, setCliBusca] = useState('');
-  const [cliRes, setCliRes] = useState<Tutor[]>([]);
-  const [cliAberto, setCliAberto] = useState(false);
   const [cliente, setCliente] = useState<Tutor | null>(null);
   const [petId, setPetId] = useState('');
 
@@ -441,32 +438,17 @@ export default function PDVPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    if (buscaTimer.current) clearTimeout(buscaTimer.current);
-    if (cliBusca.trim().length < 2) { setCliRes([]); return; }
-    buscaTimer.current = setTimeout(async () => {
-      try {
-        const r = await fetch(`/api/tutors?search=${encodeURIComponent(cliBusca.trim())}&take=8`, { cache: 'no-store' });
-        if (!r.ok) return;
-        const d = await r.json();
-        setCliRes(d.tutors || d.data || d || []); setCliAberto(true);
-      } catch { /* */ }
-    }, 350);
-  }, [cliBusca]);
+  // A BUSCA ANTIGA DE CLIENTE SAIU (17/09/2026): quem busca hoje é o componente BuscaClientePet.
+  // O efeito continuava aqui, com chamada ao servidor, sem nunca ser disparado.
 
-  const selCliente = (t: Tutor) => {
-    setCliente(t); setCliAberto(false); setCliBusca('');
-    const pets = t.pets || [];
-    setPetId(pets.length === 1 ? pets[0].id : '');
-  };
-  // Busca padrão Cliente+Pet: escolhe os dois de uma vez.
+  // `selCliente` saiu junto: quem seleciona é `selClientePet`, usado pelo BuscaClientePet.
   const selClientePet = (sel: SelecaoClientePet) => {
     setCliente(sel.tutor as Tutor);
     const pets = sel.tutor.pets || [];
     setPetId(sel.pet?.id || (pets.length === 1 ? pets[0].id : ''));
-    setCliAberto(false); setCliBusca('');
+     
   };
-  const limparCliente = () => { setCliente(null); setPetId(''); setCliBusca(''); };
+  const limparCliente = () => { setCliente(null); setPetId('');  };
 
   // 🔎 A busca do carrinho passa pelo nucleo (lib/buscaCatalogo, com teste). Era aqui que
   // "muitas vezes nao aparece" nascia: `includes` exigia acento certo e palavras coladas na
@@ -609,7 +591,7 @@ export default function PDVPage() {
     } catch { /* */ }
   };
   const reset = () => {
-    setCliente(null); setPetId(''); setCliBusca(''); setCarrinho([]); setDescontoGlobal(''); setDescontoGlobalTipo('$'); setObs('');
+    setCliente(null); setPetId('');  setCarrinho([]); setDescontoGlobal(''); setDescontoGlobalTipo('$'); setObs('');
     setFormas([{ forma: 'Dinheiro', valor: 0 }]); setTipo('VENDA'); setQtd(1);
     sairDaEdicao();
   };
@@ -741,7 +723,7 @@ export default function PDVPage() {
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(String((e as any)?.message || '').replace(/^[A-Z_]+:\s*/, '') || 'Erro ao salvar'); }
       toast.success(`Venda ${editandoNum ? '#' + editandoNum + ' ' : ''}atualizada!`);
       reset(); loadVendas();
-    } catch (e: any) { toast.error(e?.message || 'Erro ao salvar'); } finally { setSavingEdit(false); }
+    } catch (e: any) { toast.error(e?.message || 'Erro ao salvar'); } finally { setSalvando(false); setSavingEdit(false); }
   };
   const salvar = () => {
     if (pendenciaDePreco()) return;
@@ -772,7 +754,7 @@ export default function PDVPage() {
       const r = await fetch('/api/orcamentos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.message || d.error || 'Erro ao salvar orçamento');
-      toast.success('Orçamento salvo!'); setModal(false); reset(); loadVendas();
+      toast.success('Orçamento salvo!'); setModal(false); reset(); loadVendas(); loadOrcamentos();
     } catch (e: any) { toast.error(e.message || 'Erro ao salvar orçamento'); } finally { setSalvando(false); }
   };
 
@@ -937,7 +919,7 @@ export default function PDVPage() {
             <span style={{ fontSize: 18 }}>🛒</span>
             <div><div style={{ color: NAVY, fontSize: 15, fontWeight: 500 }}>Nova venda</div><div style={{ color: MUT, fontSize: 11.5 }}>{new Date(data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</div></div>
             {caixaAberto !== null && (
-              <span style={{ marginLeft: 'auto', background: caixaAberto ? OKB : WARNB, color: caixaAberto ? OK : WARN, fontSize: 11.5, fontWeight: 500, padding: '4px 11px', borderRadius: 999 }}>
+              <span style={{ marginLeft: 'auto', background: meuCaixa ? OKB : WARNB, color: meuCaixa ? OK : WARN, fontSize: 11.5, fontWeight: 500, padding: '4px 11px', borderRadius: 999 }}>
                 {meuCaixa ? `✅ ${rotuloCaixa(meuCaixa)}` : '⚠️ Você não tem caixa aberto'}
               </span>
             )}
@@ -958,12 +940,8 @@ export default function PDVPage() {
                   ))}
                 </div>
               </div>
-              <div style={{ flex: 1, minWidth: 180 }}>
-                <label style={lbl}>Tipo de venda</label>
-                <select value={tipoVenda} onChange={(e) => setTipoVenda(e.target.value)} style={{ ...inp, width: '100%' }}>
-                  {TIPOS_VENDA.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
+                {/* O campo "Tipo de venda" (presencial/online/entrega) saiu em 17/09/2026: era
+                    preenchido e não ia para lugar nenhum — nem para a venda, nem para o relatório. */}
             </div>
 
             {/* Editando uma venda que ja existe: precisa ficar OBVIO, senao a pessoa acha que
@@ -995,7 +973,9 @@ export default function PDVPage() {
                     {/* O QUE ELE JA DEVE, antes de lancar mais. Saber que o cliente tem R$ 3.842
                         em aberto muda a conversa no balcao — e o PDV era justamente a tela em que
                         isso nao aparecia. */}
-                    <SaldoDevedorTag tutorId={cliente.id} nome={cliente.name} />
+                    {/* A etiqueta SaldoDevedorTag saiu daqui (17/09/2026): eram dois "Deve R$" no
+                        mesmo cartão, contados por caminhos diferentes. Fica o botão vermelho abaixo,
+                        que abre as contas do cliente na própria tela. */}
                   </div>
                   <div style={{ fontSize: 11.5, color: INK2 }}>{pets.length} pet(s) cadastrado(s)</div>
                 </div>
@@ -1051,7 +1031,17 @@ export default function PDVPage() {
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nome}</span>
                           {(() => { const lab = labDoItem(s); return lab ? <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 700, padding: '1px 6px', borderRadius: 999, background: lab.veter ? '#E1F5EE' : '#EEF2F6', color: lab.veter ? '#0F6E56' : '#4D6A8A' }}>{lab.veter ? '⭐ ' : '🏥 '}{lab.nome}</span> : null; })()}
                         </span>
-                        <span style={{ color: MUT, flexShrink: 0 }}>{brl(Number(s.valorPadrao || 0))}</span>
+                        {(() => {
+                          // O PREÇO DESTE ANIMAL, pela faixa do peso (17/09/2026). A busca principal
+                          // mostrava o preço-base: quem lançava não sabia quanto ia cobrar.
+                          const p = precoDoItemNaBusca(s);
+                          return (
+                            <span style={{ color: MUT, flexShrink: 0, textAlign: 'right' }}>
+                              {p.texto}
+                              {p.abaixo ? <div style={{ fontSize: 10.5, color: '#8A857A' }}>{p.abaixo}</div> : null}
+                            </span>
+                          );
+                        })()}
                       </button>
                     ))}
                     {/* O corte deixa de ser mudo: quem procura sabe que tem mais. */}
@@ -1188,7 +1178,7 @@ export default function PDVPage() {
 
             {/* rodapé */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: `1px solid ${SOFT}`, paddingTop: 16 }}>
-              {!editandoId && <button onClick={abrirRecebimento} disabled={!baseValida || tipo === 'ORCAMENTO'} style={{ border: 'none', borderRadius: 9, background: (baseValida && tipo === 'VENDA') ? TEAL : '#cfd8d9', color: '#fff', padding: '11px 18px', fontSize: 13.5, fontWeight: 500, cursor: (baseValida && tipo === 'VENDA') ? 'pointer' : 'not-allowed' }}>💰 Registrar recebimento</button>}
+              {!editandoId && <button onClick={abrirRecebimento} disabled={!baseValida || tipo === 'ORCAMENTO'} style={{ border: 'none', borderRadius: 9, background: (baseValida && tipo === 'VENDA') ? TEAL : '#cfd8d9', color: '#fff', padding: '11px 18px', fontSize: 13.5, fontWeight: 500, cursor: (baseValida && tipo === 'VENDA') ? 'pointer' : 'not-allowed' }}>💰 Salvar e receber</button>}
               <button onClick={salvar} disabled={!baseValida || salvando} style={{ border: editandoId ? 'none' : `1px solid ${LINE}`, borderRadius: 9, background: editandoId ? (baseValida ? TEAL : '#cfd8d9') : '#fff', padding: '11px 18px', fontSize: 13.5, fontWeight: editandoId ? 500 : 400, cursor: baseValida ? 'pointer' : 'not-allowed', color: editandoId ? '#fff' : INK }}>{salvando ? 'Salvando…' : editandoId ? '💾 Salvar alterações' : tipo === 'ORCAMENTO' ? '💾 Salvar orçamento' : '💾 Salvar'}</button>
               <button onClick={imprimirAtual} disabled={!carrinho.length} title={tipo === 'ORCAMENTO' ? 'Imprimir o orçamento' : 'Imprimir a venda'} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '11px 16px', fontSize: 13.5, cursor: carrinho.length ? 'pointer' : 'not-allowed', color: INK, opacity: carrinho.length ? 1 : 0.5 }}>🖨️ Imprimir {tipo === 'ORCAMENTO' ? 'orçamento' : 'venda'}</button>
               <button onClick={reset} style={{ marginLeft: 'auto', border: 'none', background: 'none', color: MUT, padding: '11px', fontSize: 13, cursor: 'pointer' }}>✕ Cancelar</button>
@@ -1286,7 +1276,7 @@ export default function PDVPage() {
                   <div style={{ fontSize: 10.5, color: MUT, textTransform: 'uppercase', letterSpacing: '.4px', marginBottom: 2 }}>
                     🗓️ A cobrar em breve · {vendasFuturas.length}
                   </div>
-                  {vendasFuturas.slice(0, 6).map((v: any) => (
+                  {vendasFuturas.map((v: any) => (
                     <div key={v.id} onClick={() => abrirDetVenda(v)} title="Abrir venda" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 4px', cursor: 'pointer', borderRadius: 8 }}
                       onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFAF7')} onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
                       <span style={{ width: 32, height: 32, borderRadius: '50%', background: '#FBF0DA', color: '#8A5A12', fontSize: 13, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>🗓️</span>
@@ -1301,11 +1291,6 @@ export default function PDVPage() {
               )}
 
               {/* O corte da lista nunca é mudo: a tela mostra 8 e o papel mostra o dia inteiro. */}
-              {vendasFiltradas.length > 8 && (
-                <div style={{ textAlign: 'center', fontSize: 11.5, color: MUT, padding: '8px 0 2px' }}>
-                  + {vendasFiltradas.length - 8} vendas não couberam na lista
-                </div>
-              )}
 
               {/* 📄 ORÇAMENTOS — MESMA lista, em CINZA: não é dinheiro a receber, é proposta. */}
               {orcamentosEmAberto.slice(0, 8).map((o) => (
@@ -1714,7 +1699,7 @@ export default function PDVPage() {
                         ) : (
                           // O motivo de nao poder excluir continua escrito — some-lo faria o
                           // botao simplesmente nao existir, sem ninguem entender por que.
-                          <span title={exclusaoDaVenda.motivo} style={{ background: '#FBF7EF', border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 11.5, color: MUT, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 260 }}>🔒 {exclusaoDaVenda.motivo}</span>
+                          <span title={exclusaoDaVenda.motivo} style={{ background: '#FBF7EF', border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 11.5, color: MUT, whiteSpace: 'normal', maxWidth: 320, lineHeight: 1.3 }}>🔒 {exclusaoDaVenda.motivo}</span>
                         )}
                         {/* RECEBER É NA GAVETA ÚNICA, aqui mesmo (16/09/2026). A mesma do Caixa e de
                             Vendas: pergunta o caixa, mostra a data, tem desconto e observação, e
