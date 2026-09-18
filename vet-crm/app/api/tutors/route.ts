@@ -70,11 +70,16 @@ export async function GET(request: NextRequest) {
     }
 
     if (!upstreamResponse.ok) {
+      // Repassa o corpo do erro INTEIRO, como faz o proxy compartilhado. Ver o porque em
+      // ./[id]/route.ts: resumir aqui matava a explicacao do servidor ("TEM_HISTORICO: este
+      // cliente tem 22 vendas...", "email must be an email") e entregava so "Bad Request".
+      if (data && typeof data === 'object') {
+        return NextResponse.json(data, { status: upstreamResponse.status });
+      }
       const message =
         (data &&
-          (data.error ||
-            (Array.isArray(data.message) ? data.message.join(', ') : data.message) ||
-            data.message)) ||
+          ((Array.isArray(data.message) ? data.message.join(', ') : data.message) ||
+            data.error)) ||
         'Erro ao buscar tutores';
 
       return NextResponse.json({ error: message }, { status: upstreamResponse.status });
@@ -136,11 +141,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (!upstreamResponse.ok) {
+      // Mesmo motivo do GET acima: o corpo do erro vai inteiro. E por aqui que sobe o aviso
+      // de telefone ja cadastrado quando se cria um cliente novo.
+      if (data && typeof data === 'object') {
+        return NextResponse.json(data, { status: upstreamResponse.status });
+      }
       const message =
         (data &&
-          (data.error ||
-            (Array.isArray(data.message) ? data.message.join(', ') : data.message) ||
-            data.message)) ||
+          ((Array.isArray(data.message) ? data.message.join(', ') : data.message) ||
+            data.error)) ||
         'Erro ao criar tutor';
 
       return NextResponse.json({ error: message }, { status: upstreamResponse.status });

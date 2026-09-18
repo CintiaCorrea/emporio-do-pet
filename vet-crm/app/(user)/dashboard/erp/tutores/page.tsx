@@ -20,6 +20,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LuSearch, LuPlus, LuUpload, LuPawPrint, LuTrash, LuX, LuExternalLink } from "react-icons/lu";
 import { fundoDeModal } from "@/lib/ui/fundoDeModal";
+import { diaCalendario } from "@/lib/datas";
 
 type Filter = "Cliente" | "Fornecedor" | "Parceiro" | "Ex_cliente" | "Todos";
 
@@ -68,11 +69,12 @@ const getInitials = (name: string | null) => {
 const fmtDateShort = (s?: string) => s ? new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
 const fmtMoney = (n: number) => n > 0 ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—";
 
+// O mes do aniversario sai de diaCalendario (lib/datas), nao de new Date() cru: nascimento e
+// guardado a meia-noite UTC, e no fuso do Brasil isso e' o dia anterior. Quem nasce dia 1 caia
+// no mes anterior — sumia do contador de aniversariantes do mes certo e aparecia no errado.
 const isAniversariante = (birthDate?: string | null) => {
-  if (!birthDate) return false;
-  const d = new Date(birthDate);
-  const today = new Date();
-  return d.getMonth() === today.getMonth();
+  const d = diaCalendario(birthDate);
+  return d ? d.getMonth() === new Date().getMonth() : false;
 };
 
 function parseCSVText(text: string): Record<string, string>[] {
@@ -122,6 +124,25 @@ const especieLabel = (species: string) => {
   if (!s) return "—";
   return s.charAt(0) + s.slice(1).toLowerCase();
 };
+
+// UMA REGRA SO DE "esse termo e esse cliente?" (18/09/2026).
+//
+// Ela existia duplicada: no filtro da lista e no roteador do ?q= logo abaixo. Duas copias da
+// mesma linha e o jeito mais certo de consertar uma e esquecer a outra — foi o que aconteceu
+// quando o CODIGO entrou na busca.
+//
+// O codigo casa INTEIRO, nao por pedaco: #1130 nao pode vir junto com #11301, e "1130" digitado
+// procurando um telefone ja acha pelo ramo do telefone.
+function clienteCasaCom(t: { name?: string | null; email?: string | null; codigo?: string | null; contacts?: { number: string }[] }, termo: string): boolean {
+  const n = semAcento(termo);
+  const dig = termo.replace(/\D/g, "");
+  return (
+    semAcento(t.name).includes(n) ||
+    semAcento(t.email).includes(n) ||
+    (!!dig && String(t.codigo ?? "") === dig) ||
+    (!!dig && (t.contacts || []).some((c) => (c.number || "").includes(dig)))
+  );
+}
 
 // Minúsculas e SEM acento, pros dois lados da comparação: "galvao" acha "Galvão".
 const semAcento = (s?: string | null) =>
@@ -507,13 +528,7 @@ Ele sai das listas e da busca, mas nada e' apagado — dá pra restaurar quando 
     const qc = search.trim();
     const qp = searchPet.trim();
     if (qc) {
-      const n = semAcento(qc);
-      const dig = qc.replace(/\D/g, "");
-      arr = arr.filter((t) =>
-        semAcento(t.name).includes(n) ||
-        semAcento(t.email).includes(n) ||
-        (!!dig && (t.contacts || []).some((c) => (c.number || "").includes(dig)))
-      );
+      arr = arr.filter((t) => clienteCasaCom(t, qc));
     }
     if (qp) {
       const n = semAcento(qp);
@@ -537,12 +552,7 @@ Ele sai das listas e da busca, mas nada e' apagado — dá pra restaurar quando 
     if (!q || qRoteadoRef.current || tutores.length === 0) return;
     qRoteadoRef.current = true;
     const n = semAcento(q);
-    const dig = q.replace(/\D/g, "");
-    const ehCliente = tutores.some((t) =>
-      semAcento(t.name).includes(n) ||
-      semAcento(t.email).includes(n) ||
-      (!!dig && (t.contacts || []).some((c) => (c.number || "").includes(dig)))
-    );
+    const ehCliente = tutores.some((t) => clienteCasaCom(t, q));
     if (ehCliente) return; // já está na caixinha de cliente
     const ehPet = tutores.some((t) => (t.pets || []).some((p) => semAcento(p.name).includes(n)));
     if (ehPet) { setSearch(""); setSearchPet(q); }

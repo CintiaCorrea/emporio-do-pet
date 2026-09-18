@@ -1,175 +1,53 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
-import { cabecalhoComAcessoValido } from '@/lib/backend-proxy';
+import { NextRequest } from 'next/server';
+import { proxyToBackend } from '@/lib/backend-proxy';
 
-function getBackendBaseUrl() {
-  return (
-    process.env.BACKEND_URL ||
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_URL ||
-    (process.env.NODE_ENV !== 'production' ? 'http://localhost:3333' : undefined)
-  );
+// A FICHA DO CLIENTE PASSA A OUVIR O QUE O SERVIDOR DIZ (18/09/2026).
+//
+// Este arquivo tinha um proxy proprio, copiado, com uma linha decisiva errada:
+//
+//     data.error || data.message      <-- o `error` do Nest e sempre "Bad Request"
+//
+// O Nest responde { statusCode, message, error }. `message` e a explicacao ("TEM_HISTORICO:
+// este cliente tem 22 vendas...", "email must be an email"); `error` e so o rotulo seco do
+// codigo HTTP. Pondo `error` na frente, a explicacao era jogada fora em TODA resposta de erro
+// desta rota. Duas coisas que ja existiam e nao funcionavam por causa disso:
+//
+//   1. Excluir cliente com historico. O servidor recusa e explica, oferecendo arquivar. A tela
+//      procurava "TEM_HISTORICO" na mensagem, nao achava (chegava "Bad Request") e caia no
+//      "Nao foi possivel excluir. Tente novamente" — e o "quer arquivar agora?" nunca aparecia.
+//   2. Salvar o cadastro. A ficha tem um tradutor de erro (traduzErro) para dizer "E-mail
+//      invalido — confira se nao sobrou espaco". Ele nunca recebia o texto para traduzir.
+//
+// O proxy compartilhado (lib/backend-proxy) ja faz o certo: quando o corpo do erro e um objeto,
+// repassa inteiro, sem resumir. Esta rota e proxy puro — nao traduz parametro nem remonta
+// resposta — entao ela passa a ser ele. A rota de LISTA (../route.ts) nao pode: aquela traduz
+// `limit` em `take` para 14 telas, e so o trecho do erro foi corrigido la.
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return proxyToBackend(request, `/tutors/${encodeURIComponent(id)}`, { method: 'GET' });
 }
 
-function buildApiBase(backendBaseUrl: string) {
-  const normalized = backendBaseUrl.replace(/\/$/, '');
-  return normalized.endsWith('/api') ? normalized : `${normalized}/api`;
-}
-
-async function buildAuthHeader(request: NextRequest) {
-  // Renova o acesso vencido antes de mandar (lib/backend-proxy).
-  return cabecalhoComAcessoValido(request);
-}
-
-async function parseParams(params: any) {
-  // Alguns arquivos aqui usam params como Promise; suportar ambos
-  return typeof params?.then === 'function' ? await params : params;
-}
-
-async function proxyToBackend(request: NextRequest, upstreamPath: string, init?: RequestInit) {
-  const backendBaseUrl = getBackendBaseUrl();
-  if (!backendBaseUrl) {
-    return NextResponse.json(
-      { error: 'Backend não configurado (defina NEXT_PUBLIC_API_URL ou BACKEND_URL)' },
-      { status: 500 }
-    );
-  }
-
-  const authHeader = await buildAuthHeader(request);
-  const upstreamResponse = await fetch(`${buildApiBase(backendBaseUrl)}${upstreamPath}`, {
-    ...init,
-    headers: {
-      ...(init?.headers || {}),
-      ...authHeader,
-    },
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const body = await request.text();
+  return proxyToBackend(request, `/tutors/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body,
   });
-
-  const raw = await upstreamResponse.text();
-  let data: any = null;
-  try {
-    data = raw ? JSON.parse(raw) : null;
-  } catch {
-    data = raw;
-  }
-
-  if (!upstreamResponse.ok) {
-    const message =
-      (data &&
-        (data.error ||
-          (Array.isArray(data.message) ? data.message.join(', ') : data.message) ||
-          data.message)) ||
-      'Erro ao processar requisição';
-
-    return NextResponse.json({ error: message }, { status: upstreamResponse.status });
-  }
-
-  return NextResponse.json(data, { status: upstreamResponse.status });
 }
 
-// GET - Buscar tutor por ID
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const resolved = await parseParams(params);
-    const id = resolved?.id;
-    if (!id) {
-      return NextResponse.json({ error: 'ID do tutor é obrigatório' }, { status: 400 });
-    }
-
-    return await proxyToBackend(request, `/tutors/${encodeURIComponent(id)}`, {
-      method: 'GET',
-    });
-
-  } catch (error) {
-    console.error('Erro ao buscar tutor:', error);
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
-  }
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const body = await request.text();
+  return proxyToBackend(request, `/tutors/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+  });
 }
 
-// PATCH - Atualização parcial do tutor
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const resolved = await parseParams(params);
-    const id = resolved?.id;
-    if (!id) {
-      return NextResponse.json({ error: 'ID do tutor é obrigatório' }, { status: 400 });
-    }
-
-    const body = await request.json();
-    return await proxyToBackend(request, `/tutors/${encodeURIComponent(id)}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-  } catch (error) {
-    console.error('Erro ao atualizar tutor:', error);
-
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
-  }
-}
-
-// PUT - Atualização completa do tutor (replace)
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const resolved = await parseParams(params);
-    const id = resolved?.id;
-    if (!id) {
-      return NextResponse.json({ error: 'ID do tutor é obrigatório' }, { status: 400 });
-    }
-
-    const body = await request.json();
-    return await proxyToBackend(request, `/tutors/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-
-  } catch (error) {
-    console.error('Erro ao atualizar tutor:', error);
-
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
-  }
-}
-
-// DELETE - Remover tutor
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const resolved = await parseParams(params);
-    const id = resolved?.id;
-    if (!id) {
-      return NextResponse.json({ error: 'ID do tutor é obrigatório' }, { status: 400 });
-    }
-
-    return await proxyToBackend(request, `/tutors/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-    });
-
-  } catch (error) {
-    console.error('Erro ao excluir tutor:', error);
-    return NextResponse.json(
-      { error: 'Erro interno do servidor' },
-      { status: 500 }
-    );
-  }
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return proxyToBackend(request, `/tutors/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }

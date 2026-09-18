@@ -54,7 +54,10 @@ export default function CommandPalette() {
           for (const p of (t.pets || [])) {
             out.push({ key: `p:${p.id}`, label: `🐾 ${p.name}`, sub: `${t.name}${cod ? " · " + cod : ""}`, href: `/dashboard/erp/pets/${p.id}` });
           }
-          out.push({ key: `t:${t.id}`, label: `👤 ${t.name}`, sub: `${[cod, tel].filter(Boolean).join(" · ")}${cod || tel ? " · " : ""}cliente`, href: `/dashboard/erp/tutores?q=${encodeURIComponent(t.codigo ? String(t.codigo) : t.name)}` });
+          // ABRE A FICHA, nao a lista. Antes isto mandava para /erp/tutores?q=<codigo> — e a
+          // lista de Clientes nao busca por codigo (so nome, e-mail e telefone). Quem clicava
+          // num cliente aqui caia numa lista vazia, tendo o id do cliente na propria linha.
+          out.push({ key: `t:${t.id}`, label: `👤 ${t.name}`, sub: `${[cod, tel].filter(Boolean).join(" · ")}${cod || tel ? " · " : ""}cliente`, href: `/dashboard/erp/tutores/${t.id}` });
         }
         setRows(out.slice(0, 30)); setSel(0);
       } catch { setRows([]); } finally { setLoading(false); }

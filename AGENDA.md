@@ -5,27 +5,39 @@
 > Motivo: em 04/09/2026 descobrimos 75 commits construidos e nunca integrados, e
 > decisoes combinadas em conversa que se perderam. Conversa nao guarda; arquivo guarda.
 
-Atualizado em: **07/09/2026**
+Atualizado em: **18/09/2026**
 
 ---
 
 ## 1. Como retomar
 
 ```
-cd "D:\dev\emporio-do-pet"
+cd "D:\OneDrive\Documentos\Claude\APP Local\emporio-do-pet"
 claude --resume        # lista as conversas desta pasta
 ```
 
 Ler nesta ordem: **CLAUDE.md** (as regras) e depois **este arquivo** (o que fazer).
 
+**PRIMEIRO COMANDO, SEMPRE:** `git fetch && git status -sb`. Em 18/09/2026 esta pasta estava 42
+commits atras do GitHub — a reforma de vendas inteira, feita em `D:\emporio-vendas` e publicada
+de la. Editar sem puxar e' editar uma foto velha. Sao QUATRO pastas de trabalho no mesmo repo:
+
+| Pasta | Ramo | Para que serve |
+|---|---|---|
+| `...\APP Local\emporio-do-pet` | `main` | a casa: o que esta no ar |
+| `D:\emporio-vendas` | `feat/vendas-gravacao-unica` | reforma das vendas + academia |
+| `D:\emporio-financeiro` | `financeiro` | modulo financeiro (39 commits fora do main) |
+| `D:\emporio-portal` | `portal-integracao` | portal do tutor / inbox multicanal |
+
 Estado hoje:
 
 | | |
 |---|---|
-| `main` | `ef22a308` — 21 commits publicados em 03–04/09 |
-| Testes | 274 no backend · 339 no front |
-| Catraca de tipos | trava em 46 (`vet-crm/.catraca-tipos`) |
+| `main` | `06914d5a` — reforma das vendas (42 commits) publicada ate 17/09 |
+| Testes | 960 no front (91 arquivos) |
+| Catraca de tipos | trava em **30** (`vet-crm/.catraca-tipos`) |
 | Producao | 1 maquina de atendimento + 1 de rotinas · banco com 4 GB |
+| Nao publicado | 1 commit de academia parado em `D:\emporio-vendas` (`d42f2715`) |
 
 ---
 
@@ -236,6 +248,84 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   enviar PDF e registrar na ficha) · E SimplesVet so consulta · P1 regra unica de venda nos relatorios.
 - [ ] Ao final: varredura da tela do ponto de venda (recebimento) e revisao da tabela de
   produtos e servicos (a Cintia esta fazendo fora do sistema; reintegrar junto).
+
+---
+
+## 1c. Aba Clientes — varredura e conserto (comecou em 18/09/2026)
+
+Varredura pedida pela Cintia: as 6 telas da aba (Lista, Cadastros recebidos, Portal do tutor,
+Aniversarios, Vacinacao, Pesos a revisar), a ficha do cliente (4 abas internas), cada ponto de
+conexao com outras telas, e o que funciona e o que nao.
+
+**Regra permanente da Cintia (18/09):** *"Qualquer coisa que for esbarrar nas telas de vendas
+devem ser questionados antes."* Vale ate para mudanca que parece inofensiva.
+
+**Decisoes dela nesta frente (nao reabrir):** Aniversarios envia so para CLIENTE (fora
+fornecedor/parceiro/profissional), so pet VIVO, sem arquivado e sem ex-cliente — "a recuperar"
+CONTINUA na lista. As caixas Sequencias, Avaliacoes Google e E-mails da ficha NAO sao enfeite
+para remover: sao lugares guardados para o modulo de relacionamento, que entra "assim que o
+basico do sistema rodar sozinho".
+
+- [x] **Bloco A — o caminho de arquivar.** Criadas `app/api/tutors/[id]/arquivar` e
+  `/restaurar`: existiam no servidor e nao no site, entao o botao 📦 dava 404 desde que nasceu
+  — e a visao "Arquivados" ficava sempre vazia, parecendo recurso sem ninguem dentro.
+- [x] **Bloco B — a explicacao do servidor volta a chegar na tela.** As rotas de tutor tinham
+  proxy proprio com `data.error || data.message`, e o `error` do Nest e sempre "Bad Request":
+  toda explicacao era jogada fora. `tutors/[id]/route.ts` virou o proxy compartilhado (216 → 53
+  linhas); em `tutors/route.ts` so o trecho do erro mudou, porque ela TRADUZ `limit` em `take`
+  para 14 telas e padronizar por atacado derrubaria todas para 20 registros, calado. A ficha
+  tinha um SEGUNDO botao de excluir que continuava mudo — agora explica e oferece arquivar,
+  igual a lista.
+- [x] **Bloco C — a lupa acha.** O resultado de cliente mandava para `/erp/tutores?q=<codigo>` e
+  a lista nao busca por codigo: caia em lista vazia. Agora abre a ficha. A lista tambem passou a
+  achar por codigo, e as duas copias da regra de busca viraram uma (`clienteCasaCom`).
+- [x] **Bloco D — as datas.** Nascimento e gravado a meia-noite UTC; lido no fuso de Fortaleza
+  virava o dia anterior (quem nasce 01/08 aparecia 31/07 e sumia do mes). A ficha usava um
+  `fmtDataBR` proprio — agora usa `lib/datas`, como a ficha do pet. No servidor, dia e idade
+  saem das partes UTC (`aniversarios.regras.ts`, com teste).
+- [x] **Bloco E — Aniversarios: quem entra.** Era uma lista de disparo (tem botao de WhatsApp em
+  cada linha) que trazia arquivado, ex-cliente, fornecedor como "Cliente" e **pet com obito**.
+
+**Travas novas:** `vet-crm/lib/clientes-tem-rota.spec.ts` (12) le as 7 telas da aba e exige que
+todo `/api/...` chamado exista — testada apagando a rota nova, quebra e diz o endereco.
+`backend/.../aniversarios.regras.spec.ts` (6) trava o dia do aniversario.
+
+### Fila desta frente (varredura de 18/09, por ordem combinada)
+
+- [ ] **Cadastros recebidos nao perde dado.** `aprovar`/`vincular` usam `.catch(() => null)` no
+  criar-pet e no patch, nao conferem o resultado e apagam a submissao do mesmo jeito, dizendo
+  "Cliente criado! 🎉". Pet que falha some para sempre. Junto: o ✓ verde da comparacao lado a
+  lado so aparece em campo com digito, entao e-mail e nome de pet identicos nunca marcam; e a
+  seta de voltar ainda vai para Configuracoes (a tela mudou para Clientes em 15/09).
+- [ ] **Aviso de cadastro incompleto / revisao anual** (ideia da Cintia, 18/09): bloqueio ou
+  aviso sempre que o cadastro estiver incompleto ou sem atualizar ha 1 ano, "para que TODOS
+  comecassem a fazer esse trabalho". Desenho a apresentar antes de codar.
+- [ ] **Os numeros da ficha nao batem entre si.** KPI "🛒 Compras" e "💰 Total gasto" contam TODO
+  atendimento realizado (inclusive CANCELADO no passado, porque `realizadas` filtra por
+  `date < now` sem excluir cancelado), enquanto a aba Compras filtra por `ehCompra`. O LTV da
+  lista exclui cancelado; a ficha nao. **"A receber" encosta na regra de cobranca de vendas —
+  PERGUNTAR ANTES.**
+- [ ] Ficha: "Excluir" aparece para todo perfil (a lista esconde por `acao:cliente.excluir`).
+- [ ] Ficha: aba Pets nao mostra os pets em que ele e 2º responsavel (a Visao geral mostra).
+- [ ] Ficha: filtro de compras por NOME do pet (dois pets com mesmo nome se misturam).
+- [ ] Ficha: venda sem itens detalhados nao ganha "Abrir no PDV" — nao da para receber dali.
+- [ ] Ficha: "🔄 Retomar lead" so troca o estagio para "Reativacao" e vai para Leads; nao
+  reclassifica nada. Existe `reclassify-as-lead` no servidor, sem uso.
+- [ ] Lista: Imprimir e Excel trazem **CPF e Cidade sempre vazios** — `tutors/lista-simples` nao
+  seleciona esses campos. Busca por telefone so olha o principal (`contacts: { take: 1 }`).
+- [ ] Lista: Importar CSV faz um POST por linha e so diz "X com erro", sem dizer quais.
+- [ ] Portal do tutor: "⚙️ Configurar o portal" aponta para `/dashboard/configuracoes/portal`,
+  que **nao existe** (404).
+- [ ] Vacinacao: "Ficha do pet" manda `?tab=vacinas`, mas a ficha do pet so entende `?tab=fisio`.
+- [ ] Pesos a revisar: coluna Tutor e texto puro, tendo `tutorId` na mao.
+- [ ] "Adicionar Pet" cria "Sem nome" no banco no clique; quem desiste deixa lixo.
+- [ ] Contatos → "Novo cliente" leva a `/erp/tutores/novo`, que so redireciona para a lista.
+- [ ] **`take` cortado em 200 no servidor** (`tutors.findAll`): `?limit=1000` devolve 200. Painel
+  Hoje, dashboard, Leads, NPS e Avaliacoes Google acham que veem os ~3,6 mil clientes e veem 200.
+  Bloco proprio — cada tela faz uma coisa com a lista.
+- [ ] `app/api/tutors/[id]/pets/route.ts` usa a assinatura antiga do Next (`params` sem Promise).
+  Funciona hoje por compatibilidade do Next 15; quebra na proxima versao maior. E o endereco que
+  o **Novo agendamento** usa para listar os pets do cliente, mais 4 telas.
 
 ---
 

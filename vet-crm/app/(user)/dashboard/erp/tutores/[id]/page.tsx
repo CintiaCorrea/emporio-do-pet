@@ -34,6 +34,14 @@ import {
   LuArrowLeft, LuStickyNote, LuPencil, LuTriangleAlert,
   LuTrash, LuPhone, LuCalendar, LuUser, LuPlus, LuCheck, LuX} from "react-icons/lu";
 import { dentroDaJanelaDeAjuste } from "@/lib/janelaDeAjuste";
+// DATA DE CALENDARIO VEM DE lib/datas (18/09/2026).
+//
+// Esta ficha tinha um fmtDataBR proprio: new Date(v).toLocaleDateString(). Nascimento e salvo
+// como "AAAA-MM-DDT00:00:00.000Z" — meia-noite em UTC. Lido no fuso do Brasil (-3h), isso e' o
+// DIA ANTERIOR: quem nasceu em 01/08 aparecia 31/07. A ficha do PET ja usava lib/datas; esta
+// nao, e as duas mostravam datas diferentes do mesmo bicho. Horario de atendimento (timestamp
+// de verdade) nao casa o padrao de "dia" e segue formatado como antes.
+import { fmtDataBR, diaCalendario } from "@/lib/datas";
 
 // O servidor responde em inglês ("email must be an email"). Quem usa a tela não tem
 // que decifrar isso — mas também não dá pra esconder o motivo, senão vira "Erro ao
@@ -51,11 +59,6 @@ const traduzErro = (msg: string): string => {
 const CONTATO_TIPO_LABEL: Record<string, string> = { MOBILE: "Celular", PHONE: "Fixo", BUSINESS: "Comercial" };
 const TIPO_PESSOA_LABEL: Record<string, string> = { INDIVIDUAL: "Pessoa física", LEGAL_ENTITY: "Pessoa jurídica" };
 const GENERO_LABEL: Record<string, string> = { MALE: "Masculino", FEMALE: "Feminino", OTHER: "Outro" };
-const fmtDataBR = (v?: string | null) => {
-  if (!v) return "—";
-  const d = new Date(v);
-  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
-};
 const ouTraco = (v?: string | null) => (v && String(v).trim() ? String(v) : "—");
 
 interface TutorDetail {
@@ -423,16 +426,48 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     finally { setNotaSaving(false); }
   };
 
+  // A SEGUNDA PORTA DE EXCLUIR (18/09/2026).
+  //
+  // A lista de Clientes ja sabia ler o "TEM_HISTORICO" do servidor e oferecer arquivar. Esta
+  // aqui, que e' o outro caminho para a mesma acao, mostrava "Erro ao remover: HTTP 400" e
+  // parava ali — sem dizer o motivo e sem oferecer a saida. Mesmo defeito, outra escrita.
   async function handleDelete() {
     try {
       const res = await fetch(`/api/tutors/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      toast.success("Tutor removido");
+      if (!res.ok) {
+        const corpo = await res.json().catch(() => null);
+        const msg = String(
+          (Array.isArray(corpo?.message) ? corpo.message.join(" · ") : corpo?.message) || corpo?.error || "",
+        );
+        // O servidor recusa apagar quem tem venda ou atendimento (a exclusao levaria tudo junto,
+        // em cascata) e diz por que. O caminho, nesse caso, e arquivar.
+        if (msg.includes("TEM_HISTORICO")) {
+          setDelOpen(false);
+          const limpa = msg.replace("TEM_HISTORICO: ", "");
+          if (window.confirm(`${limpa}
+
+Quer arquivar agora?`)) await arquivarCliente();
+          return;
+        }
+        if (res.status === 403) { toast.error("So o perfil Admin pode excluir clientes."); setDelOpen(false); return; }
+        throw new Error(msg || `HTTP ${res.status}`);
+      }
+      toast.success("Cliente removido");
       router.push("/dashboard/erp/tutores");
     } catch (e: any) {
       toast.error("Erro ao remover: " + (e?.message || ""));
     }
     setDelOpen(false);
+  }
+
+  /** Arquivar nao apaga nada: o cliente sai das listas e volta pelo botao Arquivados. */
+  async function arquivarCliente() {
+    try {
+      const r = await fetch(`/api/tutors/${id}/arquivar`, { method: "PATCH" });
+      if (!r.ok) throw new Error();
+      toast.success("Cliente arquivado — da pra restaurar em Clientes > Arquivados");
+      router.push("/dashboard/erp/tutores");
+    } catch { toast.error("Nao foi possivel arquivar."); }
   }
 
   async function marcarRecuperar() {
@@ -647,7 +682,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
     .sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
   // Selos de conquista (dados reais)
   const anosCasa = Math.max(0, new Date().getFullYear() - new Date(tutor.primeiraCompraAt || tutor.createdAt).getFullYear());
-  const aniversarioNoMes = tutor.birthDate ? new Date(tutor.birthDate).getMonth() === new Date().getMonth() : false;
+  // Mesmo motivo do fmtDataBR: sem diaCalendario, quem nasce dia 1 cai no mes anterior e o
+  // selo aparece no mes errado (ou some no mes certo).
+  const aniversarioNoMes = (() => { const d = diaCalendario(tutor.birthDate); return d ? d.getMonth() === new Date().getMonth() : false; })();
   const selos: { txt: string; bg: string; fg: string }[] = [];
   if (anosCasa >= 2) selos.push({ txt: `🏅 Fiel (${anosCasa} anos)`, bg: "#FBF3E3", fg: "#8a6400" });
   if ((tutor as any).rankingAbc === "A") selos.push({ txt: "⭐ Top 20%", bg: "#E1F5EE", fg: "#0F6E56" });
@@ -1580,9 +1617,9 @@ export default function TutorDetailPage({ params }: { params: Promise<{ id: stri
       />
       <ConfirmDeleteModal
         isOpen={delOpen}
-        entityLabel="Tutor"
-        itemName={tutor.name || "Tutor"}
-        consequenceText="Os pets, atendimentos e historico vinculados tambem serao removidos."
+        entityLabel="Cliente"
+        itemName={tutor.name || "Cliente"}
+        consequenceText="Os pets vinculados sao removidos junto. Cliente com venda ou atendimento no historico nao pode ser excluido — nesse caso o caminho e arquivar."
         onConfirm={handleDelete}
         onClose={() => setDelOpen(false)}
       />

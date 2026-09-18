@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { diaDoMes, calcularIdade } from './aniversarios.regras';
 
 type TutorRow = { id: string; name: string; birthDate: Date | string | null };
 type PetRow = {
@@ -29,29 +30,6 @@ export interface AniversarioItem {
 export class AniversariosService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** dia do mês (1..31) do birthDate, normalizando para Date */
-  private diaDoMes(birthDate: Date | string | null): number | null {
-    if (!birthDate) return null;
-    const d = new Date(birthDate);
-    if (isNaN(d.getTime())) return null;
-    return d.getDate();
-  }
-
-  /** idade em anos completos até hoje */
-  private calcularIdade(birthDate: Date | string | null): number | null {
-    if (!birthDate) return null;
-    const nascimento = new Date(birthDate);
-    if (isNaN(nascimento.getTime())) return null;
-    const hoje = new Date();
-    let idade = hoje.getFullYear() - nascimento.getFullYear();
-    // ajusta se o aniversário ainda não passou no ano corrente
-    const aniversarioAindaNaoPassou =
-      hoje.getMonth() < nascimento.getMonth() ||
-      (hoje.getMonth() === nascimento.getMonth() && hoje.getDate() < nascimento.getDate());
-    if (aniversarioAindaNaoPassou) idade -= 1;
-    return idade >= 0 ? idade : null;
-  }
-
   async porMes(month?: number) {
     // valida o mês (1..12); default = mês atual do servidor
     const now = new Date();
@@ -60,14 +38,29 @@ export class AniversariosService {
       mes = now.getMonth() + 1;
     }
 
-    // 1. Tutors aniversariantes do mês (parâmetro seguro via Prisma.sql)
+    // QUEM ENTRA NESTA LISTA (Cintia, 18/09/2026: "enviar somente para clientes e pets VIVOS,
+    // não enviar para clientes arquivados e ex-cliente").
+    //
+    // Cada linha daqui tem um botão 📲 WhatsApp ao lado — então esta lista não é um relatório,
+    // é uma lista de disparo. Antes ela trazia TODO mundo com data no mês: cliente arquivado,
+    // ex-cliente, fornecedor aparecendo como "👤 Cliente" e pet com óbito. Parabenizar o tutor
+    // pelo aniversário de um pet que morreu é o pior erro que esta tela pode cometer.
+    //
+    // FORA: ARCHIVED (arquivado) e CHURNED (ex-cliente). DENTRO: ACTIVE e também SUSPENDED
+    // ("a recuperar") — esse ainda é cliente, e o aniversário é justamente a desculpa de voltar
+    // a falar com ele.
+    const CLIENTE_DE_VERDADE = Prisma.sql`t.status NOT IN ('ARCHIVED', 'CHURNED') AND (t.classificacao IS NULL OR t.classificacao = 'Cliente')`;
+
+    // 1. Tutores aniversariantes do mês (parâmetro seguro via Prisma.sql)
     const tutores = await this.prisma.$queryRaw<TutorRow[]>(
-      Prisma.sql`SELECT id, name, "birthDate" FROM tutors WHERE "birthDate" IS NOT NULL AND EXTRACT(MONTH FROM "birthDate") = ${mes}`,
+      Prisma.sql`SELECT t.id, t.name, t."birthDate" FROM tutors t WHERE t."birthDate" IS NOT NULL AND EXTRACT(MONTH FROM t."birthDate") = ${mes} AND ${CLIENTE_DE_VERDADE}`,
     );
 
-    // 2. Pets aniversariantes do mês
+    // 2. Pets aniversariantes do mês. Só pet VIVO (status ACTIVE deixa de fora óbito,
+    //    transferido, inativo e arquivado) E só de cliente que ainda é cliente — senão o
+    //    arquivado voltaria pela porta do bicho.
     const pets = await this.prisma.$queryRaw<PetRow[]>(
-      Prisma.sql`SELECT p.id, p.name, p."birthDate", p."tutorId", p.species, t.name AS "tutorNome" FROM pets p LEFT JOIN tutors t ON t.id = p."tutorId" WHERE p."birthDate" IS NOT NULL AND EXTRACT(MONTH FROM p."birthDate") = ${mes}`,
+      Prisma.sql`SELECT p.id, p.name, p."birthDate", p."tutorId", p.species, t.name AS "tutorNome" FROM pets p JOIN tutors t ON t.id = p."tutorId" WHERE p."birthDate" IS NOT NULL AND EXTRACT(MONTH FROM p."birthDate") = ${mes} AND p.status = 'ACTIVE' AND ${CLIENTE_DE_VERDADE}`,
     );
 
     // 3. Telefones: coleta tutorIds (tutores + tutores dos pets) e busca em Contact
@@ -104,9 +97,9 @@ export class AniversariosService {
         tipo: 'CLIENTE',
         id: t.id,
         nome: t.name,
-        dia: this.diaDoMes(t.birthDate),
+        dia: diaDoMes(t.birthDate),
         birthDate: t.birthDate,
-        idade: this.calcularIdade(t.birthDate),
+        idade: calcularIdade(t.birthDate),
         tutorId: t.id,
         tutorNome: t.name,
         telefone: telefonePorTutor.get(t.id) ?? null,
@@ -118,9 +111,9 @@ export class AniversariosService {
         tipo: 'PET',
         id: p.id,
         nome: p.name,
-        dia: this.diaDoMes(p.birthDate),
+        dia: diaDoMes(p.birthDate),
         birthDate: p.birthDate,
-        idade: this.calcularIdade(p.birthDate),
+        idade: calcularIdade(p.birthDate),
         tutorId: p.tutorId,
         tutorNome: p.tutorNome,
         especie: p.species,
