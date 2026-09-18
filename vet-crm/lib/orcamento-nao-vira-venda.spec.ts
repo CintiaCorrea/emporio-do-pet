@@ -41,8 +41,10 @@ describe("venda e orçamento em abas separadas", () => {
   });
 
   it("orçamento vira venda só quando alguém pede — e some", () => {
-    expect(rail).toContain("Transformar em venda");
-    expect(rail).toContain("o orçamento deixa de existir");
+    // O botão passou a se chamar "Virar venda" em 18/09/2026, o mesmo nome nos três lugares
+    // onde a recepção converte. A regra que este teste guarda é a mesma: só vira venda no clique.
+    expect(rail).toContain("Virar venda");
+    expect(rail).toContain("O orçamento sai da lista.");
   });
 
   it("sair da página com coisa montada e não salva pergunta antes", () => {

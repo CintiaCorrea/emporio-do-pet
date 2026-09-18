@@ -173,6 +173,26 @@ export default function PDVPage() {
 
   // 📄 Orçamentos EM ABERTO (não convertidos) — aparecem na MESMA lista das vendas, em cor
   // diferente (cinza), pra você converter em venda ali mesmo. Interconecta ficha/PDV/WhatsApp → Caixa.
+  // 💰 ORÇAMENTO VIRA VENDA SEM SAIR DAQUI (Cintia, 18/09/2026). Mesma porta do servidor que o
+  // carrinho da ficha e a lista da Consulta de vendas usam.
+  const [virandoOrc, setVirandoOrc] = useState(false);
+  async function virarVendaDoOrcamento(o: any) {
+    const quem = `${o?.tutor?.name || 'cliente'}${o?.pet?.name ? ` (${o.pet.name})` : ''}`;
+    if (!confirm(`Virar venda o orçamento de ${quem}, ${brl(Number(o?.valorTotal || 0))}?
+
+Vira uma venda concluída, com os mesmos itens. O orçamento sai da lista.`)) return;
+    setVirandoOrc(true);
+    try {
+      const r = await fetch(`/api/orcamentos/${o.id}/converter`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || 'Não consegui virar venda.');
+      setDetOrc(null);
+      await loadOrcamentos();
+      toast.success(d?.numeroVenda ? `Virou a venda #${d.numeroVenda} ✅` : 'Orçamento virou venda ✅');
+    } catch (e: any) { toast.error(e?.message || 'Não consegui virar venda.'); }
+    finally { setVirandoOrc(false); }
+  }
+
   const loadOrcamentos = useCallback(async () => {
     try {
       const r = await fetch('/api/orcamentos', { cache: 'no-store' });
@@ -1513,7 +1533,14 @@ export default function PDVPage() {
               {detOrc.observacao && <div style={{ marginTop: 10, fontSize: 12, color: '#374151' }}><b>Obs:</b> {detOrc.observacao}</div>}
               <div style={{ display: 'flex', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
                 <button onClick={() => imprimirOrcamento(detOrc)} style={{ border: `1px solid ${LINE}`, borderRadius: 9, background: '#fff', padding: '10px 14px', fontSize: 13, cursor: 'pointer', color: INK }}>🖨️ Imprimir orçamento</button>
-                {detOrc.petId && <a href={`/dashboard/erp/pets/${detOrc.petId}?carrinho=orcamento`} title="Transformar em venda no carrinho da ficha — o orçamento some e vira venda" style={{ marginLeft: 'auto', textDecoration: 'none', borderRadius: 9, background: '#6D28D9', color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 500 }}>→ Abrir para transformar em venda</a>}
+                {detOrc.petId && <a href={`/dashboard/erp/pets/${detOrc.petId}?carrinho=orcamento`} title="Abrir no carrinho da ficha para mexer nos itens" style={{ textDecoration: 'none', borderRadius: 9, border: `1px solid ${LINE}`, background: '#fff', color: INK, padding: '10px 14px', fontSize: 13 }}>✏️ Editar itens</a>}
+                {/* A CHAVINHA, NO LUGAR ONDE A RECEPÇÃO ESTÁ (18/09/2026). Antes este botão só
+                    levava para a ficha do pet: duas telas para uma coisa de um clique. */}
+                <button onClick={() => virarVendaDoOrcamento(detOrc)} disabled={virandoOrc}
+                  title="O orçamento vira uma venda concluída, com os mesmos itens"
+                  style={{ marginLeft: 'auto', border: 'none', borderRadius: 9, background: TEAL, color: '#fff', padding: '10px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: virandoOrc ? 0.6 : 1 }}>
+                  {virandoOrc ? 'Virando…' : '💰 Virar venda'}
+                </button>
               </div>
             </div>
           </div>

@@ -434,7 +434,10 @@ export default function PetComandaRail({
 
   // TRANSFORMAR EM VENDA: o orçamento some e vira venda (como no SimplesVet).
   async function transformarEmVenda(o: any) {
-    if (!confirm(`Transformar o orçamento de ${BRL(o.valorTotal)} em venda?\n\nA venda entra em “A receber” e o orçamento deixa de existir.`)) return;
+    // O MESMO AVISO NOS TRES LUGARES (18/09/2026): lista da Consulta de vendas, PDV e aqui.
+    if (!confirm(`Virar venda o orçamento de ${BRL(o.valorTotal)}?
+
+Vira uma venda concluída, com os mesmos itens. O orçamento sai da lista.`)) return;
     try {
       const r = await fetch(`/api/orcamentos/${o.id}/converter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       const d = await r.json().catch(() => ({}));
@@ -653,7 +656,7 @@ export default function PetComandaRail({
                       <div className="mt-1.5 flex flex-wrap gap-1.5">
                         <button onClick={() => editarOrcamentoAqui(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#E8DFC8", color: "#8A5A0B" }}>✏️ Editar</button>
                         <button onClick={() => imprimirOrcamento(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#cfd8e0", color: "#0C447C" }}><LuPrinter size={11} /> Imprimir</button>
-                        <button onClick={() => transformarEmVenda(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded text-white" style={{ background: "#009AAC" }}><LuArrowRight size={11} /> Transformar em venda</button>
+                        <button onClick={() => transformarEmVenda(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded text-white" style={{ background: "#009AAC" }}><LuArrowRight size={11} /> Virar venda</button>
                         <button onClick={() => excluirOrcamento(o)} className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded border" style={{ borderColor: "#F0CFCF", color: "#A32D2D" }}><LuTrash size={11} /> Excluir</button>
                       </div>
                     </div>

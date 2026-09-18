@@ -599,7 +599,7 @@ Os itens vão para um orçamento na ficha do pet e a venda deixa de existir.`)) 
                       }}
                       title="Vendeu por engano? A venda vira orçamento, com os mesmos itens"
                       className="inline-flex items-center gap-1.5"
-                      style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: NAVY, background: '#fff', cursor: 'pointer' }}
+                      style={{ border: `1px solid ${NAVY}`, borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, color: NAVY, background: '#fff', cursor: 'pointer' }}
                     >📄 Virar orçamento</button>
                   )}
                   <button onClick={(e) => { e.stopPropagation(); setDevOpen(true); }} className="inline-flex items-center gap-1.5" style={{ border: `1px solid ${CORAL}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: CORAL, background: '#fff', cursor: 'pointer' }}>↩️ Devolver</button>

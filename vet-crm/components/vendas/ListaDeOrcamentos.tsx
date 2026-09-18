@@ -111,6 +111,27 @@ export default function ListaDeOrcamentos() {
     } catch (e: any) { toast.error(e?.message || "Não consegui excluir."); }
   }
 
+  // 💰 VIRAR VENDA DIRETO DA LISTA (Cintia, 18/09/2026: "transformar venda em orçamento e vice
+  // versa tem que ser simples para quem está no atendimento e hoje não está sendo"). Antes só dava
+  // no carrinho da ficha do pet: da lista era clicar ✏️, cair na ficha, achar a aba do orçamento e
+  // só então transformar — três telas. É a mesma porta do servidor que o carrinho usa.
+  const [virando, setVirando] = useState<string | null>(null);
+  async function virarVenda(o: any) {
+    const quem = `${o.tutor?.name || "cliente"}${o.pet?.name ? ` (${o.pet.name})` : ""}`;
+    if (!confirm(`Virar venda o orçamento de ${quem}, ${brl(o.valorTotal)}?
+
+Vira uma venda concluída, com os mesmos itens. O orçamento sai da lista.`)) return;
+    setVirando(o.id);
+    try {
+      const r = await fetch(`/api/orcamentos/${o.id}/converter`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.message || "Não consegui virar venda.");
+      setOrcs((l) => l.filter((x) => x.id !== o.id));
+      toast.success(d?.numeroVenda ? `Virou a venda #${d.numeroVenda} ✅` : "Orçamento virou venda ✅");
+    } catch (e: any) { toast.error(e?.message || "Não consegui virar venda."); }
+    finally { setVirando(null); }
+  }
+
   // 💬 O orçamento em PDF no WhatsApp — o mesmo timbrado e o mesmo caminho da venda.
   const [enviando, setEnviando] = useState<string | null>(null);
   async function enviarOrcamento(o: any) {
@@ -236,12 +257,22 @@ export default function ListaDeOrcamentos() {
                           {o.petId && o._sit !== "VENDA" && (
                             <button onClick={() => abrirFollowUp(o)} className="text-[11.5px] font-medium px-2.5 py-1.5 rounded-lg" style={{ background: "#EDE9FE", color: "#6D28D9" }}>👤 Follow-up</button>
                           )}
+                          {/* A CHAVINHA: aqui o orçamento vira venda, e na linha da venda a venda
+                              vira orçamento. Mesmo desenho nos dois sentidos (18/09/2026). */}
+                          {o._sit !== "VENDA" && (
+                            <button
+                              onClick={() => virarVenda(o)}
+                              disabled={virando === o.id}
+                              title="O orçamento vira uma venda concluída, com os mesmos itens"
+                              style={{ border: `1px solid ${TEAL}`, background: "#fff", color: TEAL, borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: virando === o.id ? 0.6 : 1 }}
+                            >{virando === o.id ? "…" : "💰 Virar venda"}</button>
+                          )}
                           {/* OS MESMOS BOTÕES DA LINHA DA VENDA, na mesma ordem (17/09/2026). Editar
-                              abre no carrinho da ficha, que é onde se monta e se transforma em venda. */}
+                              abre no carrinho da ficha, que é onde se monta o orçamento. */}
                           <button onClick={() => imprimirOrcamento(o)} title="Imprimir o orçamento" aria-label="Imprimir o orçamento" style={acaoDaLinha}>🖨️</button>
                           <button onClick={() => enviarOrcamento(o)} disabled={enviando === o.id} title="Enviar o orçamento em PDF no WhatsApp do cliente" aria-label="Enviar o orçamento" style={acaoDaLinha}>{enviando === o.id ? "…" : "💬"}</button>
                           {o.petId && (
-                            <Link href={`/dashboard/erp/pets/${o.petId}?carrinho=orcamento`} title="Editar o orçamento no carrinho da ficha (e transformar em venda)" aria-label="Editar o orçamento" style={{ ...acaoDaLinha, display: "inline-block", textDecoration: "none" }}>✏️</Link>
+                            <Link href={`/dashboard/erp/pets/${o.petId}?carrinho=orcamento`} title="Editar o orçamento no carrinho da ficha" aria-label="Editar o orçamento" style={{ ...acaoDaLinha, display: "inline-block", textDecoration: "none" }}>✏️</Link>
                           )}
                           <button onClick={() => excluirOrcamento(o)} title="Excluir o orçamento" aria-label="Excluir o orçamento" style={{ ...acaoDaLinha, color: "#A32D2D" }}>🗑️</button>
                         </div>
