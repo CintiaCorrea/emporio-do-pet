@@ -214,7 +214,7 @@ export default function AcademiaPage() {
           <div className="flex items-center gap-2 px-4 py-3 border-b flex-wrap" style={{ borderColor: "#F0EBE0" }}>
             <span className="text-[12px] font-bold uppercase tracking-wide mr-1" style={{ color: "#8A8778" }}>Vendas</span>
             <span className="text-[12.5px] font-semibold px-3 py-1.5 rounded-full border" style={{ background: "#0F6E56", color: "#fff", borderColor: "#0F6E56" }}>🛒 Guia interativo</span>
-            <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Passe o mouse nos termos. Clique nos passos da venda.</span>
+            <span className="text-[11.5px] ml-auto" style={{ color: "#8A8778" }}>Reescrito em 17/09/2026, com a reforma das vendas. Dá pra imprimir.</span>
           </div>
           <iframe
             src="/academia/guia-vendas.html"

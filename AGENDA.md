@@ -121,6 +121,11 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Guia de Vendas do Academy refeito** (17/09): `vet-crm/public/academia/guia-vendas.html` no MESMO
+  formato do guia do WhatsApp (mesmo <style>), contando o sistema como ele e hoje: 4 portas, item e preco
+  do cadastro, gaveta unica de receber, credito/troco, orcamento e a volta (venda vira orcamento),
+  documentos no timbrado, internacao, corrigir/apagar/devolver e as regras de ouro. Trava:
+  `guia-vendas-do-academy.spec.ts` (falha se o guia voltar a falar do que saiu).
 - [x] **Devolver credito** (17/09, pedido dela): botao 💸 na tela Saldo dos clientes ->
   `DevolverCreditoModal`. Em dinheiro sai do caixa do dia (SANGRIA no movimento); em PIX nao mexe no
   caixa. O servidor recusa devolver mais que o saldo. No DRE anula o adiantamento (nao vira despesa).
