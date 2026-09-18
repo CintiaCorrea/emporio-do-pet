@@ -121,6 +121,10 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Configuracao de vendas: 3 abas** (17/09, ela: "e pouca coisa para ficar so numa aba"):
+  "💳 Venda e recebimento" (obrigar profissional, obrigar NSU, explicacao do desconto + a lista de
+  Formas de recebimento), "📄 Orcamento" (validade padrao + modelos) e "🧾 Demonstrativo". O endereco
+  antigo ?aba=formas cai na primeira.
 - [x] **Aba "Regras da venda" enxuta** (17/09): dos 9 ajustes, 7 nao eram lidos por codigo nenhum e
   sairam (vender sem estoque, unificar vendas do dia, obrigar cliente no orcamento, "chamar de",
   prazo de devolucao, limite geral de desconto). Ficaram: obrigar profissional no item (lido em

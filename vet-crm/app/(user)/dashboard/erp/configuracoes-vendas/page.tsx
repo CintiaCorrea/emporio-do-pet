@@ -85,18 +85,21 @@ export default function ConfigVendasPage() {
   // TUDO DE CONFIGURAÇÃO NUM LUGAR SÓ (Cintia, 17/09/2026). Eram quatro entradas no menu para o
   // mesmo assunto: regras, formas de recebimento e os dois modelos. Agora são abas — e o desconto
   // por forma de pagamento continua editável, na aba "Formas de recebimento".
+  // TRÊS ABAS, E CADA REGRA JUNTO DO SEU ASSUNTO (Cintia, 17/09/2026: "é pouca coisa para ficar só
+  // numa aba"). As duas regras de venda e cartão vivem com as formas de recebimento — é onde se
+  // decide como o dinheiro entra; a validade padrão vive com o modelo de orçamento.
   const ABAS = [
-    { k: "regras", l: "⚙️ Regras da venda" },
-    { k: "formas", l: "💳 Formas de recebimento" },
-    { k: "orcamento", l: "📄 Modelo de orçamento" },
-    { k: "demonstrativo", l: "🧾 Modelo de demonstrativo" },
+    { k: "regras", l: "💳 Venda e recebimento" },
+    { k: "orcamento", l: "📄 Orçamento" },
+    { k: "demonstrativo", l: "🧾 Demonstrativo" },
   ] as const;
   type Aba = (typeof ABAS)[number]["k"];
   const [aba, setAba] = useState<Aba>("regras");
   useEffect(() => {
     try {
       const q = (new URLSearchParams(window.location.search).get("aba") || "").toLowerCase();
-      if (ABAS.some((a) => a.k === q)) setAba(q as Aba);
+      if (q === "formas") setAba("regras"); // o endereço antigo de Formas de recebimento
+      else if (ABAS.some((a) => a.k === q)) setAba(q as Aba);
     } catch { /* sem parâmetro: abre nas regras */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -118,17 +121,36 @@ export default function ConfigVendasPage() {
 
   if (loading) return <div className="p-6 text-center text-sm text-[#374151]">Carregando...</div>;
 
-  if (aba !== "regras") {
+  if (aba === "demonstrativo") {
     return (
       <div className="p-4 md:p-6 w-full">
         {abasHtml}
-        {aba === "formas" ? <FormasDeRecebimento /> : aba === "orcamento" ? <ModelosDeOrcamento /> : <ModeloDeDemonstrativo />}
+        <ModeloDeDemonstrativo />
+      </div>
+    );
+  }
+
+  if (aba === "orcamento") {
+    return (
+      <div className="p-4 md:p-6 w-full">
+        {abasHtml}
+        <div className="max-w-2xl mb-4">
+          <Card titulo="📄 Regra do orçamento">
+            <Row lab="Validade padrão" desc="Dias de validade de um orçamento novo, contados do dia em que ele é salvo."><NumIn k="orcamentoValidade" un="dias" /></Row>
+            <div className="px-4 pb-3">
+              {podeEditar
+                ? <button onClick={salvar} disabled={saving} className="bg-[#009AAC] text-white rounded-lg px-4 py-2 text-[13px] font-medium disabled:opacity-60">{saving ? "Salvando..." : "Salvar"}</button>
+                : <span className="text-[12px] text-[#5C6B70]">👁️ Somente leitura</span>}
+            </div>
+          </Card>
+        </div>
+        <ModelosDeOrcamento />
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-4 md:p-6 w-full">
       {abasHtml}
       <div className="text-[12.5px] text-[#374151] mb-4">As regras do módulo de vendas. Cada ajuste é salvo e passa a valer no Ponto de venda, atendimento e caixa.</div>
 
@@ -154,24 +176,21 @@ export default function ConfigVendasPage() {
 
       <Card titulo="🏷️ Desconto">
         <div className="px-4 py-3 text-[12.5px] text-[#374151]">
-          O desconto permitido é <b>por forma de pagamento</b> — cada forma tem o seu percentual, porque
+          O desconto permitido é <b>por forma de pagamento</b> (a lista abaixo) — cada forma tem o seu percentual, porque
           depende do que a maquininha cobra. O administrativo não tem limite.
-          <div className="mt-2">
-            <button onClick={() => setAba("formas")} className="text-[12.5px] font-semibold rounded-lg px-3 py-1.5 border" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#fff" }}>
-              💳 Editar em Formas de recebimento
-            </button>
-          </div>
         </div>
-      </Card>
-
-      <Card titulo="📄 Orçamento">
-        <Row lab="Validade padrão" desc="Dias de validade de um orçamento novo. Vale a partir do dia em que ele é salvo."><NumIn k="orcamentoValidade" un="dias" /></Row>
       </Card>
 
       <div className="flex justify-end mt-2">
         {podeEditar
           ? <button onClick={salvar} disabled={saving} className="bg-[#009AAC] text-white rounded-lg px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-60">{saving ? "Salvando..." : "Salvar configurações"}</button>
           : <span className="text-[12px] text-[#5C6B70]">👁️ Somente leitura</span>}
+      </div>
+
+      {/* AS FORMAS DE RECEBIMENTO MORAM AQUI (17/09/2026): é a mesma conversa — como o dinheiro
+          entra, e quanto de desconto cada forma aceita. */}
+      <div className="mt-6">
+        <FormasDeRecebimento />
       </div>
     </div>
   );

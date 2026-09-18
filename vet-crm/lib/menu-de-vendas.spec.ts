@@ -33,9 +33,12 @@ describe("o menu de Vendas", () => {
 
   it("configuração de vendas é a casa das quatro abas", () => {
     const cfg = readFileSync(join(RAIZ, "app", "(user)", "dashboard", "erp", "configuracoes-vendas", "page.tsx"), "utf8");
-    for (const aba of ["Regras da venda", "Formas de recebimento", "Modelo de orçamento", "Modelo de demonstrativo"]) {
+    // Três abas, com cada regra junto do seu assunto (17/09/2026): pouca regra não merece aba própria.
+    for (const aba of ["Venda e recebimento", "📄 Orçamento", "Demonstrativo"]) {
       expect(cfg).toContain(aba);
     }
+    expect(cfg).toContain("<FormasDeRecebimento />");
+    expect(cfg).toContain("<ModelosDeOrcamento />");
   });
 });
 
@@ -54,7 +57,7 @@ describe("as regras da venda que sobraram são de verdade", () => {
     }
   });
 
-  it("o desconto aponta para onde se edita de verdade", () => {
-    expect(cfg).toContain("Editar em Formas de recebimento");
+  it("o desconto explica que é por forma, com a lista logo abaixo", () => {
+    expect(cfg).toContain("por forma de pagamento</b> (a lista abaixo)");
   });
 });
