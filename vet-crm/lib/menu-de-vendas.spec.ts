@@ -38,3 +38,23 @@ describe("o menu de Vendas", () => {
     }
   });
 });
+
+// A ABA "REGRAS DA VENDA" (Cintia, 17/09/2026: "veja se ela ainda é útil; o sistema tem que evitar
+// redundância"). Sete interruptores não eram lidos por nenhum código — saíram. O que ficou, o
+// sistema obedece.
+describe("as regras da venda que sobraram são de verdade", () => {
+  const cfg = readFileSync(join(RAIZ, "app", "(user)", "dashboard", "erp", "configuracoes-vendas", "page.tsx"), "utf8");
+
+  it("só ficaram as três regras que o servidor lê", () => {
+    expect(cfg).toContain("obrigarProfissionalItem");
+    expect(cfg).toContain("obrigarNsu");
+    expect(cfg).toContain("orcamentoValidade");
+    for (const morto of ["venderSemEstoque", "unificarVendasDia", "orcamentoObrigarCliente", "termoOrcamento", "devolucaoPrazo", "limiteDesconto"]) {
+      expect(cfg, `${morto} voltou para a tela sem ninguém ler`).not.toContain(morto);
+    }
+  });
+
+  it("o desconto aponta para onde se edita de verdade", () => {
+    expect(cfg).toContain("Editar em Formas de recebimento");
+  });
+});

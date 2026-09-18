@@ -10,15 +10,13 @@ import ModeloDeDemonstrativo from "@/components/vendas/config/ModeloDeDemonstrat
 import FormasDeRecebimento from "@/components/vendas/config/FormasDeRecebimento";
 
 const DEFAULTS = {
+  // SÓ FICA AQUI O QUE O SISTEMA LÊ DE VERDADE (Cintia, 17/09/2026: "o sistema tem que evitar
+  // redundância"). Sete interruptores desta tela não eram lidos por nenhum código — vender sem
+  // estoque, unificar vendas do dia, obrigar cliente no orçamento, "chamar de", prazo de
+  // devolução e o limite geral de desconto (que virou % por forma de pagamento).
   obrigarProfissionalItem: false,
-  venderSemEstoque: true,
-  unificarVendasDia: true,
   obrigarNsu: false,
-  limiteDesconto: "0",
   orcamentoValidade: "30",
-  orcamentoObrigarCliente: true,
-  termoOrcamento: "Orçamento",
-  devolucaoPrazo: "30",
 };
 
 export default function ConfigVendasPage() {
@@ -147,32 +145,27 @@ export default function ConfigVendasPage() {
       </Card>
 
       <Card titulo="🛒 Venda">
-        <Row lab="Obrigar profissional em cada item" desc="Cada item da venda precisa de um profissional responsável."><Toggle k="obrigarProfissionalItem" /></Row>
-        <Row lab="Permitir vender sem estoque" desc="Deixa vender um produto mesmo com estoque zerado."><Toggle k="venderSemEstoque" /></Row>
-        <Row lab="Unificar vendas do dia por cliente" desc="Agrupa as comandas abertas do mesmo cliente no dia."><Toggle k="unificarVendasDia" /></Row>
+        <Row lab="Obrigar profissional em cada item" desc="Cada item da venda precisa de um profissional responsável — é o que liga a comissão a quem vendeu."><Toggle k="obrigarProfissionalItem" /></Row>
       </Card>
 
       <Card titulo="💳 Cartão">
-        <Row lab="Obrigar NSU (nº da transação)" desc="Ajuda na conciliação das maquininhas." breve><Toggle k="obrigarNsu" /></Row>
+        <Row lab="Obrigar NSU (nº da transação)" desc="Além da AUT, exige o NSU no recebimento com cartão. Ajuda na conciliação das maquininhas."><Toggle k="obrigarNsu" /></Row>
       </Card>
 
       <Card titulo="🏷️ Desconto">
+        <div className="px-4 py-3 text-[12.5px] text-[#374151]">
+          O desconto permitido é <b>por forma de pagamento</b> — cada forma tem o seu percentual, porque
+          depende do que a maquininha cobra. O administrativo não tem limite.
+          <div className="mt-2">
+            <button onClick={() => setAba("formas")} className="text-[12.5px] font-semibold rounded-lg px-3 py-1.5 border" style={{ borderColor: "#009AAC", color: "#009AAC", background: "#fff" }}>
+              💳 Editar em Formas de recebimento
+            </button>
+          </div>
+        </div>
       </Card>
 
       <Card titulo="📄 Orçamento">
-        <Row lab="Validade padrão" desc="Dias de validade de um orçamento novo."><NumIn k="orcamentoValidade" un="dias" /></Row>
-        <Row lab="Obrigar cliente no orçamento"><Toggle k="orcamentoObrigarCliente" /></Row>
-        <Row lab="Chamar de" desc={'Título que o cliente vê. "Plano de tratamento" passa mais urgência.'}>
-          <div className="inline-flex border rounded-lg overflow-hidden flex-shrink-0" style={{ borderColor: "#E8E2D6" }}>
-            {["Orçamento", "Plano de tratamento"].map((t) => (
-              <button key={t} onClick={() => set("termoOrcamento", t)} className="px-3 py-1.5 text-[12px]" style={cfg.termoOrcamento === t ? { background: "#009AAC", color: "#fff" } : { background: "#fff", color: "#5C6B70" }}>{t}</button>
-            ))}
-          </div>
-        </Row>
-      </Card>
-
-      <Card titulo="↩️ Devolução">
-        <Row lab="Prazo para devolução" desc="Dias para aceitar devolução de uma venda." breve><NumIn k="devolucaoPrazo" un="dias" /></Row>
+        <Row lab="Validade padrão" desc="Dias de validade de um orçamento novo. Vale a partir do dia em que ele é salvo."><NumIn k="orcamentoValidade" un="dias" /></Row>
       </Card>
 
       <div className="flex justify-end mt-2">
@@ -180,7 +173,6 @@ export default function ConfigVendasPage() {
           ? <button onClick={salvar} disabled={saving} className="bg-[#009AAC] text-white rounded-lg px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-60">{saving ? "Salvando..." : "Salvar configurações"}</button>
           : <span className="text-[12px] text-[#5C6B70]">👁️ Somente leitura</span>}
       </div>
-      <div className="text-[11px] text-[#374151] text-center mt-3">"em breve" = salvo agora, passa a valer quando a função existir (agendador do caixa, campo NSU, fluxo de devolução).</div>
     </div>
   );
 }

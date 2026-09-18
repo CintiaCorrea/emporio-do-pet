@@ -121,6 +121,12 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Aba "Regras da venda" enxuta** (17/09): dos 9 ajustes, 7 nao eram lidos por codigo nenhum e
+  sairam (vender sem estoque, unificar vendas do dia, obrigar cliente no orcamento, "chamar de",
+  prazo de devolucao, limite geral de desconto). Ficaram: obrigar profissional no item (lido em
+  vendaDireta), obrigar NSU (lido nos dois caminhos de recebimento) e validade padrao do orcamento —
+  que passou a VALER de verdade (orcamentos.service.diasDeValidadePadrao; antes todo orcamento nascia
+  "sem validade"). O cartao Desconto virou explicacao + atalho para a aba Formas de recebimento.
 - [x] **Menu de Vendas arrumado** (17/09, ela apontou): a barra lateral (Sidebar.tsx) e uma SEGUNDA
   lista, separada da matriz — "Recebimentos sem forma" (tela ja removida) e "Orcamentos" continuavam
   la. Sairam das duas. "Vendas — graficos" mudou para o grupo Inteligencia e nasce so para ADMIN.

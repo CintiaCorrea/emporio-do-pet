@@ -93,6 +93,16 @@ export class OrcamentosService {
     return o;
   }
 
+  /** Quantos dias vale um orçamento novo — regra da casa, na lista `configvendas`. */
+  private async diasDeValidadePadrao(): Promise<number> {
+    try {
+      const it = await this.prisma.listaItem.findFirst({ where: { lista: 'configvendas' } });
+      const cfg = it?.valor ? JSON.parse(it.valor) : {};
+      const n = Math.trunc(Number(cfg?.orcamentoValidade) || 0);
+      return n > 0 ? n : 0;
+    } catch { return 0; }
+  }
+
   async create(dto: CreateOrcamentoDto, userId?: string) {
     const pet = await this.prisma.pet.findUnique({
       where: { id: dto.petId },
@@ -103,11 +113,25 @@ export class OrcamentosService {
     const itens = await this.resolverItens(mapItens(dto.itens));
     const valorTotal = itens.reduce((s, it) => s + it.valorTotal, 0);
 
+    // A VALIDADE PADRÃO SAI DA CONFIGURAÇÃO (17/09/2026). Era um campo na tela de Configuração de
+    // vendas que ninguém lia: todo orçamento nascia "sem validade", e a lista mostrava isso em
+    // cinza para sempre. Agora o número vale — e continua possível mandar uma data própria.
+    let validade: Date | null = dto.validade ? new Date(dto.validade) : null;
+    if (!validade) {
+      const dias = await this.diasDeValidadePadrao();
+      if (dias > 0) {
+        const d = new Date();
+        d.setDate(d.getDate() + dias);
+        d.setHours(23, 59, 59, 0);
+        validade = d;
+      }
+    }
+
     const orcamento = await this.prisma.orcamento.create({
       data: {
         petId: dto.petId,
         tutorId: dto.tutorId ?? pet.tutorId ?? null,
-        validade: dto.validade ? new Date(dto.validade) : null,
+        validade,
         observacao: dto.observacao ?? null,
         createdById: userId ?? null,
         valorTotal,

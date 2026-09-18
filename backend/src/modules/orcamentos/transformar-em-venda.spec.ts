@@ -85,3 +85,14 @@ describe('a venda vira orçamento', () => {
     expect(trecho).toContain('this.appointmentsService.remove(appointmentId');
   });
 });
+
+// A validade padrão do orçamento deixou de ser enfeite (17/09/2026): todo orçamento nascia "sem
+// validade" porque ninguém lia a configuração.
+describe('a validade padrão do orçamento', () => {
+  const svc = require('fs').readFileSync(require('path').join(__dirname, 'orcamentos.service.ts'), 'utf8');
+  it('sai da configuração de vendas quando não vem data', () => {
+    expect(svc).toContain('private async diasDeValidadePadrao');
+    expect(svc).toContain("lista: 'configvendas'");
+    expect(svc).toContain('d.setDate(d.getDate() + dias);');
+  });
+});
