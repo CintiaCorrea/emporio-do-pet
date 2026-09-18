@@ -121,6 +121,10 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Blindagem (3 reforcos)** (17/09): (1) `REGRAS-VENDAS.md` — uma pagina com as 10 regras do
+  modulo e o teste que guarda cada uma; (2) `lib/portas-de-venda.spec.ts` — trava que falha se aparecer
+  uma porta nova de criar venda, de vender pelo caixa ou de receber; (3) catraca de tipos 46 -> 30.
+  Nome das telas pelo menu: por decisao dela, SO o grupo Vendas por enquanto (GRUPOS_JA_REVISADOS).
 - [x] **Faxina + nome das telas** (17/09): tela "Recebimentos sem forma" REMOVIDA (pagina, rota, menu,
   endpoints e forma-que-faltou.regras) — medido: 0 recebimentos sem forma desde 01/08. Menu: "Importar
   vendas" virou "Importar cadastro (SimplesVet)". Titulo de toda pagina passa a sair do MENU

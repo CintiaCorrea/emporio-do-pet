@@ -10,10 +10,18 @@ export type TituloDaPagina = { titulo: string; caminho: string | null };
 
 type Achado = { item: PermItem; pai?: PermItem };
 
+/**
+ * POR ENQUANTO, SÓ AS TELAS DE VENDAS (Cintia, 17/09/2026: "muda somente os nomes das abas de
+ * venda; depois, conforme formos arrumando as outras, vamos alterando"). Cada grupo entra aqui
+ * quando for revisado — assim o nome só muda onde já conferimos.
+ */
+const GRUPOS_JA_REVISADOS = ["vendas"];
+
 function procurar(caminho: string): Achado | null {
   let melhor: Achado | null = null;
   const considerar = (item: PermItem, pai?: PermItem) => {
     if (!item.key.startsWith("/")) return;
+    if (!pai || !GRUPOS_JA_REVISADOS.includes(pai.key)) return;
     const bate = caminho === item.key || caminho.startsWith(item.key + "/");
     if (!bate) return;
     // Ganha a rota mais específica: /dashboard/erp/pets/123 é "Pets", não "ERP".
@@ -21,7 +29,6 @@ function procurar(caminho: string): Achado | null {
   };
   for (const secao of PERM_SECTIONS) {
     for (const item of secao.itens) {
-      considerar(item);
       for (const filho of item.children || []) considerar(filho, item);
     }
   }

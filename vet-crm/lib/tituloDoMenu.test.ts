@@ -9,8 +9,9 @@ describe("o nome da página sai do menu", () => {
     expect(tituloDoMenu("/dashboard/erp/consulta-vendas")).toEqual({ titulo: "Vendas", caminho: "Vendas › Vendas" });
   });
 
-  it("a tela aberta por dentro (um id na rota) mantém o nome da tela", () => {
-    expect(tituloDoMenu("/dashboard/erp/internacoes/abc123")?.titulo).toBe("Internação");
+  it("por enquanto vale só para as telas de Vendas", () => {
+    // As outras abas entram quando forem revisadas (decisão dela, 17/09/2026).
+    expect(tituloDoMenu("/dashboard/erp/internacoes/abc123")).toBeNull();
   });
 
   it("rota que não está no menu não inventa nome — cai no mapa antigo", () => {
