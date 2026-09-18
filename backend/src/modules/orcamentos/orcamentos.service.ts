@@ -201,6 +201,54 @@ export class OrcamentosService {
   }
 
   /**
+   * A VOLTA: A VENDA VIRA ORÇAMENTO (Cintia, 17/09/2026: "vendas pode virar orçamento caso seja
+   * feita errada, sem necessidade de refazer").
+   *
+   * Vender por engano acontece — o cliente desiste no balcão, ou era só para ele ver o preço. Antes
+   * a saída era apagar a venda e montar tudo de novo, perdendo os itens já lançados.
+   *
+   * SÓ VALE PARA VENDA SEM DINHEIRO. Com recebimento, o caminho é outro (estornar ou devolver): uma
+   * venda paga que virasse orçamento deixaria dinheiro no caixa sem venda nenhuma para explicá-lo.
+   */
+  async virarOrcamento(appointmentId: string, autor?: { role?: string; userId?: string }) {
+    const venda = await this.prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: { items: true, recebimentos: { select: { id: true }, take: 1 } },
+    });
+    if (!venda) throw new NotFoundException('Venda não encontrada');
+    if ((venda.recebimentos || []).length) {
+      throw new BadRequestException('Esta venda já tem dinheiro recebido. Estorne o recebimento antes de transformá-la em orçamento.');
+    }
+    if (!venda.petId || !venda.tutorId) throw new BadRequestException('Venda sem pet ou sem cliente — não dá para virar orçamento.');
+
+    const itens = (venda.items || []).map((it) => ({
+      descricao: it.descricao || 'Item',
+      quantidade: Number(it.quantidade) || 1,
+      valorUnitario: Number(it.valorUnitario) || 0,
+      valorTotal: Number(it.valorTotal) || (Number(it.quantidade) || 1) * (Number(it.valorUnitario) || 0),
+      desconto: Number(it.desconto) || 0,
+      servicoId: it.servicoId || undefined,
+      productId: it.productId || undefined,
+      catalogoItemId: it.catalogoItemId || undefined,
+      fornecedorId: it.fornecedorId || undefined,
+      custoUnitario: it.custoUnitario != null ? Number(it.custoUnitario) : undefined,
+    }));
+    if (!itens.length) throw new BadRequestException('Venda sem itens — não há o que orçar.');
+
+    const orcamento = await this.create({
+      petId: venda.petId,
+      tutorId: venda.tutorId,
+      observacao: [venda.notes, `Era a venda nº ${venda.numeroVenda ?? '—'}, desfeita em ${new Date().toLocaleDateString('pt-BR')}`].filter(Boolean).join(' · '),
+      itens,
+    } as any);
+
+    // A venda sai pelo caminho de sempre (appointments.remove): é ele que sabe tudo o que uma venda
+    // arrasta junto. Sem recebimento não há estorno nem estoque para devolver.
+    await this.appointmentsService.remove(appointmentId, true, autor);
+    return { ok: true, orcamento, numeroVendaAnterior: venda.numeroVenda ?? null };
+  }
+
+  /**
    * TRANSFORMAR O ORÇAMENTO EM VENDA — e o orçamento some.
    *
    * Cintia, 16/09/2026: no SimplesVet "ao transformar em venda o orçamento some, conseguimos seguir

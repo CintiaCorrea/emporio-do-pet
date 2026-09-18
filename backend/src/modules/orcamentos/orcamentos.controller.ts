@@ -51,6 +51,13 @@ export class OrcamentosController {
     return this.orcamentosService.create(dto, userId);
   }
 
+  /** A volta: venda sem dinheiro vira orçamento, sem refazer os itens (17/09/2026). */
+  @Post('da-venda/:appointmentId')
+  @ApiOperation({ summary: 'Transforma uma venda SEM recebimento em orçamento (a venda sai)' })
+  virarOrcamento(@Param('appointmentId') appointmentId: string, @CurrentUser() user: any) {
+    return this.orcamentosService.virarOrcamento(appointmentId, { role: user?.role, userId: user?.id || user?.userId });
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Editar orçamento (status, validade, itens)' })
   update(@Param('id') id: string, @Body() dto: UpdateOrcamentoDto) {

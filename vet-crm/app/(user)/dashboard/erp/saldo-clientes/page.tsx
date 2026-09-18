@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import DevolverCreditoModal from "@/components/caixa/DevolverCreditoModal";
 import toast from 'react-hot-toast';
 import { usePageTitle } from '@/lib/ui/PageHeaderContext';
 import { LuEye, LuEyeOff, LuSearch } from 'react-icons/lu';
@@ -27,6 +28,8 @@ export default function SaldosPage() {
   const [busca, setBusca] = useState('');
   const [ocultar, setOcultar] = useState(false);
   const [fSit, setFSit] = useState<'ALL' | 'CREDOR' | 'DEVEDOR'>('ALL');
+  // 💸 DEVOLVER CRÉDITO (Cintia, 17/09/2026): o cliente pagou a mais e quer o dinheiro de volta.
+  const [devolvendo, setDevolvendo] = useState<{ tutorId: string; nome: string; saldo: number } | null>(null);
   const money = (v: number) => (ocultar ? 'R$ ••••' : brl(v));
 
   const fetchData = useCallback(async () => {
@@ -78,16 +81,25 @@ export default function SaldosPage() {
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead><tr><th style={th}>Cliente</th><th style={th}>Última compra</th><th style={th}>Situação</th><th style={{ ...th, textAlign: 'right' }}>Saldo</th></tr></thead>
+              <thead><tr><th style={th}>Cliente</th><th style={th}>Última compra</th><th style={th}>Situação</th><th style={{ ...th, textAlign: 'right' }}>Saldo</th><th style={th}></th></tr></thead>
               <tbody>
-                {loading && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Carregando…</td></tr>}
-                {!loading && filtradas.length === 0 && <tr><td colSpan={4} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum cliente com saldo.</td></tr>}
+                {loading && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Carregando…</td></tr>}
+                {!loading && filtradas.length === 0 && <tr><td colSpan={5} style={{ ...td, textAlign: 'center', color: '#374151', padding: 18 }}>Nenhum cliente com saldo.</td></tr>}
                 {filtradas.map((r) => { const credor = sit(r) === 'CREDOR'; return (
                   <tr key={r.tutorId}>
                     <td style={{ ...td, color: '#1F2A2E' }}>{r.nome}</td>
                     <td style={{ ...td, color: '#5C6B70' }}>{fmtD(r.ultimaCompra)}</td>
                     <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 999, background: credor ? '#E7F6EE' : '#FBEEEC', color: credor ? '#0F6E56' : '#C0392B' }}>{credor ? '🟢 Credor' : '🔴 Devedor'}</span></td>
                     <td style={{ ...td, textAlign: 'right', fontWeight: 600, color: credor ? GREEN : ORANGE }}>{money(Number(r.saldo))}</td>
+                    <td style={{ ...td, textAlign: 'right' }}>
+                      {credor && Number(r.saldo) > 0.009 && (
+                        <button onClick={() => setDevolvendo({ tutorId: r.tutorId, nome: r.nome, saldo: Number(r.saldo) })}
+                          title="Devolver o crédito ao cliente"
+                          style={{ border: '1px solid #E8E2D6', background: '#fff', color: '#014D5E', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                          💸 Devolver
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ); })}
               </tbody>
@@ -95,6 +107,16 @@ export default function SaldosPage() {
           </div>
         </div>
       </div>
+
+      {devolvendo && (
+        <DevolverCreditoModal
+          tutorId={devolvendo.tutorId}
+          nome={devolvendo.nome}
+          saldo={devolvendo.saldo}
+          onFechar={() => setDevolvendo(null)}
+          onFeito={() => fetchData()}
+        />
+      )}
     </div>
   );
 }

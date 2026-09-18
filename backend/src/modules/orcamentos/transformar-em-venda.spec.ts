@@ -70,3 +70,18 @@ describe('o contador', () => {
     expect(mesDaCasa(new Date('2026-10-01T02:00:00Z'))).toBe('2026-09');   // 23h de 30/09
   });
 });
+
+// A VOLTA (Cintia, 17/09/2026): a venda feita por engano vira orçamento, sem refazer os itens.
+describe('a venda vira orçamento', () => {
+  const svc = require('fs').readFileSync(require('path').join(__dirname, 'orcamentos.service.ts'), 'utf8');
+  it('só quando não há dinheiro recebido', () => {
+    expect(svc).toContain('async virarOrcamento');
+    expect(svc).toContain('Estorne o recebimento antes de transformá-la em orçamento');
+  });
+  it('os itens vão inteiros (com a ligação ao cadastro) e a venda sai pelo caminho de sempre', () => {
+    const i = svc.indexOf('async virarOrcamento');
+    const trecho = svc.slice(i, i + 2600);
+    expect(trecho).toContain('catalogoItemId: it.catalogoItemId || undefined');
+    expect(trecho).toContain('this.appointmentsService.remove(appointmentId');
+  });
+});

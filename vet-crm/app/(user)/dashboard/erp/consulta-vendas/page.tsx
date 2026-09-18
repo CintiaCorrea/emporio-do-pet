@@ -449,7 +449,7 @@ function BaixasDaVenda({ v }: { v: Venda }) {
   );
 }
 
-function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber, onReabrir, abrirJa }: { abrirJa?: boolean; v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null; isAdmin: boolean; onReceber?: (v: Venda) => void; onReabrir?: (v: Venda) => void }) {
+function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber, onReabrir, abrirJa, onExcluido }: { abrirJa?: boolean; v: Venda; saldoCliente: number; onExcluir: (v: Venda) => void; excluindo: string | null; isAdmin: boolean; onReceber?: (v: Venda) => void; onReabrir?: (v: Venda) => void; onExcluido?: () => void }) {
   // Quem chega por link de UMA venda (?venda=, ex.: da tela de Recebimentos) já a vê aberta.
   const [open, setOpen] = useState(!!abrirJa);
   const [enviando, setEnviando] = useState(false);
@@ -578,6 +578,29 @@ function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber,
                       className="inline-flex items-center gap-1.5"
                       style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: '#8A9499', background: '#fff', cursor: 'default' }}
                     >🔒 Editar</span>
+                  )}
+                  {/* A VENDA VIRA ORÇAMENTO (Cintia, 17/09/2026): vendeu por engano, o cliente desistiu,
+                      ou era só para ver o preço. Só enquanto não há dinheiro recebido — com dinheiro,
+                      o caminho é estornar ou devolver. */}
+                  {(v.pago ?? 0) <= 0.009 && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (!confirm(`Transformar a venda ${vendaNum(v)} em orçamento?
+
+Os itens vão para um orçamento na ficha do pet e a venda deixa de existir.`)) return;
+                        try {
+                          const r = await fetch(`/api/orcamentos/da-venda/${v.id}`, { method: 'POST' });
+                          const d = await r.json().catch(() => ({}));
+                          if (!r.ok) throw new Error(d?.message || 'Não consegui transformar em orçamento.');
+                          alert(`Pronto: virou orçamento. A venda ${vendaNum(v)} saiu.`);
+                          onExcluido?.();
+                        } catch (err: any) { alert(err?.message || 'Não consegui transformar em orçamento.'); }
+                      }}
+                      title="Vendeu por engano? A venda vira orçamento, com os mesmos itens"
+                      className="inline-flex items-center gap-1.5"
+                      style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: NAVY, background: '#fff', cursor: 'pointer' }}
+                    >📄 Virar orçamento</button>
                   )}
                   <button onClick={(e) => { e.stopPropagation(); setDevOpen(true); }} className="inline-flex items-center gap-1.5" style={{ border: `1px solid ${CORAL}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: CORAL, background: '#fff', cursor: 'pointer' }}>↩️ Devolver</button>
                   <button onClick={(e) => { e.stopPropagation(); imprimirVenda(v); }} className="inline-flex items-center gap-1.5" style={{ border: `1px solid ${CARD_LINE}`, borderRadius: 8, padding: '5px 10px', fontSize: 12, fontWeight: 600, color: NAVY, background: '#fff', cursor: 'pointer' }}>🖨️ Imprimir comprovante</button>
@@ -1372,7 +1395,7 @@ O recebimento de ${brl(v.pago || 0)} sai do caixa e a venda volta a ficar em abe
               </tr>
             </thead>
             <tbody>
-              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} isAdmin={isAdmin} onReceber={abrirRecebimentoDaVenda} onReabrir={reabrirVenda} abrirJa={!!soVenda} />)}
+              {vendasDaPagina.map((v) => <LinhaVenda key={v.id} v={v} saldoCliente={saldos[v.clienteId] || 0} onExcluir={pedirExclusao} excluindo={excluindo} isAdmin={isAdmin} onReceber={abrirRecebimentoDaVenda} onReabrir={reabrirVenda} abrirJa={!!soVenda} onExcluido={load} />)}
             </tbody>
           </table>
         )}

@@ -136,6 +136,14 @@ export class CreditoService {
       tutorId = ap?.tutorId || null;
     }
     if (!tutorId) throw new BadRequestException('Cliente nao informado');
+    // DEVOLVER CRÉDITO NÃO PODE PASSAR DO SALDO (Cintia, 17/09/2026: botão "Devolver crédito").
+    // Sem isto, um clique a mais deixaria o cliente com saldo negativo — que não existe na casa.
+    if (tipo === 'ESTORNO') {
+      const saldoAtual = await this.saldo(tutorId);
+      if (valor > saldoAtual + 0.001) {
+        throw new BadRequestException(`O cliente tem ${saldoAtual.toFixed(2)} de crédito. Não dá para devolver ${valor.toFixed(2)}.`);
+      }
+    }
     const mov = await this.prisma.creditoMovimento.create({
       data: {
         tutorId, tipo, valor,
@@ -149,6 +157,22 @@ export class CreditoService {
     if (tipo === 'RECARGA' || tipo === 'ESTORNO') this.lancarAdiantamento(mov, tipo).catch(() => undefined);
     // 💰 Caução/recarga ENTRA NO CAIXA: cria um SUPRIMENTO na sessão (aparece nos movimentos e conta na
     // gaveta quando é dinheiro). Criação direta = sem lançamento extra (o adiantamento acima já reflete o DRE).
+    // 💸 DEVOLUÇÃO DE CRÉDITO EM DINHEIRO: sai do caixa do dia, como a devolução de venda (a saída
+    // fica à vista na gaveta e no movimento). Em PIX/transferência não mexe no caixa — o dinheiro
+    // sai da conta, e quem registra isso é o Financeiro.
+    if (tipo === 'ESTORNO' && dto.caixaSessaoId) {
+      try {
+        const sess = await this.prisma.caixaSessao.findUnique({ where: { id: dto.caixaSessaoId }, select: { abertura: true } });
+        if (sess) await this.prisma.caixaMovimento.create({
+          data: {
+            caixaSessaoId: dto.caixaSessaoId, tipo: 'SANGRIA', valor,
+            forma: dto.forma || 'Dinheiro',
+            descricao: `Devolução de crédito${dto.descricao ? ' — ' + dto.descricao : ''}`,
+            data: sess.abertura, createdById: userId,
+          },
+        });
+      } catch (e: any) { console.error('devolução de crédito → caixaMovimento:', e?.message); }
+    }
     if (tipo === 'RECARGA' && dto.caixaSessaoId) {
       try {
         const sess = await this.prisma.caixaSessao.findUnique({ where: { id: dto.caixaSessaoId }, select: { abertura: true } });

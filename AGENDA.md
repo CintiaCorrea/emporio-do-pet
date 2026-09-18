@@ -121,6 +121,12 @@ bloco 1 no ar) → A2 gravacao unica no servidor (4 blocos) → B internacao →
   uma vez (papel e PDF); `recibo-pdf.ts` gera com jsPDF (logo + CNPJ da clinica) e envia por
   /api/whatsapp/enviar-documentos; botoes 🧾 e 💬 em Recebimentos, Consulta de vendas e no detalhe da
   venda do ponto de venda.
+- [x] **Devolver credito** (17/09, pedido dela): botao 💸 na tela Saldo dos clientes ->
+  `DevolverCreditoModal`. Em dinheiro sai do caixa do dia (SANGRIA no movimento); em PIX nao mexe no
+  caixa. O servidor recusa devolver mais que o saldo. No DRE anula o adiantamento (nao vira despesa).
+- [x] **Venda vira orcamento** (17/09): `POST /orcamentos/da-venda/:appointmentId` cria o orcamento com
+  os mesmos itens (com catalogoItemId) e apaga a venda pelo caminho unico; recusa se ja houver
+  recebimento. Botao "📄 Virar orcamento" no detalhe da venda (Consulta de vendas), so sem dinheiro.
 - [x] **Varredura do ponto de venda — bloco 1** (17/09): corrigidos 7 defeitos — botao "Salvar
   alteracoes" travado em "Salvando…"; orcamento salvo nao aparecia sem 🔄; etiqueta do caixa verde
   dizendo "voce nao tem caixa"; busca do carrinho passou a mostrar o preco pela faixa do peso; frase
