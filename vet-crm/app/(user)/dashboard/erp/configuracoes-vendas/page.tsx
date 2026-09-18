@@ -123,7 +123,7 @@ export default function ConfigVendasPage() {
 
   if (aba === "demonstrativo") {
     return (
-      <div className="p-4 md:p-6 w-full">
+      <div className="p-6 w-full">
         {abasHtml}
         <ModeloDeDemonstrativo />
       </div>
@@ -132,7 +132,7 @@ export default function ConfigVendasPage() {
 
   if (aba === "orcamento") {
     return (
-      <div className="p-4 md:p-6 w-full">
+      <div className="p-6 w-full">
         {abasHtml}
         <div className="max-w-2xl mb-4">
           <Card titulo="📄 Regra do orçamento">
@@ -150,7 +150,7 @@ export default function ConfigVendasPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 w-full">
+    <div className="p-6 w-full">
       {abasHtml}
       <div className="text-[12.5px] text-[#374151] mb-4">Como a venda é lançada e como o dinheiro entra. Cada ajuste é salvo e passa a valer no Ponto de venda, no atendimento e no caixa.</div>
 

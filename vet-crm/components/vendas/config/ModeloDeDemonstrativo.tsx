@@ -72,7 +72,7 @@ export default function ModeloDeDemonstrativo() {
   if (loading) return <div className="p-6 text-center text-sm text-[#374151]">Carregando...</div>;
 
   return (
-    <div className="p-6 w-full">
+    <div className="w-full">
       <div className="text-[12.5px] text-[#374151] mb-4">O recibo/comprovante que sai da venda e do orçamento. Personalize e veja a prévia ao lado.</div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start" style={{ maxWidth: 920 }}>
         {/* CONFIG */}

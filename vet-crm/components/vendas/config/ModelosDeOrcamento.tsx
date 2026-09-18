@@ -78,7 +78,7 @@ export default function ModelosDeOrcamento() {
   const totalForm = form.itens.reduce((sm: number, it: any) => sm + (Number(it.quantidade) || 0) * (Number(it.valorUnitario) || 0), 0);
 
   return (
-    <div className="p-6 w-full">
+    <div className="w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="text-[13px] text-[#374151]">{modelos.length} modelo(s) · preenchem o orçamento/venda de uma vez</div>
         {podeEditar && <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Novo modelo</button>}
