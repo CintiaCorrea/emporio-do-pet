@@ -1,6 +1,7 @@
 "use client";
 // [EMP-COWORK] Configuração de Vendas (Fase 2 config). Guarda as regras do módulo na lista `configvendas` (1 item JSON).
-// Algumas regras já são lidas pelo PDV/orçamento; outras ("em breve") ficam salvas até a função existir.
+// Só ficam aqui as regras que algum código lê de verdade — e os modelos de orçamento e de
+// demonstrativo, que viraram abas desta mesma tela (17/09/2026).
 
 import { useEffect, useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
@@ -82,10 +83,7 @@ export default function ConfigVendasPage() {
     </div>
   );
 
-  // TUDO DE CONFIGURAÇÃO NUM LUGAR SÓ (Cintia, 17/09/2026). Eram quatro entradas no menu para o
-  // mesmo assunto: regras, formas de recebimento e os dois modelos. Agora são abas — e o desconto
-  // por forma de pagamento continua editável, na aba "Formas de recebimento".
-  // TRÊS ABAS, E CADA REGRA JUNTO DO SEU ASSUNTO (Cintia, 17/09/2026: "é pouca coisa para ficar só
+  // TUDO DE CONFIGURAÇÃO NUM LUGAR SÓ, EM TRÊS ABAS, E CADA REGRA JUNTO DO SEU ASSUNTO (Cintia, 17/09/2026: "é pouca coisa para ficar só
   // numa aba"). As duas regras de venda e cartão vivem com as formas de recebimento — é onde se
   // decide como o dinheiro entra; a validade padrão vive com o modelo de orçamento.
   const ABAS = [
@@ -105,12 +103,14 @@ export default function ConfigVendasPage() {
   }, []);
 
   const abasHtml = (
-    <div className="flex gap-2 flex-wrap mb-4">
+    // O MESMO PADRÃO DA ACADEMIA (Cintia, 17/09/2026: "deixa essa tela no padrão gráfico das outras,
+    // com a mesma margem"). Botão de aba: pílula clara, ativa em turquesa.
+    <div className="flex gap-1.5 flex-wrap mb-4">
       {ABAS.map((a) => (
         <button
           key={a.k}
           onClick={() => setAba(a.k)}
-          className="text-[13px] font-semibold px-3.5 py-2 rounded-lg border"
+          className="text-[13px] font-semibold px-3.5 py-2 rounded-lg border transition"
           style={aba === a.k
             ? { background: "#009AAC", color: "#fff", borderColor: "#009AAC" }
             : { background: "#fff", color: "#5F5E5A", borderColor: "#E8DFC8" }}
@@ -152,8 +152,9 @@ export default function ConfigVendasPage() {
   return (
     <div className="p-4 md:p-6 w-full">
       {abasHtml}
-      <div className="text-[12.5px] text-[#374151] mb-4">As regras do módulo de vendas. Cada ajuste é salvo e passa a valer no Ponto de venda, atendimento e caixa.</div>
+      <div className="text-[12.5px] text-[#374151] mb-4">Como a venda é lançada e como o dinheiro entra. Cada ajuste é salvo e passa a valer no Ponto de venda, no atendimento e no caixa.</div>
 
+      <div className="max-w-3xl grid gap-3">
       <Card titulo="💵 Caixa">
         {/* DEIXOU DE SER OPÇÃO (Cintia, 08/09/2026): "os caixas DEVEM ser encerrados às 00:00
             TODOS OS DIAS. Eles não devem permanecer abertos." Era um interruptor, e estava
@@ -181,15 +182,21 @@ export default function ConfigVendasPage() {
         </div>
       </Card>
 
-      <div className="flex justify-end mt-2">
+      </div>
+
+      <div className="flex justify-end mt-2 max-w-3xl">
         {podeEditar
-          ? <button onClick={salvar} disabled={saving} className="bg-[#009AAC] text-white rounded-lg px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-60">{saving ? "Salvando..." : "Salvar configurações"}</button>
+          ? <button onClick={salvar} disabled={saving} className="bg-[#009AAC] text-white rounded-lg px-5 py-2.5 text-[13.5px] font-medium disabled:opacity-60">{saving ? "Salvando..." : "Salvar regras"}</button>
           : <span className="text-[12px] text-[#5C6B70]">👁️ Somente leitura</span>}
       </div>
 
       {/* AS FORMAS DE RECEBIMENTO MORAM AQUI (17/09/2026): é a mesma conversa — como o dinheiro
           entra, e quanto de desconto cada forma aceita. */}
-      <div className="mt-6">
+      <div className="mt-7 border-t pt-5" style={{ borderColor: "#E8DFC8" }}>
+        <h2 className="text-[15px] font-bold mb-1" style={{ color: "#014D5E" }}>💳 Formas de recebimento</h2>
+        <p className="text-[12.5px] mb-3" style={{ color: "#5F5E5A" }}>
+          As formas que aparecem ao receber — e quanto de desconto cada uma aceita.
+        </p>
         <FormasDeRecebimento />
       </div>
     </div>

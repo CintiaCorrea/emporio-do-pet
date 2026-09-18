@@ -87,7 +87,7 @@ export default function FormasDeRecebimento() {
   const ordenadas = useMemo(() => [...formas].sort((a, b) => (a.nome || "").localeCompare(b.nome || "")), [formas]);
 
   return (
-    <div className="p-6 w-full">
+    <div className="w-full">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="text-[13px] text-[#374151]">{formas.length} forma(s) cadastrada(s) · aparecem no Ponto de venda e ao baixar comandas</div>
         {podeEditar && <button onClick={() => abrir()} className="text-[12px] font-medium text-white bg-[#009AAC] px-3.5 py-1.5 rounded-lg">➕ Adicionar forma</button>}

@@ -20,6 +20,9 @@ RUN npm install -g pnpm@9.15.4
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_BACKEND_URL=https://emporio-pet-api.fly.dev
 RUN pnpm prisma generate
+# CARIMBO DA PUBLICAÇÃO (17/09/2026): cada build grava aqui um número novo. A tela aberta na
+# recepção compara o carimbo dela com o de /api/versao e sabe na hora que ficou velha.
+RUN sed -i "s/VERSAO_PUBLICADA = \"dev\"/VERSAO_PUBLICADA = \"$(date +%s)\"/" lib/versao-publicada.ts && grep VERSAO_PUBLICADA lib/versao-publicada.ts | tail -1
 RUN pnpm build
 
 # === runner (production) ===

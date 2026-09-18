@@ -16,6 +16,9 @@ import AlertasInternacao from '@/components/internacao/AlertasInternacao';
 // só popa avisos que chegam DEPOIS da tela aberta, e tem "×" de escape (nunca trava).
 import RecadoPopup from '@/components/protected/dashboard/RecadoPopup';
 import PushSetup from '@/components/protected/dashboard/PushSetup';
+// Avisa (e recarrega sozinho ao trocar de tela) quando sai versão nova — para a recepção
+// nunca ficar com a tela velha e cobrar o preço antigo. 17/09/2026.
+import AvisoDeAtualizacao from '@/components/protected/dashboard/AvisoDeAtualizacao';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true); // desktop: menu expandido/recolhido
@@ -54,6 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <AlertasInternacao />
           <RecadoPopup />
           <PushSetup />
+          <AvisoDeAtualizacao />
           <Sidebar
             isOpen={sidebarOpen}
             toggleSidebar={toggleSidebar}
