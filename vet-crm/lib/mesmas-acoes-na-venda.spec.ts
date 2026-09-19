@@ -12,16 +12,32 @@ const pdv = ler("app/(user)/dashboard/erp/ponto-de-venda/page.tsx");
 const consulta = ler("app/(user)/dashboard/erp/consulta-vendas/page.tsx");
 
 describe("a gaveta da venda no Ponto de venda oferece o mesmo que a Consulta de vendas", () => {
-  it("imprimir o comprovante", () => {
-    expect(consulta).toContain("imprimirVenda");
-    expect(pdv).toContain("🖨️ Imprimir");
+  it("imprimir — e o papel muda com a venda", () => {
+    expect(pdv).toContain("🖨️ Imprimir {Number(detVenda.pago || 0) > 0.009 ? 'recibo' : 'venda'}");
     expect(pdv).toContain("imprimirVenda(detVenda)");
+    expect(pdv).toContain("reciboDaVenda(detVenda, 'imprimir')");
   });
 
-  it("enviar a venda em PDF no WhatsApp", () => {
-    expect(consulta).toContain("enviarVendaNoWhats");
+  it("enviar no WhatsApp — o mesmo papel", () => {
     expect(pdv).toContain("enviarVendaNoWhats");
-    expect(pdv).toContain("💬 Enviar");
+    expect(pdv).toContain("reciboDaVenda(detVenda, 'whats')");
+    expect(pdv).toContain("💬 Enviar ${Number(detVenda.pago || 0) > 0.009 ? 'recibo' : 'venda'}");
+  });
+
+  // UM PAPEL POR VEZ (Cintia, 19/09/2026: "qual a diferença recibo, recibo no whatsapp e
+  // enviar?"). Eram quatro botões de documento na mesma gaveta; a escolha sobrava para a
+  // recepção. A regra dela, de 17/09: antes de pagar sai o relatório da compra; depois de
+  // pago, o recibo.
+  it("não existem quatro botões de papel", () => {
+    expect(pdv).not.toContain("💬 Recibo no WhatsApp");
+    expect(pdv).not.toContain(">🧾 Recibo<");
+  });
+
+  it("a Consulta de vendas segue a mesma regra", () => {
+    expect(consulta).toContain("async function papelDaVenda");
+    expect(consulta).toContain("const jaPago = (v: any) => Number(v?.pago || 0) > 0.009;");
+    expect(consulta).toContain("papelDaVenda(v, 'imprimir')");
+    expect(consulta).toContain("papelDaVenda(v, 'whats')");
   });
 
   it("virar orçamento, quando nada foi recebido", () => {
@@ -34,7 +50,7 @@ describe("a gaveta da venda no Ponto de venda oferece o mesmo que a Consulta de 
   });
 
   it("e continua com o que já tinha: devolver, excluir, recibo e receber", () => {
-    for (const rotulo of ["↩️ Devolver", "🗑 Excluir", "🧾 Recibo", "💬 Recibo no WhatsApp", "💰 Receber"]) {
+    for (const rotulo of ["↩️ Devolver", "🗑 Excluir", "💰 Receber"]) {
       expect(pdv).toContain(rotulo);
     }
   });

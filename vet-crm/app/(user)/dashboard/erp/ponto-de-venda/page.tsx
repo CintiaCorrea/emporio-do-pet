@@ -1771,21 +1771,28 @@ Vira uma venda concluída, com os mesmos itens. O orçamento sai da lista.`)) re
                           // botao simplesmente nao existir, sem ninguem entender por que.
                           <span title={exclusaoDaVenda.motivo} style={{ background: '#FBF7EF', border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 11.5, color: MUT, whiteSpace: 'normal', maxWidth: 320, lineHeight: 1.3 }}>🔒 {exclusaoDaVenda.motivo}</span>
                         )}
-                        {/* RECEBER É NA GAVETA ÚNICA, aqui mesmo (16/09/2026). A mesma do Caixa e de
-                            Vendas: pergunta o caixa, mostra a data, tem desconto e observação, e
-                            mostra as outras vendas em aberto do cliente. */}
-                        {/* 🧾 RECIBO da venda já recebida (Cintia, 17/09/2026). As baixas vêm do
-                            servidor, as mesmas que a Consulta de vendas mostra. */}
-                        {Number(detVenda.pago || 0) > 0.009 && (
-                          <>
-                            <button onClick={() => reciboDaVenda(detVenda, 'imprimir')} title="Recibo do pagamento, no timbrado" style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>🧾 Recibo</button>
-                            <button onClick={() => reciboDaVenda(detVenda, 'whats')} title="Enviar o recibo em PDF no WhatsApp do cliente" style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>💬 Recibo no WhatsApp</button>
-                          </>
-                        )}
-                        {/* IMPRIMIR E ENVIAR VALEM SEMPRE — antes de pagar é o comprovante da
-                            compra; depois de pago, o recibo acima é que vale. */}
-                        <button onClick={() => imprimirVenda(detVenda)} title="Imprimir o comprovante da venda, no timbrado" style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>🖨️ Imprimir</button>
-                        <button onClick={() => enviarVendaNoWhatsDaGaveta(detVenda)} disabled={enviandoVenda} title="Enviar a venda em PDF no WhatsApp do cliente" style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: enviandoVenda ? 0.6 : 1 }}>{enviandoVenda ? 'Enviando…' : '💬 Enviar'}</button>
+                        {/* UM PAPEL POR VEZ, NÃO QUATRO BOTÕES (Cintia, 19/09/2026: "qual a
+                            diferença recibo, recibo no whatsapp e enviar?"). Eram dois documentos
+                            com dois botões cada, e a escolha sobrava para a recepção. Agora são
+                            dois botões — imprimir e enviar — e quem escolhe o documento é a venda,
+                            pela regra que ela deu em 17/09: "segue o relatório da sua compra, pois
+                            depois de vendido (pago) seria o recibo".
+
+                            RECEBER É NA GAVETA ÚNICA, aqui mesmo (16/09/2026): a mesma do Caixa e
+                            de Vendas, que pergunta o caixa e mostra as outras contas do cliente. */}
+                        <button
+                          onClick={() => (Number(detVenda.pago || 0) > 0.009 ? reciboDaVenda(detVenda, 'imprimir') : imprimirVenda(detVenda))}
+                          title={Number(detVenda.pago || 0) > 0.009 ? 'Recibo do pagamento, no timbrado' : 'Relatório da compra, no timbrado'}
+                          style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                        >🖨️ Imprimir {Number(detVenda.pago || 0) > 0.009 ? 'recibo' : 'venda'}</button>
+                        <button
+                          onClick={() => (Number(detVenda.pago || 0) > 0.009 ? reciboDaVenda(detVenda, 'whats') : enviarVendaNoWhatsDaGaveta(detVenda))}
+                          disabled={enviandoVenda}
+                          title={Number(detVenda.pago || 0) > 0.009 ? 'Enviar o recibo em PDF no WhatsApp do cliente' : 'Enviar o relatório da compra em PDF no WhatsApp do cliente'}
+                          style={{ background: '#fff', color: INK, border: `1px solid ${LINE}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: enviandoVenda ? 0.6 : 1 }}
+                        >{enviandoVenda ? 'Enviando…' : `💬 Enviar ${Number(detVenda.pago || 0) > 0.009 ? 'recibo' : 'venda'}`}</button>
+                        {/* A CHAVINHA: venda feita por engano volta a ser orçamento, desde que
+                            nada tenha sido recebido. */}
                         {podeEditar && Number(detVenda.pago || 0) <= 0.009 && (
                           <button onClick={() => virarOrcamentoDaGaveta(detVenda)} disabled={virandoVendaEmOrc} title="Vendeu por engano? A venda vira orçamento, com os mesmos itens" style={{ background: '#fff', color: NAVY, border: `1px solid ${NAVY}`, borderRadius: 8, padding: '6px 11px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', opacity: virandoVendaEmOrc ? 0.6 : 1 }}>{virandoVendaEmOrc ? 'Virando…' : '📄 Virar orçamento'}</button>
                         )}

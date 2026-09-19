@@ -12,8 +12,11 @@ describe("ações na linha da venda", () => {
   const src = ler("app", "(user)", "dashboard", "erp", "consulta-vendas", "page.tsx");
 
   it("imprimir, enviar, editar e excluir ficam na linha", () => {
-    expect(src).toContain('title="Imprimir a venda (comprovante no timbrado)"');
-    expect(src).toContain('title="Enviar a venda em PDF no WhatsApp do cliente"');
+    // O TÍTULO DOS DOIS PRIMEIROS PASSOU A DEPENDER DA VENDA (19/09/2026): antes de pagar sai o
+    // relatório da compra; depois de pago, o recibo. Quem escolhe é papelDaVenda, não a recepção.
+    expect(src).toContain("papelDaVenda(v, 'imprimir')");
+    expect(src).toContain("papelDaVenda(v, 'whats')");
+    expect(src).toContain("'Imprimir o recibo do pagamento' : 'Imprimir o relatório da compra'");
     // Desde 17/09/2026 o editar abre o CARRINHO da ficha (um editor só para venda e orçamento).
     expect(src).toContain('aria-label="Editar a venda"');
     expect(src).toContain("?carrinho=venda&editarVenda=");

@@ -73,6 +73,29 @@ interface Pacote { nome: string; vendidos: number; sessoes: number; usadas: numb
 interface Resp { vendas: Venda[]; totais: Totais; pacotes?: Pacote[] }
 
 /* ---------------- helpers ---------------- */
+// PAGA OU EM ABERTO decide qual papel sai (Cintia, 17/09/2026: "segue o relatório da sua compra,
+// pois depois de vendido (pago) seria o recibo").
+const jaPago = (v: any) => Number(v?.pago || 0) > 0.009;
+
+/** Imprime ou envia o papel certo da venda: recibo quando já houve pagamento, relatório da compra
+ *  quando ainda não. As baixas vêm do servidor, as mesmas que a linha aberta mostra. */
+async function papelDaVenda(v: any, como: 'imprimir' | 'whats') {
+  if (!jaPago(v)) {
+    if (como === 'imprimir') { await imprimirVenda(v); return; }
+    const r = await enviarVendaNoWhats(v as any);
+    alert(r.ok ? 'Enviado no WhatsApp: segue o relatório da sua compra.' : (r.erro || 'Não consegui enviar.'));
+    return;
+  }
+  try {
+    const baixas = await fetch(`/api/caixa/recebimentos?appointmentId=${encodeURIComponent(v.id)}`, { cache: 'no-store' }).then((r) => (r.ok ? r.json() : []));
+    const lista = (Array.isArray(baixas) ? baixas : []).map((b: any) => ({ ...b, appointment: { id: v.id, numeroVenda: v.numeroVenda, petId: v.petId, pet: v.pet ? { name: v.pet } : null, tutor: { id: v.clienteId, name: v.cliente } } }));
+    if (!lista.length) { alert('Esta venda ainda não tem baixa.'); return; }
+    if (como === 'imprimir') { await imprimirRecibo(lista); return; }
+    const res = await enviarReciboNoWhats(lista);
+    alert(res.ok ? 'Recibo enviado no WhatsApp.' : (res.erro || 'Não consegui enviar.'));
+  } catch { alert('Não consegui montar o recibo.'); }
+}
+
 const brl = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number.isFinite(v) ? v : 0);
 const dm = (s: string) => {
@@ -483,12 +506,15 @@ function LinhaVenda({ v, saldoCliente, onExcluir, excluindo, isAdmin, onReceber,
             achar imprimir, editar e excluir. Os nomes são os da venda; o recibo continua dentro da
             linha aberta, porque é do pagamento. */}
         <td style={{ padding: '8px 10px', whiteSpace: 'nowrap', textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
-          <button onClick={() => imprimirVenda(v)} title="Imprimir a venda (comprovante no timbrado)" aria-label="Imprimir a venda" style={acaoDaLinha}>🖨️</button>
+          {/* O PAPEL CERTO DO MOMENTO (19/09/2026): antes de pagar, o relatório da compra;
+              depois de pago, o recibo. Os mesmos dois botões da gaveta do Ponto de venda —
+              a recepção não escolhe entre quatro documentos. */}
+          <button onClick={() => papelDaVenda(v, 'imprimir')} title={jaPago(v) ? 'Imprimir o recibo do pagamento' : 'Imprimir o relatório da compra'} aria-label="Imprimir" style={acaoDaLinha}>🖨️</button>
           <button
-            onClick={async () => { setEnviando(true); const r = await enviarVendaNoWhats(v as any); setEnviando(false); alert(r.ok ? 'Enviado no WhatsApp: segue o relatório da sua compra.' : (r.erro || 'Não consegui enviar.')); }}
+            onClick={async () => { setEnviando(true); await papelDaVenda(v, 'whats'); setEnviando(false); }}
             disabled={enviando}
-            title="Enviar a venda em PDF no WhatsApp do cliente"
-            aria-label="Enviar a venda no WhatsApp"
+            title={jaPago(v) ? 'Enviar o recibo em PDF no WhatsApp do cliente' : 'Enviar o relatório da compra em PDF no WhatsApp do cliente'}
+            aria-label="Enviar no WhatsApp"
             style={acaoDaLinha}
           >{enviando ? '…' : '💬'}</button>
           {isAdmin ? (
