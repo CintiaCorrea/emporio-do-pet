@@ -182,7 +182,7 @@ export default function NovoTemplatePage() {
   const canSubmit = canProceedStep1 && canProceedStep2;
 
   return (
-    <div className="p-6 lg:p-8 min-h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <Link

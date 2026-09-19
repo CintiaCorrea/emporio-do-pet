@@ -158,7 +158,7 @@ export default function VendasGraficosPage() {
   const semVendas = !loading && (!d || (Number(d.total) || 0) === 0);
 
   return (
-    <div className="p-6">
+    <div>
       <style>{CSS}</style>
       <div className="vg-wrap">
         <div className="vg-sub no-print">Como as vendas evoluem e de onde vêm (grupo, marca, top itens). Valores ocultáveis pelo 👁️.</div>

@@ -130,7 +130,7 @@ export default function RetencaoPage() {
   if (loading) return <div className="p-6"><div className="rt-empty">Carregando…</div></div>;
 
   return (
-    <div className="p-6">
+    <div>
       <style>{CSS}</style>
       <div className="rt-wrap">
         <div className="rt-print-h">Retenção e Churn — {new Date().toLocaleDateString("pt-BR")}</div>

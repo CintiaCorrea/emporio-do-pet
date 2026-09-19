@@ -99,7 +99,7 @@ export default function AgendaConfigPage() {
   }
 
   return (
-    <div className="p-4 max-w-3xl">
+    <div className="max-w-3xl">
       <div className="flex items-center gap-4 border-b pb-2.5 mb-4" style={{ borderColor: "#E8DFC8" }}>
         <a href="/dashboard/erp/agendamentos/agenda" className="text-[14px] text-gray-500 flex items-center gap-1 hover:text-[#009AAC]"><LuArrowLeft size={15} /> Dia</a>
         {/* Escala movida pro cadastro do profissional (Configurações › Equipe). */}

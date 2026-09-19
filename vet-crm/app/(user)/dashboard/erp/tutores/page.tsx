@@ -567,7 +567,7 @@ Ele sai das listas e da busca, mas nada e' apagado — dá pra restaurar quando 
   }, [tutores]);
 
   return (
-    <div className="p-6 min-h-screen bg-[#F6F2EA]">
+    <div className="min-h-screen bg-[#F6F2EA]">
       <header className="flex justify-between items-start mb-4">
         <div>
           <p className="text-sm text-[#5b6470] mt-0.5">

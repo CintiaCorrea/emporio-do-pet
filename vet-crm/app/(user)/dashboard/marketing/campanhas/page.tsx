@@ -70,7 +70,7 @@ export default function CampanhasPage() {
   const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "campanha", itemName: "esta campanha" }))) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <span className="text-[12px] text-[#64748b]">{rows.length} campanha(s) · Leads e conversões automáticos pela Tag Origem</span>
         {podeEditar && <button onClick={() => { setEditId(null); setForm({ ...EMPTY }); setOpen(true); }} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5"><LuPlus className="w-3.5 h-3.5" />Nova campanha</button>}

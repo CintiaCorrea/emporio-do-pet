@@ -692,7 +692,7 @@ Quer arquivar agora?`)) await arquivarCliente();
   if (aniversarioNoMes) selos.push({ txt: "🎂 Aniversariante do mês", bg: "#FDECEC", fg: "#A32D2D" });
 
   return (
-    <div className="p-4 min-h-screen bg-[#F6F2EA]">
+    <div className="min-h-screen bg-[#F6F2EA]">
       <Toaster position="top-right" />
 
       {/* ── Cabeçalho FIXO (sticky): migalha + card juntos, colam abaixo da barra global (64px) ── */}

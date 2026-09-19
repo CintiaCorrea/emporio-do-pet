@@ -422,7 +422,7 @@ export default function AgendaPage() {
   const CONF_BADGE: Record<string, { t: string; c: string; nome: string; curto: string }> = { ENVIADA: { t: "📲", c: "#854F0B", nome: "Confirmação enviada", curto: "Aguardando" }, CONFIRMADO: { t: "✅", c: "#0F6E56", nome: "Presença confirmada", curto: "Confirmado" }, REMARCAR: { t: "🔄", c: "#A32D2D", nome: "Cliente quer remarcar", curto: "Quer remarcar" } };
 
   return (
-    <div className="p-4 min-h-screen bg-[#F6F2EA]">
+    <div className="min-h-screen bg-[#F6F2EA]">
       <div className="flex items-center gap-2.5 mb-3 flex-wrap">
         <div className="flex items-center gap-1">
           <button onClick={() => addDays(-1)} aria-label="Dia anterior" className="w-8 h-8 rounded-lg border flex items-center justify-center text-[#5C6B70] hover:text-[#009AAC]" style={{ borderColor: "#E8E2D6" }}><LuChevronLeft size={16} /></button>

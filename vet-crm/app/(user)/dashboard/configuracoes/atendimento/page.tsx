@@ -61,7 +61,7 @@ export default function ConfigAtendimentoPage() {
   }
 
   return (
-    <div className="p-4 max-w-3xl mx-auto space-y-4">
+    <div className="max-w-3xl mx-auto space-y-4">
       <p className="text-xs text-[#64748b]">Personalize os tipos e status do atendimento. A <b>duração</b> de cada serviço vale na <b>agenda</b> (equipe e agendamento online) — é definida aqui, num lugar só.</p>
       {loading ? (
         <div className="text-center text-sm text-gray-400 py-8">Carregando...</div>

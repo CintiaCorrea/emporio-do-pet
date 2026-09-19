@@ -381,8 +381,8 @@ Eles podem CAIR, nunca subir:
 
 | Medida | 19/09/2026 | Alvo |
 |---|---|---|
-| Arquivos de tela que escrevem margem | 106 | 0 |
-| Telas que dao a propria margem NA RAIZ | 60 | 0 (a moldura da) |
+| Arquivos de tela que escrevem margem | 98 | 0 |
+| Telas que dao a propria margem NA RAIZ | 10 | 2 (so as com dono) |
 | Cores escritas a mao | 10.144 | as poucas da casa, com nome |
 | Tamanhos de letra | 27 | 5 |
 
@@ -407,10 +407,12 @@ telas nao davam margem alguma: o conteudo encostava na borda.
   vendas (ponto-de-venda, caixa, consulta-vendas, configuracoes-vendas) — elas tem dono ate a
   reforma terminar, e ficam exatamente como estao. **Quando a reforma acabar, apagar a lista
   `TELAS_DA_REFORMA_DE_VENDAS` do layout.** Guardado por `lib/margem-da-moldura.spec.ts`.
-- [ ] **Bloco 2b — as 56 telas devolvem a margem delas.** Limpeza: hoje a regra da moldura ja
-  ganha da classe escrita na tela, entao tirar o `p-6`/`p-4` da raiz nao muda um pixel. Serve
-  para o codigo dizer a verdade e para os dois numeros acima cairem. 56 arquivos, uma linha
-  cada.
+- [x] **Bloco 2b — as telas devolvem a margem delas.** 50 telas perderam o `p-6`/`p-4` da raiz.
+  Nao muda um pixel: a regra da moldura ja ganhava da classe escrita na tela. Serve para o
+  codigo dizer a verdade. A margem da raiz caiu de 60 para 10 telas.
+  As 10 que sobram, de proposito: 2 sao das telas com dono (a moldura nao encosta nelas) e 8
+  tem margem de um lado so ou nao sao a raiz de verdade — estado de "carregando", de "nao
+  encontrado", modal. Essas pedem olho, nao automatico.
 - [ ] **Bloco 3 — pilula vira aba** nas 13 telas que ainda usam pilula, com `lib/ui/Abas.tsx`.
 - [ ] **Bloco 4 — cartao e botao unicos**, tela a tela, comecando pelas da recepcao.
 - [ ] **Bloco 5 — recolher a familia azul** (~15 telas de gradiente que sobraram do comeco).

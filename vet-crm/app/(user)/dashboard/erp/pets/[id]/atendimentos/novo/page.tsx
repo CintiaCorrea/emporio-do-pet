@@ -531,7 +531,7 @@ export default function NovoAtendimentoPage() {
   const lbl = "text-[10px] uppercase tracking-wide text-[#374151]";
 
   return (
-    <div className="p-4 min-h-screen bg-[#F6F2EA]">
+    <div className="min-h-screen bg-[#F6F2EA]">
       {/* 🛒 Comanda lateral (venda/orçamento) — também na tela de atendimento */}
       <PetComandaRail petId={petId} tutorId={(pet as any)?.tutorId} petNome={pet?.name} tutorNome={(pet as any)?.tutor?.name} />
       {/* Breadcrumb */}

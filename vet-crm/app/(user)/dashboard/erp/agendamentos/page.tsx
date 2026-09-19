@@ -343,7 +343,7 @@ export default function AppointmentsPage() {
 
   if (loading && appointments.length === 0) {
     return (
-      <div className="p-6 max-w-7xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="px-6 py-16 text-center text-sm text-[#94a3b8]">Carregando agendamentos...</div>
       </div>
     );

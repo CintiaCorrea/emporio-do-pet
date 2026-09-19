@@ -321,7 +321,7 @@ export default function ImportarVendasPage() {
   const grupos = info?.grupos || [];
 
   return (
-    <div className="p-6 min-h-screen bg-[#F6F2EA]">
+    <div className="min-h-screen bg-[#F6F2EA]">
       <Toaster position="top-right" />
 
       {/* Card principal */}

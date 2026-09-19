@@ -49,7 +49,7 @@ export default function PortalTutoresPage() {
   const umaVezSo = (dados?.tutores || []).filter((t: any) => t.entradas === 1).length;
 
   return (
-    <div className="p-4 md:p-6 w-full">
+    <div className="w-full">
       <div className="flex items-center gap-3 mb-4 flex-wrap">
         <div className="text-[13px]" style={{ color: MUT }}>
           <b style={{ color: NAVY }}>{dados?.total ?? 0}</b> tutor(es) já entraram

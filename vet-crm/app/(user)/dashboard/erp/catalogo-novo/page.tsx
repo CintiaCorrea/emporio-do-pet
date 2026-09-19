@@ -247,7 +247,7 @@ export default function CatalogoNovoPage() {
   const lbl = { fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: ".04em", color: MUT, marginBottom: 4, display: "block" };
 
   return (
-    <div className="p-4 md:p-6 min-h-screen" style={{ background: PAPER }}>
+    <div className="min-h-screen" style={{ background: PAPER }}>
       <div className="flex items-center gap-2 flex-wrap mb-4">
         <div>
           <h1 className="text-[21px] font-extrabold flex items-center gap-2" style={{ color: B }}>🗂️ Catálogo <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: "#E1F5EE", color: "#0F6E56" }}>NOVO</span></h1>

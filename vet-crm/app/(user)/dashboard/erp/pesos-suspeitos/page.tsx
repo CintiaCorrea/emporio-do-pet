@@ -58,7 +58,7 @@ export default function PesosSuspeitosPage() {
   useEffect(() => { carregar(); }, [carregar]);
 
   return (
-    <div className="p-4 md:p-6">
+    <div>
       <div className="rounded-2xl border bg-white" style={{ borderColor: LINE }}>
 
         <div className="px-5 py-4 border-b" style={{ borderColor: LINE }}>

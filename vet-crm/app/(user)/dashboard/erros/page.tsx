@@ -66,7 +66,7 @@ export default function ErrosPage() {
   const totalVezes = linhas.reduce((s, l) => s + Number(l.vezes || 1), 0);
 
   return (
-    <div className="p-4 md:p-6 w-full">
+    <div className="w-full">
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <div className="text-[13px]" style={{ color: MUT }}>
           <b style={{ color: linhas.length ? CORAL : NAVY }}>{linhas.length}</b> erro(s) distinto(s)

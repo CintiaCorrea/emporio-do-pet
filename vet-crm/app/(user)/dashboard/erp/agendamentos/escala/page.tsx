@@ -172,7 +172,7 @@ export default function EscalaPage() {
   const card = { background: "#fff", border: "1px solid #E8E2D6", borderRadius: 13 } as const;
 
   return (
-    <div className="p-6 w-full">
+    <div className="w-full">
       {/* Abas */}
       <div className="flex gap-1 mb-5 flex-wrap">
         {TABS.map((t) => (

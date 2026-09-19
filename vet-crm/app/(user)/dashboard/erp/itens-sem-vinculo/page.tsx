@@ -96,7 +96,7 @@ export default function ItensSemVinculoPage() {
   const pct = dados?.percentualClassificado;
 
   return (
-    <div className="p-4 md:p-6 w-full">
+    <div className="w-full">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <label className="text-[11.5px]" style={{ color: MUT }}>De</label>
         <input type="date" value={de} onChange={(e) => setDe(e.target.value)} className="text-[12px] px-2 py-1 rounded-md border" style={{ borderColor: LINE }} />

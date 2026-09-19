@@ -63,7 +63,7 @@ export default function TimbradoConfigPage() {
   }
 
   return (
-    <div className="p-4 md:p-6 min-h-screen" style={{ background: "#F6F2EA" }}>
+    <div className="min-h-screen" style={{ background: "#F6F2EA" }}>
       <div className="max-w-2xl mx-auto">
         <Link href="/dashboard/configuracoes" className="text-[12.5px] text-[#5F5E5A] hover:text-[#009AAC] inline-flex items-center gap-1 mb-3"><LuChevronLeft size={15} /> Configurações</Link>
         <h1 className="text-[22px] font-extrabold flex items-center gap-2" style={{ color: "#014D5E" }}>📄 Papel timbrado</h1>

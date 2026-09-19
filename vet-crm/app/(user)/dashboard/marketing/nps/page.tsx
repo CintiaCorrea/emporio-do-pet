@@ -84,7 +84,7 @@ export default function NpsPage() {
   const FILTROS: { k: any; l: string }[] = [{ k: "todas", l: "Todas" }, { k: "Promotor", l: "Promotores" }, { k: "Neutro", l: "Neutros" }, { k: "Detrator", l: "Detratores" }];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <div className="flex gap-2 flex-wrap">
           <div className="rounded-lg px-3.5 py-1.5" style={{ background: "#E6F6F8" }}><div className="text-[10.5px]" style={{ color: "#00798A" }}>NPS</div><div className="text-[18px] font-bold" style={{ color: "#00798A" }}>{kpis.nps > 0 ? "+" : ""}{kpis.nps}</div></div>

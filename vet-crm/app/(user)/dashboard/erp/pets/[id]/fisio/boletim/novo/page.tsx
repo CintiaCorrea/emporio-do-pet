@@ -151,7 +151,7 @@ export default function BoletimFisioPage() {
   const sec = "text-[12px] font-medium uppercase tracking-wide text-[#014D5E] mb-2";
 
   return (
-    <div className="p-4 min-h-screen bg-[#F6F2EA]">
+    <div className="min-h-screen bg-[#F6F2EA]">
       <div className="text-[12px] text-[#374151] mb-2 px-1">
         <Link href="/dashboard/erp/pets" className="hover:text-[#009AAC]">Pets</Link> / <Link href={`/dashboard/erp/pets/${pet.id}`} className="hover:text-[#009AAC]">{pet.name}</Link> / <b className="text-[#009AAC] font-medium">{boletimId ? "Editar boletim" : "Novo boletim"}</b>
       </div>

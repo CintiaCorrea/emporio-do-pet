@@ -7,7 +7,7 @@ export default function AjudaPage() {
   usePageTitle("Ajuda", "Documentação, contato e suporte");
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <a href="mailto:cintia@emporiodopet.com.br" className="bg-white border rounded-2xl p-5 hover:shadow-sm transition" style={{ borderColor: "#e8edf0" }}>
           <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style={{ background: "#e6f6f8", color: "#009AAC" }}>

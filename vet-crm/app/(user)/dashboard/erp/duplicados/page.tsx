@@ -34,7 +34,7 @@ export default function DuplicadosPage() {
   const fichaCliente = (id: string) => `/dashboard/erp/tutores/${id}`;
 
   return (
-    <div className="p-4">
+    <div>
       <div className="flex items-center gap-2.5 mb-4 flex-wrap">
         <p className="text-[13px] text-gray-500 flex-1">
           Reconhecimento na prioridade <b>telefone (8 dígitos)</b> → <b>CPF</b> → <b>última alteração</b>. Esta tela <b>não altera nada</b> — é só para revisar.

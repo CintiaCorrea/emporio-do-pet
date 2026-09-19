@@ -79,7 +79,7 @@ export default function FunilSemanaPage() {
   const corAvanco = (v: number | null) => v === null ? "#94a3b8" : v > 0 ? "#0F6E56" : v < 0 ? "#A32D2D" : "#5b6470";
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <span className="text-[12.5px] text-[#64748b]">Semana de {labelSemana(seg)}</span>
         <button onClick={calcularAgora} disabled={salvando} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5 disabled:opacity-60"><LuRefreshCcw className="w-3.5 h-3.5" />{salvando ? "Calculando..." : "Calcular agora"}</button>

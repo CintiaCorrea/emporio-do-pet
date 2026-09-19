@@ -142,7 +142,7 @@ export default function CopilotoClinicoPage() {
     ) : null;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       {/* topo: interruptor + números */}
       <div className="bg-white border rounded-[13px] px-4 py-3.5 flex items-center justify-between gap-3 flex-wrap mb-4" style={{ borderColor: "#E8E2D6" }}>
         <div className="flex items-center gap-3">

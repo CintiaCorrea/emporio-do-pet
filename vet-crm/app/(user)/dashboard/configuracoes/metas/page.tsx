@@ -116,7 +116,7 @@ export default function MetasPage() {
   const fmtAlvo = (m: Meta, n: number) => (m.medida === "QUANTIDADE" ? qtd(n) : brl(n));
 
   return (
-    <div className="p-6">
+    <div>
       <div className="flex items-center gap-3 mb-1">
         <Link href="/dashboard/configuracoes" className="p-2 rounded-lg hover:bg-black/5"><LuArrowLeft size={18} /></Link>
         <h1 className="text-xl font-semibold flex items-center gap-2" style={{ color: "#0E2244" }}><LuTarget size={20} style={{ color: "#009AAC" }} /> Metas</h1>

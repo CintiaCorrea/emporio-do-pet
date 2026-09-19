@@ -172,7 +172,7 @@ export default function CalendarioClinicoPage() {
   const tm = TEMA[tab];
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex items-center gap-2 mb-4">
         <Link href="/dashboard/erp/agendamentos/clinico" className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white" style={{ background: "#009AAC" }}>Clínico (FU)</Link>
         <Link href="/dashboard/erp/agendamentos/calendario" className="px-3 py-1.5 rounded-lg text-xs font-medium bg-white border text-[#5F5E5A] hover:bg-[#f6f8f9]" style={{ borderColor: "#e8edf0" }}>Agenda</Link>

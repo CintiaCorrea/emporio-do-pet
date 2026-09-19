@@ -1288,7 +1288,7 @@ Registre uma aferição com o peso (ou preencha na ficha do pet) e lance depois.
 
   if (loading) return <div className="p-6 text-center text-sm text-[#374151]">Carregando ficha...</div>;
   if (!h) return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       <button onClick={() => router.push("/dashboard/erp/internacoes")} className="text-[13px] text-[#009AAC] mb-3">← Voltar ao mapa</button>
       <div className="bg-white border rounded-xl px-6 py-12 text-center text-sm text-[#374151]" style={{ borderColor: "#E8E2D6" }}>Internação não encontrada.</div>
     </div>

@@ -73,7 +73,7 @@ export default function RankingClientesPage() {
   }, [clientes, busca, classeF]);
 
   return (
-    <div className="p-6">
+    <div>
       <style>{CSS}</style>
       <div className="rk-wrap">
         <div className="rk-print-h">Ranking de clientes — {new Date().toLocaleDateString("pt-BR")}</div>

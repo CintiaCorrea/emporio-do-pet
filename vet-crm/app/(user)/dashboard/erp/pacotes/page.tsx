@@ -73,7 +73,7 @@ export default function PacotesPage() {
   ];
 
   return (
-    <div className="p-6">
+    <div>
       <div className="flex items-center gap-2 mb-1">
         <LuPackage size={20} style={{ color: "#009AAC" }} />
         <h1 className="text-xl font-semibold" style={{ color: "#0E2244" }}>Pacotes vendidos</h1>

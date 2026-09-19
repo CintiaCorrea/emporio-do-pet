@@ -200,7 +200,7 @@ export default function LeadDetailPage({ params }: { params: Promise<{ id: strin
   const outlineBtn = "bg-white border border-[#E8E2D6] text-[#5C6B70] px-3 py-1.5 rounded-lg text-xs flex items-center gap-1.5 hover:bg-[#FBF9F4]";
 
   return (
-    <div className="p-4 min-h-screen bg-[#F6F2EA]">
+    <div className="min-h-screen bg-[#F6F2EA]">
       <Toaster position="top-right" />
 
       {/* Breadcrumb */}

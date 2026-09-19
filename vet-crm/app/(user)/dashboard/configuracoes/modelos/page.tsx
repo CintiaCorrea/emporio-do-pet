@@ -26,7 +26,7 @@ export default function ModelosPage() {
   }, []);
 
   return (
-    <div className="p-4 w-full">
+    <div className="w-full">
       <div className="flex gap-1 mb-4 flex-wrap">
         {ABAS.map((a) => (
           <button key={a.v} onClick={() => setAba(a.v)}

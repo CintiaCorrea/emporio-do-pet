@@ -195,7 +195,7 @@ export default function PetsListPage() {
   }, [pets]);
 
   return (
-    <div className="p-6">
+    <div>
       <header className="flex justify-between items-start mb-4">
         <div>
           <p className="text-sm text-[#5b6470] mt-0.5">

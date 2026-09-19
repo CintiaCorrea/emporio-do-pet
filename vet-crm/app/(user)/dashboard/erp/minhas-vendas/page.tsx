@@ -69,7 +69,7 @@ export default function MinhasVendasPage() {
   const ch: React.CSSProperties = { padding: '11px 15px', borderBottom: '1px solid #F0EBE0', fontSize: 13, fontWeight: 600, color: NAVY };
 
   return (
-    <div className="p-6" style={{ background: '#F6F2EA', minHeight: '100%' }}>
+    <div style={{ background: '#F6F2EA', minHeight: '100%' }}>
       <div className="flex items-center gap-2 mb-1">
         <span style={{ fontSize: 19 }}>📈</span>
         <h1 className="text-xl font-semibold" style={{ color: '#0E2244' }}>Minhas vendas</h1>

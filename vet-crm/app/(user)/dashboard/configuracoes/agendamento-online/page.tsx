@@ -289,7 +289,7 @@ export default function AgendamentoOnlinePage() {
 
   if (carregando) {
     return (
-      <div className="p-4 text-[13px]" style={{ color: B44.text2 }}>
+      <div className="text-[13px]" style={{ color: B44.text2 }}>
         Carregando as regras…
       </div>
     );

@@ -69,7 +69,7 @@ export default function ImportarCatalogoPage() {
   const rel = feito || prev;
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto">
       {/* passo 1: upload */}
       <div style={{ background: "#fff", border: `1px solid ${LINE}`, borderRadius: 13, padding: "16px 18px", marginBottom: 14 }}>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: B, marginBottom: 8 }}>1. Escolha a planilha (.csv)</div>

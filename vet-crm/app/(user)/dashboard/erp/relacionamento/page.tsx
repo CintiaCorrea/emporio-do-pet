@@ -86,7 +86,7 @@ export default function RelacionamentoPage() {
   if (loading) return <div className="p-6"><div className="re-empty">Carregando…</div></div>;
 
   return (
-    <div className="p-6">
+    <div>
       <style>{CSS}</style>
       <div className="re-wrap">
         <div className="re-print-h">Relacionamento (RFM) — {new Date().toLocaleDateString("pt-BR")}</div>

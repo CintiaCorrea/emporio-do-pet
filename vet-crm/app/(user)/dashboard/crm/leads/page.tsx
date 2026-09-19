@@ -293,7 +293,7 @@ export default function LeadsPage() {
   }, [leads]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <header className="flex justify-between items-start mb-3">
         <div>
           <p className="text-sm text-[#5b6470] mt-0.5">

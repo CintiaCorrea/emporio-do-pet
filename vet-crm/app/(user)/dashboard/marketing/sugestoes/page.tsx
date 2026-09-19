@@ -39,7 +39,7 @@ export default function SugestoesPage() {
   }
 
   return (
-    <div className="p-4 max-w-3xl mx-auto space-y-3">
+    <div className="max-w-3xl mx-auto space-y-3">
       <p className="text-xs text-[#64748b]">Sugestões que os tutores enviaram pelo aplicativo. As <b>avaliações</b> (estrelas) entram em <b>Marketing › NPS</b>.</p>
       {loading ? (
         <div className="text-center text-sm text-gray-400 py-8">Carregando...</div>

@@ -31,15 +31,39 @@ const pecas = arquivos("components", [".tsx", ".ts"]);
 const tudo = [...telas, ...pecas].map((f) => ({ f, texto: fs.readFileSync(path.join(process.cwd(), f), "utf8") }));
 
 describe("as margens", () => {
-  // DIRETRIZ 1: a margem da borda da tela é 24px, dada pela MOLDURA do sistema, não por cada
-  // tela. Hoje 106 telas escrevem a sua — é a raiz do "cada tela segue um padrão diferente":
-  // trocando de tela, o conteúdo pula. O Bloco 2 põe a margem na moldura e este número cai.
-  const TETO = 106; // medido em 19/09/2026. Alvo: 0.
-  it(`no máximo ${TETO} telas dão a própria margem`, () => {
+  // DIRETRIZ 1: a margem da borda da tela é 24px (16 no celular), dada pela MOLDURA do sistema,
+  // não por cada tela. Era a raiz do "cada tela segue um padrão diferente": trocando de tela,
+  // o conteúdo pulava. Desde 19/09 quem dá é a moldura (styles/globals.css) — ver
+  // lib/margem-da-moldura.spec.ts.
+  //
+  // São duas contagens de propósito. A larga pega qualquer margem escrita num arquivo de tela;
+  // a estreita pega o que importa, a margem da BORDA, lida na raiz do que a tela devolve.
+
+  const TETO_LARGO = 98; // 19/09/2026. Era 106 antes da limpeza do Bloco 2b.
+  it(`no máximo ${TETO_LARGO} arquivos de tela escrevem margem`, () => {
     const proprias = telas
       .filter((f) => f.endsWith("page.tsx"))
       .filter((f) => /className="(p|px|py|pt)-[0-9]/.test(fs.readFileSync(path.join(process.cwd(), f), "utf8")));
-    expect(proprias.length).toBeLessThanOrEqual(TETO);
+    expect(proprias.length).toBeLessThanOrEqual(TETO_LARGO);
+  });
+
+  // As 10 que sobram: 2 são das telas da reforma das vendas, que têm dono e ficam como estão
+  // (a moldura não encosta nelas); as outras 8 têm margem de um lado só ou não são a raiz de
+  // verdade — estado de "carregando", de "não encontrado", modal. Cada uma precisa de olho,
+  // não de automático.
+  const TETO_RAIZ = 10; // 19/09/2026. Eram 60 antes do Bloco 2b. Alvo: 2 (só as com dono).
+  it(`no máximo ${TETO_RAIZ} telas dão a própria margem na RAIZ`, () => {
+    let quantas = 0;
+    for (const f of telas.filter((x) => x.endsWith("page.tsx") && x.includes("dashboard"))) {
+      const t = fs.readFileSync(path.join(process.cwd(), f), "utf8");
+      const m = /export default (?:async )?function[^{]*\{/.exec(t);
+      if (!m) continue;
+      const r = /return \(\s*<[A-Za-z][\w.]*([^>]*)>/.exec(t.slice(m.index + m[0].length));
+      if (!r) continue;
+      const c = /className="([^"]*)"/.exec(r[1]);
+      if (c && /\b(p|px|py|pt|pb)-\[?[0-9]/.test(c[1])) quantas++;
+    }
+    expect(quantas).toBeLessThanOrEqual(TETO_RAIZ);
   });
 });
 

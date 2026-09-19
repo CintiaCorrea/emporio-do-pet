@@ -29,7 +29,7 @@ export default function EmailsPage() {
   const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "registro", itemName: "este registro" }))) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <span className="text-[12px] text-[#64748b]">{kpis.total} emails · <span className="text-[#0F6E56]">{kpis.enviados} enviados</span>{kpis.falhados ? <span className="text-[#A32D2D]"> · {kpis.falhados} falhados</span> : null}</span>
       </div>

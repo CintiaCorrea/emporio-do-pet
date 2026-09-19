@@ -122,7 +122,7 @@ export default function FinanceiroTerceirosPage() {
   const fmtDia = (s: string) => { try { return new Date(s).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); } catch { return ""; } };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex bg-white border rounded-lg overflow-hidden" style={{ borderColor: "#d8d0bc" }}>

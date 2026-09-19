@@ -49,7 +49,7 @@ export default function MidiaPage() {
   const totalInv = useMemo(() => rows.reduce((s, r) => s + (Number(r.investimento) || 0), 0), [rows]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="bg-white border rounded-xl p-4 mb-4" style={{ borderColor: "#e8dfc8" }}>
         <div className="text-[13px] font-medium text-[#014D5E] mb-3">Novo lançamento</div>
         {campanhas.length === 0 ? (

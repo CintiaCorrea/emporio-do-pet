@@ -39,7 +39,7 @@ export default function NotificacoesPage() {
   const badge = (bg: string, fg: string, txt: string) => <span style={{ background: bg, color: fg, fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 999 }}>{txt}</span>;
 
   return (
-    <div className="p-6 w-full">
+    <div className="w-full">
       <div style={card}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
           <div style={{ width: 44, height: 44, borderRadius: 12, background: "#E0F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>🔔</div>

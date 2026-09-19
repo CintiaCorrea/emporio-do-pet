@@ -33,7 +33,7 @@ export default function MinhaSenhaPage() {
   const lbl = "text-[11.5px] font-medium text-[#374151] block mb-1";
 
   return (
-    <div className="p-6 max-w-md mx-auto">
+    <div className="max-w-md mx-auto">
       <div className="bg-white border rounded-[13px] p-5" style={{ borderColor: "#E8E2D6" }}>
         <h2 className="text-[15px] font-semibold text-[#014D5E] mb-1">🔑 Trocar a minha senha</h2>
         <p className="text-[12px] text-[#5C6B70] mb-4">Sua sessão atual continua aberta — a senha nova vale a partir do próximo login.</p>

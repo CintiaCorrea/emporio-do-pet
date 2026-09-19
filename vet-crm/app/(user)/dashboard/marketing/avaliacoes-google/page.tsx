@@ -82,7 +82,7 @@ export default function AvaliacoesGooglePage() {
   const excluir = async (id: string) => { if (!(await confirmDelete({ entityLabel: "solicitação", itemName: "esta solicitação" }))) return; try { await fetch(`/api/listas/${id}`, { method: "DELETE", credentials: "include" }); load(); } catch {} };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-end mb-3">
         <button onClick={() => setOpen(true)} className="bg-[#009AAC] text-white px-3.5 py-1.5 rounded-lg text-xs font-medium inline-flex items-center gap-1.5"><LuSend className="w-3.5 h-3.5" />Solicitar avaliação</button>
       </div>
