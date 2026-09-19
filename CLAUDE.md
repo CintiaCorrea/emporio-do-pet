@@ -289,12 +289,42 @@ Email: Resend via SMTP, `RESEND_API_KEY` no Fly secrets, `POST /api/email/send`
 WhatsApp: **nunca** `wa.me/<phone>` (abre o WhatsApp pessoal). Sempre
 `openWhatsAppMeta(phone)`, que abre `/dashboard/inbox-nativo?phone=<digits>`.
 
-## IV.7 Visual Base44
+## IV.7 Visual: as diretrizes de 18/09/2026
 
-Paleta turquesa `#009AAC` + marinho `#014D5E` + bege `#E8DFC8`. Largura cheia
-(`p-4`/`p-6`, sem `max-w-*xl mx-auto` centralizado), cards `rounded-2xl` borda
-`#E8DFC8`, cabecalho padrao. Emojis decorativos so em fichas Pet/Tutor/Lead
-(gamificacao). Resto: tabelas densas, paleta neutra.
+Este item foi reescrito em 19/09/2026. Antes mandava `rounded-2xl` e largura
+cheia sempre — o contrario do que ficou decidido. Um manual que manda desfazer
+a padronizacao e pior que manual nenhum: a cada sessao alguem "arrumava" a tela
+de volta para o padrao antigo, de boa-fe.
+
+**Nao escreva cor, tamanho nem canto na mao. Use o nome.**
+`lib/ui/estilo.ts` (`CORES.turquesa`, `LETRA.corpo`, `CANTO.cartao`) ou a classe
+do Tailwind (`bg-turquesa`, `text-corpo`, `rounded-cartao`), que sai das mesmas
+variaveis em `styles/globals.css`.
+
+| O que | A regra |
+|---|---|
+| Margem da borda | 24px (`p-6`), 16px no celular. Quem da e a moldura; a tela nao inventa a sua. |
+| Largura | Tela de leitura (configuracao, formulario) para em 900px. Lista e quadro (agenda, caixa, kanban) usam a tela inteira. |
+| Trocar de secao | Ate 4: aba sublinhada, `lib/ui/Abas.tsx`. De 5 em diante: menu lateral. **Pilula nao.** |
+| Cartao | `lib/ui/Cartao.tsx` — branco, borda `#E8DFC8`, canto 13px, recheio 14px, **sem sombra**. Sombra so no que flutua: janela, gaveta, aviso. |
+| Botao | `lib/ui/Botao.tsx` — tres tipos: principal cheio, secundario com borda, perigo vermelho. Vermelho e so do que apaga. |
+| Letra | Cinco degraus: 20 titulo, 15 cartao, 13 corpo, 12 apoio, 10,5 etiqueta. Nada de meio pixel. |
+| Titulo da tela | Vem do menu (`usePageTitle`). A tela **nao** desenha um `<h1>` com o proprio nome. |
+| Icone x emoji | Ferramenta leva icone de traco (Lucide, ja instalada): botao, aba, item de menu, acao de linha. Emoji so no que se **le e reconhece**: especie do pet, situacao da conta, material da Academia. Nunca os dois no mesmo elemento. |
+
+**A tela modelo e a Academia** (`components/academia/Academia.tsx`), guardada por
+`lib/academia-no-padrao-novo.spec.ts`.
+
+**A catraca:** `lib/padrao-visual.spec.ts` conta tres numeros — telas com margem
+propria (106), cores escritas a mao (10.144) e tamanhos de letra (27). Eles podem
+CAIR, nunca subir. Consertou um monte? Baixe o teto no mesmo commit.
+
+**Telas com dono:** enquanto a reforma das vendas nao terminar, ponto-de-venda,
+caixa, consulta-vendas, configuracoes-vendas, `components/caixa`,
+`components/vendas` e `PetComandaRail` sao da aba das vendas. Falar com ela antes.
+E os botoes de dinheiro ("💰 Salvar e receber", "💾 Salvar", "💰 Virar venda",
+"📄 Virar orcamento") nao mudam de nome nem de emoji fora de um bloco proprio: ha
+teste conferindo o nome e a maquete da Academia mostrando ele.
 
 Sempre que abrir/mexer numa pagina, conferir o padrao e arrumar na hora — este e
 o unico ajuste permitido fora da tarefa (ver II.4).

@@ -41,6 +41,40 @@
   --scrollbar-track: rgba(15, 23, 42, 0.06); /* slate-900 @ 6% */
   --scrollbar-thumb: rgba(100, 116, 139, 0.45); /* slate-500 @ 45% */
   --scrollbar-thumb-hover: rgba(71, 85, 105, 0.65); /* slate-600 @ 65% */
+
+  /* AS CORES DA CASA, COM NOME (19/09/2026 — Bloco 1 da padronização visual).
+     Antes eram 671 cores escritas à mão em 10.124 lugares. Estas são as do sistema:
+     quem construir usa o nome, e quem quiser mudar a cor muda aqui.
+     As mesmas estão em lib/ui/estilo.ts, para quem escreve a cor direto na linha. */
+  --emp-turquesa: #009AAC;   /* ação principal */
+  --emp-marinho: #014D5E;    /* título e texto em destaque */
+  --emp-verde: #0F6E56;      /* confirmado, recebido */
+  --emp-vermelho: #A32D2D;   /* o que apaga, o que está em atraso */
+  --emp-ambar: #8A5A0B;      /* aviso, pendência */
+  --emp-fundo: #F6F2EA;      /* o bege do fundo das telas */
+  --emp-cartao: #FFFFFF;     /* o branco do cartão */
+  --emp-borda: #E8DFC8;      /* a borda do cartão — este bege, não os outros quatro */
+  --emp-linha: #F0EBE0;      /* divisória de dentro do cartão */
+  --emp-realce: #E0F4F6;     /* item escolhido num menu ou numa lista */
+  --emp-texto: #1F2A2E;      /* texto normal */
+  --emp-texto-suave: #5F5E5A;/* apoio, segunda linha */
+  --emp-texto-fraco: #8A8778;/* etiqueta, rodapé */
+
+  /* Cinco degraus de letra, não trinta e seis. */
+  --emp-letra-titulo: 20px;
+  --emp-letra-cartao: 15px;
+  --emp-letra-corpo: 13px;
+  --emp-letra-apoio: 12px;
+  --emp-letra-etiqueta: 10.5px;
+
+  /* Três cantos, não dezessete. */
+  --emp-canto-cartao: 13px;
+  --emp-canto-botao: 9px;
+  --emp-canto-miudo: 8px;
+
+  /* A margem da borda da tela. Quem dá é a moldura do sistema, não cada tela. */
+  --emp-margem: 24px;
+  --emp-margem-celular: 16px;
 }
 
 @theme inline {
@@ -48,6 +82,33 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* As cores da casa viram classe do Tailwind: bg-turquesa, text-marinho, border-borda… */
+  --color-turquesa: var(--emp-turquesa);
+  --color-marinho: var(--emp-marinho);
+  --color-verde: var(--emp-verde);
+  --color-vermelho: var(--emp-vermelho);
+  --color-ambar: var(--emp-ambar);
+  --color-fundo: var(--emp-fundo);
+  --color-cartao: var(--emp-cartao);
+  --color-borda: var(--emp-borda);
+  --color-linha: var(--emp-linha);
+  --color-realce: var(--emp-realce);
+  --color-texto: var(--emp-texto);
+  --color-texto-suave: var(--emp-texto-suave);
+  --color-texto-fraco: var(--emp-texto-fraco);
+
+  /* E os cinco degraus de letra: text-corpo, text-apoio… */
+  --text-titulo: var(--emp-letra-titulo);
+  --text-cartao: var(--emp-letra-cartao);
+  --text-corpo: var(--emp-letra-corpo);
+  --text-apoio: var(--emp-letra-apoio);
+  --text-etiqueta: var(--emp-letra-etiqueta);
+
+  /* Os três cantos: rounded-cartao, rounded-botao, rounded-miudo. */
+  --radius-cartao: var(--emp-canto-cartao);
+  --radius-botao: var(--emp-canto-botao);
+  --radius-miudo: var(--emp-canto-miudo);
 }
 
 /* We intentionally don't rely on prefers-color-scheme here.

@@ -4,6 +4,10 @@
 "use client";
 import { useState } from "react";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
+// A ABA SUBLINHADA virou peça do sistema em 19/09/2026 (Bloco 1 da padronização): era esta
+// mesma função, escrita aqui dentro. Saiu para lib/ui/Abas.tsx sem mudar um pixel, para as
+// outras 12 telas de pílula poderem usar a MESMA (CLAUDE.md IV.4: núcleo único).
+import { Abas } from "@/lib/ui/Abas";
 
 // 🎓 Academia — centro de treinamento da equipe: aprender o sistema (tela por tela)
 // e as regras da empresa. Cada TEMA é uma aba; começa com WhatsApp.
@@ -14,26 +18,6 @@ type Tema = "whatsapp" | "agenda" | "ficha" | "fisio" | "gravacao" | "veterinari
 type ConteudoWa = "guia" | "maquete" | "api";
 type ConteudoAg = "guia" | "maquete";
 type ConteudoVd = "pdv" | "maquete" | "geral";
-
-// ABA SUBLINHADA — o jeito de trocar de seção DENTRO da janela (diretriz de UX, 18/09/2026).
-// Substitui as pílulas: uma linha só, sublinhado turquesa na ativa, sem borda nem fundo.
-function Abas<T extends string>({ opcoes, valor, aoTrocar }: { opcoes: [T, string][]; valor: T; aoTrocar: (v: T) => void }) {
-  return (
-    <div className="flex flex-wrap -mb-[13px]">
-      {opcoes.map(([k, lbl]) => {
-        const on = valor === k;
-        return (
-          <button
-            key={k}
-            onClick={() => aoTrocar(k)}
-            className="text-[13px] px-3.5 py-2.5 transition"
-            style={{ color: on ? "#014D5E" : "#5F5E5A", fontWeight: on ? 700 : 500, borderBottom: `2px solid ${on ? "#009AAC" : "transparent"}` }}
-          >{lbl}</button>
-        );
-      })}
-    </div>
-  );
-}
 
 // AS PARTES DA ACADEMIA, na mesma ordem e com os mesmos nomes do menu lateral do sistema (Cintia, 18/09/2026: "não ter esses menus em
 // formato de pílulas, e sim em abas dentro da própria janela ou no menu lateral"). Eram 11

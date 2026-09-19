@@ -11,6 +11,7 @@ import path from "node:path";
 
 const pag = fs.readFileSync(path.join(process.cwd(), "components/academia/Academia.tsx"), "utf8");
 const sidebar = fs.readFileSync(path.join(process.cwd(), "components/protected/dashboard/Sidebar.tsx"), "utf8");
+const abas = fs.readFileSync(path.join(process.cwd(), "lib/ui/Abas.tsx"), "utf8");
 
 describe("o menu da Academia", () => {
   // O MENU SAIU DE DENTRO DA TELA (18/09/2026): quem lista as partes agora é a barra lateral do
@@ -35,9 +36,18 @@ describe("o menu da Academia", () => {
 });
 
 describe("dentro da janela, aba sublinhada", () => {
-  it("existe um componente único de aba", () => {
-    expect(pag).toContain("function Abas<T extends string>");
-    expect(pag).toContain("borderBottom: `2px solid ${on ? \"#009AAC\" : \"transparent\"}`");
+  // A ABA SAIU DE DENTRO DA ACADEMIA (19/09/2026, Bloco 1 da padronização). Era escrita aqui
+  // dentro; virou peça do sistema em lib/ui/Abas.tsx, sem mudar um pixel, para as outras telas
+  // de pílula usarem a MESMA (CLAUDE.md IV.4: núcleo único, não duplicar). A intenção do teste
+  // continua a mesma: existe UM componente de aba, e a Academia usa ele.
+  it("existe um componente único de aba, e ele mora em lib/ui", () => {
+    expect(abas).toContain("export function Abas<T extends string>");
+    expect(abas).toContain("borderBottom: `2px solid ${on ? CORES.turquesa : \"transparent\"}`");
+  });
+
+  it("a Academia usa ele, em vez de ter a sua cópia", () => {
+    expect(pag).toContain('import { Abas } from "@/lib/ui/Abas"');
+    expect(pag).not.toContain("function Abas<T extends string>");
   });
 
   it("as três seções com mais de um conteúdo usam ele", () => {

@@ -5,7 +5,7 @@
 > Motivo: em 04/09/2026 descobrimos 75 commits construidos e nunca integrados, e
 > decisoes combinadas em conversa que se perderam. Conversa nao guarda; arquivo guarda.
 
-Atualizado em: **18/09/2026**
+Atualizado em: **19/09/2026**
 
 ---
 
@@ -362,6 +362,46 @@ todo `/api/...` chamado exista — testada apagando a rota nova, quebra e diz o 
 - [ ] `app/api/tutors/[id]/pets/route.ts` usa a assinatura antiga do Next (`params` sem Promise).
   Funciona hoje por compatibilidade do Next 15; quebra na proxima versao maior. E o endereco que
   o **Novo agendamento** usa para listar os pets do cliente, mais 4 telas.
+
+---
+
+## 1d. Padronizacao visual — aba de UX (comecou em 19/09/2026)
+
+Aba propria, separada da reforma das vendas: padronizar mexe em 135 telas, e cada aba precisa
+da sua rota. A pauta de abertura, com o retrato medido e as 9 diretrizes aprovadas pela Cintia,
+esta em https://claude.ai/artifact/5pTL3wSsGWLSx7YK4pfCpk
+
+**Regra de convivencia:** enquanto a reforma das vendas nao terminar, as telas de venda tem dono
+(ponto-de-venda, caixa, consulta-vendas, configuracoes-vendas, `components/caixa`,
+`components/vendas`, `PetComandaRail`). A aba de UX padroniza as outras e volta nessas no fim.
+A tela modelo e a **Academia** (`components/academia/Academia.tsx`).
+
+Os tres numeros que dizem se esta funcionando estao travados em `lib/padrao-visual.spec.ts`.
+Eles podem CAIR, nunca subir:
+
+| Medida | 19/09/2026 | Alvo |
+|---|---|---|
+| Telas que dao a propria margem | 106 | 0 (a moldura da) |
+| Cores escritas a mao | 10.144 | as poucas da casa, com nome |
+| Tamanhos de letra | 27 | 5 |
+
+- [x] **Bloco 1 — o arquivo de regras.** `lib/ui/estilo.ts` (cores, letras, cantos, espacos) +
+  as mesmas em `styles/globals.css` como classe do Tailwind + as pecas `Abas`, `Cartao` e
+  `Botao` em `lib/ui/` + a catraca `lib/padrao-visual.spec.ts`. A aba sublinhada saiu de dentro
+  da Academia para `lib/ui/Abas.tsx`, sem mudar um pixel. **Nenhuma tela mudou de aparencia.**
+  O `CLAUDE.md` IV.7 foi reescrito no mesmo commit: ele mandava `rounded-2xl` e largura cheia,
+  o contrario do que ficou decidido — manual que manda desfazer a padronizacao e pior que
+  manual nenhum.
+- [ ] **Bloco 2 — a margem vem da moldura.** Por a margem de 24px (16px no celular) em
+  `app/(user)/dashboard/layout.tsx` e tirar das telas. E a mudanca com mais efeito e menos
+  risco: arruma as 135 de uma vez. Desenhar antes; publicar com o OK da Cintia.
+- [ ] **Bloco 3 — pilula vira aba** nas 13 telas que ainda usam pilula, com `lib/ui/Abas.tsx`.
+- [ ] **Bloco 4 — cartao e botao unicos**, tela a tela, comecando pelas da recepcao.
+- [ ] **Bloco 5 — recolher a familia azul** (~15 telas de gradiente que sobraram do comeco).
+- [ ] **Bloco 6 — tirar os titulos repetidos** das 11 telas que tem dois.
+- [ ] **Por ultimo, e so depois da reforma das vendas:** os botoes de dinheiro. Tem teste
+  conferindo o nome e a maquete da Academia mostrando ele; se mudarem, mudam no mesmo dia que
+  o material e os testes.
 
 ---
 
