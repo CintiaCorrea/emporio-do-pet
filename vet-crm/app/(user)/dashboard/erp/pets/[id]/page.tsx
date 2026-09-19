@@ -1,5 +1,6 @@
 "use client";
 import { confirmDelete } from "@/lib/ui/confirmDelete";
+import { Abas } from "@/lib/ui/Abas";
 /* ─────────────────────────────────────────────────────────────
    EMPÓRIO DO PET · versão Cintia + Claude (Cowork)   [EMP-COWORK]
    Tela........: Ficha do Pet  (pets/[id])
@@ -2259,14 +2260,16 @@ export default function PetDetailPage() {
       {mainTab === "PRONTUARIO" && (
       <div className="mb-3 bg-white border border-[#E8E2D6] rounded-[13px] overflow-hidden">
         {/* header discreto: título + seletor pequeno de visão (sem 3 sub-abas destacadas) */}
-        <div className="flex items-center justify-between border-b border-[#F0EBE0] gap-2 flex-wrap" style={{ padding: "11px 14px" }}>
+        <div className="flex items-center justify-between border-b border-[#F0EBE0] gap-2 flex-wrap" style={{ padding: "11px 14px 12px" }}>
           <h3 className="text-[13px] text-[#014D5E] font-medium flex items-center gap-1.5">🩺 Prontuário</h3>
-          <div className="flex gap-1.5">
-            {([["HISTORICO", "Histórico"], ["TIMELINE", "Linha do tempo"], ["EXAMES", "🔬 Exames"]] as [string, string][]).map(([k, l]) => {
-              const active = k === "HISTORICO" ? (tab === "HISTORICO" || !["TIMELINE", "EXAMES"].includes(tab)) : tab === k;
-              return <button key={k} onClick={() => setTab(k as any)} className="text-[11.5px] font-medium px-3 py-1 rounded-full transition" style={active ? { background: "#009AAC", color: "#fff" } : { background: "#F1EFE8", color: "#5C6B70" }}>{l}</button>;
-            })}
-          </div>
+          {/* ABA SUBLINHADA, nao pilula (19/09/2026, Bloco 3). Mesmos nomes, mesma ordem, mesmo
+              lugar — muda so o desenho. Esta tela tinha os DOIS estilos ao mesmo tempo: 8 abas
+              sublinhadas em cima e 3 pilulas aqui dentro. */}
+          <Abas
+            opcoes={[["HISTORICO", "Histórico"], ["TIMELINE", "Linha do tempo"], ["EXAMES", "🔬 Exames"]]}
+            valor={["TIMELINE", "EXAMES"].includes(tab) ? tab : "HISTORICO"}
+            aoTrocar={(k) => setTab(k as any)}
+          />
         </div>
         {(tab === "HISTORICO" || !["TIMELINE", "EXAMES"].includes(tab)) && (
           <div className="p-5">

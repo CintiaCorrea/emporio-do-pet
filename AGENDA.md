@@ -413,7 +413,18 @@ telas nao davam margem alguma: o conteudo encostava na borda.
   As 10 que sobram, de proposito: 2 sao das telas com dono (a moldura nao encosta nelas) e 8
   tem margem de um lado so ou nao sao a raiz de verdade — estado de "carregando", de "nao
   encontrado", modal. Essas pedem olho, nao automatico.
-- [ ] **Bloco 3 — pilula vira aba** nas 13 telas que ainda usam pilula, com `lib/ui/Abas.tsx`.
+- [x] **Bloco 3 — pilula vira aba.** A pauta dizia 13 telas; olhando uma a uma, eram **3**:
+  a ficha do pet (as 3 pilulas dentro do Prontuario), a Escala e os Modelos. Todas usam agora
+  `lib/ui/Abas.tsx`. Guardado por `lib/pilula-virou-aba.spec.ts`.
+  **As outras 10 nao eram pilula de navegacao:** ficha do cliente e painel do Inbox JA eram aba
+  sublinhada (com cor e tamanho proprios — o Bloco 4 uniformiza); calendario clinico e conexoes
+  de IA usam cartao com numero e icone que filtra a lista; financeiro de terceiros e seletor de
+  periodo; agenda escolhe a VISAO (dia/semana/mes), que nao e secao; internacoes e modelos de
+  e-mail eram botao de pre-visualizacao que o levantamento confundiu com aba.
+  Licao: contar pelo FORMATO do botao exagera o problema; vale o que o botao faz.
+  **DECISAO (Cintia, 19/09):** a ficha do pet mantem as 8 abas de cima, apesar da regra do menu
+  lateral valer de 5 em diante. Ja sao abas, funcionam, e e a tela que a recepcao mais abre.
+  **Faltam 2, com dono:** `configuracoes-vendas` e `components/vendas/config/ModelosDeOrcamento.tsx`.
 - [ ] **Bloco 4 — cartao e botao unicos**, tela a tela, comecando pelas da recepcao.
 - [ ] **Bloco 5 — recolher a familia azul** (~15 telas de gradiente que sobraram do comeco).
 - [ ] **Bloco 6 — tirar os titulos repetidos** das 11 telas que tem dois.

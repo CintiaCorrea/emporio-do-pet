@@ -6,6 +6,7 @@
 // Base44, largura cheia. Guarda tudo em /api/listas (sem tocar no schema) + /api/profissionais.
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Abas } from "@/lib/ui/Abas";
 import toast from "react-hot-toast";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import EscalaEditor, { parseEsc, type Esc } from "@/components/agendamentos/EscalaEditor";
@@ -174,14 +175,10 @@ export default function EscalaPage() {
   return (
     <div className="w-full">
       {/* Abas */}
-      <div className="flex gap-1 mb-5 flex-wrap">
-        {TABS.map((t) => (
-          <button key={t.v} onClick={() => setTab(t.v)}
-            className="px-4 py-2 rounded-lg text-[13px] font-medium transition"
-            style={tab === t.v ? { background: "#009AAC", color: "#fff" } : { background: "#fff", color: "#5C6B70", border: "1px solid #E8E2D6" }}>
-            {t.label}
-          </button>
-        ))}
+      {/* ABA SUBLINHADA, nao pilula (19/09/2026, Bloco 3). Mesmos nomes, mesma ordem,
+          mesmo lugar — muda so o desenho do botao. */}
+      <div className="flex border-b pb-3 mb-5" style={{ borderColor: "#E8DFC8" }}>
+        <Abas opcoes={TABS.map((t) => [t.v, t.label] as [string, string])} valor={tab} aoTrocar={(v) => setTab(v as any)} />
       </div>
 
       {/* ───────── ABA 1: ESCALA DE TRABALHO ───────── */}

@@ -3,6 +3,7 @@
 // Junta as 3 telas antigas (que agora redirecionam pra cá). Orçamento/Demonstrativo
 // seguem em Vendas (são de venda). Cada aba edita/cria/exclui seus modelos.
 import { useEffect, useState } from "react";
+import { Abas } from "@/lib/ui/Abas";
 import { usePageTitle } from "@/lib/ui/PageHeaderContext";
 import ModelosTextoTab from "@/components/documentos/ModelosTextoTab";
 import ModelosBoletimTab from "@/components/documentos/ModelosBoletimTab";
@@ -27,14 +28,10 @@ export default function ModelosPage() {
 
   return (
     <div className="w-full">
-      <div className="flex gap-1 mb-4 flex-wrap">
-        {ABAS.map((a) => (
-          <button key={a.v} onClick={() => setAba(a.v)}
-            className="px-4 py-2 rounded-lg text-[13px] font-medium transition"
-            style={aba === a.v ? { background: "#009AAC", color: "#fff" } : { background: "#fff", color: "#5C6B70", border: "1px solid #E8E2D6" }}>
-            {a.label}
-          </button>
-        ))}
+      {/* ABA SUBLINHADA, nao pilula (19/09/2026, Bloco 3). Mesmos nomes, mesma ordem,
+          mesmo lugar — muda so o desenho do botao. */}
+      <div className="flex border-b pb-3 mb-4" style={{ borderColor: "#E8DFC8" }}>
+        <Abas opcoes={ABAS.map((a) => [a.v, a.label] as [string, string])} valor={aba} aoTrocar={(v) => setAba(v as any)} />
       </div>
 
       {aba === "receita" && <ModelosTextoTab lista="receita_modelo" tipo="receita" />}
