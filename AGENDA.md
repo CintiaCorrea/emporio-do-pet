@@ -381,9 +381,15 @@ Eles podem CAIR, nunca subir:
 
 | Medida | 19/09/2026 | Alvo |
 |---|---|---|
-| Telas que dao a propria margem | 106 | 0 (a moldura da) |
+| Arquivos de tela que escrevem margem | 106 | 0 |
+| Telas que dao a propria margem NA RAIZ | 60 | 0 (a moldura da) |
 | Cores escritas a mao | 10.144 | as poucas da casa, com nome |
 | Tamanhos de letra | 27 | 5 |
+
+O primeiro numero (106) e uma medida larga: conta arquivo que menciona margem em
+qualquer lugar. O segundo (60) e o que interessa — a margem da BORDA da tela, lida na
+raiz do que cada tela devolve. Das 60, 56 nao pintam fundo nenhum na raiz. Outras 75
+telas nao davam margem alguma: o conteudo encostava na borda.
 
 - [x] **Bloco 1 — o arquivo de regras.** `lib/ui/estilo.ts` (cores, letras, cantos, espacos) +
   as mesmas em `styles/globals.css` como classe do Tailwind + as pecas `Abas`, `Cartao` e
@@ -392,9 +398,19 @@ Eles podem CAIR, nunca subir:
   O `CLAUDE.md` IV.7 foi reescrito no mesmo commit: ele mandava `rounded-2xl` e largura cheia,
   o contrario do que ficou decidido — manual que manda desfazer a padronizacao e pior que
   manual nenhum.
-- [ ] **Bloco 2 — a margem vem da moldura.** Por a margem de 24px (16px no celular) em
-  `app/(user)/dashboard/layout.tsx` e tirar das telas. E a mudanca com mais efeito e menos
-  risco: arruma as 135 de uma vez. Desenhar antes; publicar com o OK da Cintia.
+- [x] **Bloco 2 — a margem vem da moldura.** A regra esta em `styles/globals.css`
+  (`.dash-main:not([data-margem="da-tela"]) > *`): 24px no computador, 16px no celular.
+  A margem e dada ao elemento DA TELA, nao ao `<main>` — 31 telas pintam o proprio fundo na
+  raiz, e pelo `<main>` o fundo delas ficaria encolhido, com uma tarja em volta.
+  A regra ganha da classe escrita na tela, entao ja vale nas 60 que tem a sua.
+  EXCECAO (decisao da Cintia, 19/09): a moldura nao encosta nas quatro telas da reforma das
+  vendas (ponto-de-venda, caixa, consulta-vendas, configuracoes-vendas) — elas tem dono ate a
+  reforma terminar, e ficam exatamente como estao. **Quando a reforma acabar, apagar a lista
+  `TELAS_DA_REFORMA_DE_VENDAS` do layout.** Guardado por `lib/margem-da-moldura.spec.ts`.
+- [ ] **Bloco 2b — as 56 telas devolvem a margem delas.** Limpeza: hoje a regra da moldura ja
+  ganha da classe escrita na tela, entao tirar o `p-6`/`p-4` da raiz nao muda um pixel. Serve
+  para o codigo dizer a verdade e para os dois numeros acima cairem. 56 arquivos, uma linha
+  cada.
 - [ ] **Bloco 3 — pilula vira aba** nas 13 telas que ainda usam pilula, com `lib/ui/Abas.tsx`.
 - [ ] **Bloco 4 — cartao e botao unicos**, tela a tela, comecando pelas da recepcao.
 - [ ] **Bloco 5 — recolher a familia azul** (~15 telas de gradiente que sobraram do comeco).

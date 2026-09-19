@@ -211,6 +211,32 @@ body {
   color: #2C2C2A;
 }
 
+/* A MARGEM DA BORDA DA TELA VEM DAQUI (19/09/2026 — Bloco 2 da padronizacao).
+   Diretriz 1: 24px no computador, 16px no celular, iguais em todas as telas.
+
+   POR QUE EXISTE: medido em 18/09 — 60 telas escreviam a propria margem (p-6 em 41,
+   p-4 em 19, e depois p-8, p-10, p-12, px-3, py-20, cada uma numa tela so) e 75 nao
+   davam margem nenhuma, encostando o conteudo na borda. Trocando de tela, o conteudo
+   pulava. A moldura nao dava margem: cada tela inventava a sua, e nada obrigava.
+
+   POR QUE NO FILHO, E NAO NO PROPRIO .dash-main: 31 telas pintam o proprio fundo na
+   raiz (bege da casa, branco, gradiente). Se a margem fosse do <main>, o fundo delas
+   ficaria encolhido, com uma tarja em volta. Dando a margem ao elemento DA TELA, o
+   fundo dela continua de ponta a ponta e so o conteudo entra — que e o que se quer.
+
+   Esta regra ganha da classe escrita na tela (p-6, p-4...), entao ela vale mesmo onde
+   a tela ainda tem a sua; as telas devolvem a delas no bloco seguinte, so para o codigo
+   dizer a verdade. */
+.dash-main:not([data-margem="da-tela"]) > * {
+  padding: var(--emp-margem-celular);
+}
+
+@media (min-width: 768px) {
+  .dash-main:not([data-margem="da-tela"]) > * {
+    padding: var(--emp-margem);
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /* Scrollbars (Sidebar + pages)                                               */
 /* -------------------------------------------------------------------------- */

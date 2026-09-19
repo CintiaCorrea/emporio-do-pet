@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Sidebar from '@/components/protected/dashboard/Sidebar';
 import Header from '@/components/protected/dashboard/Header';
@@ -20,11 +21,26 @@ import PushSetup from '@/components/protected/dashboard/PushSetup';
 // nunca ficar com a tela velha e cobrar o preço antigo. 17/09/2026.
 import AvisoDeAtualizacao from '@/components/protected/dashboard/AvisoDeAtualizacao';
 
+// AS TELAS QUE AINDA DAO A PROPRIA MARGEM — a excecao, e o dia em que ela morre.
+// Enquanto a reforma das vendas nao terminar, estas quatro telas tem dono: mexer nelas por
+// fora desfaz correcao testada, que e o risco que mais custa caro (pauta de 18/09/2026).
+// Elas ficam exatamente como estao hoje; a moldura nao encosta.
+// QUANDO A REFORMA DAS VENDAS TERMINAR: apagar esta lista inteira e o data-margem abaixo.
+// O teste lib/margem-da-moldura.spec.ts guarda isso.
+const TELAS_DA_REFORMA_DE_VENDAS = [
+  '/dashboard/erp/ponto-de-venda',
+  '/dashboard/erp/caixa',
+  '/dashboard/erp/consulta-vendas',
+  '/dashboard/erp/configuracoes-vendas',
+];
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true); // desktop: menu expandido/recolhido
   const [mobileOpen, setMobileOpen] = useState(false);  // celular: gaveta aberta/fechada
   const [isMobile, setIsMobile] = useState(false);
   const toggleSidebar = () => setSidebarOpen((v) => !v);
+  const rota = usePathname() || '';
+  const daPropriaMargem = TELAS_DA_REFORMA_DE_VENDAS.some((r) => rota === r || rota.startsWith(r + '/'));
   const { data: session } = useSession();
   const realRole = session?.user?.role;
 
@@ -81,6 +97,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <main
             className="dash-main min-h-screen transition-all duration-200 pt-16"
             style={{ marginLeft: isMobile ? 0 : (sidebarOpen ? 252 : 64) }}
+            /* A MARGEM DA BORDA DA TELA (24px, 16 no celular) vem da moldura desde 19/09/2026,
+               em styles/globals.css. Com data-margem="da-tela", a moldura nao encosta — e o
+               caso das quatro telas da reforma das vendas, que tem dono ate ela terminar. */
+            data-margem={daPropriaMargem ? 'da-tela' : undefined}
           >
             {children}
           </main>
